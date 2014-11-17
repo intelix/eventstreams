@@ -93,7 +93,6 @@ class AgentControllerActor(implicit config: Config)
 
   private def sendToHQAll() = {
     sendToHQ(info)
-
     sendToHQ(snapshot)
   }
 
