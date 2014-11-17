@@ -25,21 +25,26 @@ import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
 import akka.util.ByteString
-import common.actors.{Acknowledged, ActorWithComposableBehavior}
-import common.{BecomeActive, BecomePassive}
+import common.actors.{Acknowledged, ActorWithComposableBehavior, PipelineWithStatesActor}
+import common.{BecomeActive, BecomePassive, Stop}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
 
-object DataSourceActor {
-  def props(dsId: Long, config: JsValue, state: Option[JsValue])(implicit mat: FlowMaterializer, system: ActorSystem) = Props(new DataSourceActor(dsId, config, state))
+object DatasourceActor {
+  def props(dsId: Long)(implicit mat: FlowMaterializer, system: ActorSystem) = Props(new DatasourceActor(dsId))
 }
 
 
-case class DataSourceStateUpdate(id: Long, state: JsValue)
-case class DataSourceConfigUpdate(id: Long, config: JsValue)
+case class DatasourceStateUpdate(id: Long, state: JsValue)
 
-class DataSourceActor(dsId: Long, config: JsValue, state: Option[JsValue])(implicit mat: FlowMaterializer) extends ActorWithComposableBehavior {
+case class DatasourceConfigUpdate(id: Long, config: JsValue)
+
+case class InitialiseWith(config: JsValue, state: Option[JsValue])
+
+class DatasourceActor(dsId: Long)(implicit mat: FlowMaterializer)
+  extends ActorWithComposableBehavior
+  with PipelineWithStatesActor {
 
   type In = ProducedMessage[ByteString, Cursor]
   type Out = ProducedMessage[MessageWithAttachments[ByteString], Cursor]
@@ -48,10 +53,23 @@ class DataSourceActor(dsId: Long, config: JsValue, state: Option[JsValue])(impli
   private var flow: Option[FlowInstance] = None
   private var cursor2config: Option[Cursor => Option[JsValue]] = None
 
+  private var currentConfig: Option[JsValue] = None
+  private var currentState: Option[JsValue] = None
+
   override def preStart(): Unit = {
     super.preStart()
-    createFlowFromConfig()
-    switchToCustomBehavior(suspended)
+  }
+
+
+
+  override def becomeActive(): Unit = {
+    startFlow()
+    super.becomeActive()
+  }
+
+  override def becomePassive(): Unit = {
+    stopFlow()
+    super.becomePassive()
   }
 
   override def commonBehavior: Receive = super.commonBehavior orElse {
@@ -60,14 +78,21 @@ class DataSourceActor(dsId: Long, config: JsValue, state: Option[JsValue])(impli
         for (
           func <- cursor2config;
           config <- func(c)
-        ) context.parent ! DataSourceStateUpdate(id, config)
+        ) {
+          currentState = Some(config)
+          context.parent ! DatasourceStateUpdate(id, config)
+        }
     }
     case CommunicationProxyRef(ref) =>
       commProxy = Some(ref)
       sendToHQAll()
+    case ReconfigureTap(data) =>
+      self ! InitialiseWith(data, currentState)
+    case InitialiseWith(c, s) =>
+      createFlowFromConfig(c, s)
   }
 
-  private def createFlowFromConfig(): Unit = {
+  private def createFlowFromConfig(config: JsValue, state: Option[JsValue]): Unit = {
 
     import play.api.libs.json.Reads._
     import play.api.libs.json._
@@ -77,6 +102,16 @@ class DataSourceActor(dsId: Long, config: JsValue, state: Option[JsValue])(impli
     implicit val dispatcher = context.system.dispatcher
     implicit val mat = FlowMaterializer()
 
+    flow.foreach { v =>
+      v.source ! BecomePassive()
+      v.source ! Stop(Some("Applying new configuration"))
+      v.sink ! Stop(Some("Applying new configuration"))
+    }
+
+    flow = None
+
+    currentConfig = Some(config)
+    currentState = state
 
     def buildProcessorFlow(props: JsValue): Flow[In, Out] = {
       val convert = Flow[In].map {
@@ -185,6 +220,7 @@ class DataSourceActor(dsId: Long, config: JsValue, state: Option[JsValue])(impli
 
     flow = Some(FlowInstance(materializedFlow, publisherActor, sinkActor))
 
+    if (isPipelineActive) startFlow()
   }
 
   private def startFlow(): Unit = {
@@ -219,18 +255,8 @@ class DataSourceActor(dsId: Long, config: JsValue, state: Option[JsValue])(impli
     }
   }
 
-  private def suspended: Receive = {
-    case OpenTap() =>
-      startFlow()
-      switchToCustomBehavior(started)
-  }
-
-  private def started: Receive = {
-    case CloseTap() =>
-      stopFlow()
-      switchToCustomBehavior(suspended)
-  }
-
-  case class FlowInstance(flow: MaterializedMap, source: ActorRef, sink: ActorRef)
 
 }
+
+case class FlowInstance(flow: MaterializedMap, source: ActorRef, sink: ActorRef)
+

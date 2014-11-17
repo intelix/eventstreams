@@ -16,7 +16,7 @@
 
 package agent.controller
 
-import agent.controller.flow.{DataSourceConfigUpdate, DataSourceActor, DataSourceStateUpdate}
+import agent.controller.flow.{InitialiseWith, DatasourceConfigUpdate, DatasourceActor, DatasourceStateUpdate}
 import agent.controller.storage._
 import agent.shared._
 import akka.actor.{ActorRef, Props}
@@ -63,7 +63,9 @@ class AgentControllerActor(implicit config: Config)
       context.stop(actor)
     }
     logger.info(s"Creating a new actor for tap $tapId")
-    tapActors += (tapId -> context.actorOf(DataSourceActor.props(tapId, Json.parse(config), maybeState.map(Json.parse)), actorId))
+    val actor = context.actorOf(DatasourceActor.props(tapId, Json.parse(config), maybeState.map(Json.parse)), actorId)
+    actor ! InitialiseWith(Json.parse(config), maybeState.map(Json.parse))
+    tapActors += (tapId -> actor)
     sendToHQ(snapshot)
   }
 
@@ -148,10 +150,10 @@ class AgentControllerActor(implicit config: Config)
       logger.info("Creating tap " + tapId)
       storage ! StoreDatasourceInstance(TapInstance(tapId, cfgAsStr, None))
       createActor(tapId, cfgAsStr, None)
-    case DataSourceStateUpdate(id, state) =>
+    case DatasourceStateUpdate(id, state) =>
       logger.info(s"Tap state update: id=$id state=$state")
       storage ! StoreDatasourceState(TapState(id, Some(Json.stringify(state))))
-    case DataSourceConfigUpdate(id, newConfig, newState) =>
+    case DatasourceConfigUpdate(id, newConfig, newState) =>
       logger.info(s"Tap config update: id=$id config=$newConfig state=$newState")
       storage ! StoreDatasourceConfig(TapConfig(id, Json.stringify(newConfig)))
   }

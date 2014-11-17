@@ -82,7 +82,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
         self ! PoisonPill
       }
     case StartTapProxy(id, tapRef) =>
-      if (!activeTaps.contains(id)) activeTaps = activeTaps + (id -> TapProxyActor.start(key / id, tapRef))
+      if (!activeTaps.contains(id)) activeTaps = activeTaps + (id -> DatasourceProxyActor.start(key / id, tapRef))
 
   }
 
