@@ -63,7 +63,7 @@ class AgentControllerActor(implicit config: Config)
       context.stop(actor)
     }
     logger.info(s"Creating a new actor for tap $tapId")
-    val actor = context.actorOf(DatasourceActor.props(tapId, Json.parse(config), maybeState.map(Json.parse)), actorId)
+    val actor = context.actorOf(DatasourceActor.props(tapId), actorId)
     actor ! InitialiseWith(Json.parse(config), maybeState.map(Json.parse))
     tapActors += (tapId -> actor)
     sendToHQ(snapshot)
@@ -153,8 +153,8 @@ class AgentControllerActor(implicit config: Config)
     case DatasourceStateUpdate(id, state) =>
       logger.info(s"Tap state update: id=$id state=$state")
       storage ! StoreDatasourceState(TapState(id, Some(Json.stringify(state))))
-    case DatasourceConfigUpdate(id, newConfig, newState) =>
-      logger.info(s"Tap config update: id=$id config=$newConfig state=$newState")
+    case DatasourceConfigUpdate(id, newConfig) =>
+      logger.info(s"Tap config update: id=$id config=$newConfig")
       storage ! StoreDatasourceConfig(TapConfig(id, Json.stringify(newConfig)))
   }
 

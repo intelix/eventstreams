@@ -49,8 +49,6 @@ define(['react', 'coreMixin', 'sendOnlyMixin'], function (React, coreMixin, send
 
             var config = JSON.stringify(this.props.info.config);
 
-            alert(config);
-
             return (
                 <div>
                     <button type="button" className={"btn btn-primary btn-sm " + buttonClasses} data-toggle="modal" data-target="#editFlowModal" >

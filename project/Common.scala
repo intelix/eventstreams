@@ -60,6 +60,10 @@ object Common {
     "org.webjars" % "requirejs-text" % "2.0.10-1",
     "org.webjars" % "react" % "0.12.0",
     "org.webjars" % "toastr" % "2.1.0",
-    "org.scalaz" %% "scalaz-core" % "7.1.0"
+    "org.scalaz" %% "scalaz-core" % "7.1.0",
+    "com.sksamuel.elastic4s" %% "elastic4s" % "1.4.0",
+    "org.apache.lucene" % "lucene-core" % "4.10.2",
+    "org.apache.lucene" % "lucene-expressions" % "4.10.2"
+
   )
 }

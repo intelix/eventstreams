@@ -74,7 +74,9 @@ object Builder extends StrictLogging {
       EnrichProcessorBuilder,
       GrokProcessorBuilder,
       LogProcessorBuilder,
-      DropProcessorBuilder
+      DropProcessorBuilder,
+      SplitProcessorBuilder,
+      DateProcessorBuilder
     )
     for (
       instClass <- config ~> 'class \/> Fail("Invalid instruction config: missing 'class' value");
