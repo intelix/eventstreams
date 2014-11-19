@@ -2,6 +2,8 @@ logLevel := Level.Info
 
 resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/"
 
+resolvers += "Apache repo"   at "https://repository.apache.org/content/repositories/releases"
+
 resolvers += Resolver.url(
   "bintray-sbt-plugin-releases",
   url("http://dl.bintray.com/content/sbt/sbt-plugin-releases"))(

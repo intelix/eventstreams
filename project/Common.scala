@@ -34,6 +34,7 @@ object Common {
   )
 
   val commonDependencies = Seq(
+    ws,
     "com.googlecode.scalascriptengine" %% "scalascriptengine" % "1.3.10",
     "org.scala-lang" % "scala-compiler" % "2.11.1",
     "org.codehaus.groovy" % "groovy-all" % "2.3.6",
@@ -62,7 +63,8 @@ object Common {
     "org.webjars" % "react" % "0.12.0",
     "org.webjars" % "toastr" % "2.1.0",
     "org.scalaz" %% "scalaz-core" % "7.1.0",
-    "com.sksamuel.elastic4s" %% "elastic4s" % "1.3.3"
+    "com.sksamuel.elastic4s" %% "elastic4s" % "1.3.3",
+    "com.ning" % "async-http-client" % "1.0.0"
 
   )
 }

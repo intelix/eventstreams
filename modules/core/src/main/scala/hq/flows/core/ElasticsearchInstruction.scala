@@ -40,8 +40,8 @@ private[core] object ElasticsearchInstruction extends BuilderFromConfig[Instruct
 
   override def build(props: JsValue, maybeData: Option[Condition]): \/[Fail, InstructionType] =
     for (
-      index <- props ~> 'index \/> Fail(s"Invalid elasticsearch instruction configuration. Missing 'name' value. Contents: ${Json.stringify(props)}")
-    ) yield GateInstructionActor.props(index, props)
+      index <- props ~> 'index \/> Fail(s"Invalid elasticsearch instruction configuration. Missing 'index' value. Contents: ${Json.stringify(props)}")
+    ) yield ElasticsearchInstructionActor.props(index, props)
 
 }
 

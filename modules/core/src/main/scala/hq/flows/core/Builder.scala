@@ -64,7 +64,8 @@ object Builder extends StrictLogging {
       SplitInstruction,
       DateInstruction,
       GateInstruction,
-      ElasticsearchInstruction
+      ElasticsearchInstruction,
+      InfluxInstruction
     )
     for (
       instClass <- config ~> 'class \/> Fail("Invalid instruction config: missing 'class' value");
