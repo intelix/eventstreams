@@ -16,17 +16,14 @@
 
 package hq.flows.core
 
-import com.typesafe.scalalogging.StrictLogging
-import common.{JsonFrame, Fail}
-import hq.flows.core.Builder.InstructionType
+import common.{Fail, JsonFrame}
+import hq.flows.core.Builder.SimpleInstructionType
 import play.api.libs.json.JsValue
 
 import scalaz._
 
-private[core] object DropProcessorBuilder extends BuilderFromConfig[InstructionType] with StrictLogging {
+private[core] object DropInstruction extends SimpleInstructionBuilder {
   val configId = "drop"
-
-  override def build(props: JsValue): \/[Fail, InstructionType] = \/- { frame: JsonFrame => List() }
-
-
+  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] = \/- { frame: JsonFrame => List() }
 }
+

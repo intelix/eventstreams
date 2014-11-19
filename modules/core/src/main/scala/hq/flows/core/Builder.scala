@@ -17,31 +17,29 @@
 package hq.flows.core
 
 import akka.actor.{ActorRefFactory, Props}
-import akka.stream.scaladsl._
 import com.typesafe.scalalogging.StrictLogging
 import common.ToolExt._
 import common.{Fail, JsonFrame}
 import play.api.libs.json.JsValue
 
 import scalaz.Scalaz._
-import scalaz.{-\/, \/, \/-}
+import scalaz.{\/, \/-}
 
-case class FlowComponents(tap: Props, pipeline: Flow[JsonFrame, JsonFrame], sink: Props)
+case class FlowComponents(tap: Props, pipeline: Seq[Props], sink: Props)
 
 object Builder extends StrictLogging {
 
   type TapActorPropsType = Props
   type SinkActorPropsType = Props
-  type InstructionType = (JsonFrame) => scala.collection.immutable.Seq[JsonFrame]
-  type ProcessorFlowType = Flow[JsonFrame, JsonFrame]
+  type InstructionType = Props
+  type SimpleInstructionType = (JsonFrame) => scala.collection.immutable.Seq[JsonFrame]
 
 
   def apply()(implicit config: JsValue, f: ActorRefFactory): \/[Fail, FlowComponents] =
     for (
       tap <- buildTap;
-      pipeline <- buildProcessingPipeline;
-      sink <- buildSink
-    ) yield FlowComponents(tap, pipeline, sink)
+      pipeline <- buildProcessingPipeline
+    ) yield FlowComponents(tap, pipeline, BlackholeAutoAckSinkActor.props)
 
 
   def buildTap(implicit config: JsValue, f: ActorRefFactory): \/[Fail, TapActorPropsType] = {
@@ -52,59 +50,40 @@ object Builder extends StrictLogging {
       inputProps <- input #> 'props \/> Fail("Invalid input config: missing 'props' branch");
       builder <- allBuilders.find(_.configId == inputClass)
         \/> Fail(s"Unsupported or invalid input class $inputClass. Supported classes: ${allBuilders.map(_.configId)}");
-      tap <- builder.build(inputProps)
+      tap <- builder.build(inputProps, None)
     ) yield tap
 
   }
 
-  def buildSink(implicit config: JsValue, f: ActorRefFactory): \/[Fail, SinkActorPropsType] = {
-    val allBuilders = Seq(BlackHoleSinkBuilder, GateSinkBuilder)
-    for (
-      sink <- config #> 'sink \/> Fail("Invalid config: missing 'sink' branch");
-      sinkClass <- sink ~> 'class \/> Fail("Invalid sink config: missing 'class' value");
-      sinkProps <- sink #> 'props \/> Fail("Invalid sink config: missing 'props' branch");
-      builder <- allBuilders.find(_.configId == sinkClass)
-        \/> Fail(s"Unsupported or invalid sink class $sinkClass. Supported classes: ${allBuilders.map(_.configId)}");
-      sink <- builder.build(sinkProps)
-    ) yield sink
-  }
-
   def buildInstruction(implicit config: JsValue): \/[Fail, InstructionType] = {
     val allBuilders = Seq(
-      EnrichProcessorBuilder,
-      GrokProcessorBuilder,
-      LogProcessorBuilder,
-      DropProcessorBuilder,
-      SplitProcessorBuilder,
-      DateProcessorBuilder
+      EnrichInstruction,
+      GrokInstruction,
+      LogInstruction,
+      DropInstruction,
+      SplitInstruction,
+      DateInstruction,
+      GateInstruction,
+      ElasticsearchInstruction
     )
     for (
       instClass <- config ~> 'class \/> Fail("Invalid instruction config: missing 'class' value");
       instProps <- config #> 'props \/> Fail("Invalid instruction config: missing 'props' branch");
       builder <- allBuilders.find(_.configId == instClass)
         \/> Fail(s"Unsupported or invalid instruction class $instClass. Supported classes: ${allBuilders.map(_.configId)}");
-      instr <- builder.build(instProps)
+      condition <- Condition(config #> 'condition);
+      instr <- builder.build(instProps, Some(condition))
     ) yield instr
   }
 
-  def buildProcessingPipeline(implicit config: JsValue): \/[Fail, ProcessorFlowType] =
+  def buildProcessingPipeline(implicit config: JsValue): \/[Fail, Seq[InstructionType]] =
     for (
       instructions <- config ##> 'pipeline \/> Fail("Invalid pipeline config: missing 'pipeline' value");
-      folded <- instructions
-        .foldLeft[\/[Fail, ProcessorFlowType]](\/-(Flow[JsonFrame])) { (aggr, json) =>
+      folded <- instructions.foldLeft[\/[Fail, Seq[InstructionType]]](\/-(List())) { (agg, next) =>
         for (
-          flow <- aggr;
-          nextStep <- buildInstruction(json);
-          condition <- Condition(json #> 'condition)
-        ) yield flow.via(Flow[JsonFrame].mapConcat[JsonFrame] { frame =>
-          condition.metFor(frame) match {
-            case -\/(fail) =>
-              logger.debug("Condition failed: " + fail)
-              List(frame)
-            case \/-(_) =>
-              nextStep(frame)
-          }
-        })
+          list <- agg;
+          instr <- buildInstruction(next)
+        ) yield list :+ instr
       }
     ) yield folded
 

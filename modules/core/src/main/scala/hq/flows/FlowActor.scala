@@ -19,7 +19,7 @@ package hq.flows
 import akka.actor._
 import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorSubscriber, ActorPublisher}
-import akka.stream.scaladsl.{SubscriberSink, PublisherSource, Flow, MaterializedMap}
+import akka.stream.scaladsl._
 import common.ToolExt.configHelper
 import common.actors.{PipelineWithStatesActor, SingleComponentActor}
 import common._
@@ -46,6 +46,7 @@ class FlowActor(id: String, initialConfig: JsValue)
 
   private var tapActor: Option[ActorRef] = None
   private var sinkActor: Option[ActorRef] = None
+  private var flowActors: Option[Seq[ActorRef]] = None
   private var flow: Option[MaterializedMap] = None
 
   private var config = initialConfig
@@ -126,6 +127,7 @@ class FlowActor(id: String, initialConfig: JsValue)
   def closeTap() = {
     logger.debug(s"Tap closed")
     tapActor.foreach(_ ! BecomePassive())
+    flowActors.foreach(_.foreach(_ ! BecomePassive()))
   }
 
   private def terminateFlow(reason: Option[String]) = {
@@ -133,16 +135,20 @@ class FlowActor(id: String, initialConfig: JsValue)
     tapActor.foreach(_ ! Stop(reason))
     tapActor = None
     sinkActor = None
+    flowActors = None
     flow = None
   }
 
   private def openTap() = {
     logger.debug(s"Tap opened")
+    flowActors.foreach(_.foreach(_ ! BecomeActive()))
     sinkActor.foreach(_ ! BecomeActive())
     tapActor.foreach(_ ! BecomeActive())
   }
 
-  private def resetFlowWith(tapProps: Props, pipeline : Flow[JsonFrame, JsonFrame], sinkProps: Props) = {
+  private def propsToActors(list: Seq[Props]) = list map context.actorOf
+
+  private def resetFlowWith(tapProps: Props, pipeline : Seq[Props], sinkProps: Props) = {
     logger.debug(s"Resetting flow [$id]: tapProps: $tapProps, pipeline: $pipeline, sinkProps: $sinkProps")
     terminateFlow(Some("Applying new configuration"))
 
@@ -152,10 +158,23 @@ class FlowActor(id: String, initialConfig: JsValue)
     val pubSrc = PublisherSource[JsonFrame](ActorPublisher[JsonFrame](tapA))
     val subSink = SubscriberSink(ActorSubscriber[JsonFrame](sinkA))
 
-    flow = Some(pubSrc.via(pipeline).to(subSink).run())
+    val pipelineActors = propsToActors(pipeline)
+
+
+
+
+    val flowPipeline = pipelineActors.foldRight[Sink[JsonFrame]](subSink) { (actor, sink) =>
+      val s = SubscriberSink(ActorSubscriber[JsonFrame](actor))
+      val p = PublisherSource[JsonFrame](ActorPublisher[JsonFrame](actor))
+      p.to(sink).run()
+      s
+    }
+
+    flow = Some(pubSrc.to(flowPipeline).run())
 
     tapActor = Some(tapA)
     sinkActor = Some(sinkA)
+    flowActors = Some(pipelineActors)
 
     if (isPipelineActive) openTap()
   }

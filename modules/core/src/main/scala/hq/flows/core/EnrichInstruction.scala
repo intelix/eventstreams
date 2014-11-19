@@ -20,13 +20,13 @@ import agent.controller.flow.Tools._
 import com.typesafe.scalalogging.StrictLogging
 import common.{JsonFrame, Fail}
 import common.ToolExt.configHelper
-import hq.flows.core.Builder.InstructionType
+import hq.flows.core.Builder.{SimpleInstructionType, InstructionType}
 import play.api.libs.json.{JsString, JsValue, Json}
 
 import scalaz.Scalaz._
 import scalaz._
 
-private[core] object EnrichProcessorBuilder extends BuilderFromConfig[InstructionType] with StrictLogging {
+private[core] object EnrichInstruction extends SimpleInstructionBuilder {
   val configId = "enrich"
 
   def field2flow(fieldProps: JsValue): \/[Fail, JsonFrame => JsonFrame] =
@@ -82,7 +82,7 @@ private[core] object EnrichProcessorBuilder extends BuilderFromConfig[Instructio
     }
 
 
-  override def build(props: JsValue): \/[Fail, InstructionType] =
+  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
     for (
       tagsLeg <- tags2flow(props);
       fieldsLeg <- fields2flow(props)

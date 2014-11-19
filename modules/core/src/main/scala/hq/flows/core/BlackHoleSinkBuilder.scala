@@ -29,7 +29,7 @@ import scalaz.{\/, \/-}
 private[core] object BlackHoleSinkBuilder extends BuilderFromConfig[SinkActorPropsType] {
   val configId = "blackhole"
 
-  override def build(props: JsValue): \/[Fail, SinkActorPropsType] =
+  override def build(props: JsValue, maybeData: Option[Condition]): \/[Fail, SinkActorPropsType] =
     \/-(BlackholeAutoAckSinkActor.props)
 
 }

@@ -38,6 +38,7 @@ object Common {
     "org.scala-lang" % "scala-compiler" % "2.11.1",
     "org.codehaus.groovy" % "groovy-all" % "2.3.6",
     "com.typesafe.akka" %% "akka-actor" % "2.3.6",
+    "com.typesafe.akka" %% "akka-agent" % "2.3.6",
     "com.typesafe.akka" %% "akka-slf4j" % "2.3.6",
     "com.typesafe.akka" %% "akka-remote" % "2.3.6",
     "com.typesafe.akka" %% "akka-cluster" % "2.3.6",
@@ -61,9 +62,7 @@ object Common {
     "org.webjars" % "react" % "0.12.0",
     "org.webjars" % "toastr" % "2.1.0",
     "org.scalaz" %% "scalaz-core" % "7.1.0",
-    "com.sksamuel.elastic4s" %% "elastic4s" % "1.4.0",
-    "org.apache.lucene" % "lucene-core" % "4.10.2",
-    "org.apache.lucene" % "lucene-expressions" % "4.10.2"
+    "com.sksamuel.elastic4s" %% "elastic4s" % "1.3.3"
 
   )
 }

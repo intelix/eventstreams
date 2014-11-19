@@ -20,17 +20,17 @@ import agent.controller.flow.Tools._
 import com.typesafe.scalalogging.StrictLogging
 import common.{JsonFrame, Fail}
 import common.ToolExt.configHelper
-import hq.flows.core.Builder.InstructionType
+import hq.flows.core.Builder.{SimpleInstructionType, InstructionType}
 import play.api.libs.json.{JsString, JsValue, Json}
 
 import scala.util.matching.Regex
 import scalaz.Scalaz._
 import scalaz._
 
-private[core] object GrokProcessorBuilder extends BuilderFromConfig[InstructionType] with StrictLogging {
+private[core] object GrokInstruction extends SimpleInstructionBuilder {
   val configId = "grok"
 
-  override def build(props: JsValue): \/[Fail, InstructionType] =
+  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
     for (
       pattern <- props ~> 'pattern \/> Fail(s"Invalid grok instruction. Missing 'pattern' value. Contents: ${Json.stringify(props)}");
       regex = new Regex(pattern);
@@ -48,9 +48,7 @@ private[core] object GrokProcessorBuilder extends BuilderFromConfig[InstructionT
 
       valuesList <- props ~> 'values \/> Fail(s"Invalid grok instruction. Missing 'values' value. Contents: ${Json.stringify(props)}");
       values = valuesList.split(',').map(_.trim)
-    ) yield { fr: JsonFrame =>
-
-      val sourceValue = locateFieldValue(fr, macroReplacement(fr, JsString(source)))
+    ) yield {
 
       def nextField(frame: JsonFrame, fvt: ((String, String), String)): JsonFrame =
         fvt match {
@@ -74,9 +72,14 @@ private[core] object GrokProcessorBuilder extends BuilderFromConfig[InstructionT
         (fields zip values zip types)
           .foldLeft(contextToFrame(frame, rmatch))(nextField)
 
-      List(regex.findAllMatchIn(sourceValue)
-        .toSeq
-        .foldLeft(fr)(matcherToFrame))
+
+      fr: JsonFrame =>
+
+        val sourceValue = locateFieldValue(fr, macroReplacement(fr, JsString(source)))
+
+        List(regex.findAllMatchIn(sourceValue)
+          .toSeq
+          .foldLeft(fr)(matcherToFrame))
     }
 
 

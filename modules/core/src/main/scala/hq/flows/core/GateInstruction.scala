@@ -16,46 +16,45 @@
 
 package hq.flows.core
 
-import akka.actor.{Actor, ActorRef, Props}
-import akka.stream.actor.ActorSubscriberMessage.OnNext
+import akka.actor.{ActorRef, Props}
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import common.ToolExt.configHelper
 import common.actors._
-import common.{BecomeActive, Fail, JsonFrame}
-import hq.flows.core.Builder.SinkActorPropsType
+import common.{Fail, JsonFrame}
+import hq.flows.core.Builder._
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
-import scalaz.{Scalaz, \/}
+import scalaz.\/
 
-private[core] object GateSinkBuilder extends BuilderFromConfig[SinkActorPropsType] {
+private[core] object GateInstruction extends BuilderFromConfig[InstructionType] {
   val configId = "gate"
 
-  override def build(props: JsValue): \/[Fail, SinkActorPropsType] =
+  override def build(props: JsValue, maybeData: Option[Condition]): \/[Fail, InstructionType] =
     for (
-      name <- props ~> 'name \/> Fail(s"Invalid gate sink configuration. Missing 'name' value. Contents: ${Json.stringify(props)}")
-    ) yield GateSinkActor.props(name)
+      name <- props ~> 'name \/> Fail(s"Invalid gate instruction configuration. Missing 'name' value. Contents: ${Json.stringify(props)}")
+    ) yield GateInstructionActor.props(name, props)
 
 }
 
-private object GateSinkActor {
-  def props(gate: String) = Props(new GateSinkActor(gate))
+private object GateInstructionActor {
+  def props(gate: String, config: JsValue) = Props(new GateInstructionActor(gate, config))
 }
 
-private class GateSinkActor(gate: String)
-  extends PipelineWithStatesActor
-  with ShutdownableSubscriberActor
+private class GateInstructionActor(gate: String, config: JsValue)
+  extends SubscribingPublisherActor
   with ReconnectingActor
   with AtLeastOnceDeliveryActor[JsonFrame]
   with ActorWithGateStateMonitoring {
 
-  override def commonBehavior: Receive = handleOnNext orElse super.commonBehavior
+  val maxInFlight = config +> 'buffer | 96;
+  val blockingDelivery = config ?> 'blockingDelivery | true;
 
-  override def connectionEndpoint: String = "/user/gates/" +gate  // TODO do properly
+  override def connectionEndpoint: String = "/user/gates/" + gate // TODO do properly
 
 
   override def preStart(): Unit = {
-    self ! BecomeActive() // TODO !>>>> remove!!!
+    //    self ! BecomeActive() // TODO !>>>> remove!!!
     super.preStart()
   }
 
@@ -83,24 +82,23 @@ private class GateSinkActor(gate: String)
     disconnect()
   }
 
-  override def canDeliverDownstreamRightNow = isPipelineActive && connected && isGateOpen
+  override def canDeliverDownstreamRightNow = isActive && isPipelineActive && connected && isGateOpen
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
   override def fullyAcknowledged(correlationId: Long, msg: JsonFrame): Unit = {
     logger.info(s"Fully achnowledged $correlationId")
-    context.parent ! Acknowledged(correlationId, msg)
+    //    context.parent ! Acknowledged(correlationId, msg)
+    if (blockingDelivery) forwardToNext(msg)
   }
 
-
-  override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(96) {
-    override def inFlightInternally: Int = inFlightCount
+  override def execute(value: JsonFrame): Option[Seq[JsonFrame]] = {
+    deliverMessage(value)
+    if (blockingDelivery) None else Some(List(value))
   }
 
-  private def handleOnNext: Actor.Receive = {
-    case OnNext(x) => x match {
-      case m : JsonFrame => deliverMessage(m)
-      case _ => logger.warn(s"Unrecognised message at gate sink: $x")
-    }
+  override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(maxInFlight) {
+    override def inFlightInternally: Int = inFlightCount + pendingToDownstreamCount
   }
+
 }

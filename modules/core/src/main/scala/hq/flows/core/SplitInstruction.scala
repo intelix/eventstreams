@@ -20,7 +20,7 @@ import agent.controller.flow.Tools._
 import com.typesafe.scalalogging.StrictLogging
 import common.ToolExt.configHelper
 import common.{Fail, JsonFrame}
-import hq.flows.core.Builder.InstructionType
+import hq.flows.core.Builder.{SimpleInstructionType, InstructionType}
 import play.api.libs.json.{JsString, JsValue, Json}
 
 import scala.annotation.tailrec
@@ -28,10 +28,10 @@ import scala.util.matching.Regex
 import scalaz.Scalaz._
 import scalaz._
 
-private[core] object SplitProcessorBuilder extends BuilderFromConfig[InstructionType] with StrictLogging {
+private[core] object SplitInstruction extends SimpleInstructionBuilder {
   val configId = "split"
 
-  override def build(props: JsValue): \/[Fail, InstructionType] =
+  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
     for (
       id <- props ~> 'id \/> Fail(s"Invalid split instruction. Missing 'id' value. Contents: ${Json.stringify(props)}");
       source <- props ~> 'source \/> Fail(s"Invalid split instruction. Missing 'source' value. Contents: ${Json.stringify(props)}");

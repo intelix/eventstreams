@@ -19,17 +19,17 @@ package hq.flows.core
 import com.typesafe.scalalogging.Logger
 import common.{JsonFrame, Fail}
 import common.ToolExt.configHelper
-import hq.flows.core.Builder.InstructionType
+import hq.flows.core.Builder.{SimpleInstructionType, InstructionType}
 import org.slf4j.LoggerFactory
 import play.api.libs.json.JsValue
 
 import scalaz.Scalaz._
 import scalaz._
 
-private[core] object LogProcessorBuilder extends BuilderFromConfig[InstructionType] {
+private[core] object LogInstruction extends SimpleInstructionBuilder {
   val configId = "log"
 
-  override def build(props: JsValue): \/[Fail, InstructionType] = {
+  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] = {
 
     val level = props ~> 'level | "INFO"
     val loggerName = props ~> 'logger | "default"

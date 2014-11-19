@@ -22,7 +22,7 @@ import agent.controller.flow.Tools._
 import com.typesafe.scalalogging.StrictLogging
 import common.ToolExt.configHelper
 import common.{Fail, JsonFrame}
-import hq.flows.core.Builder.InstructionType
+import hq.flows.core.Builder.{SimpleInstructionType, InstructionType}
 import org.joda.time.DateTimeZone
 import org.joda.time.format.DateTimeFormat
 import play.api.libs.json.{JsNumber, JsString, JsValue, Json}
@@ -65,16 +65,16 @@ import scalaz._
  * Z       time zone offset/id          zone          -0800; -08:00; America/Los_Angeles
  *
  * '       escape for text              delimiter
- * ''      single quote                 literal       '
+ * double'      single quote                 literal       '
  *
  */
 
-private[core] object DateProcessorBuilder extends BuilderFromConfig[InstructionType] with StrictLogging {
+private[core] object DateInstruction extends SimpleInstructionBuilder {
   val configId = "date"
 
   val default = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ")
 
-  override def build(props: JsValue): \/[Fail, InstructionType] =
+  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
     for (
       id <- props ~> 'id \/> Fail(s"Invalid date instruction. Missing 'id' value. Contents: ${Json.stringify(props)}");
       source <- props ~> 'source \/> Fail(s"Invalid date instruction. Missing 'source' value. Contents: ${Json.stringify(props)}");
