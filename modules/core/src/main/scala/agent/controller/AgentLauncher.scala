@@ -16,7 +16,7 @@
 
 package agent.controller
 
-import agent.controller.storage.ConfigStorageActor
+import common.storage.ConfigStorageActor
 import akka.actor.{ActorRef, ActorSystem}
 import com.typesafe.config.ConfigFactory
 

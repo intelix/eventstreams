@@ -19,6 +19,7 @@ package hq
 import akka.actor.ActorSystem
 import akka.cluster.Cluster
 import com.typesafe.config.ConfigFactory
+import common.storage.ConfigStorageActor
 import hq.agents.AgentsManagerActor
 import hq.flows.FlowManagerActor
 import hq.gates.GateManagerActor
@@ -31,11 +32,11 @@ object HQLauncher extends App {
 
   implicit val system = ActorSystem("application", ConfigFactory.load("akka-hq.conf"))
 
-  implicit val config = ConfigFactory.load("agent.conf")
+  implicit val config = ConfigFactory.load("hq.conf")
 
   implicit val cluster = Cluster(system)
 
-
+  ConfigStorageActor.start
   MessageRouterActor.start
   GateManagerActor.start
   AgentsManagerActor.start

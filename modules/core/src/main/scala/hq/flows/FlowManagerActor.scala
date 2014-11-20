@@ -16,18 +16,15 @@
 
 package hq.flows
 
-import akka.actor.Status.Success
 import akka.actor._
 import common.Fail
 import common.ToolExt.configHelper
-import common.actors.{ActorObjWithoutConfig, ActorWithComposableBehavior, SingleComponentActor}
+import common.actors.{ActorObjWithoutConfig, ActorWithComposableBehavior, ActorWithConfigStore, SingleComponentActor}
 import hq._
-import hq.gates.{GateAvailable, GateActor}
 import play.api.libs.json.{JsValue, Json}
-import scalaz._
-import Scalaz._
 
-import scala.util.Try
+import scalaz.Scalaz._
+import scalaz._
 
 
 object FlowManagerActor extends ActorObjWithoutConfig {
@@ -40,6 +37,7 @@ case class FlowAvailable(id: ComponentKey)
 
 class FlowManagerActor
   extends ActorWithComposableBehavior
+  with ActorWithConfigStore
   with SingleComponentActor {
 
   override val key = ComponentKey("flows")
@@ -48,6 +46,9 @@ class FlowManagerActor
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
+  override def storageKey: String = "flow/"
+
+  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = startActor(Some(props), maybeState)
 
   def list = Some(Json.toJson(flows.keys.map { x => Json.obj("id" -> x.key)}.toArray))
 
@@ -56,18 +57,9 @@ class FlowManagerActor
     case T_LIST => topicUpdate(topic, list, singleTarget = Some(ref))
   }
 
-
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
-    case T_ADD => {
-      for (
-        data <- maybeData \/> Fail("Invalid payload");
-        name <- data ~>  'name \/> Fail("No name provided");
-        nonEmptyName <- if (name.isEmpty) -\/("Name is blank") else name.right;
-        config <- data #>  'config \/> Fail("Empty config")
-      ) yield (FlowActor.start(nonEmptyName, config), nonEmptyName)
-    } match {
-      case \/-((actor,name)) =>
-        context.watch(actor)
+    case T_ADD => startActor(maybeData) match {
+      case \/-((actor, name)) =>
         genericCommandSuccess(T_ADD, replyToSubj, Some(s"Flow $name successfully created"))
       case -\/(error) => genericCommandError(T_ADD, replyToSubj, s"Unable to create flow: $error")
     }
@@ -83,6 +75,18 @@ class FlowManagerActor
       }
       topicUpdate(TopicKey("list"), list)
   }
+
+  private def startActor(maybeData: Option[JsValue]) =
+    for (
+      data <- maybeData \/> Fail("Invalid payload");
+      name <- data ~> 'name \/> Fail("No name provided");
+      nonEmptyName <- if (name.isEmpty) -\/("Name is blank") else name.right;
+      config <- data #> 'config \/> Fail("Empty config")
+    ) yield {
+      val actor = FlowActor.start(nonEmptyName)
+      context.watch(actor)
+      (actor, nonEmptyName)
+    }
 
 
 }

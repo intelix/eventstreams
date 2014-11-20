@@ -43,7 +43,7 @@ object Builder extends StrictLogging {
 
 
   def buildTap(implicit config: JsValue, f: ActorRefFactory): \/[Fail, TapActorPropsType] = {
-    val allBuilders = Seq(GateInputBuilder)
+    val allBuilders = Seq(GateInputBuilder, StatsdInputBuilder)
     for (
       input <- config #> 'tap \/> Fail("Invalid config: missing 'tap' branch");
       inputClass <- input ~> 'class \/> Fail("Invalid input config: missing 'class' value");

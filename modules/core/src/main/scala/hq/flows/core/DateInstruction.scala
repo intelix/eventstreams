@@ -73,6 +73,8 @@ private[core] object DateInstruction extends SimpleInstructionBuilder {
   val configId = "date"
 
   val default = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ")
+  val default_targetFmtField = "date_fmt"
+  val default_targetTsField = "date_ts"
 
   override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
     for (
@@ -92,8 +94,8 @@ private[core] object DateInstruction extends SimpleInstructionBuilder {
         case Some(l) => targetPattern.withZone(DateTimeZone.forID(l))
         case None => targetPattern
       }
-      val targetFmtField = props ~> 'targetFmtField | "date_fmt"
-      val targetTsField = props ~> 'targetTSField | "date_ts"
+      val targetFmtField = props ~> 'targetFmtField | default_targetFmtField
+      val targetTsField = props ~> 'targetTSField | default_targetTsField
 
 
       fr: JsonFrame => {

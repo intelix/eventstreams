@@ -21,28 +21,33 @@ import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorSubscriber, ActorPublisher}
 import akka.stream.scaladsl._
 import common.ToolExt.configHelper
-import common.actors.{PipelineWithStatesActor, SingleComponentActor}
+import common.actors.{ActorWithConfigStore, PipelineWithStatesActor, SingleComponentActor}
 import common._
+import common.storage.{RemoveConfigFor, EntryConfigSnapshot, StoreSnapshot, ConfigStorageActor}
 import hq._
 import hq.flows.core.{FlowComponents, Builder}
+import play.api.data
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.{Scalaz, -\/, \/-}
 import Scalaz._
 
 object FlowActor {
-  def props(id: String, config: JsValue) = Props(new FlowActor(id, config))
+  def props(id: String) = Props(new FlowActor(id))
 
-  def start(id: String, config: JsValue)(implicit f: ActorRefFactory) = f.actorOf(props(id, config), id)
+  def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id), id)
 }
 
 
-class FlowActor(id: String, initialConfig: JsValue)
+class FlowActor(id: String)
   extends PipelineWithStatesActor
+  with ActorWithConfigStore
   with SingleComponentActor {
 
   implicit val mat = FlowMaterializer()
   implicit val dispatcher = context.system.dispatcher
+
+  val configStore = ConfigStorageActor.path
 
   private var tapActor: Option[ActorRef] = None
   private var sinkActor: Option[ActorRef] = None
@@ -88,7 +93,7 @@ class FlowActor(id: String, initialConfig: JsValue)
 
   def info = Some(Json.obj(
     "name" -> id,
-    "text" -> s"some random flow name $id",
+    "text" -> (s"$id is " + (if (flow.isDefined) "valid" else "invalid")),
     "config" -> config,
     "state" -> (if (isPipelineActive) "active" else "passive")
   ))
@@ -116,6 +121,7 @@ class FlowActor(id: String, initialConfig: JsValue)
       }
     case T_KILL =>
       terminateFlow(Some("Flow being deleted"))
+      configStore ! RemoveConfigFor("flow/"+id)
       self ! PoisonPill
     case T_EDIT =>
       for (
@@ -150,7 +156,6 @@ class FlowActor(id: String, initialConfig: JsValue)
 
   private def resetFlowWith(tapProps: Props, pipeline : Seq[Props], sinkProps: Props) = {
     logger.debug(s"Resetting flow [$id]: tapProps: $tapProps, pipeline: $pipeline, sinkProps: $sinkProps")
-    terminateFlow(Some("Applying new configuration"))
 
     val tapA = context.actorOf(tapProps)
     val sinkA = context.actorOf(sinkProps)
@@ -181,7 +186,14 @@ class FlowActor(id: String, initialConfig: JsValue)
 
   private def applyConfig(value: JsValue) = {
     config = value
-    Builder()(value, context) match {
+
+
+    configStore ! StoreSnapshot(EntryConfigSnapshot("flow/"+id, Json.stringify(config), None))
+
+    terminateFlow(Some("Applying new configuration"))
+
+    val props = config #> 'config | Json.obj()
+    Builder()(props, context) match {
       case -\/(fail) =>
         logger.info(s"Unable to build flow $id: failed with $fail")
       case \/-(FlowComponents(tap, pipeline, sink)) =>

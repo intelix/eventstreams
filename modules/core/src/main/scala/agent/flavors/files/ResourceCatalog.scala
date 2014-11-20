@@ -32,7 +32,7 @@ trait ResourceCatalog {
   def close(): Unit
 }
 
-class H2ResourceCatalog(tapId: Long, dir: File, fileName: String = ".idx") extends InMemoryResourceCatalog {
+class H2ResourceCatalog(tapId: String, dir: File, fileName: String = ".idx") extends InMemoryResourceCatalog {
   import scala.slick.driver.H2Driver.simple._
 
   private def dbURL(file: File): String = "jdbc:h2:" + file.getAbsolutePath + "/" + fileName
@@ -52,10 +52,10 @@ class H2ResourceCatalog(tapId: Long, dir: File, fileName: String = ".idx") exten
   }
 
 
-  class FileIndex(tag: Tag) extends Table[(Long, Long, Long, String, String, Long, Long)](tag, "findex") {
+  class FileIndex(tag: Tag) extends Table[(String, Long, Long, String, String, Long, Long)](tag, "findex") {
     def * = (tapId, seed, resourceId, dir, name, createdTimestamp, sizeNow)
 
-    def tapId = column[Long]("tapId")
+    def tapId = column[String]("tapId")
     def seed = column[Long]("seed")
     def resourceId = column[Long]("resourceId")
 

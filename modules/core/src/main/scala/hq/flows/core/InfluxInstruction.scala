@@ -19,8 +19,6 @@ package hq.flows.core
 import agent.controller.flow.Tools._
 import akka.actor.Props
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
-import com.sksamuel.elastic4s.ElasticDsl._
-import com.sksamuel.elastic4s.source.StringDocumentSource
 import common.ToolExt.configHelper
 import common.actors.{ActorWithTicks, SubscribingPublisherActor}
 import common.{Fail, JsonFrame, NowProvider}
@@ -29,12 +27,11 @@ import org.influxdb.Client
 import play.api.libs.json._
 
 import scala.annotation.tailrec
-import scala.util.{Failure, Success}
 import scalaz.Scalaz._
 import scalaz.\/
 
 private[core] object InfluxInstruction extends BuilderFromConfig[InstructionType] {
-  val configId = "es"
+  val configId = "influx"
 
   override def build(props: JsValue, maybeData: Option[Condition]): \/[Fail, InstructionType] =
     for (
@@ -57,13 +54,13 @@ private class InfluxInstructionActor(series: String, config: JsValue)
 
   private val maxInFlight = config +> 'buffer | 96
 
-  private val aggregatorCount = config +> 'aggregatorCount | 30
-  private val aggregatorPeriodMillis = config +> 'aggregatorPeriodMillis | 1000
+  private val bulkSizeLimit = config +> 'bulkSizeLimit | 100
+  private val bulkCollectionPeriodMillis = config +> 'bulkCollectionPeriodMillis | 1000
 
   private val database = config ~> 'db | "series"
 
   private val timeSource = config ~> 'timeSource | "date_ts"
-  private val columns = config ~> 'columns | "columns"
+  private val columns = config ~> 'columns | "value"
   private val points = config ~> 'points | "points"
 
   private val host = config ~> 'host | "localhost"
@@ -110,10 +107,10 @@ private class InfluxInstructionActor(series: String, config: JsValue)
   }
 
   private def aggregatorCriteriaMet: Boolean =
-    (now - lastSent.getOrElse(0L)) > aggregatorPeriodMillis || queue.size >= aggregatorCount
+    (now - lastSent.getOrElse(0L)) > bulkCollectionPeriodMillis || queue.size >= bulkSizeLimit
 
   private def toPoints(frame: JsonFrame): JsValue =
-    Json.toJson(JsString(timeSource) +: points.split(",").map { pointSource =>
+    Json.toJson((timeSource + "," + points).split(",").map { pointSource =>
       locateFieldValue(frame, pointSource.trim).asOpt[JsValue] | JsNull
     }.toArray[JsValue])
 
@@ -128,27 +125,34 @@ private class InfluxInstructionActor(series: String, config: JsValue)
     if (isPipelineActive && isActive && queue.size > 0 && deliveringNow.isEmpty && client.isDefined && aggregatorCriteriaMet) {
       client.foreach { c =>
 
-        val mappedList = Json.toJson(queue.map(toPoints).toArray)
-        deliveringNow
+        val pairs = queue.map { entry => (macroReplacement(entry, JsString(series)).asOpt[String], entry)}
 
-        val next = queue.head
+        val uniqueSeries = pairs.collect { case (Some(key), _) => key}.distinct.map { seriesName =>
+
+          val relatedPoints = pairs.collect { case (Some(key), frame) if key == seriesName => frame}.map(toPoints).toArray
+
+          Json.obj(
+            "name" -> seriesName,
+            "columns" -> toColumns,
+            "points" -> Json.toJson(relatedPoints)
+          )
+        }
+
         logger.debug(s"!>> Delivering to influx")
 
         deliveringNow = Some(queue.size)
 
-        val s = Json.arr(
-          Json.obj(
-            "time" -> System.currentTimeMillis(),
-            "name" -> series,
-            "columns" -> toColumns,
-            "points" -> mappedList
-          ))
 
-        c.writeSeries(s) match {
+        val combined = Json.toJson(uniqueSeries.toArray)
+
+        c.writeSeries(combined) match {
           case Some(err) =>
             logger.error(s"Delivery failed with error: $err")
           case None =>
-            deliveringNow.foreach(queue.drop)
+            deliveringNow.foreach { count =>
+              queue.take(count).foreach(forwardToNext)
+              queue = queue.drop(count)
+            }
             lastSent = Some(now)
             deliveringNow = None
         }

@@ -32,17 +32,17 @@ import play.api.libs.json.extensions._
 
 
 object DatasourceActor {
-  def props(dsId: Long)(implicit mat: FlowMaterializer, system: ActorSystem) = Props(new DatasourceActor(dsId))
+  def props(dsId: String)(implicit mat: FlowMaterializer, system: ActorSystem) = Props(new DatasourceActor(dsId))
 }
 
 
-case class DatasourceStateUpdate(id: Long, state: JsValue)
+case class DatasourceStateUpdate(id: String, state: JsValue)
 
-case class DatasourceConfigUpdate(id: Long, config: JsValue)
+case class DatasourceConfigUpdate(id: String, config: JsValue)
 
 case class InitialiseWith(config: JsValue, state: Option[JsValue])
 
-class DatasourceActor(dsId: Long)(implicit mat: FlowMaterializer)
+class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
   extends ActorWithComposableBehavior
   with PipelineWithStatesActor {
 
@@ -80,7 +80,7 @@ class DatasourceActor(dsId: Long)(implicit mat: FlowMaterializer)
           config <- func(c)
         ) {
           currentState = Some(config)
-          context.parent ! DatasourceStateUpdate(id, config)
+          context.parent ! DatasourceStateUpdate(dsId, config)
         }
     }
     case CommunicationProxyRef(ref) =>
@@ -160,7 +160,7 @@ class DatasourceActor(dsId: Long)(implicit mat: FlowMaterializer)
       }
     }
 
-    def buildFileProducer(fId: Long, props: JsValue): Props = {
+    def buildFileProducer(fId: String, props: JsValue): Props = {
       implicit val charset = Charset.forName("UTF-8")
       implicit val fileIndexing = new FileIndexer
 
@@ -180,7 +180,7 @@ class DatasourceActor(dsId: Long)(implicit mat: FlowMaterializer)
       FileMonitorActorPublisher.props(fId, buildFileMonitorTarget(props \ "target"), buildState())
     }
 
-    def buildProducer(fId: Long, config: JsValue): Props = {
+    def buildProducer(fId: String, config: JsValue): Props = {
 
       logger.debug(s"Building producer from $config")
 
@@ -191,11 +191,11 @@ class DatasourceActor(dsId: Long)(implicit mat: FlowMaterializer)
     }
 
 
-    def buildAkkaSink(fId: Long, props: JsValue): Props = {
+    def buildAkkaSink(fId: String, props: JsValue): Props = {
       SubscriberBoundaryInitiatingActor.props((props \ "url").as[String])
     }
 
-    def buildSink(fId: Long, config: JsValue): Props = {
+    def buildSink(fId: String, config: JsValue): Props = {
       (config \ "class").asOpt[String] match {
         case Some("akka") => buildAkkaSink(fId, config \ "props")
         case _ => BlackholeAutoAckSinkActor.props

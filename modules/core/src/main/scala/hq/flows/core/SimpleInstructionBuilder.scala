@@ -26,7 +26,7 @@ import scalaz.{\/-, -\/, \/}
 
 
 trait SimpleInstructionBuilder extends BuilderFromConfig[InstructionType] with StrictLogging {
-  def maxInFlight = 1
+  def maxInFlight = 16
 
   def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType]
 

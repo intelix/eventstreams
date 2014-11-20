@@ -32,11 +32,11 @@ import scala.util.matching.Regex
 
 
 trait Indexer {
-  def startSession(flowId: Long, target: MonitorTarget): IndexerSession
+  def startSession(flowId: String, target: MonitorTarget): IndexerSession
 }
 
 class FileIndexer extends Indexer {
-  override def startSession(flowId: Long, target: MonitorTarget): IndexerSession = target match {
+  override def startSession(flowId: String, target: MonitorTarget): IndexerSession = target match {
     case t: RollingFileMonitorTarget => new FileIndexerSession(flowId, t, new H2ResourceCatalog(flowId, new File(t.directory)))
   }
 }
@@ -174,7 +174,7 @@ trait IndexerSession {
   def withOpenResource[T](c: Cursor)(f: OpenResource => Option[T]): Option[DataChunk[T, Cursor]]
 }
 
-case class FileIndexerSession(flowId: Long, target: RollingFileMonitorTarget, catalog: ResourceCatalog) extends IndexerSession with LazyLogging {
+case class FileIndexerSession(flowId: String, target: RollingFileMonitorTarget, catalog: ResourceCatalog) extends IndexerSession with LazyLogging {
 
   private var openResource: Option[OpenResource] = None
 

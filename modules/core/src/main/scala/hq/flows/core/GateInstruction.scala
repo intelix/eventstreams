@@ -32,16 +32,16 @@ private[core] object GateInstruction extends BuilderFromConfig[InstructionType] 
 
   override def build(props: JsValue, maybeData: Option[Condition]): \/[Fail, InstructionType] =
     for (
-      name <- props ~> 'name \/> Fail(s"Invalid gate instruction configuration. Missing 'name' value. Contents: ${Json.stringify(props)}")
-    ) yield GateInstructionActor.props(name, props)
+      address <- props ~> 'address \/> Fail(s"Invalid gate instruction configuration. Missing 'address' value. Contents: ${Json.stringify(props)}")
+    ) yield GateInstructionActor.props(address, props)
 
 }
 
 private object GateInstructionActor {
-  def props(gate: String, config: JsValue) = Props(new GateInstructionActor(gate, config))
+  def props(address: String, config: JsValue) = Props(new GateInstructionActor(address, config))
 }
 
-private class GateInstructionActor(gate: String, config: JsValue)
+private class GateInstructionActor(address: String, config: JsValue)
   extends SubscribingPublisherActor
   with ReconnectingActor
   with AtLeastOnceDeliveryActor[JsonFrame]
@@ -50,11 +50,10 @@ private class GateInstructionActor(gate: String, config: JsValue)
   val maxInFlight = config +> 'buffer | 96;
   val blockingDelivery = config ?> 'blockingDelivery | true;
 
-  override def connectionEndpoint: String = "/user/gates/" + gate // TODO do properly
+  override def connectionEndpoint: String = address
 
 
   override def preStart(): Unit = {
-    //    self ! BecomeActive() // TODO !>>>> remove!!!
     super.preStart()
   }
 

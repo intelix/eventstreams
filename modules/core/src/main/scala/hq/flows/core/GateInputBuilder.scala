@@ -35,21 +35,21 @@ private[core] object GateInputBuilder extends BuilderFromConfig[TapActorPropsTyp
 
   override def build(props: JsValue, maybeData: Option[Condition]): \/[Fail, TapActorPropsType] =
     for (
-      name <- props ~> 'name \/> Fail(s"Invalid gate input configuration. Missing 'name' value. Contents: ${Json.stringify(props)}")
-    ) yield GateActor.props(name)
+      address <- props ~> 'address \/> Fail(s"Invalid gate input configuration. Missing 'address' value. Contents: ${Json.stringify(props)}")
+    ) yield GateActor.props(address)
 }
 
 private object GateActor {
-  def props(name: String) = Props(new GateActor(name))
+  def props(address: String) = Props(new GateActor(address))
 
-  def start(name: String)(implicit f: ActorRefFactory) = f.actorOf(props(name))
+  def start(address: String)(implicit f: ActorRefFactory) = f.actorOf(props(address))
 }
 
-private class GateActor(name: String)
-  extends ShutdownablePublisherActor[JsonFrame]
+private class GateActor(address: String)
+  extends ActorWithComposableBehavior
+  with ShutdownablePublisherActor[JsonFrame]
   with ReconnectingActor
-  with PipelineWithStatesActor
-  with ActorWithComposableBehavior {
+  with PipelineWithStatesActor {
 
 
   override def monitorConnectionWithDeathWatch: Boolean = true
@@ -60,7 +60,7 @@ private class GateActor(name: String)
     super.preStart()
     switchToCustomBehavior(handlerWhenPassive)
     initiateReconnect()
-    logger.info(s"About to start tap $name")
+    logger.info(s"About to start tap for $address")
   }
 
   override def onConnectedToEndpoint(): Unit = {
@@ -71,13 +71,13 @@ private class GateActor(name: String)
   override def onDisconnectedFromEndpoint(): Unit = super.onDisconnectedFromEndpoint()
 
   override def becomeActive(): Unit = {
-    logger.info(s"Becoming active - new accepting messages from gate [$name]")
+    logger.info(s"Becoming active - new accepting messages from gate [$address]")
     switchToCustomBehavior(handlerWhenActive)
     super.becomeActive()
   }
 
   override def becomePassive(): Unit = {
-    logger.info(s"Becoming passive - no longer accepting messages from gate [$name]")
+    logger.info(s"Becoming passive - no longer accepting messages from gate [$address]")
     switchToCustomBehavior(handlerWhenPassive)
     super.becomePassive()
   }
@@ -89,23 +89,23 @@ private class GateActor(name: String)
   def handlerWhenActive: Receive = {
     case m @ Acknowledgeable(f:JsonFrame,i) =>
       if (totalDemand > 0) {
-        logger.debug(s"New message at gate tap (demand $totalDemand) [$name]: $m - produced and acknowledged")
+        logger.debug(s"New message at gate tap (demand $totalDemand) [$address]: $m - produced and acknowledged")
         onNext(f)
         sender ! Acknowledge(i)
       } else {
-        logger.debug(s"New message at gate tap (demand $totalDemand) [$name]: $m - ignored, no demand")
+        logger.debug(s"New message at gate tap (demand $totalDemand) [$address]: $m - ignored, no demand")
       }
-    case m: Acknowledgeable[_] => logger.warn(s"Unexpected message at tap [$name]: $m - ignored")
+    case m: Acknowledgeable[_] => logger.warn(s"Unexpected message at tap [$address]: $m - ignored")
     case Request(n) => logger.debug(s"Downstream requested $n messages")
   }
 
   def handlerWhenPassive: Receive = {
     case m @ Acknowledgeable(f:JsonFrame,i) =>
       logger.debug(s"Not active, message ignored")
-    case m: Acknowledgeable[_] => logger.warn(s"Unexpected message at tap [$name]: $m - ignored")
+    case m: Acknowledgeable[_] => logger.warn(s"Unexpected message at tap [$address]: $m - ignored")
     case Request(n) => logger.debug(s"Downstream requested $n messages")
   }
 
-  override def connectionEndpoint: String = "/user/gates/" + name  // TODO do it properly
+  override def connectionEndpoint: String = address
 }
 

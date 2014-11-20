@@ -26,7 +26,7 @@ import common.actors.{ActorWithComposableBehavior, ActorWithTicks, PipelineWithS
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 
-class FileResourcePullingProxy(flowId: Long, target: MonitorTarget)(implicit indexer: Indexer) extends ResourcePullingProxy[ByteString, Cursor]{
+class FileResourcePullingProxy(flowId: String, target: MonitorTarget)(implicit indexer: Indexer) extends ResourcePullingProxy[ByteString, Cursor]{
 
   var cancelled = false
 
@@ -123,7 +123,7 @@ class PullingActorPublisher[T, C <: Cursor](val proxy: ResourcePullingProxy[T, C
 
 object FileMonitorActorPublisher {
 
-  def props(flowId: Long, target: MonitorTarget, cursor: Option[Cursor] = None)
+  def props(flowId: String, target: MonitorTarget, cursor: Option[Cursor] = None)
            (implicit fileIndexing: Indexer, charset: Charset, ec: ExecutionContext) = Props(
     new PullingActorPublisher[ByteString, Cursor](new FileResourcePullingProxy(flowId, target), cursor))
 

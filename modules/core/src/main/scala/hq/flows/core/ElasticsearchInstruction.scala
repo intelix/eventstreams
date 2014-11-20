@@ -27,7 +27,7 @@ import common.actors.{ActorWithTicks, SubscribingPublisherActor}
 import common.{Fail, JsonFrame}
 import hq.flows.core.Builder._
 import org.elasticsearch.common.settings.ImmutableSettings
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.{JsString, JsValue, Json}
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success}
@@ -110,7 +110,6 @@ private class ElasticsearchInstructionActor(idx: String, config: JsValue)
     if (isPipelineActive && isActive && queue.size > 0 && deliveringNow.isEmpty && client.isDefined) {
       client.foreach { c =>
         val next = queue.head
-        logger.debug(s"!>> Delivering to elastic - $next")
 
         deliveringNow = Some(next)
 
@@ -119,10 +118,20 @@ private class ElasticsearchInstructionActor(idx: String, config: JsValue)
           v <- locateFieldValue(next, b).asOpt[JsValue]
         ) yield v) | next.event
 
-        val id = locateFieldValue(next, idSource).asOpt[String]
+        val targetId = locateFieldValue(next, idSource).asOpt[String]
+
+        val targetIndex = macroReplacement(next, JsString(idx)).asOpt[String] | idx
+
 
         c.execute {
-          index into idx doc StringDocumentSource(Json.stringify(branchToPost))
+          targetId match {
+            case None =>
+              logger.debug(s"!>> Delivering to elastic - $next  -> index into $targetIndex doc $branchToPost")
+              index into targetIndex doc StringDocumentSource(Json.stringify(branchToPost))
+            case Some(x) =>
+              logger.debug(s"!>> Delivering to elastic - $next  -> index into $targetIndex id $x doc $branchToPost")
+              index into targetIndex id x doc StringDocumentSource(Json.stringify(branchToPost))
+          }
         } onComplete {
           case Success(_) => self ! DeliverySuccessful()
           case Failure(fail) => self ! DeliveryFailed(fail)
