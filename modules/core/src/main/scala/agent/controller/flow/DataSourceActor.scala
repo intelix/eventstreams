@@ -20,31 +20,27 @@ import java.nio.charset.Charset
 
 import agent.flavors.files._
 import agent.shared._
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRefFactory, ActorRef, ActorSystem, Props}
 import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
 import akka.util.ByteString
-import common.actors.{Acknowledged, ActorWithComposableBehavior, PipelineWithStatesActor}
+import common.actors._
 import common.{BecomeActive, BecomePassive, Stop}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
 
 object DatasourceActor {
-  def props(dsId: String)(implicit mat: FlowMaterializer, system: ActorSystem) = Props(new DatasourceActor(dsId))
+  def props(dsId: String)(implicit mat: FlowMaterializer) = Props(new DatasourceActor(dsId))
+  def start(dsId: String)(implicit mat: FlowMaterializer, f: ActorRefFactory) =  f.actorOf(props(dsId), ActorTools.actorFriendlyId(dsId))
 }
 
 
-case class DatasourceStateUpdate(id: String, state: JsValue)
-
-case class DatasourceConfigUpdate(id: String, config: JsValue)
-
-case class InitialiseWith(config: JsValue, state: Option[JsValue])
-
 class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
   extends ActorWithComposableBehavior
-  with PipelineWithStatesActor {
+  with PipelineWithStatesActor
+  with ActorWithConfigStore {
 
   type In = ProducedMessage[ByteString, Cursor]
   type Out = ProducedMessage[MessageWithAttachments[ByteString], Cursor]
@@ -53,14 +49,7 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
   private var flow: Option[FlowInstance] = None
   private var cursor2config: Option[Cursor => Option[JsValue]] = None
 
-  private var currentConfig: Option[JsValue] = None
-  private var currentState: Option[JsValue] = None
-
-  override def preStart(): Unit = {
-    super.preStart()
-  }
-
-
+  override def storageKey: Option[String] = Some(s"ds/$dsId")
 
   override def becomeActive(): Unit = {
     startFlow()
@@ -77,22 +66,20 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
       case ProducedMessage(_, c: Cursor) =>
         for (
           func <- cursor2config;
-          config <- func(c)
-        ) {
-          currentState = Some(config)
-          context.parent ! DatasourceStateUpdate(dsId, config)
-        }
+          state <- func(c)
+        ) updateConfigState(Some(state)) // TODO (low priority) aggregate and send updates every sec or so, and on postStop
     }
     case CommunicationProxyRef(ref) =>
       commProxy = Some(ref)
       sendToHQAll()
     case ReconfigureTap(data) =>
-      self ! InitialiseWith(data, currentState)
-    case InitialiseWith(c, s) =>
-      createFlowFromConfig(c, s)
+      updateConfigProps(data)
+    case ReconfigureTap() =>
+      updateConfigState(None)
   }
 
-  private def createFlowFromConfig(config: JsValue, state: Option[JsValue]): Unit = {
+
+  override def applyConfig(key: String, config: JsValue, state: Option[JsValue]): Unit = {
 
     import play.api.libs.json.Reads._
     import play.api.libs.json._
@@ -109,9 +96,6 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
     }
 
     flow = None
-
-    currentConfig = Some(config)
-    currentState = state
 
     def buildProcessorFlow(props: JsValue): Flow[In, Out] = {
       val convert = Flow[In].map {
@@ -245,7 +229,6 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
 
   private def sendToHQAll() = {
     sendToHQ(info)
-    //    sendToHQ(snapshot)
   }
 
   private def sendToHQ(json: JsValue) = {

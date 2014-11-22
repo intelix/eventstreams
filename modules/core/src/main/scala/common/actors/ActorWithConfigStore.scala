@@ -19,35 +19,89 @@ package common.actors
 import common.storage._
 import play.api.libs.json.JsValue
 
+case class InitialConfig(config: JsValue, state: Option[JsValue])
+
 trait ActorWithConfigStore extends ActorWithComposableBehavior {
 
   private val configStore = ConfigStorageActor.path
+  var propsConfig: Option[JsValue] = None
+  var stateConfig: Option[JsValue] = None
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
-
   @throws[Exception](classOf[Exception])
   override def preStart(): Unit = {
+    loadConfig()
     loadAllConfigs()
     super.preStart()
   }
 
-  def storageKey: String
+  def beforeApplyConfig(): Unit = {}
 
-  def loadAllConfigs() = configStore ! RetrieveConfigForAllMatching(storageKey)
-  def removeConfig() = configStore ! RemoveConfigFor(storageKey)
-  def updateConfigSnapshot(config: JsValue, state: Option[JsValue]) =
-    configStore ! StoreSnapshot(EntryConfigSnapshot(storageKey, config, state))
-  def updateConfigProps(config: JsValue) =
-    configStore ! StoreProps(EntryPropsConfig(storageKey, config))
-  def updateConfigState(state: Option[JsValue]) =
-    configStore ! StoreState(EntryStateConfig(storageKey, state))
+  def afterApplyConfig(): Unit = {}
 
   def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit
 
+  def storageKey: Option[String] = None
+
+  def partialStorageKey: Option[String] = None
+
+  def loadAllConfigs() = partialStorageKey.foreach(configStore ! RetrieveConfigForAllMatching(_))
+
+  def loadConfig() = storageKey.foreach(configStore ! RetrieveConfigFor(_))
+
+  def removeConfig() = {
+    propsConfig = None
+    stateConfig = None
+    storageKey.foreach(configStore ! RemoveConfigFor(_))
+  }
+
+  def updateConfigSnapshot(props: JsValue, state: Option[JsValue]) = {
+    storageKey.foreach { key => configStore ! StoreSnapshot(EntryConfigSnapshot(key, props, state))}
+    cacheAndApplyConfig(props, state)
+  }
+
+  def updateConfigProps(props: JsValue) = {
+    storageKey.foreach { key => configStore ! StoreProps(EntryPropsConfig(key, props))}
+    cacheAndApplyConfig(props, stateConfig)
+  }
+
+  def updateConfigState(state: Option[JsValue]) = {
+    storageKey.foreach { key => configStore ! StoreState(EntryStateConfig(key, state))}
+    propsConfig.foreach(cacheAndApplyConfig(_, state))
+  }
+
+  def onInitialConfigApplied(): Unit = {}
+
+  private def cacheAndApplyConfig(props: JsValue, maybeState: Option[JsValue]): Unit = {
+    val isInitialConfig = propsConfig.isEmpty
+    propsConfig = Some(props)
+    stateConfig = maybeState
+    storageKey.foreach { key =>
+      beforeApplyConfig()
+      applyConfig(key, props, maybeState)
+      afterApplyConfig()
+      logger.info(s"Applied configuration with key $key, initial: $isInitialConfig")
+      if (isInitialConfig) onInitialConfigApplied()
+    }
+  }
+
   private def handler: Receive = {
-    case StoredConfigs(list) => list.foreach(_.config.foreach { e => applyConfig(e.key, e.config, e.state)})
-    case StoredConfig(_, cfg) => cfg.foreach { e => applyConfig(e.key, e.config, e.state)}
+    case StoredConfigs(list) =>
+      beforeApplyConfig()
+      list.foreach(_.config.foreach { e =>
+        logger.debug(s"Received configuration set matching partial key $partialStorageKey")
+        applyConfig(e.key, e.config, e.state)
+      })
+      afterApplyConfig()
+    case StoredConfig(_, cfg) => cfg.foreach { e => cacheAndApplyConfig(e.config, e.state)}
+    case InitialConfig(c, s) => propsConfig match {
+      case None =>
+        logger.info(s"Received initial configuration: $c state: $s")
+        updateConfigSnapshot(c, s)
+      case Some(_) =>
+        logger.info(s"Initial config received but ignored - the actor already initialised with the config: $propsConfig and state $stateConfig")
+    }
   }
 
 }

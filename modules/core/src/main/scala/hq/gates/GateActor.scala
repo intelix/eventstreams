@@ -20,7 +20,7 @@ import agent.flavors.files.{Cursor, ProducedMessage}
 import agent.shared._
 import akka.actor._
 import akka.util.ByteString
-import common.actors.{AtLeastOnceDeliveryActor, PipelineWithStatesActor, SingleComponentActor}
+import common.actors.{ActorWithConfigStore, AtLeastOnceDeliveryActor, PipelineWithStatesActor, SingleComponentActor}
 import common.{BecomeActive, BecomePassive, JsonFrame}
 import hq._
 import play.api.libs.json.{JsNumber, JsValue, Json}
@@ -42,6 +42,7 @@ private case class OriginMeta(originalCorrelationId: Long, sender: ActorRef)
 class GateActor(id: String)
   extends PipelineWithStatesActor
   with AtLeastOnceDeliveryActor[JsonFrame]
+  with ActorWithConfigStore
   with SingleComponentActor {
 
 
@@ -52,6 +53,9 @@ class GateActor(id: String)
 
   override def key = ComponentKey("gate/" + id)
 
+
+  override def storageKey: Option[String] = Some(s"gate/$id")
+
   override def preStart(): Unit = {
 
     if (isPipelineActive)
@@ -59,11 +63,12 @@ class GateActor(id: String)
     else
       switchToCustomBehavior(flowMessagesHandlerForClosedGate)
 
-    context.parent ! GateAvailable(key)
-
     super.preStart()
 
   }
+
+  override def onInitialConfigApplied(): Unit = context.parent ! GateAvailable(key)
+
 
   override def commonBehavior: Actor.Receive = messageHandler orElse super.commonBehavior
 
@@ -105,6 +110,7 @@ class GateActor(id: String)
           self ! BecomeActive()
       }
     case T_KILL =>
+      removeConfig()
       self ! PoisonPill
   }
 
@@ -181,5 +187,8 @@ class GateActor(id: String)
       logger.info(s"New sink: ${sender()}")
   }
 
+  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {
+    // TODO extract all you need for the gate - name etc
+  }
 }
 

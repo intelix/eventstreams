@@ -19,7 +19,7 @@ package hq.flows
 import akka.actor._
 import common.Fail
 import common.ToolExt.configHelper
-import common.actors.{ActorObjWithoutConfig, ActorWithComposableBehavior, ActorWithConfigStore, SingleComponentActor}
+import common.actors._
 import hq._
 import play.api.libs.json.{JsValue, Json}
 
@@ -46,7 +46,7 @@ class FlowManagerActor
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  override def storageKey: String = "flow/"
+  override def partialStorageKey = Some("flow/")
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = startActor(Some(props), maybeState)
 
@@ -58,7 +58,7 @@ class FlowManagerActor
   }
 
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
-    case T_ADD => startActor(maybeData) match {
+    case T_ADD => startActor(maybeData, None) match {
       case \/-((actor, name)) =>
         genericCommandSuccess(T_ADD, replyToSubj, Some(s"Flow $name successfully created"))
       case -\/(error) => genericCommandError(T_ADD, replyToSubj, s"Unable to create flow: $error")
@@ -76,7 +76,7 @@ class FlowManagerActor
       topicUpdate(TopicKey("list"), list)
   }
 
-  private def startActor(maybeData: Option[JsValue]) =
+  private def startActor(maybeData: Option[JsValue], maybeState: Option[JsValue]) =
     for (
       data <- maybeData \/> Fail("Invalid payload");
       name <- data ~> 'name \/> Fail("No name provided");
@@ -85,6 +85,7 @@ class FlowManagerActor
     ) yield {
       val actor = FlowActor.start(nonEmptyName)
       context.watch(actor)
+      actor ! InitialConfig(data, maybeState)
       (actor, nonEmptyName)
     }
 

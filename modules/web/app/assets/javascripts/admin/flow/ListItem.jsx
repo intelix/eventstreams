@@ -20,14 +20,16 @@ define([
         'subscriberMixin',
         'admin/gate/StartStopButton',
         'admin/gate/DeleteButton',
-        'admin/flow/EditButton'
+        'admin/flow/EditButton',
+        'admin/flow/ResetButton'
     ],
     function (React,
               coreMixin,
               subscriberMixin,
               StartStopButton,
               DeleteButton,
-              EditButton) {
+              EditButton,
+              ResetButton) {
 
         return React.createClass({
             mixins: [coreMixin, subscriberMixin],
@@ -48,6 +50,8 @@ define([
                         <DeleteButton {...this.props} route={this.props.id} />
                     :
                         <EditButton {...this.props} route={this.props.id} info={this.state.info} />
+                    :
+                        <ResetButton {...this.props} route={this.props.id} />
                     :
                     </div>
                 );

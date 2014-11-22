@@ -60,6 +60,7 @@ class DatasourceProxyActor(val key: ComponentKey, ref: ActorRef)
     case T_START => ref ! BecomeActive()
     case T_STOP => ref ! BecomePassive()
     case T_KILL => ref ! RemoveTap()
+    case T_RESET => ref ! ResetTapState()
     case T_EDIT => maybeData.foreach { data => ref !  ReconfigureTap(data) }
   }
 

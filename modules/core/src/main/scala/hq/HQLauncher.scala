@@ -43,4 +43,9 @@ object HQLauncher extends App {
   FlowManagerActor.start
 
 
+  import com.sksamuel.elastic4s.ElasticClient
+  import com.sksamuel.elastic4s.ElasticDsl._
+  val client = ElasticClient.local
+  val resp = client.execute { search in "bands/artists" query "coldplay" }.await
+  println(resp.getAggregations)
 }

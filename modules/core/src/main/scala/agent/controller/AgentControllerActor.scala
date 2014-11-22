@@ -16,17 +16,20 @@
 
 package agent.controller
 
-import agent.controller.flow.{InitialiseWith, DatasourceConfigUpdate, DatasourceActor, DatasourceStateUpdate}
-import common.storage._
+import agent.controller.flow.DatasourceActor
 import agent.shared._
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorRef, Props, Terminated}
 import akka.stream.FlowMaterializer
 import com.typesafe.config.Config
+import common.Fail
+import common.ToolExt.configHelper
 import common.actors._
+import hq.{TopicKey, ComponentKey}
 import net.ceedubs.ficus.Ficus._
 import play.api.libs.json.{JsValue, Json}
 
-import scala.collection.mutable
+import scalaz.Scalaz._
+import scalaz._
 
 object AgentControllerActor extends ActorObjWithConfig {
   override def id: String = "controller"
@@ -34,16 +37,19 @@ object AgentControllerActor extends ActorObjWithConfig {
   override def props(implicit config: Config) = Props(new AgentControllerActor())
 }
 
+case class DatasourceAvailable(key: ComponentKey)
+
 class AgentControllerActor(implicit config: Config)
   extends ActorWithComposableBehavior
+  with ActorWithConfigStore
   with ReconnectingActor {
 
   implicit val system = context.system
   implicit val mat = FlowMaterializer()
-
-  val tapActors: mutable.Map[String, ActorRef] = mutable.HashMap()
-  var storage = ConfigStorageActor.path
   var commProxy: Option[ActorRef] = None
+  var datasources: Map[ComponentKey, ActorRef] = Map()
+
+  override def partialStorageKey: Option[String] = Some("ds/")
 
   override def commonBehavior: Receive = commonMessageHandler orElse super.commonBehavior
 
@@ -51,24 +57,8 @@ class AgentControllerActor(implicit config: Config)
 
   override def preStart(): Unit = {
     initiateReconnect()
-    switchToCustomBehavior(handleInitialisationMessages, Some("awaiting initialisation"))
-    storage ! RetrieveConfigForAllMatching("")
     super.preStart()
   }
-
-  def createActor(tapId: String, config: String, maybeState: Option[String]): Unit = {
-    val actorId = actorFriendlyId(tapId.toString)
-    tapActors.get(tapId).foreach { actor =>
-      logger.info(s"Stopping $actor")
-      context.stop(actor)
-    }
-    logger.info(s"Creating a new actor for tap $tapId")
-    val actor = context.actorOf(DatasourceActor.props(tapId), actorId)
-    actor ! InitialiseWith(Json.parse(config), maybeState.map(Json.parse))
-    tapActors += (tapId -> actor)
-    sendToHQ(snapshot)
-  }
-
 
   override def onConnectedToEndpoint(): Unit = {
     remoteActorRef.foreach(_ ! Handshake(self, config.as[String]("ehub.agent.name")))
@@ -81,16 +71,49 @@ class AgentControllerActor(implicit config: Config)
     super.onDisconnectedFromEndpoint()
   }
 
+  def snapshot = Json.obj(
+    "taps" -> Json.toJson(datasources.keys.map { x =>
+      Json.obj(
+        "id" -> x.key,
+        "ref" -> ("controller/" + ActorTools.actorFriendlyId(x.key.toString))
+      )
+    }.toArray))
+
+  override def afterApplyConfig(): Unit = sendToHQAll()
+
+  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addDatasource(Some(props), maybeState)
+
+
+  private def addDatasource(maybeData: Option[JsValue], maybeState: Option[JsValue]) =
+    for (
+      data <- maybeData \/> Fail("Invalid payload");
+      name <- data ~> "name" \/> Fail("No name provided");
+      nonEmptyName <- if (name.isEmpty) -\/("Name is blank") else name.right
+    ) yield {
+      val actor = DatasourceActor.start(nonEmptyName)
+      context.watch(actor)
+      actor ! InitialConfig(data, maybeState)
+      (actor, nonEmptyName)
+    }
+
   private def commonMessageHandler: Receive = {
     case CommunicationProxyRef(ref) =>
       commProxy = Some(ref)
       sendToHQAll()
-  }
-
-  private def nextAvailableId: Long = {
-    if (tapActors.keys.isEmpty) {
-      0
-    } else tapActors.keys.map(_.toLong).max + 1
+    case CreateTap(cfg) => addDatasource(Some(cfg), None) match {
+      case \/-((actor, name)) =>
+        logger.info(s"Datasource $name successfully created")
+      case -\/(error) =>
+        logger.error(s"Unable to create datasource: $error")
+    }
+    case Terminated(ref) =>
+      datasources = datasources.filter {
+        case (route, otherRef) => otherRef != ref
+      }
+      sendToHQ(snapshot)
+    case DatasourceAvailable(key) =>
+      datasources = datasources + (key -> sender())
+      sendToHQ(snapshot)
   }
 
   private def sendToHQAll() = {
@@ -98,22 +121,12 @@ class AgentControllerActor(implicit config: Config)
     sendToHQ(snapshot)
   }
 
-  private def sendToHQ(json: JsValue) = {
+  private def sendToHQ(json: JsValue) =
     commProxy foreach { actor =>
       logger.debug(s"$json -> $actor")
       actor ! GenericJSONMessage(json.toString())
     }
-  }
 
-  private def snapshot = Json.obj(
-    "taps" -> Json.toJson(
-      tapActors.keys.toArray.sorted.map { key => Json.obj(
-        "id" -> actorFriendlyId(key.toString),
-        "ref" -> ("controller/" + actorFriendlyId(key.toString))
-      )
-      }
-    )
-  )
 
   private def info = Json.obj(
     "info" -> Json.obj(
@@ -124,39 +137,6 @@ class AgentControllerActor(implicit config: Config)
       "state" -> "active"
     )
   )
-
-  private def handleInitialisationMessages: Receive = {
-    case StoredConfigs(list) =>
-      logger.debug(s"Received list of tap from the storage: $list")
-      list.foreach {
-        case StoredConfig(id, Some(EntryConfigSnapshot(_, cfg, state))) =>
-          createActor(id, cfg, state)
-        case StoredConfig(id, None) =>
-          logger.warn(s"No config defined for tap ID $id")
-      }
-      sendToHQAll()
-      switchToCustomBehavior(handleTapOpMessages, Some("existing taps loaded"))
-  }
-
-  private def handleTapOpMessages: Receive = {
-
-    case CreateTap(cfg) =>
-      logger.info("Creating tap with config " + cfg)
-
-      val c = (cfg \ "config").as[JsValue]
-
-      val tapId = (c \ "tapId").asOpt[String] getOrElse nextAvailableId.toString
-      val cfgAsStr: String = Json.stringify(c)
-      logger.info("Creating tap " + tapId)
-      storage ! StoreSnapshot(EntryConfigSnapshot(tapId, cfgAsStr, None))
-      createActor(tapId, cfgAsStr, None)
-    case DatasourceStateUpdate(id, state) =>
-      logger.info(s"Tap state update: id=$id state=$state")
-      storage ! StoreState(EntryStateConfig(id, Some(Json.stringify(state))))
-    case DatasourceConfigUpdate(id, newConfig) =>
-      logger.info(s"Tap config update: id=$id config=$newConfig")
-      storage ! StoreProps(EntryPropsConfig(id, Json.stringify(newConfig)))
-  }
 
 
 }

@@ -18,8 +18,8 @@ package common.actors
 
 import akka.actor.Actor
 
-trait ActorUtils extends Actor {
+object ActorTools {
 
-  def hasChildWithId(id: String) = context.child(ActorTools.actorFriendlyId(id)).isDefined
+  def actorFriendlyId(id: String) = id.replaceAll("""[\W]""", "_").replaceAll("__", "_")
 
 }

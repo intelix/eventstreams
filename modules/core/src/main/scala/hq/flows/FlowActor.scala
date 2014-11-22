@@ -18,19 +18,17 @@ package hq.flows
 
 import akka.actor._
 import akka.stream.FlowMaterializer
-import akka.stream.actor.{ActorSubscriber, ActorPublisher}
+import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
 import common.ToolExt.configHelper
-import common.actors.{ActorWithConfigStore, PipelineWithStatesActor, SingleComponentActor}
 import common._
-import common.storage.{RemoveConfigFor, EntryConfigSnapshot, StoreSnapshot, ConfigStorageActor}
+import common.actors.{ActorWithConfigStore, PipelineWithStatesActor, SingleComponentActor}
 import hq._
-import hq.flows.core.{FlowComponents, Builder}
-import play.api.data
+import hq.flows.core.{Builder, FlowComponents}
 import play.api.libs.json.{JsValue, Json}
 
-import scalaz.{Scalaz, -\/, \/-}
-import Scalaz._
+import scalaz.Scalaz._
+import scalaz.{-\/, Scalaz, \/-}
 
 object FlowActor {
   def props(id: String) = Props(new FlowActor(id))
@@ -47,54 +45,36 @@ class FlowActor(id: String)
   implicit val mat = FlowMaterializer()
   implicit val dispatcher = context.system.dispatcher
 
-  val configStore = ConfigStorageActor.path
 
   private var tapActor: Option[ActorRef] = None
   private var sinkActor: Option[ActorRef] = None
   private var flowActors: Option[Seq[ActorRef]] = None
   private var flow: Option[MaterializedMap] = None
 
-  private var config = initialConfig
+
+  override def storageKey: Option[String] = Some(s"flow/$id")
 
   override def key = ComponentKey("flow/" + id)
 
-  override def preStart(): Unit = {
-
-    logger.info(s"Starting flow actor with $config")
-
-    //    if (isPipelineActive)
-    //      switchToCustomBehavior(flowMessagesHandlerForOpenGate)
-    //    else
-    //      switchToCustomBehavior(flowMessagesHandlerForClosedGate)
-
-
-    applyConfig(config)
-
-
-    context.parent ! FlowAvailable(key)
-
-    super.preStart()
-
-  }
+  override def onInitialConfigApplied(): Unit = context.parent ! FlowAvailable(key)
 
   override def commonBehavior: Actor.Receive = super.commonBehavior
 
   override def becomeActive(): Unit = {
     openTap()
     topicUpdate(T_INFO, info)
-    //    switchToCustomBehavior(flowMessagesHandlerForOpenGate)
   }
 
   override def becomePassive(): Unit = {
     closeTap()
     topicUpdate(T_INFO, info)
-    //    switchToCustomBehavior(flowMessagesHandlerForClosedGate)
   }
 
   def info = Some(Json.obj(
     "name" -> id,
     "text" -> (s"$id is " + (if (flow.isDefined) "valid" else "invalid")),
-    "config" -> config,
+    "config" -> propsConfig,
+    "stateConfig" -> (stateConfig | Json.obj()),
     "state" -> (if (isPipelineActive) "active" else "passive")
   ))
 
@@ -121,19 +101,33 @@ class FlowActor(id: String)
       }
     case T_KILL =>
       terminateFlow(Some("Flow being deleted"))
-      configStore ! RemoveConfigFor("flow/"+id)
+      removeConfig()
       self ! PoisonPill
     case T_EDIT =>
       for (
         data <- maybeData \/> Fail("No data");
-        config <- data #>  'config \/> Fail("No configuration")
-      ) applyConfig(config)
+        config <- data #> 'config \/> Fail("No configuration")
+      ) updateConfigProps(data)
   }
 
   def closeTap() = {
     logger.debug(s"Tap closed")
     tapActor.foreach(_ ! BecomePassive())
     flowActors.foreach(_.foreach(_ ! BecomePassive()))
+  }
+
+  override def applyConfig(key: String, config: JsValue, maybeState: Option[JsValue]): Unit = {
+    terminateFlow(Some("Applying new configuration"))
+
+    val cfg = config #> 'config | Json.obj()
+    Builder()(cfg, context) match {
+      case -\/(fail) =>
+        logger.info(s"Unable to build flow $id: failed with $fail")
+      case \/-(FlowComponents(tap, pipeline, sink)) =>
+        resetFlowWith(tap, pipeline, sink)
+    }
+    topicUpdate(T_INFO, info)
+
   }
 
   private def terminateFlow(reason: Option[String]) = {
@@ -154,7 +148,7 @@ class FlowActor(id: String)
 
   private def propsToActors(list: Seq[Props]) = list map context.actorOf
 
-  private def resetFlowWith(tapProps: Props, pipeline : Seq[Props], sinkProps: Props) = {
+  private def resetFlowWith(tapProps: Props, pipeline: Seq[Props], sinkProps: Props) = {
     logger.debug(s"Resetting flow [$id]: tapProps: $tapProps, pipeline: $pipeline, sinkProps: $sinkProps")
 
     val tapA = context.actorOf(tapProps)
@@ -184,27 +178,6 @@ class FlowActor(id: String)
     if (isPipelineActive) openTap()
   }
 
-  private def applyConfig(value: JsValue) = {
-    config = value
-
-
-    configStore ! StoreSnapshot(EntryConfigSnapshot("flow/"+id, Json.stringify(config), None))
-
-    terminateFlow(Some("Applying new configuration"))
-
-    val props = config #> 'config | Json.obj()
-    Builder()(props, context) match {
-      case -\/(fail) =>
-        logger.info(s"Unable to build flow $id: failed with $fail")
-      case \/-(FlowComponents(tap, pipeline, sink)) =>
-        resetFlowWith(tap, pipeline, sink)
-    }
-    topicUpdate(T_INFO, info)
-  }
-
-
-  //  private def messageHandler: Receive = {
-  //  }
 
 }
 

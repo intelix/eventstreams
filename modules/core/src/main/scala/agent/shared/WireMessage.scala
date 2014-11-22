@@ -46,5 +46,6 @@ case class GenericJSONMessage(json: String)
 case class CreateTap(config: JsValue) extends AgentControllerMessage
 case class ReconfigureTap(config: JsValue) extends AgentControllerMessage
 case class RemoveTap() extends AgentControllerMessage
+case class ResetTapState() extends AgentControllerMessage
 
 

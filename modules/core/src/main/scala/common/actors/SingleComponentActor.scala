@@ -31,6 +31,7 @@ trait SingleComponentActor
   val T_START = TopicKey("start")
   val T_STOP = TopicKey("stop")
   val T_KILL = TopicKey("kill")
+  val T_RESET = TopicKey("reset")
 
 
   def key: ComponentKey
