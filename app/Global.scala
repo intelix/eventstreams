@@ -1,3 +1,4 @@
+import actors.{LocalClusterAwareActor, RouterActor}
 import akka.actor.ActorSystem
 import akka.cluster.Cluster
 import com.typesafe.config.ConfigFactory
@@ -13,21 +14,36 @@ import play.libs.Akka
 
 object Global extends GlobalSettings with scalalogging.StrictLogging {
 
+  private var clusterSystem: Option[ActorSystem] = None
+
   override def onStart(app: Application): Unit = {
 
-    implicit val system =  Akka.system()
-//    val clusterSystem =  ActorSystem("ehubhq",ConfigFactory.load("akka-play.conf"))
-    implicit val cluster = Cluster(system)
+    clusterSystem.foreach(_.shutdown())
 
-    implicit val config = app.configuration.underlying
+    val localSystem =  Akka.system()
 
-    implicit val ec = system.dispatcher
+    implicit val newClusterSystem =  ActorSystem("ehub",ConfigFactory.load("akka.conf"))
 
-    MessageRouterActor.start
+    clusterSystem = Some(newClusterSystem)
+
+    implicit val cluster = Cluster(newClusterSystem)
+
+    implicit val config = ConfigFactory.load("ehub.conf")
+
+    implicit val ec = newClusterSystem.dispatcher
+
+    val messageRouter = MessageRouterActor.start
     ClusterManagerActor.start
-//    GateManagerActor.start
-//    AgentsManagerActor.start
 
+    LocalClusterAwareActor.start(cluster)(localSystem)
+    RouterActor.start(messageRouter)(localSystem)
+
+  }
+
+  override def onStop(app: Application): Unit = {
+    clusterSystem.foreach(_.shutdown())
+    clusterSystem = None
+    super.onStop(app)
   }
 
   private def getSubdomain (request: RequestHeader) = request.domain.replaceFirst("[\\.]?[^\\.]+[\\.][^\\.]+$", "")

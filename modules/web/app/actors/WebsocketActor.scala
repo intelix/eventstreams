@@ -17,11 +17,9 @@
 package actors
 
 import akka.actor.{Actor, ActorRef, Props}
-import akka.cluster.Cluster
 import com.diogoduailibe.lzstring4j.LZString
 import common.actors.{ActorWithComposableBehavior, ActorWithTicks}
 import hq._
-import hq.routing.MessageRouterActor
 import play.api.libs.json.{JsValue, Json}
 
 import scala.collection.mutable
@@ -44,19 +42,17 @@ class WebsocketActor(out: ActorRef)
 
   val alias2location: mutable.Map[String, String] = new mutable.HashMap[String, String]()
   val location2alias: mutable.Map[String, String] = new mutable.HashMap[String, String]()
-
+  val proxy = RouterActor.path
   var aggregator: mutable.Map[String, String] = new mutable.HashMap[String, String]()
-
   var clientSeed: Option[String] = None
   var cmdReplySubj: Option[LocalSubj] = None
 
   override def tickInterval: FiniteDuration = 200.millis
 
-  val cluster = Cluster.get(context.system)
-
   override def preStart(): Unit = {
     super.preStart()
-    logger.info(s"Accepted WebSocket connection, proxy actor: $out" )
+    logger.info(s"Accepted WebSocket connection, proxy actor: $out")
+    LocalClusterAwareActor.path ! InfoRequest()
   }
 
   override def commonBehavior: Actor.Receive = messageHandler orElse super.commonBehavior
@@ -85,6 +81,9 @@ class WebsocketActor(out: ActorRef)
   }
 
   private def messageHandler: Actor.Receive = {
+    case InfoResponse(address) =>
+      logger.debug(s"Received cluster info, address: $address, finalising handshake with the client")
+      out ! "fL" + address.toString
     case Update(sourceRef, subj, data, _) =>
       path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(Json.stringify(data)))}
     case CommandErr(sourceRef, subj, data) =>
@@ -115,14 +114,12 @@ class WebsocketActor(out: ActorRef)
         val data = msgContents.tail
 
         mtype match {
-          case 'X' =>
-            addUUID(data)
-            out ! "fL" + cluster.selfAddress.toString
+          case 'X' => addUUID(data)
           case 'A' => addOrReplaceAlias(data)
           case 'B' => addOrReplaceLocationAlias(data)
           case _ => extractByAlias(data) foreach { str =>
             extractSubjectAndPayload(str,
-              processRequestByType(mtype, _, _) foreach (MessageRouterActor.path ! _)
+              processRequestByType(mtype, _, _) foreach (proxy ! _)
             )
           }
         }
@@ -165,7 +162,7 @@ class WebsocketActor(out: ActorRef)
     clientSeed = Some(value)
     cmdReplySubj = Some(LocalSubj(ComponentKey(value), TopicKey("cmd")))
 
-    MessageRouterActor.path ! RegisterComponent(ComponentKey(value), self)
+    proxy ! RegisterComponent(ComponentKey(value), self)
 
   }
 

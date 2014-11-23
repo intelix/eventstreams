@@ -31,7 +31,7 @@ import hq.routing.MessageRouterActor
  */
 object HQLauncher extends App {
 
-  implicit val system = ActorSystem("application", ConfigFactory.load("akka-hq.conf"))
+  implicit val system = ActorSystem("ehub", ConfigFactory.load("akka-hq.conf"))
 
   implicit val config = ConfigFactory.load("hq.conf")
 
