@@ -19,34 +19,74 @@ define(['react', 'coreMixin', 'subscriberMixin', 'admin/AdminContainer'], functi
     return React.createClass({
         mixins: [coreMixin, subscriberMixin],
 
-        subscriptionConfig: function () {
+        subscriptionConfig: function (props, state) {
             return {address:'local', route:'cluster', topic:'nodes', target: 'nodes'};
         },
         getInitialState: function () {
-            return {nodes: null}
+            return {nodes: null, selected: false}
+        },
+
+        onSelectionMade: function(address) {
+            this.raiseEvent(this.props.selectorId, {address: address});
+            this.setState({selected: address});
+        },
+
+        filteredNodes: function() {
+            var self = this;
+            function onlyRequiredRoles(el) {
+                return self.props.roles.filter(function(requiredRole) {
+                        return $.inArray(requiredRole, el.roles) > -1;
+                    }).length != 0;
+            }
+            return this.state.nodes ? this.state.nodes.filter(onlyRequiredRoles) : [];
+        },
+
+        onSubscriptionUpdate: function (key, data) {
+            if (key == 'nodes') {
+                var wasSelected = this.state ? this.state.selected : false;
+                var newSelected = wasSelected;
+                var filteredNodes = this.filteredNodes();
+                if (newSelected && !filteredNodes.some(function(el) { return el.address == newSelected})) newSelected = false;
+                if (!newSelected && filteredNodes.length > 0) newSelected = filteredNodes[0].address;
+                if (newSelected != wasSelected) this.onSelectionMade(newSelected);
+            }
         },
 
         renderData: function() {
 
+            var self = this;
             var cx = React.addons.classSet;
             var connected = this.state.connected;
+
+            if (!this.state.nodes || this.state.nodes.length == 0) {
+                return <p className="bg-warning">Waiting for the client to join the Cluster ...</p>
+            }
+
+            var filteredNodes = this.filteredNodes();
+
+            if (filteredNodes.length == 0) {
+                return <p className="bg-warning">Waiting for first HQ node to join the Cluster ...</p>
+            }
+
+            var selected = this.state.selected;
 
             return (
                 <div>
                     <ul className="nav nav-tabs" role="tablist">
-                        {this.state.nodes.map(function (el) {
+                        {filteredNodes.map(function (el) {
 
                             var tabClasses = cx({
                                 'disabled': (!connected || el.state != 'up'),
-                                'active': $.inArray('adminweb', el.roles) > -1
+                                'active': selected == el.address
                             });
 
-                            return  <li key={el.id} role="presentation" className={tabClasses}><a href="#">{el.name} ({el.state})</a></li>;
+                            return  <li key={el.id} onClick={self.onSelectionMade.bind(self, el.address)} role="presentation" className={tabClasses}><a href="#">{el.name} ({el.state})</a></li>;
                             })}
                     </ul>
                 </div>
             );
         },
+
         renderLoading: function() {
             return (
                 <div>loading...</div>

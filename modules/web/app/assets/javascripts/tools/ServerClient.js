@@ -47,6 +47,17 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
     var aggregationTimer = false;
     var aggregatedMessage = [];
 
+    function resetAll() {
+        alias2key = {};
+        key2alias = {};
+        location2locationAlias = {};
+        locationAlias2location = {};
+        locationAliasCounter = 1;
+        aliasCounter = 1;
+        localAddress = false;
+        aggregatedMessage = [];
+    }
+
     var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
         var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
@@ -78,8 +89,8 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
         sock.onclose = function (x) {
             clearTimeout(timeout);
             sock = null;
-            alias2key = {};
-            key2alias = {};
+            resetAll();
+
 
             if (currentState == WebSocket.OPEN) {
                 listeners.forEach(function (next) {
@@ -87,7 +98,6 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
                 });
             }
 
-            this.localAddress = false;
 
             currentState = WebSocket.CLOSED;
 

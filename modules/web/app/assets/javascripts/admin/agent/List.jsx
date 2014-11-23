@@ -18,8 +18,8 @@ define(['react', 'coreMixin', 'subscriberMixin', 'admin/agent/ListItem'], functi
     return React.createClass({
         mixins: [coreMixin, subscriberMixin],
 
-        subscriptionConfig: function () {
-            return {address: this.props.addr, route:'agents', topic:'list', target: 'list'};
+        subscriptionConfig: function (props, state) {
+            return {address: props.addr, route:'agents', topic:'list', target: 'list'};
         },
         getInitialState: function () {
             return {data: null}

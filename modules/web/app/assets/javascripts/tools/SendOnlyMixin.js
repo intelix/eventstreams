@@ -25,14 +25,19 @@ define(['wsclient'], function(client) {
             console.debug("!>>>> created");
 
             function wsOpenHandler() {
-                console.debug("!>>>> CONNECTED");
-                self.setState({connected: true});
-                console.debug("onConnected()" );
+                if (!self.state.connected) {
+                    if (self.onConnected) self.onConnected();
+                    self.setState({connected: true});
+                    console.debug("onConnected()" );
+                }
             }
 
             function wsClosedHandler() {
-                self.setState({connected: false});
-                console.debug("onDisconnected()");
+                if (self.state.connected) {
+                    self.setState({connected: false});
+                    if (self.onDisconnected) self.onDisconnected();
+                    console.debug("onDisconnected()");
+                }
             }
 
             this.handle.addWsOpenEventListener(wsOpenHandler);

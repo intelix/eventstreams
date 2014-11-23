@@ -25,7 +25,7 @@ define(['toastr', 'react', 'coreMixin', 'subscriberMixin',
         return React.createClass({
             mixins: [coreMixin, subscriberMixin],
 
-            subscriptionConfig: function () {
+            subscriptionConfig: function (props, state) {
                 return {
                     address: 'akka.tcp://application@localhost:2552',
                     route: "_",
@@ -39,7 +39,7 @@ define(['toastr', 'react', 'coreMixin', 'subscriberMixin',
                 return {result: false}
             },
 
-            componentWillUpdate: function (nextProps, nextState) {
+            onComponentUpdate: function (nextProps, nextState) {
 
                 if (nextState.cmdresult) {
                     if (nextState.cmdresult.error) {

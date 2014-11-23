@@ -14,20 +14,43 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'admin/app/content/commons/ClusterNodesTabs'], function (React, coreMixin, Tabs) {
+define(['react', 'coreMixin', 'admin/app/content/commons/ClusterNodesTabs', 'admin/gate/ListContainer'], function (React, coreMixin, Tabs, ListContainer) {
 
     return React.createClass({
         mixins: [coreMixin],
 
+        getInitialState: function () {
+            return { selected: false }
+        },
+
+        onMount: function() {
+            this.addEventListener("nodeSelectorForGates", this.handleSelectionEvent);
+        },
+        onUnmount: function() {
+            this.removeEventListener("nodeSelectorForGates", this.handleSelectionEvent);
+        },
+
+        handleSelectionEvent: function(evt) {
+            this.setState({selected: evt.detail.address});
+        },
+
+
         render: function () {
-            return <div><div className="jumbotron">
-                <h1>Gates</h1>
-                <p>This is a template for a simple marketing or informational website. It includes a large callout called a jumbotron and three supporting pieces of content. Use it as a starting point to create something more unique.</p>
-                <p>
-                    <a href="#" className="btn btn-primary btn-lg" role="button">Learn more &raquo;</a>
-                </p>
-            </div>                <Tabs />
-            </div>            ;
+
+            var content =  this.state.selected ? <ListContainer addr={this.state.selected} /> : <div>none selected</div>;
+
+
+                return <div>
+                <div className="jumbotron">
+                    <h1>Gates</h1>
+                    <p>This is a template for a simple marketing or informational website. It includes a large callout called a jumbotron and three supporting pieces of content. Use it as a starting point to create something more unique.</p>
+                    <p>
+                        <a href="#" className="btn btn-primary btn-lg" role="button">Learn more &raquo;</a>
+                    </p>
+                </div>
+                <Tabs roles={["hq"]} selectorId="nodeSelectorForGates" />
+                {content}
+            </div>;
         }
     });
 

@@ -24,7 +24,7 @@ define(['toastr', 'react', 'coreMixin', 'subscriberMixin',
         return React.createClass({
             mixins: [coreMixin, subscriberMixin],
 
-            subscriptionConfig: function () {
+            subscriptionConfig: function (props, state) {
                 return {
                     address: 'local',
                     route: "_",
@@ -38,44 +38,78 @@ define(['toastr', 'react', 'coreMixin', 'subscriberMixin',
                 return {result: false}
             },
 
-            componentWillUpdate: function (nextProps, nextState) {
+            onDisconnected: function() {
+                this.popupWarn("Disconnected from the server  ... ");
+            },
 
+            onConnected: function() {
+                this.popupInfo("Connection established");
+            },
+
+            popupError: function(msg) {
+                toastr.options = {
+                    "closeButton": false,
+                    "debug": false,
+                    "progressBar": false,
+                    "positionClass": "toast-top-right",
+                    "onclick": null,
+                    "showDuration": "300",
+                    "hideDuration": "1000",
+                    "timeOut": "3000",
+                    "extendedTimeOut": "1000",
+                    "showEasing": "swing",
+                    "hideEasing": "linear",
+                    "showMethod": "fadeIn",
+                    "hideMethod": "fadeOut"
+                };
+                toastr.error(msg, "Error");
+            },
+
+            popupWarn: function(msg) {
+                toastr.options = {
+                    "closeButton": false,
+                    "debug": false,
+                    "progressBar": false,
+                    "positionClass": "toast-top-right",
+                    "onclick": null,
+                    "showDuration": "300",
+                    "hideDuration": "1000",
+                    "timeOut": "3000",
+                    "extendedTimeOut": "1000",
+                    "showEasing": "swing",
+                    "hideEasing": "linear",
+                    "showMethod": "fadeIn",
+                    "hideMethod": "fadeOut"
+                };
+                toastr.warning(msg);
+            },
+
+            popupInfo: function(msg) {
+                toastr.options = {
+                    "closeButton": false,
+                    "debug": false,
+                    "progressBar": false,
+                    "positionClass": "toast-top-right",
+                    "onclick": null,
+                    "showDuration": "300",
+                    "hideDuration": "1000",
+                    "timeOut": "3000",
+                    "extendedTimeOut": "1000",
+                    "showEasing": "swing",
+                    "hideEasing": "linear",
+                    "showMethod": "fadeIn",
+                    "hideMethod": "fadeOut"
+                };
+                toastr.info(msg);
+            },
+
+            onComponentUpdate: function (nextProps, nextState) {
                 if (nextState.cmdresult) {
                     if (nextState.cmdresult.error) {
-                        toastr.options = {
-                            "closeButton": false,
-                            "debug": false,
-                            "progressBar": false,
-                            "positionClass": "toast-top-right",
-                            "onclick": null,
-                            "showDuration": "300",
-                            "hideDuration": "1000",
-                            "timeOut": "3000",
-                            "extendedTimeOut": "1000",
-                            "showEasing": "swing",
-                            "hideEasing": "linear",
-                            "showMethod": "fadeIn",
-                            "hideMethod": "fadeOut"
-                        };
-                        toastr.error("Error", nextState.cmdresult.error.msg);
+                        this.popupError(nextState.cmdresult.error.msg);
                     }
                     if (nextState.cmdresult.ok) {
-                        toastr.options = {
-                            "closeButton": false,
-                            "debug": false,
-                            "progressBar": false,
-                            "positionClass": "toast-top-right",
-                            "onclick": null,
-                            "showDuration": "300",
-                            "hideDuration": "1000",
-                            "timeOut": "3000",
-                            "extendedTimeOut": "1000",
-                            "showEasing": "swing",
-                            "hideEasing": "linear",
-                            "showMethod": "fadeIn",
-                            "hideMethod": "fadeOut"
-                        };
-                        toastr.info(nextState.cmdresult.ok.msg);
+                        this.popupinfo(nextState.cmdresult.ok.msg);
                     }
                     this.setState({result: false});
                 }

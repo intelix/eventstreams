@@ -79,7 +79,9 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
     implicit val ec = context.dispatcher
     selectionFor(address, id).resolveOne() onComplete {
       case Success(result) => refCache += ClusterActorId(address, id) -> result
-      case Failure(failure) => context.system.scheduler.scheduleOnce(5.seconds, self, ResolveRetry(address, id))
+      case Failure(failure) =>
+        logger.debug(s"Resolution of $address / $id failed", failure)
+        context.system.scheduler.scheduleOnce(5.seconds, self, ResolveRetry(address, id))
     }
   }
 

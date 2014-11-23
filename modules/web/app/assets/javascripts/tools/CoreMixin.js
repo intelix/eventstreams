@@ -33,6 +33,11 @@ define(['jquery'], function() {
             evtElement.dispatchEvent(new CustomEvent(evt, { detail: data }));
         },
 
+        componentWillUpdate: function(newProps, newState) {
+            if (this.validateListener) this.validateListener(newProps, newState);
+            if (this.onComponentUpdate) this.onComponentUpdate(newProps, newState);
+        },
+
         componentDidMount: function() {
             if (this.startListener) this.startListener();
             if (this.onMount) {

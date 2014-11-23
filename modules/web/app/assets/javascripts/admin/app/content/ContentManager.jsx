@@ -44,7 +44,6 @@ define(
             },
 
             handleSelectionEvent: function(evt) {
-                console.debug("SELECTION");
                 this.setState({selection: evt.detail.id});
             },
 

@@ -18,7 +18,7 @@ define(['react', 'coreMixin', 'subscriberMixin', 'admin/AdminContainer'], functi
     return React.createClass({
         mixins: [coreMixin, subscriberMixin],
 
-        subscriptionConfig: function () {
+        subscriptionConfig: function (props, state) {
             return {address:'local', route:'cluster', topic:'nodes', target: 'nodes'};
         },
         getInitialState: function () {

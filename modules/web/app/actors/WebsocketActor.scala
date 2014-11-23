@@ -118,8 +118,12 @@ class WebsocketActor(out: ActorRef)
           case 'A' => addOrReplaceAlias(data)
           case 'B' => addOrReplaceLocationAlias(data)
           case _ => extractByAlias(data) foreach { str =>
+            logger.debug(s"Next request: $str")
             extractSubjectAndPayload(str,
-              processRequestByType(mtype, _, _) foreach (proxy ! _)
+              processRequestByType(mtype, _, _) foreach { msg =>
+                logger.debug(s"Message to downstream: $msg")
+                proxy ! msg
+              }
             )
           }
         }
@@ -220,6 +224,9 @@ class WebsocketActor(out: ActorRef)
       }
       case _ => logger.warn(s"Invalid payload $str")
     }
+
+    logger.debug(s"extractSubjectAndPayload: ${str.split(opSplitChar).toList}")
+
     extract(str.split(opSplitChar).toList)
   }
 
