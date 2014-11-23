@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 define(['react', 'coreMixin', 'subscriberMixin', 'admin/AdminContainer'], function (React, coreMixin, subscriberMixin, Container) {
 
     return React.createClass({
@@ -40,10 +41,9 @@ define(['react', 'coreMixin', 'subscriberMixin', 'admin/AdminContainer'], functi
                                 'active': $.inArray('adminweb', el.roles) > -1
                             });
 
-                            return  <li key={el.id} role="presentation" className={tabClasses}><a href="#">{el.address} ({el.state})</a></li>;
+                            return  <li key={el.id} role="presentation" className={tabClasses}><a href="#">{el.name} ({el.state})</a></li>;
                             })}
                     </ul>
-                    <Container addr='akka.tcp://application@localhost:2551' />
                 </div>
             );
         },

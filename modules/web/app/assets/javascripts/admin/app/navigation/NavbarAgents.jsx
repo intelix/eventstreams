@@ -14,28 +14,14 @@
  * limitations under the License.
  */
 
-package controllers.web
+define(['react', 'coreMixin', 'app_navbar_el_mixin'], function (React, coreMixin, NavbarElementMixin) {
 
-import actors.WebsocketActor
-import akka.cluster.Cluster
-import akka.util.ByteString
-import models._
-import play.api._
-import play.api.mvc._
-import play.api.Play.current
+    return React.createClass({
+        mixins: [coreMixin, NavbarElementMixin],
 
-object Application extends Controller {
+        render: function () {
+            return this.asNavbarElement(<span>Agents <span className="badge">1</span></span>);
+        }
+    });
 
-
-	def index = Action {
-		Ok(views.html.web.index())
-	}
-
-	def socket = WebSocket.acceptWithActor[String, String] {
-		req => actor =>
-			WebsocketActor.props(actor)
-	}
-
-
-
-}
+});

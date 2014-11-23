@@ -14,28 +14,21 @@
  * limitations under the License.
  */
 
-package controllers.web
+body {
+  padding-top: 70px;
+  padding-bottom: 30px;
+}
 
-import actors.WebsocketActor
-import akka.cluster.Cluster
-import akka.util.ByteString
-import models._
-import play.api._
-import play.api.mvc._
-import play.api.Play.current
+.main-container .dropdown-menu {
+  position: static;
+  display: block;
+  margin-bottom: 20px;
+}
 
-object Application extends Controller {
+.main-container > p > .btn {
+  margin: 5px 0;
+}
 
-
-	def index = Action {
-		Ok(views.html.web.index())
-	}
-
-	def socket = WebSocket.acceptWithActor[String, String] {
-		req => actor =>
-			WebsocketActor.props(actor)
-	}
-
-
-
+.main-container .navbar .container {
+  width: auto;
 }

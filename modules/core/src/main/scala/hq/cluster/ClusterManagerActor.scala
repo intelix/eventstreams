@@ -18,23 +18,28 @@ package hq.cluster
 
 import akka.actor._
 import akka.cluster.Cluster
+import com.typesafe.config.Config
+import common.ToolExt.configHelper
 import common.actors._
 import hq.{ComponentKey, TopicKey}
-import play.api.libs.json.Json
+import play.api.libs.json.{JsValue, Json}
 
-/**
- * Created by maks on 6/11/2014.
- */
+import scalaz.Scalaz._
+import scalaz._
+
+
 object ClusterManagerActor extends ActorObjWithCluster {
   def id = "cluster"
 
-  def props(implicit cluster: Cluster) = Props(new ClusterManagerActor())
+  def props(implicit cluster: Cluster, config: Config) = Props(new ClusterManagerActor())
 }
 
-class ClusterManagerActor(implicit val cluster: Cluster)
+class ClusterManagerActor(implicit val cluster: Cluster, config: Config)
   extends ActorWithComposableBehavior
-  with ActorWithClusterAwareness
+  with ActorWithClusterPeers
   with SingleComponentActor {
+
+  val nodeName = config.getString("ehub.node.name")
 
   val T_NODES = TopicKey("nodes")
 
@@ -42,17 +47,19 @@ class ClusterManagerActor(implicit val cluster: Cluster)
 
   override def commonBehavior: Actor.Receive = super.commonBehavior
 
-  override def onClusterChangeEvent(): Unit = {
+
+  override def onConfirmedPeersChanged(): Unit = {
     logger.info("!>>> Cluster state changed")
     topicUpdate(T_NODES, nodesList)
   }
 
-  def nodesList = Some(Json.toJson(nodes.map { x =>
+  def nodesList = Some(Json.toJson(confirmedPeers.map { case (node, data) =>
     Json.obj(
-      "id" -> x.address.toString,
-      "address" -> x.address.toString,
-      "state" -> status2string(x.state),
-      "roles" -> x.roles
+      "id" -> node.address.toString,
+      "address" -> node.address.toString,
+      "name" -> (data ~> 'name | node.address.toString),
+      "state" -> status2string(node.state),
+      "roles" -> node.roles
     )
   }.toArray))
 
@@ -69,5 +76,8 @@ class ClusterManagerActor(implicit val cluster: Cluster)
       topicUpdate(T_NODES, nodesList, singleTarget = Some(ref))
   }
 
+  override def peerData: JsValue = Json.obj(
+    "name" -> nodeName
+  )
 
 }

@@ -16,9 +16,8 @@
 
 package actors
 
-import java.util.UUID
-
 import akka.actor.{Actor, ActorRef, Props}
+import akka.cluster.Cluster
 import com.diogoduailibe.lzstring4j.LZString
 import common.actors.{ActorWithComposableBehavior, ActorWithTicks}
 import hq._
@@ -48,19 +47,42 @@ class WebsocketActor(out: ActorRef)
 
   var aggregator: mutable.Map[String, String] = new mutable.HashMap[String, String]()
 
-  var clientSeed : Option[String] = None
-  var cmdReplySubj : Option[LocalSubj] = None
+  var clientSeed: Option[String] = None
+  var cmdReplySubj: Option[LocalSubj] = None
 
   override def tickInterval: FiniteDuration = 200.millis
 
-
+  val cluster = Cluster.get(context.system)
 
   override def preStart(): Unit = {
     super.preStart()
-    logger.info(s"Accepted WebSocket connection, proxy actor: $out")
+    logger.info(s"Accepted WebSocket connection, proxy actor: $out" )
   }
 
   override def commonBehavior: Actor.Receive = messageHandler orElse super.commonBehavior
+
+  override def processTick(): Unit = {
+    val str = aggregator.values.foldRight("") { (value, aggr) =>
+      if (aggr != "") {
+        aggr + msgSplitChar + value
+      } else {
+        value
+      }
+    }
+    if (str.length > 0) {
+      var msg = ""
+      if (str.length > 100) {
+        val comp = LZString.compressToUTF16(str)
+        if (comp.length < str.length) {
+          msg = "z" + comp
+        }
+      }
+      if (msg == "") msg = "f" + str
+      out ! msg
+      logger.info(s"Sent ${aggregator.size} messages, uncomp ${str.length} comp ${msg.length}")
+      aggregator.clear()
+    }
+  }
 
   private def messageHandler: Actor.Receive = {
     case Update(sourceRef, subj, data, _) =>
@@ -68,7 +90,7 @@ class WebsocketActor(out: ActorRef)
     case CommandErr(sourceRef, subj, data) =>
       logger.debug(s"!>>> ${subj2path(subj)}")
       logger.debug(s"!>>> ${path2alias get subj2path(subj)}")
-      path2alias get subj2path(subj) foreach { path => logger.info("!>>>>> " + buildClientMessage("U", path)(Json.stringify(data))) }
+      path2alias get subj2path(subj) foreach { path => logger.info("!>>>>> " + buildClientMessage("U", path)(Json.stringify(data)))}
       logger.debug(s"!>>> ${path2alias get subj2path(subj)}")
 
       path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(Json.stringify(data)))}
@@ -93,7 +115,9 @@ class WebsocketActor(out: ActorRef)
         val data = msgContents.tail
 
         mtype match {
-          case 'X' => addUUID(data)
+          case 'X' =>
+            addUUID(data)
+            out ! "fL" + cluster.selfAddress.toString
           case 'A' => addOrReplaceAlias(data)
           case 'B' => addOrReplaceLocationAlias(data)
           case _ => extractByAlias(data) foreach { str =>
@@ -111,7 +135,6 @@ class WebsocketActor(out: ActorRef)
   private def buildClientMessage(mt: String, alias: String)(payload: String = "") = {
     mt + alias + opSplitChar + payload
   }
-
 
   private def subj2path(subj: Any) = subj match {
     case RemoteSubj(addr, LocalSubj(ComponentKey(compKey), TopicKey(topicKey))) =>
@@ -175,7 +198,7 @@ class WebsocketActor(out: ActorRef)
     alias2path.get(al).map(_ + path)
   }
 
-  private def mapComponents(comp: String) : Option[String] = {
+  private def mapComponents(comp: String): Option[String] = {
     comp match {
       case "_" => None
       case x if clientSeed.isDefined && clientSeed.get == x => Some("_")
@@ -201,29 +224,6 @@ class WebsocketActor(out: ActorRef)
       case _ => logger.warn(s"Invalid payload $str")
     }
     extract(str.split(opSplitChar).toList)
-  }
-
-  override def processTick(): Unit = {
-    val str = aggregator.values.foldRight("") { (value, aggr) =>
-      if (aggr != "") {
-        aggr + msgSplitChar + value
-      } else {
-        value
-      }
-    }
-    if (str.length > 0) {
-      var msg = ""
-      if (str.length>100) {
-        val comp = LZString.compressToUTF16(str)
-        if (comp.length<str.length) {
-          msg = "z"+comp
-        }
-      }
-      if (msg == "") msg = "f" + str
-      out ! msg
-      logger.info(s"Sent ${aggregator.size} messages, uncomp ${str.length} comp ${msg.length}")
-      aggregator.clear()
-    }
   }
 
 }

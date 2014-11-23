@@ -38,6 +38,8 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
     var alias2key = {};
     var aliasCounter = 1;
 
+    var localAddress = false;
+
     var location2locationAlias = {};
     var locationAlias2location = {};
     var locationAliasCounter = 1;
@@ -45,8 +47,8 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
     var aggregationTimer = false;
     var aggregatedMessage = [];
 
-    var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+    var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
     });
 
@@ -71,9 +73,6 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
 
             sock.send("fX" + uuid);
 
-            listeners.forEach(function (next) {
-                if (next.onOpen) next.onOpen();
-            });
         };
 
         sock.onclose = function (x) {
@@ -88,6 +87,8 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
                 });
             }
 
+            this.localAddress = false;
+
             currentState = WebSocket.CLOSED;
 
             if (!forcedClose) {
@@ -100,6 +101,15 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
         function nextMsg(content) {
 
             var type = content.substring(0, 1);
+
+            if (type == 'L') {
+                this.localAddress = content.substring(1);
+                console.debug("Local address: " + this.localAddress);
+                listeners.forEach(function (next) {
+                    if (next.onOpen) next.onOpen();
+                });
+                return;
+            }
 
             var aliasAndData = content.substring(1).split(opSplitCode);
 
@@ -126,7 +136,7 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
             var flag = e.data.substring(0, 1);
             var data = e.data.substring(1);
             var content = flag == 'z' ? LZString.decompressFromUTF16(data) : data;
-            console.debug("From Websocket: " + content);
+            console.debug("From Websocket (" + data.length + "/" + content.length + "): " + content);
             var messages = content.split(msgSplitCode);
             messages.forEach(nextMsg);
         };
@@ -134,7 +144,7 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
     }
 
     function connected() {
-        return currentState == WebSocket.OPEN;
+        return currentState == WebSocket.OPEN && this.localAddress;
     }
 
     function getUUID() {
@@ -145,6 +155,11 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
         if ($.inArray(msg, aggregatedMessage) == -1) {
             aggregatedMessage.push(msg);
         }
+    }
+
+    function toRealAddress(address) {
+        if (address == "local" || address == "@") return this.localAddress;
+        return address;
     }
 
     function sendToServer(type, address, route, topic, payload) {
@@ -213,7 +228,7 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
                 subscribe: subscribeFunc,
                 unsubscribe: unsubscribeFunc,
                 command: function (address, route, topic, data) {
-                    return sendToServer("C", address, route, topic, data);
+                    return sendToServer("C", toRealAddress(address), route, topic, data);
                 },
                 connected: connected,
                 addWsOpenEventListener: function (callback) {
@@ -231,16 +246,18 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
             }
 
             function subscribeFunc(address, route, topic, callback) {
-                if (sendToServer("S", address, route, topic, false)) {
+                var realAddress = toRealAddress(address);
+                if (sendToServer("S", realAddress, route, topic, false)) {
                     console.log("Registered interest: {" + route + "}" + topic);
-                    messageHandlers[address + opSplitCode + route + opSplitCode + topic] = callback;
+                    messageHandlers[realAddress + opSplitCode + route + opSplitCode + topic] = callback;
                 }
             }
 
             function unsubscribeFunc(address, route, topic, callback) {
-                if (sendToServer("U", address, route, topic, false)) {
+                var realAddress = toRealAddress(address);
+                if (sendToServer("U", realAddress, route, topic, false)) {
                     console.log("Unregistered interest: {" + route + "}" + topic);
-                    messageHandlers[address + opSplitCode + route + opSplitCode + topic] = null;
+                    messageHandlers[realAddress + opSplitCode + route + opSplitCode + topic] = null;
                 }
             }
 

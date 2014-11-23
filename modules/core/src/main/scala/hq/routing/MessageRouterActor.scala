@@ -16,7 +16,7 @@
 
 package hq.routing
 
-import javax.security.auth.Subject
+import com.typesafe.config.Config
 
 import akka.actor._
 import akka.cluster.Cluster
@@ -30,7 +30,7 @@ import scala.concurrent.duration.DurationLong
 
 object MessageRouterActor extends ActorObjWithCluster {
   def id = "router"
-  def props(implicit cluster: Cluster) = Props(new MessageRouterActor())
+  def props(implicit cluster: Cluster, config: Config) = Props(new MessageRouterActor())
 }
 
 

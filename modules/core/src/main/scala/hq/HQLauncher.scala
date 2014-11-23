@@ -21,6 +21,7 @@ import akka.cluster.Cluster
 import com.typesafe.config.ConfigFactory
 import common.storage.ConfigStorageActor
 import hq.agents.AgentsManagerActor
+import hq.cluster.ClusterManagerActor
 import hq.flows.FlowManagerActor
 import hq.gates.GateManagerActor
 import hq.routing.MessageRouterActor
@@ -36,6 +37,7 @@ object HQLauncher extends App {
 
   implicit val cluster = Cluster(system)
 
+  ClusterManagerActor.start
   ConfigStorageActor.start
   MessageRouterActor.start
   GateManagerActor.start
@@ -43,9 +45,4 @@ object HQLauncher extends App {
   FlowManagerActor.start
 
 
-  import com.sksamuel.elastic4s.ElasticClient
-  import com.sksamuel.elastic4s.ElasticDsl._
-  val client = ElasticClient.local
-  val resp = client.execute { search in "bands/artists" query "coldplay" }.await
-  println(resp.getAggregations)
 }

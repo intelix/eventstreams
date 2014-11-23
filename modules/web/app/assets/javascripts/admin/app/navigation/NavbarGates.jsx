@@ -14,9 +14,14 @@
  * limitations under the License.
  */
 
-@import "_variables.less";
+define(['react', 'coreMixin', 'app_navbar_el_mixin'], function (React, coreMixin, NavbarElementMixin) {
 
-body {
-	background-color: @myBodyBackground;
+    return React.createClass({
+        mixins: [coreMixin, NavbarElementMixin],
 
-}
+        render: function () {
+            return this.asNavbarElement(<span>Gates <span className="badge">45</span></span>);
+        }
+    });
+
+});

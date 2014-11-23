@@ -4,7 +4,6 @@
 
 # Home page
 GET        /                     controllers.web.Application.index
-GET        /hey                     controllers.web.Application.hey
 GET        /socket               controllers.web.Application.socket
 
 

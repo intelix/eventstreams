@@ -15,6 +15,11 @@
  */
 
 (function() {
+
+    function adminApp(path) {
+        return "admin/app/" + path;
+    }
+
     require.config({
 
         /*noinspection */
@@ -24,6 +29,26 @@
             react: "../lib/react/react-with-addons",
             bootstrap: "../lib/bootstrap/js/bootstrap",
             toastr: "../lib/toastr/toastr",
+
+
+            app_layout: adminApp("Layout"),
+
+            app_navbar: adminApp("navigation/Navbar"),
+            app_navbar_el_mixin: adminApp("navigation/NavbarElementMixin"),
+            app_navbar_gates: adminApp("navigation/NavbarGates"),
+            app_navbar_flows: adminApp("navigation/NavbarFlows"),
+            app_navbar_agents: adminApp("navigation/NavbarAgents"),
+            app_navbar_notif: adminApp("navigation/NavbarNotifications"),
+
+            app_content: adminApp("content/ContentManager"),
+
+            app_gates: adminApp("content/gates/Content"),
+            app_flows: adminApp("content/flows/Content"),
+            app_agents: adminApp("content/agents/Content"),
+            app_notif: adminApp("content/notif/Content"),
+
+
+
 
             lz: "/assets/javascripts/lz-string",
             coreMixin: "tools/CoreMixin",

@@ -19,6 +19,8 @@ object Global extends GlobalSettings with scalalogging.StrictLogging {
 //    val clusterSystem =  ActorSystem("ehubhq",ConfigFactory.load("akka-play.conf"))
     implicit val cluster = Cluster(system)
 
+    implicit val config = app.configuration.underlying
+
     implicit val ec = system.dispatcher
 
     MessageRouterActor.start

@@ -74,7 +74,7 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
       sendToHQAll()
     case ReconfigureTap(data) =>
       updateConfigProps(data)
-    case ReconfigureTap() =>
+    case ResetTapState() =>
       updateConfigState(None)
   }
 

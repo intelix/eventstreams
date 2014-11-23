@@ -18,8 +18,9 @@ package common.actors
 
 import akka.actor.{ActorRefFactory, Props}
 import akka.cluster.Cluster
+import com.typesafe.config.Config
 
 trait ActorObjWithCluster extends ActorObj {
-  def props(implicit cluster: Cluster): Props
-  def start(implicit f: ActorRefFactory, cluster: Cluster) = f.actorOf(props, id)
+  def props(implicit cluster: Cluster, config: Config): Props
+  def start(implicit f: ActorRefFactory, cluster: Cluster, config: Config) = f.actorOf(props, id)
 }

@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-require(['react','admin/NodeTabs'], function (React, Container) {
+require(['react','app_layout'], function (React, Layout) {
 
-    React.render(<Container />, document.getElementById('content'));
+    React.render(<Layout />, document.getElementById('content'));
 
 });
