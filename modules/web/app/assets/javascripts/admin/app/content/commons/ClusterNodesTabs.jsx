@@ -59,7 +59,7 @@ define(['react', 'coreMixin', 'subscriberMixin', 'admin/AdminContainer'], functi
             var connected = this.state.connected;
 
             if (!this.state.nodes || this.state.nodes.length == 0) {
-                return <p className="bg-warning">Waiting for the client to join the Cluster ...</p>
+                return <p className="bg-warning">Waiting for the console to join the Cluster ...</p>
             }
 
             var filteredNodes = this.filteredNodes();

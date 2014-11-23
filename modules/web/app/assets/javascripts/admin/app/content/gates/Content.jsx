@@ -37,7 +37,7 @@ define(['react', 'coreMixin', 'admin/app/content/commons/ClusterNodesTabs', 'adm
 
         render: function () {
 
-            var content =  this.state.selected ? <ListContainer addr={this.state.selected} /> : <div>none selected</div>;
+            var content =  this.state.selected ? <ListContainer addr={this.state.selected} /> : <div></div>;
 
 
                 return <div>
