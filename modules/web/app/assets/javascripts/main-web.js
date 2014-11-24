@@ -41,8 +41,12 @@
             app_navbar_notif: adminApp("navigation/NavbarNotifications"),
 
             app_content: adminApp("content/ContentManager"),
+            app_content_nodetabs: adminApp("content/commons/ClusterNodesTabs"),
 
             app_gates: adminApp("content/gates/Content"),
+            app_gates_table: adminApp("content/gates/GatesTable"),
+            app_gates_table_row: adminApp("content/gates/GatesTableRow"),
+
             app_flows: adminApp("content/flows/Content"),
             app_agents: adminApp("content/agents/Content"),
             app_notif: adminApp("content/notif/Content"),

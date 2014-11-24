@@ -25,7 +25,7 @@ define(['toastr', 'react', 'coreMixin', 'subscriberMixin',
         return React.createClass({
             mixins: [coreMixin, subscriberMixin],
 
-            subscriptionConfig: function (props, state) {
+            subscriptionConfig: function (props) {
                 return {
                     address: 'akka.tcp://application@localhost:2552',
                     route: "_",
@@ -39,10 +39,9 @@ define(['toastr', 'react', 'coreMixin', 'subscriberMixin',
                 return {result: false}
             },
 
-            onComponentUpdate: function (nextProps, nextState) {
-
-                if (nextState.cmdresult) {
-                    if (nextState.cmdresult.error) {
+            onSubscriptionUpdate: function(key, data) {
+                if (data) {
+                    if (data.error) {
                         toastr.options = {
                             "closeButton": false,
                             "debug": false,
@@ -58,9 +57,9 @@ define(['toastr', 'react', 'coreMixin', 'subscriberMixin',
                             "showMethod": "fadeIn",
                             "hideMethod": "fadeOut"
                         };
-                        toastr.error("Error", nextState.cmdresult.error.msg);
+                        toastr.error("Error", data.error.msg);
                     }
-                    if (nextState.cmdresult.ok) {
+                    if (data.ok) {
                         toastr.options = {
                             "closeButton": false,
                             "debug": false,
@@ -76,11 +75,11 @@ define(['toastr', 'react', 'coreMixin', 'subscriberMixin',
                             "showMethod": "fadeIn",
                             "hideMethod": "fadeOut"
                         };
-                        toastr.info(nextState.cmdresult.ok.msg);
+                        toastr.info(data.ok.msg);
                     }
-                    this.setState({result: false});
                 }
             },
+
 
             render: function () {
                 return (

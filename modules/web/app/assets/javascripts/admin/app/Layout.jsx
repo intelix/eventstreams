@@ -24,7 +24,7 @@ define(['toastr', 'react', 'coreMixin', 'subscriberMixin',
         return React.createClass({
             mixins: [coreMixin, subscriberMixin],
 
-            subscriptionConfig: function (props, state) {
+            subscriptionConfig: function (props) {
                 return {
                     address: 'local',
                     route: "_",
@@ -103,15 +103,14 @@ define(['toastr', 'react', 'coreMixin', 'subscriberMixin',
                 toastr.info(msg);
             },
 
-            onComponentUpdate: function (nextProps, nextState) {
-                if (nextState.cmdresult) {
-                    if (nextState.cmdresult.error) {
-                        this.popupError(nextState.cmdresult.error.msg);
+            onSubscriptionUpdate: function (key, data) {
+                if (data) {
+                    if (data.error) {
+                        this.popupError(data.error.msg);
                     }
-                    if (nextState.cmdresult.ok) {
-                        this.popupinfo(nextState.cmdresult.ok.msg);
+                    if (data.ok) {
+                        this.popupInfo(data.ok.msg);
                     }
-                    this.setState({result: false});
                 }
             },
 

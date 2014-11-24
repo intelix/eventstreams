@@ -27,10 +27,11 @@ define(['wsclient'], function (client) {
             if (this.onSubscriptionUpdate) this.onSubscriptionUpdate(key, data);
         },
         onStaleUpdate: function (key, data) {
-            var id = this.subscriptionConfig(this.props, this.state);
+            var id = this.subscriptionConfig(this.props);
             console.debug("Stale: "+data+" for " + key +" on " + id.route + "{" + id.topic + "}@" + id.address);
             var staleKey = key+"_stale";
             if (this.state[staleKey] != data) {
+                if (this.onSubscriptionStaleUpdate) this.onSubscriptionStaleUpdate(key, data);
                 var partialStateUpdate = {};
                 partialStateUpdate[staleKey] = data;
                 this.setState(partialStateUpdate);
@@ -38,7 +39,7 @@ define(['wsclient'], function (client) {
         },
 
         updateHandler: function (type, data) {
-            var id = this.subscriptionConfig(this.props, this.state);
+            var id = this.subscriptionConfig(this.props);
             console.debug("onMessage() type " + type + " for " + id.route + "{" + id.topic + "}@" + id.address);
             var staleKey = id.target+"_stale";
             if (type == "D") {
@@ -50,11 +51,11 @@ define(['wsclient'], function (client) {
         },
 
         startListener: function () {
-            this.startListenerWithParams(this.props, this.state);
+            this.startListenerWithParams(this.props);
         },
-        startListenerWithParams: function (props, state) {
+        startListenerWithParams: function (props) {
             var self = this;
-            var id = this.subscriptionConfig(props, state);
+            var id = this.subscriptionConfig(props);
 
             this.handle = client.getHandle();
 
@@ -104,7 +105,7 @@ define(['wsclient'], function (client) {
 
         stopListener: function () {
             if (this.handle) {
-                var id = this.subscriptionConfig(this.props, this.state);
+                var id = this.subscriptionConfig(this.props);
 
                 this.handle.unsubscribe(id.address, id.route, id.topic, this.updateHandler);
 
@@ -120,11 +121,11 @@ define(['wsclient'], function (client) {
                     id1.topic != id2.topic;
             }
             if (this.handle) {
-                var currentId = this.subscriptionConfig(this.props, this.state);
-                var newId = this.subscriptionConfig(newProps, newState);
+                var currentId = this.subscriptionConfig(this.props);
+                var newId = this.subscriptionConfig(newProps);
                 if (different(currentId,newId)) {
                     this.stopListener();
-                    this.startListenerWithParams(newProps, newState);
+                    this.startListenerWithParams(newProps);
                 }
             }
         }

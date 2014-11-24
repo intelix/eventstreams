@@ -34,7 +34,7 @@ define([
         return React.createClass({
             mixins: [coreMixin, subscriberMixin],
 
-            subscriptionConfig: function (props, state) {
+            subscriptionConfig: function (props) {
                 return {address: props.addr, route: props.id, topic: 'info', target: 'info'};
             },
             getInitialState: function () {

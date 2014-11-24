@@ -25,7 +25,7 @@ define(['wsclient'], function(client) {
             console.debug("!>>>> created");
 
             function wsOpenHandler() {
-                if (!self.state.connected) {
+                if (!self.state || !self.state.connected) {
                     if (self.onConnected) self.onConnected();
                     self.setState({connected: true});
                     console.debug("onConnected()" );
@@ -33,7 +33,7 @@ define(['wsclient'], function(client) {
             }
 
             function wsClosedHandler() {
-                if (self.state.connected) {
+                if (self.state && self.state.connected) {
                     self.setState({connected: false});
                     if (self.onDisconnected) self.onDisconnected();
                     console.debug("onDisconnected()");

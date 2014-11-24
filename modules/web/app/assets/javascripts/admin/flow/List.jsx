@@ -19,7 +19,7 @@ define(['react', 'coreMixin', 'subscriberMixin', 'admin/flow/ListItem'], functio
     return React.createClass({
         mixins: [coreMixin, subscriberMixin],
 
-        subscriptionConfig: function (props, state) {
+        subscriptionConfig: function (props) {
             return {address: props.addr, route:'flows', topic:'list', target: 'list'};
         },
         getInitialState: function () {

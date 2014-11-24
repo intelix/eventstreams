@@ -19,7 +19,7 @@ define(['react', 'coreMixin', 'subscriberMixin', 'admin/AdminContainer'], functi
     return React.createClass({
         mixins: [coreMixin, subscriberMixin],
 
-        subscriptionConfig: function (props, state) {
+        subscriptionConfig: function (props) {
             return {address:'local', route:'cluster', topic:'nodes', target: 'nodes'};
         },
         getInitialState: function () {
@@ -59,12 +59,14 @@ define(['react', 'coreMixin', 'subscriberMixin', 'admin/AdminContainer'], functi
             var connected = this.state.connected;
 
             if (!this.state.nodes || this.state.nodes.length == 0) {
+                if (!this.state.connected) return <p className="bg-warning">Waiting for the connection ...</p>
                 return <p className="bg-warning">Waiting for the console to join the Cluster ...</p>
             }
 
             var filteredNodes = this.filteredNodes();
 
             if (filteredNodes.length == 0) {
+                if (!this.state.connected) return <p className="bg-warning">Waiting for the connection ...</p>
                 return <p className="bg-warning">Waiting for first HQ node to join the Cluster ...</p>
             }
 
@@ -72,7 +74,7 @@ define(['react', 'coreMixin', 'subscriberMixin', 'admin/AdminContainer'], functi
 
             return (
                 <div>
-                    <ul className="nav nav-tabs" role="tablist">
+                    <ul className="nav nav-pills" role="tablist">
                         {filteredNodes.map(function (el) {
 
                             var tabClasses = cx({

@@ -24,12 +24,12 @@ define(['react', 'coreMixin', 'subscriberMixin', 'admin/agent/datatap/List'],
         },
 
 
-        subscriptionConfig: function (props, state) {
+        subscriptionConfig: function (props) {
             return {address: props.addr, route: props.id, topic: 'info', target: 'info'};
         },
 
-        onComponentUpdate: function(nextProps, nextState) {
-            if (!this.state.info_stale && nextState.info_stale) {
+        onSubscriptionStaleUpdate: function(key, isStale) {
+            if (isStale) {
                 this.raiseEvent("tapUnavailable", {id: this.props.id});
             }
         },

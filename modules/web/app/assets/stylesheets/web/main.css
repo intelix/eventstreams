@@ -25,8 +25,8 @@ body {
   margin-bottom: 20px;
 }
 
-.main-container > p > .btn {
-  margin: 5px 0;
+.btn {
+  margin: 5px;
 }
 
 .main-container .navbar .container {
@@ -91,3 +91,5 @@ body {
 }
 
 p{padding:20px;}
+
+.withspace { margin-top: 30px; }

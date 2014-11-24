@@ -18,7 +18,7 @@ define(['react', 'coreMixin', 'subscriberMixin', 'admin/gate/ListItem'], functio
     return React.createClass({
         mixins: [coreMixin, subscriberMixin],
 
-        subscriptionConfig: function (props, state) {
+        subscriptionConfig: function (props) {
             return {address: props.addr, route:'gates', topic:'list', target: 'list'};
         },
         getInitialState: function () {

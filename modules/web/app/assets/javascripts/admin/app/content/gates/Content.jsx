@@ -14,44 +14,47 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'admin/app/content/commons/ClusterNodesTabs', 'admin/gate/ListContainer'], function (React, coreMixin, Tabs, ListContainer) {
+define(['react', 'coreMixin', 'app_content_nodetabs', 'app_gates_table', 'admin/app/content/commons/AddNewConfigBlock', 'admin/app/content/commons/EditConfigBlock'],
+    function (React, coreMixin, Tabs, Table, AddNewBlock, EditBlock) {
 
-    return React.createClass({
-        mixins: [coreMixin],
+        return React.createClass({
+            mixins: [coreMixin],
 
-        getInitialState: function () {
-            return { selected: false }
-        },
+            getInitialState: function () {
+                return {selected: false}
+            },
 
-        onMount: function() {
-            this.addEventListener("nodeSelectorForGates", this.handleSelectionEvent);
-        },
-        onUnmount: function() {
-            this.removeEventListener("nodeSelectorForGates", this.handleSelectionEvent);
-        },
+            subscribeToEvents: function() { return [
+                ["addNewGate", this.openModal],
+                ["editGate", this.openEditModal],
+                ["modalClosed", this.closeModal],
+                ["nodeSelectorForGates", this.handleSelectionEvent]
+            ]},
 
-        handleSelectionEvent: function(evt) {
-            this.setState({selected: evt.detail.address});
-        },
+            openModal: function () {
+                this.setState({editBlock: <AddNewBlock addr={this.state.selected} title="Gate configuration" />});
+            },
+            openEditModal: function (evt) {
+                this.setState({editBlock: <EditBlock addr={this.state.selected} id={evt.detail.id}  title="Gate configuration"/>});
+            },
+            closeModal: function () {
+                this.setState({editBlock: false});
+            },
+
+            handleSelectionEvent: function (evt) {
+                this.setState({selected: evt.detail.address});
+            },
 
 
-        render: function () {
-
-            var content =  this.state.selected ? <ListContainer addr={this.state.selected} /> : <div></div>;
-
+            render: function () {
 
                 return <div>
-                <div className="jumbotron">
-                    <h1>Gates</h1>
-                    <p>This is a template for a simple marketing or informational website. It includes a large callout called a jumbotron and three supporting pieces of content. Use it as a starting point to create something more unique.</p>
-                    <p>
-                        <a href="#" className="btn btn-primary btn-lg" role="button">Learn more &raquo;</a>
-                    </p>
-                </div>
-                <Tabs roles={["hq"]} selectorId="nodeSelectorForGates" />
-                {content}
-            </div>;
-        }
-    });
 
-});
+                    <Tabs roles={["hq"]} selectorId="nodeSelectorForGates" />
+                    {this.state.editBlock ? this.state.editBlock : ""}
+                    {this.state.selected ? <Table addr={this.state.selected}/> : ""}
+                </div>;
+            }
+        });
+
+    });

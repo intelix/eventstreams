@@ -33,18 +33,34 @@ define(['jquery'], function() {
             evtElement.dispatchEvent(new CustomEvent(evt, { detail: data }));
         },
 
+
         componentWillUpdate: function(newProps, newState) {
-            if (this.validateListener) this.validateListener(newProps, newState);
             if (this.onComponentUpdate) this.onComponentUpdate(newProps, newState);
         },
 
+        componentWillReceiveProps: function(nextProps) {
+            if (this.validateListener) this.validateListener(nextProps);
+        },
+
         componentDidMount: function() {
+            if (this.subscribeToEvents) {
+                var eventslist = this.subscribeToEvents();
+                eventslist.forEach(function(el) {
+                   addEventListener(el[0], el[1]);
+                });
+            }
             if (this.startListener) this.startListener();
             if (this.onMount) {
                 this.onMount();
             }
         },
         componentWillUnmount: function() {
+            if (this.subscribeToEvents) {
+                var eventslist = this.subscribeToEvents();
+                eventslist.forEach(function(el) {
+                    removeEventListener(el[0], el[1]);
+                });
+            }
             if (this.stopListener) this.stopListener();
             if (this.onUnmount) {
                 this.onUnmount();
