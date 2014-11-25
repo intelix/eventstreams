@@ -263,7 +263,7 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
                 }
             }
 
-            function unsubscribeFunc(address, route, topic, callback) {
+            function unsubscribeFunc(address, route, topic) {
                 var realAddress = toRealAddress(address);
                 if (sendToServer("U", realAddress, route, topic, false)) {
                     console.log("Unregistered interest: {" + route + "}" + topic);

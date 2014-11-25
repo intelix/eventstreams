@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-define(['react', 'coreMixin', 'subscriberMixin', 'admin/agent/datatap/List'],
-    function (React, coreMixin, subscriberMixin, List) {
+define(['react', 'coreMixin', 'streamMixin', 'admin/agent/datatap/List'],
+    function (React, coreMixin, streamMixin, List) {
 
     return React.createClass({
-        mixins: [coreMixin, subscriberMixin],
+        mixins: [coreMixin, streamMixin],
 
         getInitialState: function () {
             return {}
@@ -25,7 +25,7 @@ define(['react', 'coreMixin', 'subscriberMixin', 'admin/agent/datatap/List'],
 
 
         subscriptionConfig: function (props) {
-            return {address: props.addr, route: props.id, topic: 'info', target: 'info'};
+            return [{address: props.addr, route: props.id, topic: 'info', dataKey: 'info'}];
         },
 
         onSubscriptionStaleUpdate: function(key, isStale) {

@@ -14,23 +14,25 @@
  * limitations under the License.
  */
 
-define(['toastr', 'react', 'coreMixin', 'subscriberMixin',
+define(['toastr', 'react', 'coreMixin', 'streamMixin',
         'app_navbar',
         'app_content'],
-    function (toastr, React, coreMixin, subscriberMixin,
+    function (toastr, React, coreMixin, streamMixin,
               Navbar,
               Content) {
 
         return React.createClass({
-            mixins: [coreMixin, subscriberMixin],
+            mixins: [coreMixin, streamMixin],
+
+            componentName: function() { return "app/layout"; },
 
             subscriptionConfig: function (props) {
-                return {
+                return [{
                     address: 'local',
                     route: "_",
                     topic: 'cmd',
-                    target: 'cmdresult'
-                };
+                    onData: this.onData
+                }];
             },
 
 
@@ -103,7 +105,7 @@ define(['toastr', 'react', 'coreMixin', 'subscriberMixin',
                 toastr.info(msg);
             },
 
-            onSubscriptionUpdate: function (key, data) {
+            onData: function (data) {
                 if (data) {
                     if (data.error) {
                         this.popupError(data.error.msg);

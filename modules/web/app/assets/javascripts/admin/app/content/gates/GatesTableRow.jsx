@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'subscriberMixin'], function (React, coreMixin, subscriberMixin) {
+define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, streamMixin) {
 
     return React.createClass({
-        mixins: [coreMixin, subscriberMixin],
+        mixins: [coreMixin, streamMixin],
 
         subscriptionConfig: function (props) {
-            return {address: props.addr, route: props.id, topic: 'info', target: 'info'};
+            return [{address: props.addr, route: props.id, topic: 'info', dataKey: 'info'}];
         },
         getInitialState: function () {
             return {info: false}
@@ -49,7 +49,7 @@ define(['react', 'coreMixin', 'subscriberMixin'], function (React, coreMixin, su
         },
         renderLoading: function () {
             return (
-                <tr><td colspan="12">loading...</td></tr>
+                <tr><td colSpan="12">loading...</td></tr>
             );
         },
 

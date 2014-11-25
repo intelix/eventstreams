@@ -14,54 +14,90 @@
  * limitations under the License.
  */
 
-define(['jquery'], function() {
+define(['jquery'], function () {
 
     var evtElement = window;
 
+    var DEBUG = 1;
+    var INFO = 2;
+    var WARN = 3;
+    var ERROR = 4;
+
+    var defaultLogLevel = DEBUG;
+
     return {
 
-        addEventListener: function(evt, func) {
-            console.debug("Added event listener: " + evt +" on " + evtElement);
+        componentNamePrefix: function() {
+            return this.componentName ? this.componentName() + ": " : "";
+        },
+
+        isDebug: function () {
+            return (this.logLevel && this.logLevel() <= DEBUG) || (!this.logLevel && defaultLogLevel <= DEBUG);
+        },
+
+        isInfo: function () {
+            return (this.logLevel && this.logLevel() <= INFO) || (!this.logLevel && defaultLogLevel <= INFO);
+        },
+
+        logDebug: function (msg) {
+            if (this.isDebug()) {
+                console.debug(this.componentNamePrefix() + msg);
+            }
+        },
+        logInfo: function (msg) {
+            if (this.isInfo()) {
+                console.info(this.componentNamePrefix() + msg);
+            }
+        },
+        logWarn: function (msg) {
+            console.warn(this.componentNamePrefix() + msg);
+        },
+        logError: function (msg) {
+            console.error(this.componentNamePrefix() + msg);
+        },
+
+        addEventListener: function (evt, func) {
+            if (this.isDebug()) {
+                this.logDebug("Added event listener: " + evt );
+            }
             evtElement.addEventListener(evt, func);
         },
-        removeEventListener: function(evt, func) {
-            console.debug("Removed event listener: " + evt);
+        removeEventListener: function (evt, func) {
+            if (this.isDebug()) {
+                this.logDebug("Removed event listener: " + evt );
+            }
             evtElement.removeEventListener(evt, func);
         },
-        raiseEvent: function(evt, data) {
-            console.debug("Dispatched event: " + evt +" with "+ data +" into " + evtElement);
-            evtElement.dispatchEvent(new CustomEvent(evt, { detail: data }));
+        raiseEvent: function (evt, data) {
+            if (this.isDebug()) {
+                this.logDebug("Dispatched event: " + evt +" with data: " + data);
+            }
+            evtElement.dispatchEvent(new CustomEvent(evt, {detail: data}));
         },
 
 
-        componentWillUpdate: function(newProps, newState) {
+        componentWillUpdate: function (newProps, newState) {
             if (this.onComponentUpdate) this.onComponentUpdate(newProps, newState);
         },
 
-        componentWillReceiveProps: function(nextProps) {
-            if (this.validateListener) this.validateListener(nextProps);
-        },
-
-        componentDidMount: function() {
+        componentDidMount: function () {
             if (this.subscribeToEvents) {
                 var eventslist = this.subscribeToEvents();
-                eventslist.forEach(function(el) {
-                   addEventListener(el[0], el[1]);
+                eventslist.forEach(function (el) {
+                    addEventListener(el[0], el[1]);
                 });
             }
-            if (this.startListener) this.startListener();
             if (this.onMount) {
                 this.onMount();
             }
         },
-        componentWillUnmount: function() {
+        componentWillUnmount: function () {
             if (this.subscribeToEvents) {
                 var eventslist = this.subscribeToEvents();
-                eventslist.forEach(function(el) {
+                eventslist.forEach(function (el) {
                     removeEventListener(el[0], el[1]);
                 });
             }
-            if (this.stopListener) this.stopListener();
             if (this.onUnmount) {
                 this.onUnmount();
             }

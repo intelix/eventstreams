@@ -20,6 +20,7 @@ import agent.flavors.files.{Cursor, ProducedMessage}
 import agent.shared._
 import akka.actor._
 import akka.util.ByteString
+import common.ToolExt.configHelper
 import common.actors.{ActorWithConfigStore, AtLeastOnceDeliveryActor, PipelineWithStatesActor, SingleComponentActor}
 import common.{BecomeActive, BecomePassive, JsonFrame}
 import hq._
@@ -82,14 +83,18 @@ class GateActor(id: String)
     switchToCustomBehavior(flowMessagesHandlerForClosedGate)
   }
 
-  def info = Some(Json.obj(
-    "name" -> id,
-    "text" -> s"some random text from $id",
-    "state" -> (if (isPipelineActive) "active" else "passive")
-  ))
+  def info = propsConfig.map { cfg =>
+    Json.obj(
+      "name" -> cfg ~> 'name,
+      "text" -> s"some random text from $id",
+      "state" -> (if (isPipelineActive) "active" else "passive")
+    )
+  }
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
     case T_INFO => topicUpdate(T_INFO, info, singleTarget = Some(ref))
+    case T_PROPS => topicUpdate(T_PROPS, propsConfig, singleTarget = Some(ref))
+    case TopicKey(x) => logger.debug(s"Unknown topic $x")
   }
 
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
@@ -128,7 +133,7 @@ class GateActor(id: String)
 
 
   def convert(id: Long, message: Any): Option[JsonFrame] = message match {
-    case m @ ProducedMessage(MessageWithAttachments(bs: ByteString, attachments), c:Cursor) =>
+    case m@ProducedMessage(MessageWithAttachments(bs: ByteString, attachments), c: Cursor) =>
       Some(JsonFrame(Json.obj(
         "tags" -> Json.arr("source"),
         "id" -> id,
@@ -141,6 +146,10 @@ class GateActor(id: String)
     case x =>
       logger.warn(s"Unsupported message type at the gate  $id: $x")
       None
+  }
+
+  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {
+
   }
 
   private def flowMessagesHandlerForClosedGate: Receive = {
@@ -185,10 +194,6 @@ class GateActor(id: String)
       sinks += sender()
       context.watch(sinkRef)
       logger.info(s"New sink: ${sender()}")
-  }
-
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {
-    // TODO extract all you need for the gate - name etc
   }
 }
 

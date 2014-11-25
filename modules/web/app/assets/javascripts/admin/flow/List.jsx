@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'subscriberMixin', 'admin/flow/ListItem'], function (React, coreMixin, subscriberMixin, ListItem) {
+define(['react', 'coreMixin', 'streamMixin', 'admin/flow/ListItem'], function (React, coreMixin, streamMixin, ListItem) {
 
     return React.createClass({
-        mixins: [coreMixin, subscriberMixin],
+        mixins: [coreMixin, streamMixin],
 
         subscriptionConfig: function (props) {
-            return {address: props.addr, route:'flows', topic:'list', target: 'list'};
+            return [{address: props.addr, route:'flows', topic:'list', dataKey: 'list'}];
         },
         getInitialState: function () {
             return {data: null}

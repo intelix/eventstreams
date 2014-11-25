@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'subscriberMixin', 'admin/AdminContainer'], function (React, coreMixin, subscriberMixin, Container) {
+define(['react', 'coreMixin', 'streamMixin', 'admin/AdminContainer'], function (React, coreMixin, streamMixin, Container) {
 
     return React.createClass({
-        mixins: [coreMixin, subscriberMixin],
+        mixins: [coreMixin, streamMixin],
+
+        displayName: "ClusterNodeTabs",
 
         subscriptionConfig: function (props) {
-            return {address:'local', route:'cluster', topic:'nodes', target: 'nodes'};
+            return [{address:'local', route:'cluster', topic:'nodes', dataKey: 'nodes', onData: this.onData}];
         },
         getInitialState: function () {
             return {nodes: null, selected: false}
@@ -41,15 +43,13 @@ define(['react', 'coreMixin', 'subscriberMixin', 'admin/AdminContainer'], functi
             return this.state.nodes ? this.state.nodes.filter(onlyRequiredRoles) : [];
         },
 
-        onSubscriptionUpdate: function (key, data) {
-            if (key == 'nodes') {
+        onData: function (data) {
                 var wasSelected = this.state ? this.state.selected : false;
                 var newSelected = wasSelected;
                 var filteredNodes = this.filteredNodes();
                 if (newSelected && !filteredNodes.some(function(el) { return el.address == newSelected})) newSelected = false;
                 if (!newSelected && filteredNodes.length > 0) newSelected = filteredNodes[0].address;
                 if (newSelected != wasSelected) this.onSelectionMade(newSelected);
-            }
         },
 
         renderData: function() {

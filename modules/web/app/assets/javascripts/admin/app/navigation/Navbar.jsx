@@ -41,7 +41,7 @@ define(
                                 <b>hub</b>
                             </a>
                         </div>
-                        <div id="navbar" class="navbar-collapse collapse">
+                        <div id="navbar" className="navbar-collapse collapse">
                             <ul className="nav navbar-nav">
                                 <Gates active={true} id="gates"/>
                                 <Flows id="flows"/>

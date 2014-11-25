@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-define(['react', 'coreMixin', 'subscriberMixin', 'app_gates_table_row'], function (React, coreMixin, subscriberMixin, Row) {
+define(['react', 'coreMixin', 'streamMixin', 'app_gates_table_row'], function (React, coreMixin, streamMixin, Row) {
 
     return React.createClass({
-        mixins: [coreMixin, subscriberMixin],
+        mixins: [coreMixin, streamMixin],
 
         subscriptionConfig: function (props) {
-            return {address: props.addr, route: 'gates', topic: 'list', target: 'list'};
+            return [{address: props.addr, route: 'gates', topic: 'list', dataKey: 'list'}];
         },
         getInitialState: function () {
             return {list: null}

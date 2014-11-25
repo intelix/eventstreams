@@ -13,33 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-define(['toastr', 'react', 'coreMixin', 'subscriberMixin',
+define(['toastr', 'react', 'coreMixin', 'streamMixin',
         'admin/gate/ListContainer',
         'admin/agent/ListContainer',
         'admin/flow/ListContainer'],
-    function (toastr, React, coreMixin, subscriberMixin,
+    function (toastr, React, coreMixin, streamMixin,
               GatesContainer,
               AgentsContainer,
               FlowsContainer) {
 
         return React.createClass({
-            mixins: [coreMixin, subscriberMixin],
+            mixins: [coreMixin, streamMixin],
 
             subscriptionConfig: function (props) {
-                return {
+                return [{
                     address: 'akka.tcp://application@localhost:2552',
                     route: "_",
                     topic: 'cmd',
-                    target: 'cmdresult'
-                };
+                    onData: this.onData
+                }];
             },
 
-
-            getInitialState: function () {
-                return {result: false}
-            },
-
-            onSubscriptionUpdate: function(key, data) {
+            onData: function(data) {
                 if (data) {
                     if (data.error) {
                         toastr.options = {

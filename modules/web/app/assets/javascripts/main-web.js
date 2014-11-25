@@ -56,8 +56,7 @@
 
             lz: "/assets/javascripts/lz-string",
             coreMixin: "tools/CoreMixin",
-            subscriberMixin: "tools/AutoSubscribeMixin",
-            sendOnlyMixin: "tools/SendOnlyMixin",
+            streamMixin: "tools/StreamMixin",
             wsclient: "tools/ServerClient"
         },
         shim: {

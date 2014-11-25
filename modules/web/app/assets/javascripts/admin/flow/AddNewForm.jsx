@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'sendOnlyMixin'], function (React, coreMixin, sendOnlyMixin) {
+define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, streamMixin) {
 
     // use this.sendCommand(subject, data) to talk to server
 
     return React.createClass({
 
-        mixins: [coreMixin, sendOnlyMixin],
+        mixins: [coreMixin, streamMixin],
 
         getInitialState: function () {
             return {}

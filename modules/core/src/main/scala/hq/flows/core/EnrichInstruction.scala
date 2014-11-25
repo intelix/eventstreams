@@ -31,10 +31,10 @@ private[core] object EnrichInstruction extends SimpleInstructionBuilder {
 
   def field2flow(fieldProps: JsValue): \/[Fail, JsonFrame => JsonFrame] =
     for (
-      fieldName <- fieldProps ~> 'name \/> Fail(s"Invalid enrich instruction. Missing 'name' value. Contents: ${Json.stringify(fieldProps)}");
-      fieldValue <- fieldProps #> 'value \/> Fail(s"Invalid enrich instruction. Missing 'value' branch. Contents: ${Json.stringify(fieldProps)}")
+      fieldName <- fieldProps ~> 'fieldName \/> Fail(s"Invalid enrich instruction. Missing 'fieldName' value. Contents: ${Json.stringify(fieldProps)}");
+      fieldValue <- fieldProps #> 'fieldValue \/> Fail(s"Invalid enrich instruction. Missing 'fieldValue' branch. Contents: ${Json.stringify(fieldProps)}")
     ) yield {
-      val fieldType = fieldProps ~> 'type | "s"
+      val fieldType = fieldProps ~> 'fieldType | "s"
 
       frame: JsonFrame => {
 

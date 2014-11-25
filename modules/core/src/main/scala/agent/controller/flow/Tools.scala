@@ -99,8 +99,18 @@ object Tools extends StrictLogging {
     JsString(repl(v.asOpt[String].getOrElse("")))
   }
 
+  private def fieldTypeConverter(fieldType: String):String = fieldType.toLowerCase match {
+    case "string" => "s"
+    case "number" => "n"
+    case "boolean" => "b"
+    case "string array" => "as"
+    case "number array" => "an"
+    case "boolean array" => "ab"
+    case x => x
+  }
+
   def setValue(fieldType: String, s: JsValue, path: JsPath, json: JsValue): JsValue =
-    fieldType match {
+    fieldTypeConverter(fieldType) match {
       case arrayMatch(t) =>
 
         logger.debug("Setting " + s + " to " + path + " in " + json)

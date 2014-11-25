@@ -16,21 +16,21 @@
 define([
         'react',
         'coreMixin',
-        'subscriberMixin',
+        'streamMixin',
         'admin/gate/StartStopButton',
         'admin/gate/DeleteButton'
     ],
     function (React,
               coreMixin,
-              subscriberMixin,
+              streamMixin,
               StartStopButton,
               DeleteButton) {
 
         return React.createClass({
-            mixins: [coreMixin, subscriberMixin],
+            mixins: [coreMixin, streamMixin],
 
             subscriptionConfig: function (props) {
-                return {address: props.addr, route: props.id, topic: 'info', target: 'info'};
+                return [{address: props.addr, route: props.id, topic: 'info', dataKey: 'info'}];
             },
             getInitialState: function () {
                 return {info: null}

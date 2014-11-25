@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-define(['react', 'coreMixin', 'subscriberMixin', 'admin/AdminContainer'], function (React, coreMixin, subscriberMixin, Container) {
+define(['react', 'coreMixin', 'streamMixin', 'admin/AdminContainer'], function (React, coreMixin, streamMixin, Container) {
 
     return React.createClass({
-        mixins: [coreMixin, subscriberMixin],
+        mixins: [coreMixin, streamMixin],
 
         subscriptionConfig: function (props) {
-            return {address:'local', route:'cluster', topic:'nodes', target: 'nodes'};
+            return [{address:'local', route:'cluster', topic:'nodes', dataKey: 'nodes'}];
         },
         getInitialState: function () {
             return {nodes: null}
