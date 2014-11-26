@@ -16,27 +16,30 @@
 
 package common
 
-trait Fail
+trait Fail {
+  def message: Option[String]
+}
 
 trait OK {
+  def message: Option[String]
   def +(other: OK): OK
 }
 
 object Fail {
-  def apply(cause: => String) = new FailWithCause(cause)
+  def apply(cause: => String = "Generic failure", message: Option[String] = None) = new FailWithCause(cause, message)
 }
 
 object OK {
-  def apply() = new JustOK()
-
-  def apply(details: => String) = new OKWithDetails(details)
+  def apply() = new JustOK(None)
+  def apply(message: Option[String]) = new JustOK(message)
+  def apply(details: => String, message: Option[String] = None) = new OKWithDetails(details, message)
 }
 
-class JustOK() extends OK {
-  override def +(other: OK): OK = new JustOK()
+class JustOK(val message: Option[String]) extends OK {
+  override def +(other: OK): OK = new JustOK(other.message)
 }
 
-class OKWithDetails(arg: => String) extends OK {
+class OKWithDetails(arg: => String, val message: Option[String]) extends OK {
   lazy val details = arg
 
   override def +(other: OK): OK = other match {
@@ -46,7 +49,7 @@ class OKWithDetails(arg: => String) extends OK {
   override def toString: String = arg
 }
 
-class FailWithCause(arg: => String) extends Fail {
+class FailWithCause(arg: => String, val message: Option[String]) extends Fail {
   lazy val cause = arg
 
   override def toString: String = arg

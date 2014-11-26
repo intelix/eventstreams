@@ -20,7 +20,7 @@ define(['react', 'coreMixin', 'app_navbar_el_mixin'], function (React, coreMixin
         mixins: [coreMixin, NavbarElementMixin],
 
         render: function () {
-            return this.asNavbarElement(<span>Notifications <span className="badge">45/6</span></span>);
+            return this.asNavbarElement(<span>Notifications</span>);
         }
     });
 

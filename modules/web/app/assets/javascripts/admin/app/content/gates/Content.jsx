@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'app_content_nodetabs', 'app_gates_table', 'admin/app/content/commons/EditConfigBlock'],
+define(['react', 'coreMixin', 'app_content_nodetabs', 'app_gates_table', 'app_gates_editor'],
     function (React, coreMixin, Tabs, Table, EditBlock) {
 
         return React.createClass({
@@ -25,17 +25,25 @@ define(['react', 'coreMixin', 'app_content_nodetabs', 'app_gates_table', 'admin/
             },
 
             subscribeToEvents: function() { return [
-                ["addNewGate", this.openModal],
+                ["addGate", this.openModal],
                 ["editGate", this.openEditModal],
                 ["modalClosed", this.closeModal],
                 ["nodeSelectorForGates", this.handleSelectionEvent]
             ]},
 
             openModal: function (evt) {
-                this.setState({editBlock: <EditBlock addr={this.state.selected} id={evt.detail.id} mode="new" title="Gate configuration" />});
+                var defaults = {
+                    "name": "",
+                    "initialState": "Closed",
+                    "maxInFlight": 100,
+                    "overflowPolicy": {
+                        "type": "backpressure"
+                    }
+                };
+                this.setState({editBlock: <EditBlock addr={this.state.selected} addRoute="gates" title="Gate configuration" defaults={defaults} />});
             },
             openEditModal: function (evt) {
-                this.setState({editBlock: <EditBlock addr={this.state.selected} id={evt.detail.id} mode="edit" title="Gate configuration"/>});
+                this.setState({editBlock: <EditBlock addr={this.state.selected} id={evt.detail.id} title="Gate configuration"/>});
             },
             closeModal: function () {
                 this.setState({editBlock: false});

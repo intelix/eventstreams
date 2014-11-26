@@ -74,7 +74,7 @@ define(['react', 'coreMixin', 'streamMixin', 'admin/AdminContainer'], function (
 
             return (
                 <div>
-                    <ul className="nav nav-pills" role="tablist">
+                    <ul className="nav nav-tabs" role="tablist">
                         {filteredNodes.map(function (el) {
 
                             var tabClasses = cx({

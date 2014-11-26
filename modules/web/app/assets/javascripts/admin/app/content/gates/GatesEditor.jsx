@@ -14,25 +14,10 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin', 'admin/app/content/commons/EditBlock2Mixin'], function (React, coreMixin, streamMixin, blockMixin) {
+define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], function (React, coreMixin, streamMixin, editorMixin) {
 
     return React.createClass({
-        mixins: [coreMixin, streamMixin, blockMixin],
-
-        subscriptionConfig: function (props) {
-            return props.mode == 'edit' ? [{address: props.addr, route: props.id, topic: 'props', onData: this.onData}] : [];
-        },
-
-        onData: function (data) {
-            this.openWith(data);
-        },
-
-        componentDidMount: function () {
-            if (this.props.mode == 'new') {
-                var defaults = this.props.defaults || {};
-                this.openWith(defaults);
-            }
-        },
+        mixins: [coreMixin, streamMixin, editorMixin],
 
         schema: function () {
             return {
@@ -168,11 +153,8 @@ define(['react', 'coreMixin', 'streamMixin', 'admin/app/content/commons/EditBloc
             }
             };
 
-        },
-
-        render: function () {
-            return this.renderEditBlock();
         }
+
     });
 
 });

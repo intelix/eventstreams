@@ -28,6 +28,9 @@ body {
 .btn {
   margin: 5px;
 }
+.label {
+  margin: 5px;
+}
 
 .main-container .navbar .container {
   width: auto;

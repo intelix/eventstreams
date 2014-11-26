@@ -14,13 +14,32 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'app_navbar_el_mixin'], function (React, coreMixin, NavbarElementMixin) {
+define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, streamMixin) {
+
+    // use this.sendCommand(subject, data) to talk to server
 
     return React.createClass({
-        mixins: [coreMixin, NavbarElementMixin],
+
+        mixins: [coreMixin, streamMixin],
+
+        getInitialState: function () {
+            return {connected: false}
+        },
+
+        handleKill: function (e) {
+            if (confirm("Are you sure?")) {
+                this.sendCommand(this.props.addr, this.props.route, "kill", {});
+            }
+        },
 
         render: function () {
-            return this.asNavbarElement(<span>Agents <span className="badge">1</span></span>);
+
+            var button =
+                <button type="button" ref="button" className="btn btn-danger btn-xs" onClick={this.handleKill}>
+                delete
+                </button>;
+
+            return button;
         }
     });
 

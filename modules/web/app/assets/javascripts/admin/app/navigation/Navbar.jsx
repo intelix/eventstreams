@@ -19,21 +19,21 @@ define(
         'coreMixin',
         'app_navbar_gates',
         'app_navbar_flows',
-        'app_navbar_agents',
+        'app_navbar_ds',
         'app_navbar_notif'],
     function (React,
               coreMixin,
               Gates,
               Flows,
-              Agents,
+              Datasources,
               Notif) {
 
         return React.createClass({
             mixins: [coreMixin],
 
             render: function () {
-                return <nav className="navbar navbar-default navbar-fixed-top" role="navigation">
-                    <div className="container">
+                return <nav className="navbar navbar-inverse navbar-fixed-top" role="navigation">
+                    <div className="container-fluid">
 
                         <div className="navbar-header">
                             <a className="navbar-brand" href="#">
@@ -45,7 +45,7 @@ define(
                             <ul className="nav navbar-nav">
                                 <Gates active={true} id="gates"/>
                                 <Flows id="flows"/>
-                                <Agents  id="agents"/>
+                                <Datasources  id="datasources"/>
                                 <Notif id="notif"/>
                             </ul>
                         </div>

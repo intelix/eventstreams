@@ -17,7 +17,7 @@
 package hq.gates
 
 import akka.actor._
-import common.Fail
+import common.{OK, Fail}
 import common.ToolExt.configHelper
 import common.actors._
 import common.storage._
@@ -57,12 +57,7 @@ class GateManagerActor
   }
 
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
-    case T_ADD => addGate(maybeData, None) match {
-      case \/-((actor, name)) =>
-        genericCommandSuccess(T_ADD, replyToSubj, Some(s"Gate $name successfully created"))
-      case -\/(error) =>
-        genericCommandError(T_ADD, replyToSubj, s"Unable to create gate: $error")
-    }
+    case T_ADD => addGate(maybeData, None)
 
   }
 
@@ -83,12 +78,12 @@ class GateManagerActor
     for (
       data <- maybeData \/> Fail("Invalid payload");
       name <- data ~> "name" \/> Fail("No name provided");
-      nonEmptyName <- if (name.isEmpty) -\/("Name is blank") else name.right
+      nonEmptyName <- if (name.isEmpty) -\/(Fail("Name is blank")) else name.right
     ) yield {
       val actor = GateActor.start(nonEmptyName)
       context.watch(actor)
       actor ! InitialConfig(data, maybeState)
-      (actor, nonEmptyName)
+      OK("Gate successfully created")
     }
 
 }

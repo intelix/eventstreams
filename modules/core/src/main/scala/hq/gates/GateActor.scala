@@ -21,13 +21,15 @@ import agent.shared._
 import akka.actor._
 import akka.util.ByteString
 import common.ToolExt.configHelper
+import common._
 import common.actors.{ActorWithConfigStore, AtLeastOnceDeliveryActor, PipelineWithStatesActor, SingleComponentActor}
-import common.{BecomeActive, BecomePassive, JsonFrame}
 import hq._
 import play.api.libs.json.{JsNumber, JsValue, Json}
 
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scalaz.Scalaz
+import scalaz.Scalaz._
 
 object GateActor {
   def props(id: String) = Props(new GateActor(id))
@@ -103,20 +105,30 @@ class GateActor(id: String)
         case Some(Active()) =>
           logger.info("Stopping the gate")
           self ! BecomePassive()
+          OK().right
         case _ =>
           logger.info("Already stopped")
+          Fail(message = Some("Already stopped")).left
       }
     case T_START =>
       lastRequestedState match {
         case Some(Active()) =>
           logger.info("Already started")
+          Fail(message = Some("Already started")).left
         case _ =>
           logger.info("Starting the gate " + self.toString())
           self ! BecomeActive()
+          OK().right
       }
     case T_KILL =>
       removeConfig()
       self ! PoisonPill
+      OK().right
+    case T_UPDATE_PROPS =>
+      for (
+        data <- maybeData \/> Fail("Invalid request");
+        result <- updateConfigProps(data)
+      ) yield result
   }
 
   override def canDeliverDownstreamRightNow: Boolean = isPipelineActive
@@ -149,8 +161,11 @@ class GateActor(id: String)
   }
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {
-
   }
+
+
+  override def afterApplyConfig(): Unit = topicUpdate(T_INFO, info)
+
 
   private def flowMessagesHandlerForClosedGate: Receive = {
     case m: Acknowledgeable[_] =>

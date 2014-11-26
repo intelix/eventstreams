@@ -19,13 +19,13 @@ define(
         'coreMixin',
         'app_gates',
         'app_flows',
-        'app_agents',
+        'app_ds',
         'app_notif'],
     function (React,
               coreMixin,
               Gates,
               Flows,
-              Agents,
+              Datasources,
               Notif) {
 
         return React.createClass({
@@ -54,12 +54,12 @@ define(
                 switch (this.state.selection) {
                     case 'gates': selection = <Gates />; break;
                     case 'flows': selection = <Flows />; break;
-                    case 'agents': selection = <Agents />; break;
+                    case 'datasources': selection = <Datasources />; break;
                     case 'notif': selection = <Notif />; break;
                     default: selection = "";
                 }
 
-                return <div className="container main-container" role="main"><span>{selection}</span></div>
+                return <div className="container-fluid main-container" role="main"><span>{selection}</span></div>
             }
         });
 

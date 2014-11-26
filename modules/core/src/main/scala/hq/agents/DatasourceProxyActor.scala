@@ -19,10 +19,12 @@ package hq.agents
 import agent.shared._
 import akka.actor._
 import akka.remote.DisassociatedEvent
-import common.{BecomePassive, BecomeActive}
+import common.{OK, BecomePassive, BecomeActive}
 import common.actors.{PipelineWithStatesActor, SingleComponentActor}
 import hq.{ComponentKey, TopicKey}
 import play.api.libs.json.{JsArray, JsValue, Json}
+
+import scalaz.\/-
 
 
 object DatasourceProxyActor {
@@ -57,11 +59,21 @@ class DatasourceProxyActor(val key: ComponentKey, ref: ActorRef)
   }
 
   override def processTopicCommand(sourceRef: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
-    case T_START => ref ! BecomeActive()
-    case T_STOP => ref ! BecomePassive()
-    case T_KILL => ref ! RemoveTap()
-    case T_RESET => ref ! ResetTapState()
-    case T_EDIT => maybeData.foreach { data => ref !  ReconfigureTap(data) }
+    case T_START =>
+      ref ! BecomeActive()
+      \/-(OK())
+    case T_STOP =>
+      ref ! BecomePassive()
+      \/-(OK())
+    case T_KILL =>
+      ref ! RemoveTap()
+      \/-(OK())
+    case T_RESET =>
+      ref ! ResetTapState()
+      \/-(OK())
+    case T_EDIT =>
+      maybeData.foreach { data => ref !  ReconfigureTap(data) }
+      \/-(OK())
   }
 
   private def process(json: JsValue) = {

@@ -13,20 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-define(['react', 'coreMixin', 'streamMixin', 'app_gates_table_row'], function (React, coreMixin, streamMixin, Row) {
+
+define(['react', 'coreMixin', 'streamMixin', 'app_flows_table_row'], function (React, coreMixin, streamMixin, Row) {
 
     return React.createClass({
         mixins: [coreMixin, streamMixin],
 
         subscriptionConfig: function (props) {
-            return [{address: props.addr, route: 'gates', topic: 'list', dataKey: 'list'}];
+            return [{address: props.addr, route: 'flows', topic: 'list', dataKey: 'list'}];
         },
         getInitialState: function () {
             return {list: null}
         },
 
         handleAddNew: function() {
-            this.raiseEvent("addGate", {});
+            this.raiseEvent("addFlow", {});
         },
 
         renderData: function () {
@@ -35,13 +36,8 @@ define(['react', 'coreMixin', 'streamMixin', 'app_gates_table_row'], function (R
             function header() {
                 return <tr>
                     <th>Name</th>
-                    <th>Retention</th>
-                    <th>Retained data</th>
-                    <th>In-flight</th>
-                    <th>Current rate</th>
-                    <th>Avg events/day</th>
-                    <th>Datasources</th>
-                    <th>Sinks</th>
+                    <th>Current in rate</th>
+                    <th>Current out rate</th>
                     <th>Created</th>
                     <th>Last state change</th>
                     <th>State</th>

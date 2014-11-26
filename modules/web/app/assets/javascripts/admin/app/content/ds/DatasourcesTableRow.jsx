@@ -28,7 +28,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
         },
 
         handleClick: function() {
-            this.raiseEvent("editGate", {id: this.props.id});
+            this.raiseEvent("editDatasource", {id: this.props.id});
         },
 
         renderData: function () {
@@ -41,16 +41,12 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
             }
 
             return <tr>
+
                 <td><a href="#" onClick={this.handleClick}>{this.state.info.name}</a></td>
-                <td>5 days</td>
-                <td>100,237</td>
-                <td>10</td>
-                <td>10/min</td>
-                <td>1,007</td>
-                <td><span className="label label-success">5</span></td>
-                <td><span className="label label-success">3</span><span className="label label-default">1</span></td>
-                <td>1 month ago</td>
-                <td>1 day ago</td>
+                <td>akka.tcp://ehub@localhost:12345/user/gatename</td>
+                    <td>10/min</td>
+                    <td>1 month ago</td>
+                    <td>just now</td>
                 <td>{state}</td>
                 <td>
                     <StartStopButton {...this.props} state={this.state.info.state} route={this.props.id} />
@@ -60,7 +56,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
         },
         renderLoading: function () {
             return (
-                <tr><td colSpan="12">loading...</td></tr>
+                <tr><td colSpan="7">loading...</td></tr>
             );
         },
 

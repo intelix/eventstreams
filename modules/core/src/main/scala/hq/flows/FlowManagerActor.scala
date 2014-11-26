@@ -17,7 +17,7 @@
 package hq.flows
 
 import akka.actor._
-import common.Fail
+import common.{OK, Fail}
 import common.ToolExt.configHelper
 import common.actors._
 import hq._
@@ -58,11 +58,7 @@ class FlowManagerActor
   }
 
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
-    case T_ADD => startActor(maybeData, None) match {
-      case \/-((actor, name)) =>
-        genericCommandSuccess(T_ADD, replyToSubj, Some(s"Flow $name successfully created"))
-      case -\/(error) => genericCommandError(T_ADD, replyToSubj, s"Unable to create flow: $error")
-    }
+    case T_ADD => startActor(maybeData, None)
   }
 
   def handler: Receive = {
@@ -76,17 +72,17 @@ class FlowManagerActor
       topicUpdate(TopicKey("list"), list)
   }
 
-  private def startActor(maybeData: Option[JsValue], maybeState: Option[JsValue]) =
+  private def startActor(maybeData: Option[JsValue], maybeState: Option[JsValue]) : \/[Fail,OK] =
     for (
       data <- maybeData \/> Fail("Invalid payload");
       name <- data ~> 'name \/> Fail("No name provided");
-      nonEmptyName <- if (name.isEmpty) -\/("Name is blank") else name.right;
+      nonEmptyName <- if (name.isEmpty) -\/(Fail("Name is blank")) else name.right;
       config <- data #> 'config \/> Fail("Empty config")
     ) yield {
       val actor = FlowActor.start(nonEmptyName)
       context.watch(actor)
       actor ! InitialConfig(data, maybeState)
-      (actor, nonEmptyName)
+      OK("Flow successfully added")
     }
 
 

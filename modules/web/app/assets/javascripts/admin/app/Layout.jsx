@@ -35,7 +35,6 @@ define(['toastr', 'react', 'coreMixin', 'streamMixin',
                 }];
             },
 
-
             getInitialState: function () {
                 return {result: false}
             },

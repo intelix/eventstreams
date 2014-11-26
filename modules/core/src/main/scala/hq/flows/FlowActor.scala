@@ -88,26 +88,32 @@ class FlowActor(id: String)
         case Some(Active()) =>
           logger.info("Stopping the flow")
           self ! BecomePassive()
+          \/-(OK())
         case _ =>
           logger.info("Already stopped")
+          -\/(Fail("Already stopped"))
       }
     case T_START =>
       lastRequestedState match {
         case Some(Active()) =>
           logger.info("Already started")
+          -\/(Fail("Already started"))
         case _ =>
           logger.info("Starting the flow " + self.toString())
           self ! BecomeActive()
+          \/-(OK())
       }
     case T_KILL =>
       terminateFlow(Some("Flow being deleted"))
       removeConfig()
       self ! PoisonPill
+      \/-(OK())
     case T_EDIT =>
       for (
         data <- maybeData \/> Fail("No data");
-        config <- data #> 'config \/> Fail("No configuration")
-      ) updateConfigProps(data)
+        config <- data #> 'config \/> Fail("No configuration");
+        result <- updateConfigProps(data)
+      ) yield result
   }
 
   def closeTap() = {

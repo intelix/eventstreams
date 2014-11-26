@@ -17,7 +17,11 @@
 package common.actors
 
 import common.storage._
+import common.{Fail, OK}
 import play.api.libs.json.JsValue
+
+import scalaz.Scalaz._
+import scalaz._
 
 case class InitialConfig(config: JsValue, state: Option[JsValue])
 
@@ -56,19 +60,22 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior {
     storageKey.foreach(configStore ! RemoveConfigFor(_))
   }
 
-  def updateConfigSnapshot(props: JsValue, state: Option[JsValue]) = {
+  def updateConfigSnapshot(props: JsValue, state: Option[JsValue]): \/[Fail, OK] = {
     storageKey.foreach { key => configStore ! StoreSnapshot(EntryConfigSnapshot(key, props, state))}
     cacheAndApplyConfig(props, state)
+    OK().right
   }
 
-  def updateConfigProps(props: JsValue) = {
+  def updateConfigProps(props: JsValue): \/[Fail, OK] = {
     storageKey.foreach { key => configStore ! StoreProps(EntryPropsConfig(key, props))}
     cacheAndApplyConfig(props, stateConfig)
+    OK().right
   }
 
-  def updateConfigState(state: Option[JsValue]) = {
+  def updateConfigState(state: Option[JsValue]): \/[Fail, OK] = {
     storageKey.foreach { key => configStore ! StoreState(EntryStateConfig(key, state))}
     propsConfig.foreach(cacheAndApplyConfig(_, state))
+    OK().right
   }
 
   def onInitialConfigApplied(): Unit = {}

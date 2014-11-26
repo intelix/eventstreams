@@ -19,12 +19,16 @@ package hq.agents
 import agent.shared.{CommunicationProxyRef, CreateTap, GenericJSONMessage}
 import akka.actor._
 import akka.remote.DisassociatedEvent
+import common.OK
 import common.actors._
 import hq._
 import play.api.libs.json.{JsArray, JsValue, Json}
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+
+import scalaz._
+import Scalaz._
 
 object AgentProxyActor {
   def start(key: ComponentKey, ref: ActorRef)(implicit f: ActorRefFactory) = f.actorOf(props(key, ref), key.toActorId)
@@ -68,7 +72,9 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
   }
 
   override def processTopicCommand(sourceRef: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
-    case T_ADD_TAP => maybeData.foreach(ref ! CreateTap(_))
+    case T_ADD_TAP =>
+      maybeData.foreach(ref ! CreateTap(_))
+      OK().right
   }
 
   private def commonMessageHandler: Receive = {

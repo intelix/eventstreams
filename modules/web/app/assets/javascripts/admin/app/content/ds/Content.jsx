@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'app_content_nodetabs', 'app_flows_table', 'app_flows_editor'],
+define(['react', 'coreMixin', 'app_content_nodetabs', 'app_ds_table', 'app_ds_editor'],
     function (React, coreMixin, Tabs, Table, EditBlock) {
 
         return React.createClass({
@@ -25,24 +25,34 @@ define(['react', 'coreMixin', 'app_content_nodetabs', 'app_flows_table', 'app_fl
             },
 
             subscribeToEvents: function() { return [
-                ["addFlow", this.openModal],
-                ["editFlow", this.openEditModal],
+                ["addDatasource", this.openModal],
+                ["editDatasource", this.openEditModal],
                 ["modalClosed", this.closeModal],
-                ["nodeSelectorForFlows", this.handleSelectionEvent]
+                ["nodeSelectorForDatasources", this.handleSelectionEvent]
             ]},
 
             openModal: function (evt) {
                 var defaults = {
-                    "tap": {
-                        "class": "gate",
-                        "name": ""
+                    "name": "",
+                    "desc": "",
+                    "sourceId": "",
+                    "tags": "",
+                    "initialState": "Stopped",
+                    "source": {
+                        "class": "file",
+                        "directory": "",
+                        "mainPattern": "",
+                        "rollingPattern": ""
                     },
-                    "pipeline": []
+                    "sink": {
+                        "class": "akka",
+                        "url": "akka.tcp://ehub@localhost:12345/user/GATENAME"
+                    }
                 };
-                this.setState({editBlock: <EditBlock addr={this.state.selected} addRoute="flows" title="Flow configuration" defaults={defaults} />});
+                this.setState({editBlock: <EditBlock addr={this.state.selected} addRoute="agents" title="Datasource configuration" defaults={defaults} />});
             },
             openEditModal: function (evt) {
-                this.setState({editBlock: <EditBlock addr={this.state.selected} id={evt.detail.id} title="Flow configuration"/>});
+                this.setState({editBlock: <EditBlock addr={this.state.selected} id={evt.detail.id} title="Datasource configuration"/>});
             },
             closeModal: function () {
                 this.setState({editBlock: false});
@@ -57,7 +67,7 @@ define(['react', 'coreMixin', 'app_content_nodetabs', 'app_flows_table', 'app_fl
 
                 return <div>
 
-                    <Tabs roles={["hq"]} selectorId="nodeSelectorForFlows" />
+                    <Tabs roles={["hq"]} selectorId="nodeSelectorForDatasources" />
                     {this.state.editBlock ? this.state.editBlock : ""}
                     {this.state.selected ? <Table addr={this.state.selected}/> : ""}
                 </div>;
