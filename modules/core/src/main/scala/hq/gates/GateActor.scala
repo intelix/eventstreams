@@ -22,7 +22,7 @@ import akka.actor._
 import akka.util.ByteString
 import common.ToolExt.configHelper
 import common._
-import common.actors.{ActorWithConfigStore, AtLeastOnceDeliveryActor, PipelineWithStatesActor, SingleComponentActor}
+import common.actors._
 import hq._
 import play.api.libs.json.{JsNumber, JsValue, Json}
 
@@ -34,7 +34,7 @@ import scalaz.Scalaz._
 object GateActor {
   def props(id: String) = Props(new GateActor(id))
 
-  def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id), id)
+  def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id), ActorTools.actorFriendlyId(id))
 }
 
 
@@ -54,10 +54,10 @@ class GateActor(id: String)
 
   override def configUnacknowledgedMessagesResendInterval: FiniteDuration = 10.seconds
 
-  override def key = ComponentKey("gate/" + id)
+  override def key = ComponentKey(id)
 
 
-  override def storageKey: Option[String] = Some(s"gate/$id")
+  override def storageKey: Option[String] = Some(id)
 
   override def preStart(): Unit = {
 

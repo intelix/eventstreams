@@ -16,6 +16,8 @@
 
 package hq.gates
 
+import java.util.UUID
+
 import akka.actor._
 import common.{OK, Fail}
 import common.ToolExt.configHelper
@@ -57,7 +59,7 @@ class GateManagerActor
   }
 
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
-    case T_ADD => addGate(maybeData, None)
+    case T_ADD => addGate(None, maybeData, None)
 
   }
 
@@ -72,15 +74,14 @@ class GateManagerActor
       topicUpdate(TopicKey("list"), list)
   }
 
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addGate(Some(props), maybeState)
+  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addGate(Some(key), Some(props), maybeState)
 
-  private def addGate(maybeData: Option[JsValue], maybeState: Option[JsValue]) =
+  private def addGate(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
     for (
-      data <- maybeData \/> Fail("Invalid payload");
-      name <- data ~> "name" \/> Fail("No name provided");
-      nonEmptyName <- if (name.isEmpty) -\/(Fail("Name is blank")) else name.right
+      data <- maybeData \/> Fail("Invalid payload")
     ) yield {
-      val actor = GateActor.start(nonEmptyName)
+      val gateKey = key | "gate/" + UUID.randomUUID().toString
+      val actor = GateActor.start(gateKey)
       context.watch(actor)
       actor ! InitialConfig(data, maybeState)
       OK("Gate successfully created")

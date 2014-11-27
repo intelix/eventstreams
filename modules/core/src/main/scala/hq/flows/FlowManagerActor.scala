@@ -74,10 +74,10 @@ class FlowManagerActor
 
   private def startActor(maybeData: Option[JsValue], maybeState: Option[JsValue]) : \/[Fail,OK] =
     for (
-      data <- maybeData \/> Fail("Invalid payload");
-      name <- data ~> 'name \/> Fail("No name provided");
-      nonEmptyName <- if (name.isEmpty) -\/(Fail("Name is blank")) else name.right;
-      config <- data #> 'config \/> Fail("Empty config")
+      data <- maybeData \/> Fail("Invalid payload", Some("Invalid configuration"));
+      name <- data ~> 'name \/> Fail("No name provided", Some("Invalid configuration"));
+      nonEmptyName <- if (name.isEmpty) -\/(Fail("Name is blank", Some("Invalid configuration"))) else name.right;
+      config <- data #> 'config \/> Fail("Empty config", Some("Invalid configuration"))
     ) yield {
       val actor = FlowActor.start(nonEmptyName)
       context.watch(actor)
