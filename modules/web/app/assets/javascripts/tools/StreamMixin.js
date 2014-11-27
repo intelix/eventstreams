@@ -28,7 +28,7 @@ define(['wsclient'], function (client) {
 
         unsubscribeFor: function (config) {
             var self = this;
-            self.handle.unsubscribe(config.address, config.route, config.topic);
+            self.handle.unsubscribe(config.address, config.route, config.topic, self.subscriptionCallback);
             if (self.isDebug()) {
                 self.logDebug("Closed subscription for " + self.subId2String(config));
             }
@@ -63,7 +63,7 @@ define(['wsclient'], function (client) {
                 if (onData) onData(data);
             }
 
-            self.handle.subscribe(config.address, config.route, config.topic, function (type, data) {
+            self.subscriptionCallback = function (type, data) {
                 if (self.isDebug()) {
                     self.logDebug("Data IN: " + type + " for " + subIdAsStr);
                 }
@@ -75,7 +75,9 @@ define(['wsclient'], function (client) {
                     updateData(data);
                 }
 
-            });
+            };
+
+            self.handle.subscribe(config.address, config.route, config.topic, self.subscriptionCallback);
             if (self.isDebug()) {
                 self.logDebug("Opened subscription for " + subIdAsStr);
             }

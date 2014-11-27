@@ -47,6 +47,13 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
     var aggregationTimer = false;
     var aggregatedMessage = [];
 
+    var subscriptionMaintenanceTimer = false;
+
+    var globalSubscribers = {};
+    var updateCache = {};
+    var subscriptionsForHousekeeping = {};
+
+
     function resetAll() {
         alias2key = {};
         key2alias = {};
@@ -56,6 +63,9 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
         aliasCounter = 1;
         localAddress = false;
         aggregatedMessage = [];
+        globalSubscribers = {};
+        updateCache = {};
+        subscriptionsForHousekeeping = {};
     }
 
     var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -133,13 +143,18 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
             var route = segments[1];
             var topic = segments[2];
 
-            console.debug("From Websocket: " + type + " : " + address + " : " + route + " : " + topic + " : " + payload);
+            console.debug("From Websocket: " + type + " : " + address + " : " + route + " : " + topic + " : " + JSON.stringify(payload));
 
-            var eventId = address + opSplitCode + route + opSplitCode + topic;
+            var eventId = componentsToKey(address, route, topic);
 
-            listeners.forEach(function (next) {
-                next.onMessage(eventId, type, payload);
-            });
+            updateCache[eventId] = {type: type, payload: payload};
+            var subscribers = globalSubscribers[eventId];
+            if (subscribers && subscribers.length > 0) {
+                subscribers.forEach(function (next) {
+                    next(type, payload);
+                });
+            }
+
         }
 
         sock.onmessage = function (e) {
@@ -172,6 +187,93 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
         return address;
     }
 
+
+    function componentsToKey(address, route, topic) {
+        return address + opSplitCode + route + opSplitCode + topic;
+    }
+
+    function subscribeToSharedStream(address, route, topic, callback) {
+        var key = componentsToKey(address, route, topic);
+        var subscribers = globalSubscribers[key];
+        if (!subscribers) {
+            subscribers = [];
+            console.debug("Server subscription for: {" + route + "}" + topic + "@" + address);
+            delete updateCache[key];
+            sendToServer("S", address, route, topic, false);
+        }
+        if ($.inArray(callback, subscribers) < 0) {
+            subscribers.push(callback);
+            globalSubscribers[key] = subscribers;
+            console.debug("New interest for: {" + route + "}" + topic + "@" + address + ", total listeners: " + subscribers.length);
+        }
+        var lastUpdate = updateCache[key];
+        if (lastUpdate) {
+            console.debug(
+                "Sending cached update for: {" + route + "}" + topic + "@" + address + " -> " + lastUpdate.type + ":" + JSON.stringify(lastUpdate.payload));
+            callback(lastUpdate.type, lastUpdate.payload);
+        }
+    }
+
+    function unsubscribeFromSharedStream(address, route, topic, callback) {
+        var key = componentsToKey(address, route, topic);
+        var subscribers = globalSubscribers[key];
+        if (!subscribers) {
+            return;
+        }
+        subscribers = subscribers.filter(function (el) {
+            return el != callback;
+        });
+        console.debug("Listener gone for: {" + route + "}" + topic + "@" + address + ", remaining " + subscribers.length);
+        if (!subscribers || subscribers.length === 0) {
+            console.debug("Scheduled for removal: {" + route + "}" + topic + "@" + address + ", remaining " + subscribers.length);
+            subscriptionsForHousekeeping[key] = {
+                ts: Date.now(),
+                address: address,
+                route: route,
+                topic: topic
+            };
+            if (!subscriptionMaintenanceTimer) {
+                subscriptionMaintenanceTimer = setTimeout(subscriptionMaintenance, 30 * 1000);
+            }
+        }
+        globalSubscribers[key] = subscribers;
+    }
+
+    function subscriptionMaintenance() {
+        console.debug("Subscription maintenance...");
+        var reschedule = false;
+        subscriptionMaintenanceTimer = false;
+        if (subscriptionsForHousekeeping) {
+
+            var threshold = Date.now() - 15 * 1000;
+            var remainder = {};
+            for (var key in subscriptionsForHousekeeping) {
+                var el = subscriptionsForHousekeeping[key];
+                var unsubTime = el.ts;
+                if (unsubTime < threshold) {
+                    var subscribers = globalSubscribers[key];
+                    if (!subscribers || subscribers.length === 0) {
+                        console.debug("Unsubscribing from server: {" + el.route + "}" + el.topic + "@" + el.address);
+                        sendToServer("U", el.route, el.topic, false);
+                        delete globalSubscribers[key];
+                        delete updateCache[key];
+                    } else {
+                        console.debug("Subscription " + key + " is live again and no longer queued for removal");
+                    }
+
+
+                } else {
+                    reschedule = true;
+                    remainder[key] = el;
+                }
+            }
+            subscriptionsForHousekeeping = remainder;
+        }
+        if (reschedule) {
+            subscriptionMaintenanceTimer = setTimeout(subscriptionMaintenance, 30 * 1000);
+        }
+    }
+
     function sendToServer(type, address, route, topic, payload) {
         if (connected()) {
 
@@ -186,7 +288,7 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
                 locAlias = location2locationAlias[address];
             }
 
-            var key = locAlias + opSplitCode + route + opSplitCode + topic;
+            var key = componentsToKey(locAlias, route, topic);
             if (!key2alias[key]) {
                 aliasCounter++;
 
@@ -226,13 +328,7 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
     return {
         getHandle: function () {
 
-            var messageHandlers = {};
-
             var handle = {
-                //uid: Math.random().toString(36).substr(2, 10),
-                onMessage: function (eventId, type, payload) {
-                    if (messageHandlers[eventId]) messageHandlers[eventId](type, payload);
-                },
                 uuid: getUUID,
                 stop: stopFunc,
                 subscribe: subscribeFunc,
@@ -257,18 +353,12 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
 
             function subscribeFunc(address, route, topic, callback) {
                 var realAddress = toRealAddress(address);
-                if (sendToServer("S", realAddress, route, topic, false)) {
-                    console.log("Registered interest: {" + route + "}" + topic);
-                    messageHandlers[realAddress + opSplitCode + route + opSplitCode + topic] = callback;
-                }
+                subscribeToSharedStream(realAddress, route, topic, callback);
             }
 
-            function unsubscribeFunc(address, route, topic) {
+            function unsubscribeFunc(address, route, topic, callback) {
                 var realAddress = toRealAddress(address);
-                if (sendToServer("U", realAddress, route, topic, false)) {
-                    console.log("Unregistered interest: {" + route + "}" + topic);
-                    messageHandlers[realAddress + opSplitCode + route + opSplitCode + topic] = null;
-                }
+                unsubscribeFromSharedStream(realAddress, route, topic, callback);
             }
 
             listeners.push(handle);

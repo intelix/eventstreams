@@ -57,9 +57,12 @@
             app_flows_editor: adminApp("content/flows/FlowsEditor"),
 
             app_ds: adminApp("content/ds/Content"),
+            app_ds_agentstabs: adminApp("content/ds/AgentsTabs"),
+            app_ds_agent_content: adminApp("content/ds/AgentContent"),
             app_ds_table: adminApp("content/ds/DatasourcesTable"),
             app_ds_table_row: adminApp("content/ds/DatasourcesTableRow"),
             app_ds_editor: adminApp("content/ds/DatasourcesEditor"),
+            app_ds_agentname: adminApp("content/ds/AgentName"),
 
             app_notif: adminApp("content/notif/Content"),
 

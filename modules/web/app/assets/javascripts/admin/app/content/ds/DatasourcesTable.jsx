@@ -20,7 +20,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_ds_table_row'], function (Reac
         mixins: [coreMixin, streamMixin],
 
         subscriptionConfig: function (props) {
-            return [{address: props.addr, route: 'agents', topic: 'list', dataKey: 'list'}];
+            return [{address: props.addr, route: props.id, topic: 'taps', dataKey: 'list'}];
         },
         getInitialState: function () {
             return {list: null}

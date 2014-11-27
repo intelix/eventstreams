@@ -104,9 +104,15 @@ class MessageRouterActor(implicit val cluster: Cluster)
     }
   }
 
-  def remember(subj: RemoteSubj, update: Any) = updatesCache += (subj -> update)
+  def remember(subj: RemoteSubj, update: Any) = {
+    logger.debug(s"Caching update for $subj")
+    updatesCache += (subj -> update)
+  }
 
-  def clearCacheFor(subject: RemoteSubj) = updatesCache.remove(subject)
+  def clearCacheFor(subject: RemoteSubj) = {
+    logger.debug(s"Removing from cache update for $subject")
+    updatesCache.remove(subject)
+  }
 
   def publishToClients(subj: Any, f: RemoteSubj => Any) =
     convertSubject(subj) foreach { subj =>
@@ -143,8 +149,10 @@ class MessageRouterActor(implicit val cluster: Cluster)
     clearCacheFor(subject)
   }
 
-  override def processSubscribeRequest(ref: ActorRef, subject: RemoteSubj) =
+  override def processSubscribeRequest(ref: ActorRef, subject: RemoteSubj) = {
     updatesCache.get(subject) foreach (ref ! _)
+    logger.debug(s"Responded with cached update for $subject -> $ref")
+  }
 
   override def processUnsubscribeRequest(ref: ActorRef, subject: RemoteSubj) =
     super.processUnsubscribeRequest(ref, subject)

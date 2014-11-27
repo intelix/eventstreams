@@ -17,11 +17,13 @@
 package common.actors
 
 import akka.actor.ActorRef
+
 import common.{Fail, OK}
 import hq.routing.MessageRouterActor
 import hq._
 import play.api.libs.json.{JsString, Json, JsValue}
 
+import scala.util.{Success, Failure, Try}
 import scalaz.{-\/, \/-, \/}
 
 trait SingleComponentActor
@@ -78,23 +80,37 @@ trait SingleComponentActor
 
   def processTopicCommand(sourceRef: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = \/-(OK())
 
-  override def processSubscribeRequest(sourceRef: ActorRef, subject: LocalSubj): Unit = processTopicSubscribe(sourceRef, subject.topic)
+  override def processSubscribeRequest(sourceRef: ActorRef, subject: LocalSubj): Unit = Try(processTopicSubscribe(sourceRef, subject.topic)) match {
+    case Failure(failure) =>
+      logger.error(s"Error while subscribing to $subject", failure)
+    case Success(_) => ()
+  }
 
-  override def processUnsubscribeRequest(sourceRef: ActorRef, subject: LocalSubj): Unit = processTopicUnsubscribe(sourceRef, subject.topic)
+  override def processUnsubscribeRequest(sourceRef: ActorRef, subject: LocalSubj): Unit = Try(processTopicUnsubscribe(sourceRef, subject.topic)) match {
+    case Failure(failure) =>
+      logger.error(s"Error while unsubscribing from $subject", failure)
+    case Success(_) => ()
+  }
 
   override def processCommand(sourceRef: ActorRef, subject: LocalSubj, replyToSubj: Option[Any], maybeData: Option[JsValue]): Unit = {
     logger.info(s"!>>>> received command for ${subject.topic} from $sourceRef reply to $replyToSubj")
-    processTopicCommand(sourceRef, subject.topic, replyToSubj, maybeData) match {
-      case -\/(fail) =>
-        fail.message.foreach { msg =>
-          genericCommandError(subject.topic, replyToSubj, msg)
-        }
-        logger.debug(s"Command ${subject.topic} failed: $fail")
-      case \/-(ok) =>
-        ok.message.foreach { msg =>
-          genericCommandSuccess(subject.topic, replyToSubj, Some(msg))
-        }
-        logger.debug(s"Command ${subject.topic} succeeded: $ok")
+
+    Try(processTopicCommand(sourceRef, subject.topic, replyToSubj, maybeData)) match {
+      case Failure(failure) =>
+        logger.error(s"Error while executing command $subject with $maybeData", failure)
+        genericCommandError(subject.topic, replyToSubj, "Invalid operation")
+      case Success(result) => result match {
+        case -\/(fail) =>
+          fail.message.foreach { msg =>
+            genericCommandError(subject.topic, replyToSubj, msg)
+          }
+          logger.debug(s"Command ${subject.topic} failed: $fail")
+        case \/-(ok) =>
+          ok.message.foreach { msg =>
+            genericCommandSuccess(subject.topic, replyToSubj, Some(msg))
+          }
+          logger.debug(s"Command ${subject.topic} succeeded: $ok")
+      }
     }
   }
 }

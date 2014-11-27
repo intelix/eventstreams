@@ -46,7 +46,6 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
                 <td>akka.tcp://ehub@localhost:12345/user/gatename</td>
                     <td>10/min</td>
                     <td>1 month ago</td>
-                    <td>just now</td>
                 <td>{state}</td>
                 <td>
                     <StartStopButton {...this.props} state={this.state.info.state} route={this.props.id} />
@@ -56,7 +55,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
         },
         renderLoading: function () {
             return (
-                <tr><td colSpan="7">loading...</td></tr>
+                <tr><td colSpan="6">loading...</td></tr>
             );
         },
 

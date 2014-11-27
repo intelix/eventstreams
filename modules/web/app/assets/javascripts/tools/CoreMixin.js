@@ -70,7 +70,7 @@ define(['jquery'], function () {
         },
         raiseEvent: function (evt, data) {
             if (this.isDebug()) {
-                this.logDebug("Dispatched event: " + evt +" with data: " + data);
+                this.logDebug("Dispatched event: " + evt +" with data: " + JSON.stringify(data));
             }
             evtElement.dispatchEvent(new CustomEvent(evt, {detail: data}));
         },
@@ -80,13 +80,16 @@ define(['jquery'], function () {
             if (this.onComponentUpdate) this.onComponentUpdate(newProps, newState);
         },
 
-        componentDidMount: function () {
+        componentWillMount: function () {
             if (this.subscribeToEvents) {
                 var eventslist = this.subscribeToEvents();
                 eventslist.forEach(function (el) {
                     addEventListener(el[0], el[1]);
                 });
             }
+        },
+
+        componentDidMount: function () {
             if (this.onMount) {
                 this.onMount();
             }

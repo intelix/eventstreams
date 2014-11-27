@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin', 'admin/AdminContainer'], function (React, coreMixin, streamMixin, Container) {
+define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, streamMixin) {
 
     return React.createClass({
         mixins: [coreMixin, streamMixin],
@@ -22,37 +22,42 @@ define(['react', 'coreMixin', 'streamMixin', 'admin/AdminContainer'], function (
         displayName: "ClusterNodeTabs",
 
         subscriptionConfig: function (props) {
-            return [{address:'local', route:'cluster', topic:'nodes', dataKey: 'nodes', onData: this.onData}];
+            return [{address: 'local', route: 'cluster', topic: 'nodes', dataKey: 'nodes', onData: this.onData}];
         },
         getInitialState: function () {
             return {nodes: null, selected: false}
         },
 
-        onSelectionMade: function(address) {
+        onSelectionMade: function (address) {
             this.raiseEvent(this.props.selectorId, {address: address});
             this.setState({selected: address});
         },
 
-        filteredNodes: function() {
+        filteredNodes: function (data) {
             var self = this;
+
             function onlyRequiredRoles(el) {
-                return self.props.roles.filter(function(requiredRole) {
+                return self.props.roles.filter(function (requiredRole) {
                         return $.inArray(requiredRole, el.roles) > -1;
                     }).length != 0;
             }
-            return this.state.nodes ? this.state.nodes.filter(onlyRequiredRoles) : [];
+
+            return data ? data.filter(onlyRequiredRoles) : [];
         },
 
         onData: function (data) {
-                var wasSelected = this.state ? this.state.selected : false;
-                var newSelected = wasSelected;
-                var filteredNodes = this.filteredNodes();
-                if (newSelected && !filteredNodes.some(function(el) { return el.address == newSelected})) newSelected = false;
-                if (!newSelected && filteredNodes.length > 0) newSelected = filteredNodes[0].address;
-                if (newSelected != wasSelected) this.onSelectionMade(newSelected);
+            var wasSelected = this.state ? this.state.selected : false;
+            var newSelected = wasSelected;
+            var filteredNodes = this.filteredNodes(data);
+            if (newSelected && !filteredNodes.some(function (el) {
+                    return el.address == newSelected
+                })) newSelected = false;
+            if (!newSelected && filteredNodes.length > 0) newSelected = filteredNodes[0].address;
+
+            if (newSelected != wasSelected) this.onSelectionMade(newSelected);
         },
 
-        renderData: function() {
+        renderData: function () {
 
             var self = this;
             var cx = React.addons.classSet;
@@ -63,7 +68,7 @@ define(['react', 'coreMixin', 'streamMixin', 'admin/AdminContainer'], function (
                 return <p className="bg-warning">Waiting for the console to join the Cluster ...</p>
             }
 
-            var filteredNodes = this.filteredNodes();
+            var filteredNodes = this.filteredNodes(this.state.nodes);
 
             if (filteredNodes.length == 0) {
                 if (!this.state.connected) return <p className="bg-warning">Waiting for the connection ...</p>
@@ -82,14 +87,16 @@ define(['react', 'coreMixin', 'streamMixin', 'admin/AdminContainer'], function (
                                 'active': selected == el.address
                             });
 
-                            return  <li key={el.id} onClick={self.onSelectionMade.bind(self, el.address)} role="presentation" className={tabClasses}><a href="#">{el.name} ({el.state})</a></li>;
-                            })}
+                            return <li key={el.id} onClick={self.onSelectionMade.bind(self, el.address)} role="presentation" className={tabClasses}>
+                                <a href="#">{el.name} ({el.state})</a>
+                            </li>;
+                        })}
                     </ul>
                 </div>
             );
         },
 
-        renderLoading: function() {
+        renderLoading: function () {
             return (
                 <div>loading...</div>
             );

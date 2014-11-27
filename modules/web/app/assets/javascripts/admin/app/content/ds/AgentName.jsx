@@ -16,30 +16,37 @@
 
 define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, streamMixin) {
 
-    // use this.sendCommand(subject, data) to talk to server
-
     return React.createClass({
-
         mixins: [coreMixin, streamMixin],
 
-        getInitialState: function () {
-            return {connected: false}
+        displayName: "AgentName",
+
+        subscriptionConfig: function (props) {
+            return [{address:props.addr, route:props.id, topic:'info', dataKey: 'info'}];
         },
 
-        handleKill: function (e) {
-            if (confirm("Are you sure?")) {
-                this.sendCommand(this.props.addr, this.props.route, "kill", {});
-            }
+        getInitialState: function () {
+            return {info: false}
+        },
+
+        renderData: function() {
+            return (
+                <a href="#">{this.state.info.name} @ {this.state.info.location}</a>
+            );
+        },
+
+        renderLoading: function() {
+            return (
+                <a href="#">loading...</a>
+            );
         },
 
         render: function () {
-
-            var button =
-                <button type="button" ref="button" className="btn btn-primary btn-xs" onClick={this.handleKill}>
-                delete
-                </button>;
-
-            return button;
+            if (this.state.info) {
+                return this.renderData();
+            } else {
+                return this.renderLoading();
+            }
         }
     });
 

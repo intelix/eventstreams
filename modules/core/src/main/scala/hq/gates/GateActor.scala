@@ -164,7 +164,10 @@ class GateActor(id: String)
   }
 
 
-  override def afterApplyConfig(): Unit = topicUpdate(T_INFO, info)
+  override def afterApplyConfig(): Unit = {
+    topicUpdate(T_INFO, info)
+    topicUpdate(T_PROPS, propsConfig)
+  }
 
 
   private def flowMessagesHandlerForClosedGate: Receive = {
