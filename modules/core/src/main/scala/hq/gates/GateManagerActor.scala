@@ -19,15 +19,12 @@ package hq.gates
 import java.util.UUID
 
 import akka.actor._
-import common.{OK, Fail}
-import common.ToolExt.configHelper
 import common.actors._
-import common.storage._
+import common.{Fail, OK}
 import hq._
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
-import scalaz._
 
 
 object GateManagerActor extends ActorObjWithoutConfig {
@@ -43,19 +40,21 @@ class GateManagerActor
   with ActorWithConfigStore
   with SingleComponentActor {
 
+  type GatesMap = Map[ComponentKey, ActorRef]
+
   override val key = ComponentKey("gates")
-  var gates: Map[ComponentKey, ActorRef] = Map()
+  var gates: Monitored[GatesMap] = withMonitor[GatesMap](listUpdate)(Map())
 
   override def partialStorageKey: Option[String] = Some("gate/")
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
+  def listUpdate = topicUpdateEffect(T_LIST, list)
 
-  def list = Some(Json.toJson(gates.keys.map { x => Json.obj("id" -> x.key)}.toArray))
-
+  def list = () => Some(Json.toJson(gates.get.keys.map { x => Json.obj("id" -> x.key)}.toArray))
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
-    case T_LIST => topicUpdate(topic, list, singleTarget = Some(ref))
+    case T_LIST => listUpdate()
   }
 
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
@@ -64,14 +63,12 @@ class GateManagerActor
   }
 
   def handler: Receive = {
-    case GateAvailable(route) =>
-      gates = gates + (route -> sender())
-      topicUpdate(TopicKey("list"), list)
-    case Terminated(ref) =>
-      gates = gates.filter {
+    case GateAvailable(route) => gates = gates.map { list => list + (route -> sender())}
+    case Terminated(ref) => gates = gates.map { list =>
+      list.filter {
         case (route, otherRef) => otherRef != ref
       }
-      topicUpdate(TopicKey("list"), list)
+    }
   }
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addGate(Some(key), Some(props), maybeState)
@@ -86,5 +83,6 @@ class GateManagerActor
       actor ! InitialConfig(data, maybeState)
       OK("Gate successfully created")
     }
+
 
 }

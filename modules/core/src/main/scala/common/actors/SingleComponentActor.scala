@@ -17,17 +17,18 @@
 package common.actors
 
 import akka.actor.ActorRef
-
 import common.{Fail, OK}
-import hq.routing.MessageRouterActor
 import hq._
-import play.api.libs.json.{JsString, Json, JsValue}
+import hq.routing.MessageRouterActor
+import play.api.libs.json.{JsString, JsValue, Json}
 
-import scala.util.{Success, Failure, Try}
-import scalaz.{-\/, \/-, \/}
+import scala.util.{Failure, Success, Try}
+import scalaz.{-\/, \/, \/-}
 
 trait SingleComponentActor
-  extends ActorWithLocalSubscribers {
+  extends ActorWithLocalSubscribers
+  with ActorWithScheduledThings
+  with WithMonitors {
 
   val T_ADD = TopicKey("add")
   val T_EDIT = TopicKey("edit")
@@ -40,7 +41,6 @@ trait SingleComponentActor
   val T_RESET = TopicKey("reset")
   val T_UPDATE_PROPS = TopicKey("update_props")
 
-
   def key: ComponentKey
 
   override def preStart(): Unit = {
@@ -48,7 +48,9 @@ trait SingleComponentActor
     super.preStart()
   }
 
-  def topicUpdate(topic: TopicKey, data: Option[JsValue], singleTarget: Option[ActorRef] = None) =
+  def topicUpdateEffect[T](topic: TopicKey, f: () => Option[JsValue]) = () => scheduleHighP(() => topicUpdate(topic, f()))
+
+  def topicUpdate(topic: TopicKey, data: Option[JsValue], singleTarget: Option[ActorRef] = None): Unit =
     singleTarget match {
       case Some(ref) => updateTo(LocalSubj(key, topic), ref, data)
       case None => updateToAll(LocalSubj(key, topic), data)

@@ -17,6 +17,7 @@
 package common.actors
 
 import akka.actor.Terminated
+import akka.remote.transport.ThrottlerTransportAdapter.Direction.Receive
 import com.typesafe.scalalogging.StrictLogging
 
 trait ActorWithComposableBehavior extends ActorUtils with StrictLogging {
@@ -37,6 +38,16 @@ trait ActorWithComposableBehavior extends ActorUtils with StrictLogging {
     context.become(commonBehavior)
   }
 
-  override def receive: Receive = commonBehavior
+  def beforeMessage() = {}
+  def afterMessage() = {}
+
+  def wrapped(c: scala.PartialFunction[scala.Any, scala.Unit]): Receive = {
+    case x =>
+      beforeMessage()
+      if (c.isDefinedAt(x)) c(x)
+      afterMessage()
+  }
+
+  final override def receive: Receive = wrapped(commonBehavior)
 
 }
