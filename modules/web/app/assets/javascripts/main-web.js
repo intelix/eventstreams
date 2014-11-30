@@ -73,6 +73,7 @@
             coreMixin: "tools/CoreMixin",
             streamMixin: "tools/StreamMixin",
             visibilityMixin: "tools/VisibilityMixin",
+            logging: "tools/Logging",
             wsclient: "tools/ServerClient"
         },
         shim: {

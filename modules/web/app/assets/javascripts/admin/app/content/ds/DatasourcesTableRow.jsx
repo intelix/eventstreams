@@ -20,6 +20,8 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
     return React.createClass({
         mixins: [coreMixin, streamMixin],
 
+        componentName: function() { return "app/content/ds/TableRow/" + this.props.id; },
+
         subscriptionConfig: function (props) {
             return [{address: props.addr, route: props.id, topic: 'info', dataKey: 'info'}];
         },

@@ -19,6 +19,8 @@ define(['react', 'coreMixin'], function (React, coreMixin) {
     return React.createClass({
         mixins: [coreMixin],
 
+        componentName: function() { return "app/content/notif/Content"; },
+
         render: function () {
             return <div className="jumbotron">
                 <h1>Hello, Notifications</h1>

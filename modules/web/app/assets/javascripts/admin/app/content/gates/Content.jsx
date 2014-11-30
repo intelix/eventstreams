@@ -20,6 +20,8 @@ define(['react', 'coreMixin', 'app_content_nodetabs', 'app_gates_table', 'app_ga
         return React.createClass({
             mixins: [coreMixin],
 
+            componentName: function() { return "app/content/gates/Content"; },
+
             getInitialState: function () {
                 return {selected: false}
             },

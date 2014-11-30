@@ -107,10 +107,12 @@ define(['wsclient'], function (client) {
                     self.setState({connected: true});
                     if (self.onConnected) self.onConnected();
                 }
-                if (self.isDebug()) {
-                    self.logDebug("Received ws connected event, re-subscribing");
+                if (self.state.visibility === true || self.state.visibility === undefined) {
+                    if (self.isDebug()) {
+                        self.logDebug("Received ws connected event, re-subscribing");
+                    }
+                    subscribe();
                 }
-                subscribe();
             }
 
             function wsClosedHandler() {

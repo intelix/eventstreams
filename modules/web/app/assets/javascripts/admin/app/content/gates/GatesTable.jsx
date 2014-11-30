@@ -18,6 +18,8 @@ define(['react', 'coreMixin', 'streamMixin', 'app_gates_table_row'], function (R
     return React.createClass({
         mixins: [coreMixin, streamMixin],
 
+        componentName: function() { return "app/content/gates/Table"; },
+
         subscriptionConfig: function (props) {
             return [{address: props.addr, route: 'gates', topic: 'list', dataKey: 'list'}];
         },

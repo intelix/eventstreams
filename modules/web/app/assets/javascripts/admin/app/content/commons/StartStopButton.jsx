@@ -22,6 +22,8 @@ define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, stream
 
         mixins: [coreMixin, streamMixin],
 
+        componentName: function() { return "app/content/commons/StartStopButton/" + this.props.route; },
+
         getInitialState: function () {
             return {connected: false}
         },

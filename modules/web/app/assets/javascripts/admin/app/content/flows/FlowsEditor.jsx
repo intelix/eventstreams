@@ -19,6 +19,8 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
     return React.createClass({
         mixins: [coreMixin, streamMixin, editorMixin],
 
+        componentName: function() { return "app/content/flows/Editor"; },
+
         schema: function () {
             return {
                 "$schema": "http://json-schema.org/draft-04/schema#",

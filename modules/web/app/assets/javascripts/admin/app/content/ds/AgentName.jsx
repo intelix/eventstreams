@@ -19,7 +19,8 @@ define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, stream
     return React.createClass({
         mixins: [coreMixin, streamMixin],
 
-        displayName: "AgentName",
+        componentName: function() { return "app/content/ds/AgentName"; },
+
 
         subscriptionConfig: function (props) {
             return [{address:props.addr, route:props.id, topic:'info', dataKey: 'info'}];

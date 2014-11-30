@@ -19,6 +19,8 @@ define(['react', 'coreMixin', 'streamMixin', 'app_flows_table_row'], function (R
     return React.createClass({
         mixins: [coreMixin, streamMixin],
 
+        componentName: function() { return "app/content/flows/Table"; },
+
         subscriptionConfig: function (props) {
             return [{address: props.addr, route: 'flows', topic: 'list', dataKey: 'list'}];
         },

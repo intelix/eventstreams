@@ -14,65 +14,51 @@
  * limitations under the License.
  */
 
-define(['jquery'], function () {
+define(['logging'], function (logging) {
 
     var evtElement = window;
     window.onscroll = function (event) {
         evtElement.dispatchEvent(new CustomEvent("onscroll"));
     };
 
-    var DEBUG = 1;
-    var INFO = 2;
-    var WARN = 3;
-    var ERROR = 4;
-
-    var defaultLogLevel = DEBUG;
 
     return {
 
         componentNamePrefix: function() {
-            return this.componentName ? this.componentName() + ": " : "";
+            return this.componentName ? this.componentName() : "";
         },
 
-        isDebug: function () {
-            return (this.logLevel && this.logLevel() <= DEBUG) || (!this.logLevel && defaultLogLevel <= DEBUG);
-        },
-
-        isInfo: function () {
-            return (this.logLevel && this.logLevel() <= INFO) || (!this.logLevel && defaultLogLevel <= INFO);
-        },
+        isDebug: function() { return logging.isDebug(); },
+        isInfo: function() { return logging.isInfo(); },
+        isWarn: function() { return logging.isWarn(); },
 
         logDebug: function (msg) {
-            if (this.isDebug()) {
-                console.debug(this.componentNamePrefix() + msg);
-            }
+            logging.logDebug(this.componentNamePrefix(), msg);
         },
         logInfo: function (msg) {
-            if (this.isInfo()) {
-                console.info(this.componentNamePrefix() + msg);
-            }
+            logging.logInfo(this.componentNamePrefix(), msg);
         },
         logWarn: function (msg) {
-            console.warn(this.componentNamePrefix() + msg);
+            logging.logWarn(this.componentNamePrefix(), msg);
         },
         logError: function (msg) {
-            console.error(this.componentNamePrefix() + msg);
+            logging.logError(this.componentNamePrefix(), msg);
         },
 
         addEventListener: function (evt, func) {
-            if (this.isDebug()) {
+            if (logging.isDebug()) {
                 this.logDebug("Added event listener: " + evt );
             }
             evtElement.addEventListener(evt, func);
         },
         removeEventListener: function (evt, func) {
-            if (this.isDebug()) {
+            if (logging.isDebug()) {
                 this.logDebug("Removed event listener: " + evt );
             }
             evtElement.removeEventListener(evt, func);
         },
         raiseEvent: function (evt, data) {
-            if (this.isDebug()) {
+            if (logging.isDebug()) {
                 this.logDebug("Dispatched event: " + evt +" with data: " + JSON.stringify(data));
             }
             evtElement.dispatchEvent(new CustomEvent(evt, {detail: data}));

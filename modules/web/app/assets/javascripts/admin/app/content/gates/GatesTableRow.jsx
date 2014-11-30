@@ -20,6 +20,8 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
     return React.createClass({
         mixins: [coreMixin, streamMixin, visibilityMixin],
 
+        componentName: function() { return "app/content/gates/TableRow/" + this.props.id; },
+
         subscriptionConfig: function (props) {
             return [{address: props.addr, route: props.id, topic: 'info', dataKey: 'info'}];
         },

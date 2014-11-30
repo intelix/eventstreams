@@ -31,6 +31,9 @@ define(
         return React.createClass({
             mixins: [coreMixin],
 
+            componentName: function() { return "app/content/ContentManager"; },
+
+
             getInitialState: function () {
                 return { selection: "gates" }
             },

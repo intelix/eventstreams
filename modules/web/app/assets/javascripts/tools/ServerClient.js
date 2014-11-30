@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-define(['jquery', 'lz'], function (jquery, xxhash, lz) {
+define(['jquery', 'lz', 'logging'], function (jquery, lz, logging) {
 
     var endpoint = "ws://localhost:9000/socket";
 
@@ -79,7 +79,9 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
 
         sock = new WebSocket(endpoint);
 
-        console.debug("Attempting to connect to " + endpoint);
+        if (logging.isInfo()) {
+            logging.logInfo("ws", "Attempting to connect to " + endpoint);
+        }
 
         var timeout = setTimeout(function () {
             if (sock) sock.close();
@@ -88,7 +90,9 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
         sock.onopen = function (x) {
             currentState = WebSocket.OPEN;
             clearTimeout(timeout);
-            console.debug("Websocket open at " + endpoint + " after " + attemptsSoFar + " attempts");
+            if (logging.isInfo()) {
+                logging.logInfo("ws", "Websocket open at " + endpoint + " after " + attemptsSoFar + " attempts");
+            }
             attemptsSoFar = 0;
             connection = sock;
 
@@ -124,7 +128,10 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
 
             if (type == 'L') {
                 this.localAddress = content.substring(1);
-                console.debug("Local address: " + this.localAddress);
+                if (logging.isDebug()) {
+                    logging.logDebug("ws", "Local address: " + this.localAddress);
+                }
+
                 listeners.forEach(function (next) {
                     if (next.onOpen) next.onOpen();
                 });
@@ -136,14 +143,19 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
             var path = alias2key[aliasAndData[0]];
             var payload = aliasAndData[1] ? JSON.parse(aliasAndData[1]) : false;
 
-            console.debug("Alias conversion: " + aliasAndData[0] + " -> " + path);
+            if (logging.isDebug()) {
+                logging.logDebug("ws", "Alias conversion: " + aliasAndData[0] + " -> " + path);
+            }
 
             var segments = path.split(opSplitCode);
             var address = locationAlias2location[segments[0]] ? locationAlias2location[segments[0]] : segments[0];
             var route = segments[1];
             var topic = segments[2];
 
-            console.debug("From Websocket: " + type + " : " + address + " : " + route + " : " + topic + " : " + JSON.stringify(payload));
+            if (logging.isDebug()) {
+                logging.logDebug("ws", "Payload received: " + type + " : " + address + " : " + route + " : " + topic + " : " + JSON.stringify(payload));
+            }
+
 
             var eventId = componentsToKey(address, route, topic);
 
@@ -160,8 +172,11 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
         sock.onmessage = function (e) {
             var flag = e.data.substring(0, 1);
             var data = e.data.substring(1);
-            var content = flag == 'z' ? LZString.decompressFromUTF16(data) : data;
-            console.debug("From Websocket (" + data.length + "/" + content.length + "): " + content);
+            var compressed = flag == 'z';
+            var content = compressed ? LZString.decompressFromUTF16(data) : data;
+            if (compressed && logging.isDebug()) {
+                logging.logDebug("ws", "Compressed payload, " + data.length + "/" + content.length);
+            }
             var messages = content.split(msgSplitCode);
             messages.forEach(nextMsg);
         };
@@ -197,19 +212,24 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
         var subscribers = globalSubscribers[key];
         if (!subscribers) {
             subscribers = [];
-            console.debug("Server subscription for: {" + route + "}" + topic + "@" + address);
+            if (logging.isDebug()) {
+                logging.logDebug("ws", "Server subscription for: {" + route + "}" + topic + "@" + address);
+            }
             delete updateCache[key];
             sendToServer("S", address, route, topic, false);
         }
         if ($.inArray(callback, subscribers) < 0) {
             subscribers.push(callback);
             globalSubscribers[key] = subscribers;
-            console.debug("New interest for: {" + route + "}" + topic + "@" + address + ", total listeners: " + subscribers.length);
+            if (logging.isDebug()) {
+                logging.logDebug("ws", "New interest for: {" + route + "}" + topic + "@" + address + ", total listeners: " + subscribers.length);
+            }
         }
         var lastUpdate = updateCache[key];
         if (lastUpdate) {
-            console.debug(
-                "Sending cached update for: {" + route + "}" + topic + "@" + address + " -> " + lastUpdate.type + ":" + JSON.stringify(lastUpdate.payload));
+            if (logging.isDebug()) {
+                logging.logDebug("ws", "Sending cached update for: {" + route + "}" + topic + "@" + address + " -> " + lastUpdate.type + ":" + JSON.stringify(lastUpdate.payload));
+            }
             callback(lastUpdate.type, lastUpdate.payload);
         }
     }
@@ -223,9 +243,17 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
         subscribers = subscribers.filter(function (el) {
             return el != callback;
         });
-        console.debug("Listener gone for: {" + route + "}" + topic + "@" + address + ", remaining " + subscribers.length);
+
+        if (logging.isDebug()) {
+            logging.logDebug("ws", "Listener gone for: {" + route + "}" + topic + "@" + address + ", remaining " + subscribers.length);
+        }
+
         if (!subscribers || subscribers.length === 0) {
-            console.debug("Scheduled for removal: {" + route + "}" + topic + "@" + address + ", remaining " + subscribers.length);
+
+            if (logging.isDebug()) {
+                logging.logDebug("ws", "Scheduled for removal: {" + route + "}" + topic + "@" + address + ", remaining " + subscribers.length);
+            }
+
             subscriptionsForHousekeeping[key] = {
                 ts: Date.now(),
                 address: address,
@@ -240,7 +268,9 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
     }
 
     function subscriptionMaintenance() {
-        console.debug("Subscription maintenance...");
+        if (logging.isDebug()) {
+            logging.logDebug("ws", "Subscription maintenance...");
+        }
         var reschedule = false;
         subscriptionMaintenanceTimer = false;
         if (subscriptionsForHousekeeping) {
@@ -253,12 +283,16 @@ define(['jquery', 'lz'], function (jquery, xxhash, lz) {
                 if (unsubTime < threshold) {
                     var subscribers = globalSubscribers[key];
                     if (!subscribers || subscribers.length === 0) {
-                        console.debug("Unsubscribing from server: {" + el.route + "}" + el.topic + "@" + el.address);
+                        if (logging.isDebug()) {
+                            logging.logDebug("ws", "Unsubscribing from server: {" + el.route + "}" + el.topic + "@" + el.address);
+                        }
                         sendToServer("U", el.route, el.topic, false);
                         delete globalSubscribers[key];
                         delete updateCache[key];
                     } else {
-                        console.debug("Subscription " + key + " is live again and no longer queued for removal");
+                        if (logging.isDebug()) {
+                            logging.logDebug("ws", "Subscription " + key + " is live again and no longer queued for removal");
+                        }
                     }
 
 

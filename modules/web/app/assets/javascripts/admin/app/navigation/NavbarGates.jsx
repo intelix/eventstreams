@@ -19,6 +19,8 @@ define(['react', 'coreMixin', 'app_navbar_el_mixin'], function (React, coreMixin
     return React.createClass({
         mixins: [coreMixin, NavbarElementMixin],
 
+        componentName: function() { return "app/navigation/NavbarGates"; },
+
         render: function () {
             return this.asNavbarElement(<span>Gates</span>);
         }

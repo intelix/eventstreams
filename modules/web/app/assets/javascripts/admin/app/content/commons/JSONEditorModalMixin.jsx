@@ -20,6 +20,7 @@ define(['react'], function (React) {
 
     return {
 
+
         getInitialState: function() {
             return { data: false};
         },

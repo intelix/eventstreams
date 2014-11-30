@@ -19,7 +19,7 @@ define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, stream
     return React.createClass({
         mixins: [coreMixin, streamMixin],
 
-        displayName: "ClusterNodeTabs",
+        componentName: function() { return "app/content/commons/ClusterNodeTabs"; },
 
         subscriptionConfig: function (props) {
             return [{address: 'local', route: 'cluster', topic: 'nodes', dataKey: 'nodes', onData: this.onData}];

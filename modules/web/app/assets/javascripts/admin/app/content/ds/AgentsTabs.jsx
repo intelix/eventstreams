@@ -19,7 +19,8 @@ define(['react', 'coreMixin', 'streamMixin', 'app_ds_agentname'], function (Reac
     return React.createClass({
         mixins: [coreMixin, streamMixin],
 
-        displayName: "AgentsTabs",
+        componentName: function() { return "app/content/ds/AgentTabs"; },
+
 
         subscriptionConfig: function (props) {
             return [{address:props.addr, route:'agents', topic:'list', dataKey: 'list', onData: this.onData}];

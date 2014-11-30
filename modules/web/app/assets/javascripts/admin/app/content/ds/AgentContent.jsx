@@ -20,6 +20,8 @@ define(['react', 'coreMixin', 'app_ds_agentstabs', 'app_ds_table', 'app_ds_edito
         return React.createClass({
             mixins: [coreMixin],
 
+            componentName: function() { return "app/content/ds/AgentContent"; },
+
             getInitialState: function () {
                 return {agentSelected: false }
             },

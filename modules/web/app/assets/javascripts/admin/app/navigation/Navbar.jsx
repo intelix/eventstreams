@@ -31,6 +31,10 @@ define(
         return React.createClass({
             mixins: [coreMixin],
 
+            componentName: function() { return "app/navigation/Navbar"; },
+
+
+
             render: function () {
                 return <nav className="navbar navbar-inverse navbar-fixed-top" role="navigation">
                     <div className="container-fluid">

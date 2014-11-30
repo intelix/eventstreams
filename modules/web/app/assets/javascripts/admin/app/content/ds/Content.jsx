@@ -20,6 +20,8 @@ define(['react', 'coreMixin', 'app_content_nodetabs', 'app_ds_agent_content'],
         return React.createClass({
             mixins: [coreMixin],
 
+            componentName: function() { return "app/content/ds/Content"; },
+
             getInitialState: function () {
                 return {selected: false, agentSelected: false}
             },

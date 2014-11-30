@@ -20,6 +20,8 @@ define(['react', 'coreMixin', 'app_content_nodetabs', 'app_flows_table', 'app_fl
         return React.createClass({
             mixins: [coreMixin],
 
+            componentName: function() { return "app/content/flows/Content"; },
+
             getInitialState: function () {
                 return {selected: false}
             },
