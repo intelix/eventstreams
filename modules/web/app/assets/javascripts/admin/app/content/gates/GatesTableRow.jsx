@@ -34,16 +34,22 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
         },
 
         renderData: function () {
+            var self = this;
 
             var state;
-            switch (this.state.info.state) {
+            switch (self.state.info.state) {
                 case "active": state = <span className="label label-success">open - ok</span>; break;
                 case "passive": state = <span className="label label-default">closed</span>; break;
                 default: state = <span className="label label-warning">unknown - this.state.info.state</span>; break;
             }
 
+            var mainLink = self.state.info.name;
+            if (self.state.connected) {
+                mainLink = <a href="#" onClick={this.handleClick} >{mainLink}</a>;
+            }
+
             return <tr ref='monitorVisibility'>
-                <td><a href="#" onClick={this.handleClick}>{this.state.info.name}</a></td>
+                <td>{mainLink}</td>
                 <td>5 days</td>
                 <td>100,237</td>
                 <td>10</td>
@@ -55,8 +61,8 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
                 <td>1 day ago</td>
                 <td>{state}</td>
                 <td>
-                    <StartStopButton {...this.props} state={this.state.info.state} route={this.props.id} />
-                    <DeleteButton {...this.props} route={this.props.id} />
+                    <StartStopButton {...self.props} state={self.state.info.state} route={self.props.id} />
+                    <DeleteButton {...self.props} route={self.props.id} />
                 </td>
             </tr>;
         },

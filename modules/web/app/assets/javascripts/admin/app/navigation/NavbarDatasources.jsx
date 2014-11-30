@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'app_navbar_el_mixin'], function (React, coreMixin, NavbarElementMixin) {
+define(['react', 'coreMixin', 'app_navbar_el_mixin', 'streamMixin'], function (React, coreMixin, NavbarElementMixin, streamMixin) {
 
     return React.createClass({
-        mixins: [coreMixin, NavbarElementMixin],
+        mixins: [coreMixin, streamMixin, NavbarElementMixin],
 
         componentName: function() { return "app/navigation/NavbarDatasources"; },
 

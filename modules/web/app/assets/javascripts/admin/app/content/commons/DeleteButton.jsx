@@ -35,9 +35,16 @@ define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, stream
         },
 
         render: function () {
+            var self = this;
+
+            var buttonClasses = this.cx({
+                'disabled': (!self.state.connected),
+                'btn btn-primary btn-xs': true
+            });
+
 
             var button =
-                <button type="button" ref="button" className="btn btn-primary btn-xs" onClick={this.handleKill}>
+                <button type="button" ref="button" className={buttonClasses} onClick={this.handleKill}>
                 delete
                 </button>;
 

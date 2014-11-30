@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-define(['logging'], function (logging) {
+define(['react','logging'], function (React, logging) {
 
     var evtElement = window;
     window.onscroll = function (event) {
@@ -26,6 +26,11 @@ define(['logging'], function (logging) {
 
         componentNamePrefix: function() {
             return this.componentName ? this.componentName() : "";
+        },
+
+        cx: function(v) {
+            var cx = React.addons.classSet;
+            return cx(v);
         },
 
         isDebug: function() { return logging.isDebug(); },

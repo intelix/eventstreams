@@ -33,6 +33,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_gates_table_row'], function (R
 
         renderData: function () {
             var props = this.props;
+            var self = this;
 
             function header() {
                 return <tr>
@@ -55,8 +56,12 @@ define(['react', 'coreMixin', 'streamMixin', 'app_gates_table_row'], function (R
                 return <Row {...props} key={el.id} id={el.id} />;
             }
 
+            var buttonClasses = this.cx({
+                'disabled': (!self.state.connected)
+            });
+
             var addButton = <div className="withspace">
-                <button type="button" className={"btn btn-default btn-sm "} onClick={this.handleAddNew} >
+                <button type="button" className={"btn btn-default btn-sm " + buttonClasses} onClick={self.handleAddNew} >
                 Add new
                 </button>
             </div>;
@@ -70,7 +75,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_gates_table_row'], function (R
                         {header()}
                         </thead>
                         <tbody>
-                        {this.state.list.map(row)}
+                        {self.state.list.map(row)}
                         </tbody>
 
                     </table>

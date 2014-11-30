@@ -41,12 +41,14 @@ define(['react', 'coreMixin'], function (React, coreMixin) {
         },
 
         asNavbarElement: function (element) {
-            var cx = React.addons.classSet;
-            var classes = cx({
-                'active': this.state.active
+            var self = this;
+
+            var classes = self.cx({
+                'active': self.state.active,
+                'disabled': (!self.state.connected)
             });
 
-            return <li className={classes}><a onClick={this.handleClick} href="#">{element}</a></li>;
+            return <li className={classes}><a onClick={self.handleClick} href="#">{element}</a></li>;
         }
     };
 

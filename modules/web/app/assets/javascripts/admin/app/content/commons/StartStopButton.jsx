@@ -36,19 +36,27 @@ define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, stream
         },
 
         render: function () {
+            var self = this;
+
 
             var button;
-            var buttonClass;
+            var buttonClasses;
             if (this.props.state == 'active') {
-                buttonClass = "btn-default";
+                buttonClasses = this.cx({
+                    'disabled': (!self.state.connected),
+                    'btn-default': true
+                });
                 button =
-                    <button type="button" className={"btn btn-xs " + buttonClass} onClick={this.handleStop}>
+                    <button type="button" className={"btn btn-xs " + buttonClasses} onClick={this.handleStop}>
                     stop
                     </button>;
             } else {
-                buttonClass = "btn-success";
+                buttonClasses = this.cx({
+                    'disabled': (!self.state.connected),
+                    'btn-success': true
+                });
                 button =
-                    <button type="button" className={"btn btn-xs " + buttonClass} onClick={this.handleStart}>
+                    <button type="button" className={"btn btn-xs " + buttonClasses} onClick={this.handleStart}>
                     start
                     </button>;
             }
