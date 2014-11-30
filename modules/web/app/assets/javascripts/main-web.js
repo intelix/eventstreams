@@ -72,6 +72,7 @@
             lz: "/assets/javascripts/lz-string",
             coreMixin: "tools/CoreMixin",
             streamMixin: "tools/StreamMixin",
+            visibilityMixin: "tools/VisibilityMixin",
             wsclient: "tools/ServerClient"
         },
         shim: {

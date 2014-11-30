@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'app_content_button_delete'],
-    function (React, coreMixin, streamMixin, StartStopButton, DeleteButton) {
+define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_button_startstop', 'app_content_button_delete'],
+    function (React, coreMixin, streamMixin, visibilityMixin, StartStopButton, DeleteButton) {
 
     return React.createClass({
-        mixins: [coreMixin, streamMixin],
+        mixins: [coreMixin, streamMixin, visibilityMixin],
 
         subscriptionConfig: function (props) {
             return [{address: props.addr, route: props.id, topic: 'info', dataKey: 'info'}];
@@ -40,7 +40,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
                 default: state = <span className="label label-warning">unknown - this.state.info.state</span>; break;
             }
 
-            return <tr>
+            return <tr ref='monitorVisibility'>
                 <td><a href="#" onClick={this.handleClick}>{this.state.info.name}</a></td>
                 <td>5 days</td>
                 <td>100,237</td>

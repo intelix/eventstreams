@@ -33,6 +33,8 @@ define(['wsclient'], function (client) {
                 self.logDebug("Closed subscription for " + self.subId2String(config));
             }
         },
+
+
         subscribeFor: function (config) {
             var self = this;
 
@@ -148,6 +150,23 @@ define(['wsclient'], function (client) {
             }
         },
 
+        closeAllSubscriptions: function () {
+            var self = this;
+            if (self.isDebug()) {
+                self.logDebug("Closing subscriptions on request...");
+            }
+            var configs = self.subscriptionConfig ? self.subscriptionConfig(self.props) : [];
+            configs.forEach(this.unsubscribeFor);
+        },
+        reopenAllSubscriptions: function () {
+            var self = this;
+            if (self.isDebug()) {
+                self.logDebug("Reopening subscriptions on request...");
+            }
+            var configs = self.subscriptionConfig ? self.subscriptionConfig(self.props) : [];
+            configs.forEach(this.subscribeFor);
+        },
+
         componentWillReceiveProps: function (nextProps) {
             var self = this;
 
@@ -163,13 +182,13 @@ define(['wsclient'], function (client) {
 
                 var toClose = configs.filter(function (config) {
                     return !newConfigs.some(function (newConfig) {
-                            return !different(config, newConfig);
-                        });
+                        return !different(config, newConfig);
+                    });
                 });
                 var toOpen = newConfigs.filter(function (config) {
                     return !configs.some(function (newConfig) {
-                            return !different(config, newConfig);
-                        });
+                        return !different(config, newConfig);
+                    });
                 });
 
                 toClose.forEach(self.unsubscribeFor);

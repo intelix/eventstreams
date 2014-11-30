@@ -17,6 +17,9 @@
 define(['jquery'], function () {
 
     var evtElement = window;
+    window.onscroll = function (event) {
+        evtElement.dispatchEvent(new CustomEvent("onscroll"));
+    };
 
     var DEBUG = 1;
     var INFO = 2;
