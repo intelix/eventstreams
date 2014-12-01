@@ -35,7 +35,7 @@ private[core] object GateInputBuilder extends BuilderFromConfig[TapActorPropsTyp
 
   override def build(props: JsValue, maybeData: Option[Condition]): \/[Fail, TapActorPropsType] =
     for (
-      address <- props ~> 'address \/> Fail(s"Invalid gate input configuration. Missing 'address' value. Contents: ${Json.stringify(props)}")
+      address <- props ~> 'name \/> Fail(s"Invalid gate input configuration. Missing 'name' value. Contents: ${Json.stringify(props)}")
     ) yield GateActor.props(address)
 }
 

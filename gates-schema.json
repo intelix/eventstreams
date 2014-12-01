@@ -1,137 +1,165 @@
-
 {
-    "$schema": "http://json-schema.org/draft-04/schema#",
-    "type": "object",
-    "title": "Gate configuration",
-    "properties": {
-        "name": {  
-           "propertyOrder": 10,
-           "title": "Name",
-           "description": "This gate can be referenced by this name from the flows and datasources",
-           "type" : "string"
-        },
-        "desc": {  
-           "propertyOrder": 20,
-           "title": "Description",
-           "description": "Optional field, for information only",
-           "type" : "string"
-        },
-        "initialState": {  
-           "propertyOrder": 30,
-           "title": "Initial state",
-           "description": "Initial state of the gate. The gate will require a manual start if initial state is set to 'Closed'",
-           "type": "string",
-           "enum": ["Open", "Closed"]
-
-        },
-        "maxInFlight": {  
-           "propertyOrder": 40,
-           "title": "Max in-flight messages",
-           "description": "Size of the internal buffer for incoming messages. Once the buffer limit is reached, overflow policy is applied. Must be set to the value higher than 1",
-           "type" : "integer",
-           "minimum": 1
-        },
-        "overflowPolicy": {
-            "propertyOrder": 50,
-            "title": "Overflow policy",
-            "type": "object",
-            "oneOf": [
-                { "$ref": "#/definitions/overflowBackpressure", "title":"Backpressure" },
-                { "$ref": "#/definitions/overflowDrop", "title":"Drop events" }
-            ]
-        },
-        "retentionPolicy": {
-            "propertyOrder": 60,
-            "title": "Retention policy",
-            "type": "object",
-            "oneOf": [
-                { "$ref": "#/definitions/retentionNone", "title":"None (all events dropped after processing)" },
-                { "$ref": "#/definitions/retentionDays", "title":"Days" },
-                { "$ref": "#/definitions/retentionCount", "title":"Events count" }
-            ]
-        }
-        
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "Gate configuration",
+  "properties": {
+    "name": {
+      "propertyOrder": 10,
+      "title": "Name",
+      "description": "This gate can be referenced by this name from the flows and datasources",
+      "type": "string"
     },
-    "additionalProperties": true,
-    "required": [ "name", "initialState","maxInFlight","overflowPolicy" ],
-	"definitions": {
-        "retentionNone": {
-            "type": "object",
-            "properties": {
-                "type": {  
-                   "propertyOrder": 10,
-                   "title": "Type",
-                   "type" : "string",
-                   "template": "none"
-                }
-            },
-            "additionalProperties": false
+    "address": {
+      "propertyOrder": 11,
+      "title": "Address",
+      "type": "string"
+    },
+    "desc": {
+      "propertyOrder": 20,
+      "title": "Description",
+      "description": "Optional field, for information only",
+      "type": "string"
+    },
+    "initialState": {
+      "propertyOrder": 30,
+      "title": "Initial state",
+      "description": "Initial state of the gate. The gate will require a manual start if initial state is set to 'Closed'",
+      "type": "string",
+      "enum": [
+        "Open",
+        "Closed"
+      ]
+    },
+    "maxInFlight": {
+      "propertyOrder": 40,
+      "title": "Max in-flight messages",
+      "description": "Size of the internal buffer for incoming messages. Once the buffer limit is reached, overflow policy is applied. Must be set to the value higher than 1",
+      "type": "integer",
+      "minimum": 1
+    },
+    "overflowPolicy": {
+      "propertyOrder": 50,
+      "title": "Overflow policy",
+      "type": "object",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/overflowBackpressure",
+          "title": "Backpressure"
         },
-        "retentionDays": {
-            "type": "object",
-            "properties": {
-                "type": {  
-                   "propertyOrder": 10,
-                   "title": "Type",
-                   "type" : "string",
-                   "template": "days"
-                },
-                "count": {  
-                   "propertyOrder": 20,
-                   "title": "Days to keep",
-                   "type" : "integer",
-                   "minimum": 1
-                }
-            },
-            "additionalProperties": false
-        },
-        "retentionCount": {
-            "type": "object",
-            "properties": {
-                "type": {  
-                   "propertyOrder": 10,
-                   "title": "Type",
-                   "type" : "string",
-                   "template": "count"
-                },
-                "count": {  
-                   "propertyOrder": 20,
-                   "title": "Number of events to keep",
-                   "type" : "integer",
-                   "minimum": 1
-                }
-            },
-            "additionalProperties": false
-        },
-        "overflowBackpressure": {
-            "type": "object",
-            "properties": {
-                "type": {  
-                   "propertyOrder": 10,
-                   "title": "Type",
-                   "type" : "string",
-                   "template": "backpressure"
-                }
-            },
-            "additionalProperties": false
-        },
-        "overflowDrop": {
-            "type": "object",
-            "properties": {
-                "type": {  
-                   "propertyOrder": 10,
-                   "title": "Type",
-                   "type" : "string",
-                   "template": "drop"
-                },
-                "policy": {  
-                   "propertyOrder": 20,
-                   "title": "Policy",
-                   "type" : "string",
-                   "enum": ["Latest","Newest"]
-                }
-            },
-            "additionalProperties": false
+        {
+          "$ref": "#/definitions/overflowDrop",
+          "title": "Drop events"
         }
+      ]
+    },
+    "retentionPolicy": {
+      "propertyOrder": 60,
+      "title": "Retention policy",
+      "type": "object",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/retentionNone",
+          "title": "None (all events dropped after processing)"
+        },
+        {
+          "$ref": "#/definitions/retentionDays",
+          "title": "Days"
+        },
+        {
+          "$ref": "#/definitions/retentionCount",
+          "title": "Events count"
+        }
+      ]
     }
+  },
+  "additionalProperties": true,
+  "required": [
+    "name",
+    "initialState",
+    "maxInFlight",
+    "overflowPolicy"
+  ],
+  "definitions": {
+    "retentionNone": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "propertyOrder": 10,
+          "title": "Type",
+          "type": "string",
+          "template": "none"
+        }
+      },
+      "additionalProperties": false
+    },
+    "retentionDays": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "propertyOrder": 10,
+          "title": "Type",
+          "type": "string",
+          "template": "days"
+        },
+        "count": {
+          "propertyOrder": 20,
+          "title": "Days to keep",
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "retentionCount": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "propertyOrder": 10,
+          "title": "Type",
+          "type": "string",
+          "template": "count"
+        },
+        "count": {
+          "propertyOrder": 20,
+          "title": "Number of events to keep",
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "overflowBackpressure": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "propertyOrder": 10,
+          "title": "Type",
+          "type": "string",
+          "template": "backpressure"
+        }
+      },
+      "additionalProperties": false
+    },
+    "overflowDrop": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "propertyOrder": 10,
+          "title": "Type",
+          "type": "string",
+          "template": "drop"
+        },
+        "policy": {
+          "propertyOrder": 20,
+          "title": "Policy",
+          "type": "string",
+          "enum": [
+            "Latest",
+            "Newest"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 }	

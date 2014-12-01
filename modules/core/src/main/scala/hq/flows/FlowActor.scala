@@ -22,7 +22,7 @@ import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
 import common.ToolExt.configHelper
 import common._
-import common.actors.{ActorWithConfigStore, PipelineWithStatesActor, SingleComponentActor}
+import common.actors.{ActorTools, ActorWithConfigStore, PipelineWithStatesActor, SingleComponentActor}
 import hq._
 import hq.flows.core.{Builder, FlowComponents}
 import play.api.libs.json.{JsValue, Json}
@@ -33,7 +33,7 @@ import scalaz.{-\/, Scalaz, \/-}
 object FlowActor {
   def props(id: String) = Props(new FlowActor(id))
 
-  def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id), id)
+  def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id), ActorTools.actorFriendlyId(id))
 }
 
 
@@ -52,9 +52,9 @@ class FlowActor(id: String)
   private var flow: Option[MaterializedMap] = None
 
 
-  override def storageKey: Option[String] = Some(s"flow/$id")
+  override def storageKey: Option[String] = Some(id)
 
-  override def key = ComponentKey("flow/" + id)
+  override def key = ComponentKey(id)
 
   override def onInitialConfigApplied(): Unit = context.parent ! FlowAvailable(key)
 
@@ -125,8 +125,7 @@ class FlowActor(id: String)
   override def applyConfig(key: String, config: JsValue, maybeState: Option[JsValue]): Unit = {
     terminateFlow(Some("Applying new configuration"))
 
-    val cfg = config #> 'config | Json.obj()
-    Builder()(cfg, context) match {
+    Builder()(config, context) match {
       case -\/(fail) =>
         logger.info(s"Unable to build flow $id: failed with $fail")
       case \/-(FlowComponents(tap, pipeline, sink)) =>

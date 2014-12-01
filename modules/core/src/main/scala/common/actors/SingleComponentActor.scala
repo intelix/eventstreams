@@ -48,7 +48,7 @@ trait SingleComponentActor
     super.preStart()
   }
 
-  def topicUpdateEffect[T](topic: TopicKey, f: () => Option[JsValue]) = () => scheduleHighP(() => topicUpdate(topic, f()))
+  def topicUpdateEffect[T](topic: TopicKey, f: () => Option[JsValue]) = () => scheduleHighP(() => topicUpdate(topic, f()), "U:" + topic.key)
 
   def topicUpdate(topic: TopicKey, data: Option[JsValue], singleTarget: Option[ActorRef] = None): Unit =
     singleTarget match {

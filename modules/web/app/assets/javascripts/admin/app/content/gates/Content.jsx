@@ -36,6 +36,7 @@ define(['react', 'coreMixin', 'app_content_nodetabs', 'app_gates_table', 'app_ga
             openModal: function (evt) {
                 var defaults = {
                     "name": "",
+                    "address": "",
                     "initialState": "Closed",
                     "maxInFlight": 100,
                     "overflowPolicy": {

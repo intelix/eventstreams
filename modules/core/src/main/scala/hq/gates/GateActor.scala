@@ -51,6 +51,8 @@ class GateActor(id: String)
 
   private val correlationToOrigin: mutable.Map[Long, OriginMeta] = mutable.Map()
   private var sinks: Set[ActorRef] = Set()
+  private var forwarderId: Option[String] = None
+  private var forwarderActor: Option[ActorRef] = None
 
   override def configUnacknowledgedMessagesResendInterval: FiniteDuration = 10.seconds
 
@@ -68,6 +70,12 @@ class GateActor(id: String)
 
     super.preStart()
 
+  }
+
+
+  override def postStop(): Unit = {
+    forwarderActor.foreach(context.system.stop)
+    super.postStop()
   }
 
   override def onInitialConfigApplied(): Unit = context.parent ! GateAvailable(key)
@@ -160,7 +168,20 @@ class GateActor(id: String)
       None
   }
 
+  private def reopenForwarder(newForwarderId: String) = {
+    forwarderId = Some(newForwarderId)
+    forwarderActor.foreach(context.system.stop)
+    forwarderActor = Some(context.system.actorOf(Props(new Forwarder(self)), newForwarderId))
+    logger.info(s"Gate forwarder started for $newForwarderId, actor $forwarderActor")
+  }
+
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {
+    val newForwarderId = ActorTools.actorFriendlyId( props ~> 'address | key )
+    forwarderId match {
+      case None => reopenForwarder(newForwarderId)
+      case Some(x) if x != newForwarderId => reopenForwarder(newForwarderId)
+      case x => ()
+    }
   }
 
 
@@ -212,6 +233,12 @@ class GateActor(id: String)
       sinks += sender()
       context.watch(sinkRef)
       logger.info(s"New sink: ${sender()}")
+  }
+}
+
+class Forwarder(forwardTo: ActorRef) extends ActorWithComposableBehavior {
+  override def commonBehavior: Receive = {
+    case x => forwardTo.forward(x)
   }
 }
 

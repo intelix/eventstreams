@@ -47,10 +47,9 @@ object Builder extends StrictLogging {
     for (
       input <- config #> 'tap \/> Fail("Invalid config: missing 'tap' branch");
       inputClass <- input ~> 'class \/> Fail("Invalid input config: missing 'class' value");
-      inputProps <- input #> 'props \/> Fail("Invalid input config: missing 'props' branch");
       builder <- allBuilders.find(_.configId == inputClass)
         \/> Fail(s"Unsupported or invalid input class $inputClass. Supported classes: ${allBuilders.map(_.configId)}");
-      tap <- builder.build(inputProps, None)
+      tap <- builder.build(input, None)
     ) yield tap
 
   }
@@ -69,11 +68,10 @@ object Builder extends StrictLogging {
     )
     for (
       instClass <- config ~> 'class \/> Fail("Invalid instruction config: missing 'class' value");
-      instProps <- config #> 'props \/> Fail("Invalid instruction config: missing 'props' branch");
       builder <- allBuilders.find(_.configId == instClass)
         \/> Fail(s"Unsupported or invalid instruction class $instClass. Supported classes: ${allBuilders.map(_.configId)}");
-      condition <- Condition(config #> 'condition);
-      instr <- builder.build(instProps, Some(condition))
+      condition <- SimpleCondition(config ~> 'simpleCondition) | Condition(config #> 'condition);
+      instr <- builder.build(config, Some(condition))
     ) yield instr
   }
 

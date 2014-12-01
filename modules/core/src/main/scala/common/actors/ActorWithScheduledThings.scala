@@ -16,17 +16,20 @@
 
 package common.actors
 
+import java.util.UUID
+
 import common.NowProvider
 
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
+import scalaz.std.set
 
 trait ActorWithScheduledThings extends ActorWithTicks with NowProvider {
 
   type ScheduledThing = () => Unit
-  val highPriorityThings = mutable.Set[ScheduledThing]()
-  val normalPriorityThings = mutable.Set[ScheduledThing]()
-  val lowPriorityThings = mutable.Set[ScheduledThing]()
+  val highPriorityThings = mutable.Map[String, ScheduledThing]()
+  val normalPriorityThings = mutable.Map[String, ScheduledThing]()
+  val lowPriorityThings = mutable.Map[String, ScheduledThing]()
   var lowPriorityTimer: Long = 0
   var normalPriorityTimer: Long = 0
 
@@ -34,11 +37,11 @@ trait ActorWithScheduledThings extends ActorWithTicks with NowProvider {
 
   def normalPriorityInterval = 1.seconds
 
-  def scheduleHighP(thing: ScheduledThing): Unit = highPriorityThings.add(thing)
+  def scheduleHighP(thing: ScheduledThing, uniqueKey: String = UUID.randomUUID().toString): Unit = highPriorityThings.put(uniqueKey, thing)
 
-  def scheduleNormalP(thing: ScheduledThing): Unit = normalPriorityThings.add(thing)
+  def scheduleNormalP(thing: ScheduledThing, uniqueKey: String = UUID.randomUUID().toString): Unit = normalPriorityThings.put(uniqueKey, thing)
 
-  def scheduleLowP(thing: ScheduledThing): Unit = lowPriorityThings.add(thing)
+  def scheduleLowP(thing: ScheduledThing, uniqueKey: String = UUID.randomUUID().toString): Unit = lowPriorityThings.put(uniqueKey, thing)
 
   override def processTick() = {
     val timeNow = now
@@ -59,10 +62,10 @@ trait ActorWithScheduledThings extends ActorWithTicks with NowProvider {
     execute(highPriorityThings)
   }
 
-  private def execute(set: mutable.Set[ScheduledThing]): Unit =
-    if (set.nonEmpty) {
-      set.foreach(_())
-      set.clear()
+  private def execute(map: mutable.Map[String, ScheduledThing]): Unit =
+    if (map.nonEmpty) {
+      map.values.foreach(_())
+      map.clear()
     }
 
 

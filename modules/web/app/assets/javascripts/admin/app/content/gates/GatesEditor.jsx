@@ -19,7 +19,9 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
     return React.createClass({
         mixins: [coreMixin, streamMixin, editorMixin],
 
-        componentName: function() { return "app/content/gates/Editor"; },
+        componentName: function () {
+            return "app/content/gates/Editor";
+        },
 
         schema: function () {
             return {
@@ -27,132 +29,140 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                 "type": "object",
                 "title": "Gate configuration",
                 "properties": {
-                "name": {
-                    "propertyOrder": 10,
+                    "name": {
+                        "propertyOrder": 10,
                         "title": "Name",
-                        "type" : "string"
-                },
-                "desc": {
-                    "propertyOrder": 20,
+                        "type": "string"
+                    },
+                    "address": {
+                        "propertyOrder": 11,
+                        "title": "Address",
+                        "type": "string"
+                    },
+                    "desc": {
+                        "propertyOrder": 20,
                         "title": "Description",
-                        "type" : "string"
-                },
-                "initialState": {
-                    "propertyOrder": 30,
+                        "type": "string"
+                    },
+                    "initialState": {
+                        "propertyOrder": 30,
                         "title": "Initial state",
                         "type": "string",
                         "enum": ["Open", "Closed"]
 
-                },
-                "maxInFlight": {
-                    "propertyOrder": 40,
+                    },
+                    "maxInFlight": {
+                        "propertyOrder": 40,
                         "title": "Max in-flight messages",
-                        "type" : "integer",
+                        "type": "integer",
                         "minimum": 1
-                },
-                "overflowPolicy": {
-                    "propertyOrder": 50,
+                    },
+                    "overflowPolicy": {
+                        "propertyOrder": 50,
                         "title": "Overflow policy",
                         "type": "object",
                         "oneOf": [
-                        { "$ref": "#/definitions/overflowBackpressure", "title":"Backpressure" },
-                        { "$ref": "#/definitions/overflowDrop", "title":"Drop events" }
-                    ]
-                },
-                "retentionPolicy": {
-                    "propertyOrder": 60,
+                            {"$ref": "#/definitions/overflowBackpressure", "title": "Backpressure"},
+                            {"$ref": "#/definitions/overflowDrop", "title": "Drop events"}
+                        ]
+                    },
+                    "retentionPolicy": {
+                        "propertyOrder": 60,
                         "title": "Retention policy",
                         "type": "object",
                         "oneOf": [
-                        { "$ref": "#/definitions/retentionNone", "title":"None (all events dropped after processing)" },
-                        { "$ref": "#/definitions/retentionDays", "title":"Days" },
-                        { "$ref": "#/definitions/retentionCount", "title":"Events count" }
-                    ]
-                }
+                            {
+                                "$ref": "#/definitions/retentionNone",
+                                "title": "None (all events dropped after processing)"
+                            },
+                            {"$ref": "#/definitions/retentionDays", "title": "Days"},
+                            {"$ref": "#/definitions/retentionCount", "title": "Events count"}
+                        ]
+                    }
 
-            },
+                },
                 "additionalProperties": true,
-                "required": [ "name", "initialState","maxInFlight","overflowPolicy" ],
+                "required": ["name", "initialState", "maxInFlight", "overflowPolicy"],
                 "definitions": {
-                "retentionNone": {
-                    "type": "object",
+                    "retentionNone": {
+                        "type": "object",
                         "properties": {
-                        "type": {
-                            "propertyOrder": 10,
+                            "type": {
+                                "propertyOrder": 10,
                                 "title": "Type",
-                                "type" : "string",
+                                "type": "string",
                                 "template": "none"
-                        }
+                            }
+                        },
+                        "additionalProperties": false
                     },
-                    "additionalProperties": false
-                },
-                "retentionDays": {
-                    "type": "object",
+                    "retentionDays": {
+                        "type": "object",
                         "properties": {
-                        "type": {
-                            "propertyOrder": 10,
+                            "type": {
+                                "propertyOrder": 10,
                                 "title": "Type",
-                                "type" : "string",
+                                "type": "string",
                                 "template": "days"
-                        },
-                        "count": {
-                            "propertyOrder": 20,
+                            },
+                            "count": {
+                                "propertyOrder": 20,
                                 "title": "Days to keep",
-                                "type" : "integer",
+                                "type": "integer",
                                 "minimum": 1
-                        }
+                            }
+                        },
+                        "additionalProperties": false
                     },
-                    "additionalProperties": false
-                },
-                "retentionCount": {
-                    "type": "object",
+                    "retentionCount": {
+                        "type": "object",
                         "properties": {
-                        "type": {
-                            "propertyOrder": 10,
+                            "type": {
+                                "propertyOrder": 10,
                                 "title": "Type",
-                                "type" : "string",
+                                "type": "string",
                                 "template": "count"
-                        },
-                        "count": {
-                            "propertyOrder": 20,
+                            },
+                            "count": {
+                                "propertyOrder": 20,
                                 "title": "Number of events to keep",
-                                "type" : "integer",
+                                "type": "integer",
                                 "minimum": 1
-                        }
-                    },
-                    "additionalProperties": false
-                },
-                "overflowBackpressure": {
-                    "type": "object",
-                        "properties": {
-                        "type": {
-                            "propertyOrder": 10,
-                                "title": "Type",
-                                "type" : "string",
-                                "template": "backpressure"
-                        }
-                    },
-                    "additionalProperties": false
-                },
-                "overflowDrop": {
-                    "type": "object",
-                        "properties": {
-                        "type": {
-                            "propertyOrder": 10,
-                                "title": "Type",
-                                "type" : "string",
-                                "template": "drop"
+                            }
                         },
-                        "policy": {
-                            "propertyOrder": 20,
-                                "title": "Policy",
-                                "type" : "string",
-                                "enum": ["Latest","Newest"]
-                        }
+                        "additionalProperties": false
                     },
-                    "additionalProperties": false
+                    "overflowBackpressure": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "propertyOrder": 10,
+                                "title": "Type",
+                                "type": "string",
+                                "template": "backpressure"
+                            }
+                        },
+                        "additionalProperties": false
+                    },
+                    "overflowDrop": {
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "propertyOrder": 10,
+                                "title": "Type",
+                                "type": "string",
+                                "template": "drop"
+                            },
+                            "policy": {
+                                "propertyOrder": 20,
+                                "title": "Policy",
+                                "type": "string",
+                                "enum": ["Latest", "Newest"]
+                            }
+                        },
+                        "additionalProperties": false
+                    }
                 }
-            }
             };
 
         }

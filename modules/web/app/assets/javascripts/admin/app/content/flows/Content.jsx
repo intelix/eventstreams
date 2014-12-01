@@ -35,6 +35,9 @@ define(['react', 'coreMixin', 'app_content_nodetabs', 'app_flows_table', 'app_fl
 
             openModal: function (evt) {
                 var defaults = {
+                    "name": "",
+                    "desc": "",
+                    "initialState": "Started",
                     "tap": {
                         "class": "gate",
                         "name": ""

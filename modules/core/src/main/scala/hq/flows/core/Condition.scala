@@ -19,7 +19,7 @@ package hq.flows.core
 import agent.controller.flow.Tools._
 import com.typesafe.scalalogging.StrictLogging
 import common.ToolExt.configHelper
-import common.{JsonFrame, Fail, OK}
+import common.{Fail, JsonFrame, OK}
 import play.api.libs.json.{JsArray, JsString, JsValue, Json}
 
 import scala.util.matching.Regex
@@ -28,78 +28,99 @@ import scalaz._
 
 
 sealed trait Condition extends StrictLogging {
-  type CheckResult = \/[Fail,OK]
+  type CheckResult = \/[Fail, OK]
+
   def metFor(frame: JsonFrame): CheckResult
 }
 
+object SimpleCondition extends StrictLogging {
 
-object Condition {
+  val tagRegex = "#(.+)".r
+  val isNot = "(.+?)!=(.+)".r
+  val is = "(.+?)=(.+)".r
+
+  def apply(optStr: Option[String]): Option[\/[Fail, Condition]] = {
+
+    optStr match {
+      case None => None
+      case Some(x) if x.trim.isEmpty => None
+      case Some(s) => {
+
+        val splitByOr = s.split("(?i)( or )")
+
+        logger.debug(s"Split by or: $s -> $splitByOr")
+
+        val orArr = splitByOr.map { eachOr =>
+          val splitByAnd = eachOr.split("(?i)( and )")
+
+          logger.debug(s"Split by and: $eachOr -> $splitByAnd")
+
+          val arr = splitByAnd.map { eachAnd =>
+            for (
+              x <- eachAnd.trim match {
+                case isNot(a, b) => \/-(("isnot", a, b))
+                case is(a, b) => \/-(("is", a, b))
+                case x => -\/(Fail(s"Invalid expression $x source ${eachAnd.trim}"))
+              };
+              (cond, fieldOrTag, value) = x;
+              y <- fieldOrTag match {
+                case tagRegex(name) => ("tag", name).right
+                case name => ("field", name).right
+              };
+              (cl, nm) = y
+            ) yield Json.obj(
+              "class" -> cl,
+              "name" -> nm,
+              cond -> value
+            )
+          }
+
+          arr.toSeq.foldLeft[\/[Fail, List[JsValue]]](\/-(List())) {
+            (aggr, next) =>
+              aggr.flatMap { list =>
+                next match {
+                  case -\/(f) => f.left
+                  case \/-(obj) => \/-(list :+ obj)
+                }
+              }
+          } map { list =>
+            Json.obj(
+              "class" -> "all",
+              "list" -> Json.toJson(list.toArray)
+            )
+          }
+        }
+
+        val wrappedCfg = orArr.toSeq.foldLeft[\/[Fail, List[JsValue]]](\/-(List())) {
+          (aggr, next) =>
+            aggr.flatMap { list =>
+              next match {
+                case -\/(f) => f.left
+                case \/-(obj) => \/-(list :+ obj)
+              }
+            }
+        } map { list =>
+          Json.obj(
+            "class" -> "any",
+            "list" -> Json.toJson(list.toArray)
+          )
+        }
 
 
-  def apply(optConfig: Option[JsValue]): \/[Fail, Condition] =
-    optConfig.map(condition) | alwaysTrue
+        Some(for (
+          cfg <- wrappedCfg;
+          cond <- Condition(Some(cfg))
+        ) yield cond)
 
-  private def condition(config: JsValue): \/[Fail, Condition] =
-    for (
-      conditionClass <- config ~> 'class \/> Fail(s"Invalid condition configuration, missing 'class' value. Contents: ${Json.stringify(config)}");
-      builder <- conditionClass.toLowerCase match {
-        case "any" => \/-(any(_))
-        case "all" => \/-(all(_))
-        case "tag" => \/-(tag(_))
-        case "field" => \/-(field(_))
-        case x => -\/(Fail(s"Invalid condition configuration, invalid condition class $x"))
-      };
-      condition <- builder(config)
-    ) yield condition
+      }
 
-
-  private def alwaysTrue = \/-(AlwaysTrueCondition())
-
-  private def tag(config: JsValue): \/[Fail, Condition] =
-    for (
-      props <- config #> 'props \/> Fail(s"Invalid 'tag' condition - missing 'props' branch. Contents: ${Json.stringify(config)}");
-      name <- props ~> 'name \/> Fail(s"Invalid tag config. Missing 'name' value. Contents: ${Json.stringify(props)}");
-      is = props ~> 'is map (new Regex(_));
-      isnot = props ~> 'isnot map (new Regex(_))
-    ) yield TagCondition(name, is, isnot)
-
-
-  private def field(config: JsValue): \/[Fail, Condition] =
-    for (
-      props <- config #> 'props \/> Fail(s"Invalid 'field' condition - missing 'props' branch. Contents: ${Json.stringify(config)}");
-      name <- props ~> 'name \/> Fail(s"Invalid field config. Missing 'name' value. Contents: ${Json.stringify(props)}");
-      is = props ~> 'is map (new Regex(_));
-      isnot = props ~> 'isnot map (new Regex(_))
-    ) yield FieldCondition(name, is, isnot)
-
-
-  private def conditionSequence(seq: Seq[JsValue]): \/[Fail, Seq[Condition]] =
-    seq.foldLeft(Seq[Condition]().right[Fail]) { (result, nextConfig) =>
-      for (
-        currentSequence <- result;
-        nextCondition <- Condition(Some(nextConfig))
-      ) yield currentSequence :+ nextCondition
     }
-
-  private def any(config: JsValue): \/[Fail, Condition] =
-    for (
-      seq <- config ##> 'list \/> Fail(s"Invalid 'any' condition - missing 'list' branch. Contents: ${Json.stringify(config)}");
-      conditions <- conditionSequence(seq)
-    ) yield AnyCondition(conditions)
-
-  private def all(config: JsValue): \/[Fail, Condition] =
-    for (
-      seq <- config ##> 'list \/> Fail(s"Invalid 'all' condition - missing 'list' branch. Contents: ${Json.stringify(config)}");
-      conditions <- conditionSequence(seq)
-    ) yield AllCondition(conditions)
-
-
+  }
 }
 
 private case class AlwaysTrueCondition() extends Condition {
   override def metFor(frame: JsonFrame): CheckResult = OK("always true condition").right
 }
-
 
 private case class AnyCondition(conditions: Seq[Condition]) extends Condition {
   override def metFor(frame: JsonFrame): CheckResult =
@@ -142,7 +163,6 @@ private case class FieldCondition(name: String, is: Option[Regex], isnot: Option
   override def toString = s"Field $name is $is and isnot $isnot"
 }
 
-
 private case class TagCondition(name: String, is: Option[Regex], isnot: Option[Regex]) extends Condition {
   override def metFor(frame: JsonFrame): CheckResult = {
     checkConditions(
@@ -178,6 +198,69 @@ private case class TagCondition(name: String, is: Option[Regex], isnot: Option[R
     ) yield isMet + isNotMet
 
   override def toString = s"Tag $name is $is and isnot $isnot"
+}
+
+
+object Condition {
+
+
+  def apply(optConfig: Option[JsValue]): \/[Fail, Condition] =
+    optConfig.flatMap(condition) | alwaysTrue
+
+  private def condition(config: JsValue): Option[\/[Fail, Condition]] =
+    (config ~> 'class).map { conditionClass =>
+      for (
+        builder <- conditionClass.toLowerCase match {
+          case "any" => \/-(any(_))
+          case "all" => \/-(all(_))
+          case "tag" => \/-(tag(_))
+          case "field" => \/-(field(_))
+          case x => -\/(Fail(s"Invalid condition configuration, invalid condition class $x"))
+        };
+        condition <- builder(config)
+      ) yield condition
+    }
+
+
+  private def alwaysTrue = \/-(AlwaysTrueCondition())
+
+  private def tag(config: JsValue): \/[Fail, Condition] =
+    for (
+      name <- config ~> 'name \/> Fail(s"Invalid tag config. Missing 'name' value. Contents: ${Json.stringify(config)}");
+      is = config ~> 'is map (new Regex(_));
+      isnot = config ~> 'isnot map (new Regex(_))
+    ) yield TagCondition(name, is, isnot)
+
+
+  private def field(config: JsValue): \/[Fail, Condition] =
+    for (
+      name <- config ~> 'name \/> Fail(s"Invalid field config. Missing 'name' value. Contents: ${Json.stringify(config)}");
+      is = config ~> 'is map (new Regex(_));
+      isnot = config ~> 'isnot map (new Regex(_))
+    ) yield FieldCondition(name, is, isnot)
+
+
+  private def conditionSequence(seq: Seq[JsValue]): \/[Fail, Seq[Condition]] =
+    seq.foldLeft(Seq[Condition]().right[Fail]) { (result, nextConfig) =>
+      for (
+        currentSequence <- result;
+        nextCondition <- Condition(Some(nextConfig))
+      ) yield currentSequence :+ nextCondition
+    }
+
+  private def any(config: JsValue): \/[Fail, Condition] =
+    for (
+      seq <- config ##> 'list \/> Fail(s"Invalid 'any' condition - missing 'list' branch. Contents: ${Json.stringify(config)}");
+      conditions <- conditionSequence(seq)
+    ) yield AnyCondition(conditions)
+
+  private def all(config: JsValue): \/[Fail, Condition] =
+    for (
+      seq <- config ##> 'list \/> Fail(s"Invalid 'all' condition - missing 'list' branch. Contents: ${Json.stringify(config)}");
+      conditions <- conditionSequence(seq)
+    ) yield AllCondition(conditions)
+
+
 }
 
 

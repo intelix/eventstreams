@@ -16,6 +16,8 @@
 
 package hq.flows
 
+import java.util.UUID
+
 import akka.actor._
 import common.{OK, Fail}
 import common.ToolExt.configHelper
@@ -42,47 +44,48 @@ class FlowManagerActor
 
   override val key = ComponentKey("flows")
 
-  var flows: Map[ComponentKey, ActorRef] = Map()
+  type FlowMap = Map[ComponentKey, ActorRef]
+
+  var flows: Monitored[FlowMap] = withMonitor[FlowMap](listUpdate)(Map())
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
   override def partialStorageKey = Some("flow/")
 
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = startActor(Some(props), maybeState)
+  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = startActor(Some(key), Some(props), maybeState)
 
-  def list = Some(Json.toJson(flows.keys.map { x => Json.obj("id" -> x.key)}.toArray))
+  def listUpdate = topicUpdateEffect(T_LIST, list)
+  def list = () => Some(Json.toJson(flows.get.keys.map { x => Json.obj("id" -> x.key)}.toArray))
 
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
-    case T_LIST => topicUpdate(topic, list, singleTarget = Some(ref))
+    case T_LIST => listUpdate()
   }
 
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
-    case T_ADD => startActor(maybeData, None)
+    case T_ADD => startActor(None, maybeData, None)
   }
 
   def handler: Receive = {
     case FlowAvailable(route) =>
-      flows = flows + (route -> sender())
-      topicUpdate(TopicKey("list"), list)
+      flows = flows.map { list => list + (route -> sender())}
     case Terminated(ref) =>
-      flows = flows.filter {
-        case (route, otherRef) => otherRef != ref
+      flows = flows.map { list =>
+        list.filter {
+          case (route, otherRef) => otherRef != ref
+        }
       }
-      topicUpdate(TopicKey("list"), list)
   }
 
-  private def startActor(maybeData: Option[JsValue], maybeState: Option[JsValue]) : \/[Fail,OK] =
+  private def startActor(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) : \/[Fail,OK] =
     for (
-      data <- maybeData \/> Fail("Invalid payload", Some("Invalid configuration"));
-      name <- data ~> 'name \/> Fail("No name provided", Some("Invalid configuration"));
-      nonEmptyName <- if (name.isEmpty) -\/(Fail("Name is blank", Some("Invalid configuration"))) else name.right;
-      config <- data #> 'config \/> Fail("Empty config", Some("Invalid configuration"))
+      data <- maybeData \/> Fail("Invalid payload", Some("Invalid configuration"))
     ) yield {
-      val actor = FlowActor.start(nonEmptyName)
+      val flowKey = key | "flow/" + UUID.randomUUID().toString
+      val actor = FlowActor.start(flowKey)
       context.watch(actor)
       actor ! InitialConfig(data, maybeState)
-      OK("Flow successfully added")
+      OK("Flow successfully created")
     }
 
 

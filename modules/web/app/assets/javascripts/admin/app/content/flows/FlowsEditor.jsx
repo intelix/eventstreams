@@ -27,18 +27,46 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                 "title": "Flow configuration",
                 "type": "object",
                 "properties": {
-                    "tap": {
+                    "name": {
                         "propertyOrder": 10,
+                        "title": "Name",
+                        "type": "string"
+                    },
+                    "desc": {
+                        "propertyOrder": 20,
+                        "title": "Description",
+                        "type": "string"
+                    },
+                    "initialState": {
+                        "propertyOrder": 30,
+                        "title": "Initial state",
+                        "type": "string",
+                        "enum": [
+                            "Started",
+                            "Stopped"
+                        ]
+                    },
+                    "tap": {
+                        "propertyOrder": 40,
                         "title": "Tap configuration",
                         "type": "object",
                         "oneOf": [
-                            {"$ref": "#/definitions/tapGate", "title": "Gate"},
-                            {"$ref": "#/definitions/tapStatsd", "title": "Statsd"},
-                            {"$ref": "#/definitions/tapUDP", "title": "UDP"}
+                            {
+                                "$ref": "#/definitions/tapGate",
+                                "title": "Gate"
+                            },
+                            {
+                                "$ref": "#/definitions/tapStatsd",
+                                "title": "Statsd"
+                            },
+                            {
+                                "$ref": "#/definitions/tapUDP",
+                                "title": "UDP"
+                            }
                         ]
                     },
                     "pipeline": {
-                        "propertyOrder": 20,
+                        "propertyOrder": 50,
                         "title": "Pipeline configuration",
                         "type": "array",
                         "format": "tabs",
@@ -46,23 +74,51 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                             "title": "Instruction",
                             "headerTemplate": "{{i}}: {{self.class}}",
                             "oneOf": [
-                                {"$ref": "#/definitions/instructionLog", "title": "Log"},
-                                {"$ref": "#/definitions/instructionEnrich", "title": "Enrich"},
-                                {"$ref": "#/definitions/instructionSplit", "title": "Split"},
-                                {"$ref": "#/definitions/instructionGrok", "title": "Grok"},
-                                {"$ref": "#/definitions/instructionGate", "title": "Gate"},
-                                {"$ref": "#/definitions/instructionDrop", "title": "Drop"},
-                                {"$ref": "#/definitions/instructionDate", "title": "Date parser"},
-                                {"$ref": "#/definitions/instructionInflux", "title": "InfluxDB"},
-                                {"$ref": "#/definitions/instructionES", "title": "ElasticSearch"}
+                                {
+                                    "$ref": "#/definitions/instructionLog",
+                                    "title": "Log"
+                                },
+                                {
+                                    "$ref": "#/definitions/instructionEnrich",
+                                    "title": "Enrich"
+                                },
+                                {
+                                    "$ref": "#/definitions/instructionSplit",
+                                    "title": "Split"
+                                },
+                                {
+                                    "$ref": "#/definitions/instructionGrok",
+                                    "title": "Grok"
+                                },
+                                {
+                                    "$ref": "#/definitions/instructionGate",
+                                    "title": "Gate"
+                                },
+                                {
+                                    "$ref": "#/definitions/instructionDrop",
+                                    "title": "Drop"
+                                },
+                                {
+                                    "$ref": "#/definitions/instructionDate",
+                                    "title": "Date parser"
+                                },
+                                {
+                                    "$ref": "#/definitions/instructionInflux",
+                                    "title": "InfluxDB"
+                                },
+                                {
+                                    "$ref": "#/definitions/instructionES",
+                                    "title": "ElasticSearch"
+                                }
                             ]
                         }
                     }
                 },
                 "additionalProperties": false,
-
-                "required": ["tap", "pipeline"],
-
+                "required": [
+                    "tap",
+                    "pipeline"
+                ],
                 "definitions": {
                     "tapGate": {
                         "type": "object",
@@ -74,7 +130,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "template": "gate"
                             },
                             "name": {
-                                "propertyOrder": 20,
+                                "propertyOrder": 10,
                                 "title": "Gate name or full address",
                                 "type": "string"
                             }
@@ -130,14 +186,28 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                         "title": "Complex condition",
                         "type": "object",
                         "oneOf": [
-                            {"$ref": "#/definitions/conditionNone", "title": "None"},
-                            {"$ref": "#/definitions/conditionAny", "title": "Any ..."},
-                            {"$ref": "#/definitions/conditionAll", "title": "All ..."},
-                            {"$ref": "#/definitions/conditionField", "title": "Field match"},
-                            {"$ref": "#/definitions/conditionTag", "title": "Tag match"}
+                            {
+                                "$ref": "#/definitions/conditionNone",
+                                "title": "None"
+                            },
+                            {
+                                "$ref": "#/definitions/conditionAny",
+                                "title": "Any ..."
+                            },
+                            {
+                                "$ref": "#/definitions/conditionAll",
+                                "title": "All ..."
+                            },
+                            {
+                                "$ref": "#/definitions/conditionField",
+                                "title": "Field match"
+                            },
+                            {
+                                "$ref": "#/definitions/conditionTag",
+                                "title": "Tag match"
+                            }
                         ]
                     },
-
                     "conditionAll": {
                         "type": "object",
                         "properties": {
@@ -156,15 +226,30 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                     "title": "Criterion",
                                     "headerTemplate": "{{i}}: {{self.class}}",
                                     "oneOf": [
-                                        {"$ref": "#/definitions/conditionAny", "title": "Any ..."},
-                                        {"$ref": "#/definitions/conditionAll", "title": "All ..."},
-                                        {"$ref": "#/definitions/conditionField", "title": "Field match"},
-                                        {"$ref": "#/definitions/conditionTag", "title": "Tag match"}
+                                        {
+                                            "$ref": "#/definitions/conditionAny",
+                                            "title": "Any ..."
+                                        },
+                                        {
+                                            "$ref": "#/definitions/conditionAll",
+                                            "title": "All ..."
+                                        },
+                                        {
+                                            "$ref": "#/definitions/conditionField",
+                                            "title": "Field match"
+                                        },
+                                        {
+                                            "$ref": "#/definitions/conditionTag",
+                                            "title": "Tag match"
+                                        }
                                     ]
                                 }
                             }
                         },
-                        "required": ["class", "list"]
+                        "required": [
+                            "class",
+                            "list"
+                        ]
                     },
                     "conditionAny": {
                         "type": "object",
@@ -184,15 +269,30 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                     "title": "Criterion",
                                     "headerTemplate": "{{i}}: {{self.class}}",
                                     "oneOf": [
-                                        {"$ref": "#/definitions/conditionAny", "title": "Any ..."},
-                                        {"$ref": "#/definitions/conditionAll", "title": "All ..."},
-                                        {"$ref": "#/definitions/conditionField", "title": "Field match"},
-                                        {"$ref": "#/definitions/conditionTag", "title": "Tag match"}
+                                        {
+                                            "$ref": "#/definitions/conditionAny",
+                                            "title": "Any ..."
+                                        },
+                                        {
+                                            "$ref": "#/definitions/conditionAll",
+                                            "title": "All ..."
+                                        },
+                                        {
+                                            "$ref": "#/definitions/conditionField",
+                                            "title": "Field match"
+                                        },
+                                        {
+                                            "$ref": "#/definitions/conditionTag",
+                                            "title": "Tag match"
+                                        }
                                     ]
                                 }
                             }
                         },
-                        "required": ["class", "list"]
+                        "required": [
+                            "class",
+                            "list"
+                        ]
                     },
                     "conditionField": {
                         "type": "object",
@@ -219,7 +319,10 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "type": "string"
                             }
                         },
-                        "required": ["class", "name"]
+                        "required": [
+                            "class",
+                            "name"
+                        ]
                     },
                     "conditionTag": {
                         "type": "object",
@@ -246,7 +349,10 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "type": "string"
                             }
                         },
-                        "required": ["class", "name"]
+                        "required": [
+                            "class",
+                            "name"
+                        ]
                     },
                     "conditionNone": {
                         "type": "object",
@@ -398,7 +504,14 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "propertyOrder": 50,
                                 "title": "Target type",
                                 "type": "string",
-                                "enum": ["String", "Boolean", "Number", "String array", "Number array", "Boolean array"]
+                                "enum": [
+                                    "String",
+                                    "Boolean",
+                                    "Number",
+                                    "String array",
+                                    "Number array",
+                                    "Boolean array"
+                                ]
                             },
                             "simpleCondition": {
                                 "propertyOrder": 110,
@@ -464,7 +577,12 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "propertyOrder": 20,
                                 "title": "Logging level",
                                 "type": "string",
-                                "enum": ["DEBUG", "INFO", "WARN", "ERROR"]
+                                "enum": [
+                                    "DEBUG",
+                                    "INFO",
+                                    "WARN",
+                                    "ERROR"
+                                ]
                             },
                             "logger": {
                                 "propertyOrder": 20,
@@ -480,7 +598,11 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "$ref": "#/definitions/condition"
                             }
                         },
-                        "required": ["class", "level", "logger"]
+                        "required": [
+                            "class",
+                            "level",
+                            "logger"
+                        ]
                     },
                     "instructionDate": {
                         "type": "object",
@@ -541,8 +663,11 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "$ref": "#/definitions/condition"
                             }
                         },
-                        "required": ["class", "source", "pattern"]
-
+                        "required": [
+                            "class",
+                            "source",
+                            "pattern"
+                        ]
                     },
                     "instructionInflux": {
                         "type": "object",
@@ -607,7 +732,13 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "$ref": "#/definitions/condition"
                             }
                         },
-                        "required": ["class", "db", "host", "port", "user"]
+                        "required": [
+                            "class",
+                            "db",
+                            "host",
+                            "port",
+                            "user"
+                        ]
                     },
                     "instructionES": {
                         "type": "object",
@@ -659,7 +790,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                         }
                     }
                 }
-            };
+            }	;
 
         }
 
