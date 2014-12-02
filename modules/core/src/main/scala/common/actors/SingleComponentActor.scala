@@ -22,7 +22,9 @@ import hq._
 import hq.routing.MessageRouterActor
 import play.api.libs.json.{JsString, JsValue, Json}
 
+import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
+import scalaz.Alpha.T
 import scalaz.{-\/, \/, \/-}
 
 trait SingleComponentActor
@@ -43,11 +45,20 @@ trait SingleComponentActor
 
   def key: ComponentKey
 
+  case class Publisher(key: TopicKey) {
+    def !!(data: Option[JsValue]) = {
+      topicUpdate(key, data)
+    }
+  }
+  implicit def toPublisher(key: TopicKey): Publisher = Publisher(key)
+
   override def preStart(): Unit = {
     MessageRouterActor.path ! RegisterComponent(key, self)
     super.preStart()
   }
 
+
+  @deprecated
   def topicUpdateEffect[T](topic: TopicKey, f: () => Option[JsValue]) = () => scheduleHighP(() => topicUpdate(topic, f()), "U:" + topic.key)
 
   def topicUpdate(topic: TopicKey, data: Option[JsValue], singleTarget: Option[ActorRef] = None): Unit =

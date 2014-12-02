@@ -16,14 +16,19 @@
 
 package common.actors
 
-import java.util.UUID
+import akka.remote.DisassociatedEvent
 
-import akka.actor.Actor
+trait ActorWithDisassociationMonitor extends ActorWithComposableBehavior {
 
-trait ActorUtils extends Actor {
+  override def preStart(): Unit = {
+    context.system.eventStream.subscribe(self, classOf[DisassociatedEvent])
+    super.preStart()
+  }
 
-  val uuid = UUID.randomUUID()
+  override def postStop(): Unit = {
+    context.system.eventStream.unsubscribe(self, classOf[DisassociatedEvent])
+    super.postStop()
+  }
 
-  def hasChildWithId(id: String) = context.child(ActorTools.actorFriendlyId(id)).isDefined
 
 }

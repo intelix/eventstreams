@@ -72,6 +72,7 @@ class ConfigStorageActor(implicit config: Config) extends ActorWithComposableBeh
       logger.debug(s"Persisted config for flow $key")
       storage.storeConfig(key, Json.stringify(s))
     case RetrieveConfigFor(key) =>
+      logger.debug(s"Retrieving config for $key")
       sender() ! StoredConfig(key, storage.retrieve(key) map {
         case (c, s) => EntryConfigSnapshot(key, Json.parse(c), s.map(Json.parse))
       })
@@ -79,6 +80,7 @@ class ConfigStorageActor(implicit config: Config) extends ActorWithComposableBeh
       logger.debug(s"Removing config entry $key")
       storage.remove(key)
     case RetrieveConfigForAllMatching(partialKey) =>
+      logger.debug(s"Retrieving config for all matching $partialKey")
       sender() ! StoredConfigs(storage.retrieveAllMatching(partialKey).map {
         case (fId, c, s) => StoredConfig(fId, Some(EntryConfigSnapshot(fId, Json.parse(c), s.map(Json.parse))))
       })

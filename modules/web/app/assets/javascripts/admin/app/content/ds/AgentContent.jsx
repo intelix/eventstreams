@@ -51,10 +51,10 @@ define(['react', 'coreMixin', 'app_ds_agentstabs', 'app_ds_table', 'app_ds_edito
                         "url": "akka.tcp://ehub@localhost:12345/user/GATENAME"
                     }
                 };
-                this.setState({editBlock: <EditBlock addr={this.state.selected} addRoute="agents" title="Datasource configuration" defaults={defaults} />});
+                this.setState({editBlock: <EditBlock addr={this.props.addr} addRoute={this.state.agentSelected} title="Datasource configuration" defaults={defaults} />});
             },
             openEditModal: function (evt) {
-                this.setState({editBlock: <EditBlock addr={this.state.selected} id={evt.detail.id} title="Datasource configuration"/>});
+                this.setState({editBlock: <EditBlock addr={this.props.addr} id={evt.detail.id} title="Datasource configuration"/>});
             },
             closeModal: function () {
                 this.setState({editBlock: false});

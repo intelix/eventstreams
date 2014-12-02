@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'app_content_button_delete'],
-    function (React, coreMixin, streamMixin, StartStopButton, DeleteButton) {
+define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'app_content_button_delete', 'app_content_button_reset'],
+    function (React, coreMixin, streamMixin, StartStopButton, DeleteButton, ResetButton) {
 
     return React.createClass({
         mixins: [coreMixin, streamMixin],
@@ -52,6 +52,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
                 <td>
                     <StartStopButton {...this.props} state={this.state.info.state} route={this.props.id} />
                     <DeleteButton {...this.props} route={this.props.id} />
+                    <ResetButton {...this.props} route={this.props.id} />
                 </td>
             </tr>;
         },

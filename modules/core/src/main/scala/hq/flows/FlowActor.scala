@@ -20,7 +20,6 @@ import akka.actor._
 import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
-import common.ToolExt.configHelper
 import common._
 import common.actors.{ActorTools, ActorWithConfigStore, PipelineWithStatesActor, SingleComponentActor}
 import hq._
@@ -28,7 +27,7 @@ import hq.flows.core.{Builder, FlowComponents}
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
-import scalaz.{-\/, Scalaz, \/-}
+import scalaz.{-\/, \/-}
 
 object FlowActor {
   def props(id: String) = Props(new FlowActor(id))
@@ -62,24 +61,17 @@ class FlowActor(id: String)
 
   override def becomeActive(): Unit = {
     openTap()
-    topicUpdate(T_INFO, info)
+    publishInfo()
   }
 
   override def becomePassive(): Unit = {
     closeTap()
-    topicUpdate(T_INFO, info)
+    publishInfo()
   }
 
-  def info = Some(Json.obj(
-    "name" -> id,
-    "text" -> (s"$id is " + (if (flow.isDefined) "valid" else "invalid")),
-    "config" -> propsConfig,
-    "stateConfig" -> (stateConfig | Json.obj()),
-    "state" -> (if (isPipelineActive) "active" else "passive")
-  ))
-
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
-    case T_INFO => topicUpdate(T_INFO, info, singleTarget = Some(ref))
+    case T_INFO => publishInfo()
+    case T_PROPS => publishProps()
   }
 
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
@@ -108,10 +100,9 @@ class FlowActor(id: String)
       removeConfig()
       self ! PoisonPill
       \/-(OK())
-    case T_EDIT =>
+    case T_UPDATE_PROPS =>
       for (
         data <- maybeData \/> Fail("No data");
-        config <- data #> 'config \/> Fail("No configuration");
         result <- updateConfigProps(data)
       ) yield result
   }
@@ -131,9 +122,25 @@ class FlowActor(id: String)
       case \/-(FlowComponents(tap, pipeline, sink)) =>
         resetFlowWith(tap, pipeline, sink)
     }
-    topicUpdate(T_INFO, info)
-
   }
+
+
+  override def afterApplyConfig(): Unit = {
+    publishProps()
+    publishInfo()
+  }
+
+  private def publishProps() = T_PROPS !! propsConfig
+
+  private def publishInfo() = T_INFO !! info
+
+  private def info = Some(Json.obj(
+    "name" -> id,
+    "text" -> (s"$id is " + (if (flow.isDefined) "valid" else "invalid")),
+    "config" -> propsConfig,
+    "stateConfig" -> (stateConfig | Json.obj()),
+    "state" -> (if (isPipelineActive) "active" else "passive")
+  ))
 
   private def terminateFlow(reason: Option[String]) = {
     closeTap()

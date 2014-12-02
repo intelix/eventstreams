@@ -22,7 +22,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_ds_table_row'], function (Reac
         componentName: function() { return "app/content/ds/Table"; },
 
         subscriptionConfig: function (props) {
-            return [{address: props.addr, route: props.id, topic: 'taps', dataKey: 'list'}];
+            return [{address: props.addr, route: props.id, topic: 'list', dataKey: 'list'}];
         },
         getInitialState: function () {
             return {list: null}

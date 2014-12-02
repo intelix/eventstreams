@@ -45,6 +45,7 @@
             app_content_editor_mixin: adminApp("content/commons/JSONEditorModalMixin"),
             app_content_button_startstop: adminApp("content/commons/StartStopButton"),
             app_content_button_delete: adminApp("content/commons/DeleteButton"),
+            app_content_button_reset: adminApp("content/commons/ResetButton"),
 
             app_gates: adminApp("content/gates/Content"),
             app_gates_table: adminApp("content/gates/GatesTable"),

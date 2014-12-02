@@ -18,8 +18,7 @@ package hq.agents
 
 import agent.shared.Handshake
 import akka.actor._
-import akka.remote.DisassociatedEvent
-import common.actors.{ActorObjWithoutConfig, ActorWithComposableBehavior, SingleComponentActor}
+import common.actors.{ActorObjWithoutConfig, ActorWithComposableBehavior, ActorWithDisassociationMonitor, SingleComponentActor}
 import hq.{ComponentKey, TopicKey}
 import play.api.libs.json.Json
 
@@ -29,12 +28,13 @@ object AgentsManagerActor extends ActorObjWithoutConfig {
   def props = Props(new AgentsManagerActor())
 }
 
-case class AgentAvailable(id: ComponentKey)
+case class AgentProxyAvailable(id: ComponentKey)
 
 
 class AgentsManagerActor
   extends ActorWithComposableBehavior
-  with SingleComponentActor {
+  with SingleComponentActor
+  with ActorWithDisassociationMonitor {
 
   var agents: Map[ComponentKey, ActorRef] = Map()
 
@@ -42,29 +42,27 @@ class AgentsManagerActor
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  def list = Some(Json.toJson(agents.keys.map { x => Json.obj("id" -> x.key)}.toArray))
+  private def publishList() = T_LIST !! Some(Json.toJson(agents.keys.map { x => Json.obj("id" -> x.key)}.toArray))
 
-  override def preStart(): Unit = {
-    context.system.eventStream.subscribe(self, classOf[DisassociatedEvent]) // TODO refactor into the trait
-    super.preStart()
-  }
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
-    case T_LIST => topicUpdate(T_LIST, list, singleTarget = Some(ref))
+    case T_LIST => publishList()
   }
 
   private def handler: Receive = {
-    case Handshake(ref, name) =>
-      logger.info("Received handshake from " + ref)
-      context.watch(AgentProxyActor.start(key / name, ref))
-    case AgentAvailable(name) =>
+    case Handshake(ref, id) =>
+      logger.info(s"Received handshake from $id ref $ref")
+      context.watch(AgentProxyActor.start(key / id.toString, ref))
+    case AgentProxyAvailable(name) =>
+      logger.info(s"Agent proxy confirmed $name")
       agents = agents + (name -> sender())
-      topicUpdate(T_LIST, list)
+      publishList()
     case Terminated(ref) =>
+      logger.info(s"Agent proxy terminated $ref")
       agents = agents.filter {
         case (name, otherRef) => otherRef != ref
       }
-      topicUpdate(T_LIST, list)
+      publishList()
   }
 
 

@@ -16,6 +16,8 @@
 
 package agent.shared
 
+import java.util.UUID
+
 import akka.actor.ActorRef
 import play.api.libs.json.JsValue
 
@@ -37,13 +39,13 @@ case class GateStateCheck(ref: ActorRef)
 case class GateStateUpdate(state: GateState)
 
 
-case class Handshake(ref: ActorRef, name: String) extends AgentControllerMessage
+case class Handshake(ref: ActorRef, uuid: UUID) extends AgentControllerMessage
 case class CommunicationProxyRef(ref: ActorRef) extends AgentControllerMessage
 
-case class GenericJSONMessage(json: String)
+//case class GenericJSONMessage(json: String)
 
 
-case class CreateTap(config: JsValue) extends AgentControllerMessage
+case class CreateDatasource(config: JsValue) extends AgentControllerMessage
 case class ReconfigureTap(config: JsValue) extends AgentControllerMessage
 case class RemoveTap() extends AgentControllerMessage
 case class ResetTapState() extends AgentControllerMessage

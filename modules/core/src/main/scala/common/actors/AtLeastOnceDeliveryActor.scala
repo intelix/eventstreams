@@ -62,7 +62,7 @@ trait AtLeastOnceDeliveryActor[T]
   }
 
   def acknowledgeUpTo(correlationId: Long, ackedByRef: ActorRef) = {
-    logger.debug(s"Ack: $correlationId from $ackedByRef")
+    logger.info(s"Ack: $correlationId from $ackedByRef")
 
     list = list.map {
       case InFlight(time, msg, cId, endpoints, sentTo) if cId <= correlationId && endpoints.contains(ackedByRef) =>

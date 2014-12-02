@@ -16,19 +16,19 @@
 
 package hq.agents
 
-import agent.shared.{CommunicationProxyRef, CreateTap, GenericJSONMessage}
+import java.util.UUID
+
+import agent.controller.AgentMessagesV1.{AgentDatasources, AgentInfo}
+import agent.controller.DatasourceRef
+import agent.shared.{CommunicationProxyRef, CreateDatasource}
 import akka.actor._
 import akka.remote.DisassociatedEvent
 import common.OK
 import common.actors._
 import hq._
-import play.api.libs.json.{JsArray, JsValue, Json}
+import play.api.libs.json.{JsValue, Json}
 
-import scala.concurrent.duration._
-import scala.util.{Failure, Success}
-
-import scalaz._
-import Scalaz._
+import scalaz.Scalaz._
 
 object AgentProxyActor {
   def start(key: ComponentKey, ref: ActorRef)(implicit f: ActorRefFactory) = f.actorOf(props(key, ref), key.toActorId)
@@ -36,106 +36,95 @@ object AgentProxyActor {
   def props(key: ComponentKey, ref: ActorRef) = Props(new AgentProxyActor(key, ref))
 }
 
-case class TapAvailable(id: ComponentKey)
+case class DatasourceProxyAvailable(key: ComponentKey)
 
 
 class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
   extends PipelineWithStatesActor
+  with ActorWithDisassociationMonitor
   with SingleComponentActor {
 
-  val T_TAPS = TopicKey("taps")
-  val T_ADD_TAP = TopicKey("addTap")
+  case class DatasourceProxyMeta(id: String, ref: ActorRef, key: ComponentKey, confirmed: Boolean)
 
   private var info: Option[JsValue] = None
 
-  private var activeTaps: Map[String, ActorRef] = Map()
-  private var confirmedTaps: List[ComponentKey] = List()
-
+  private var datasources = List[DatasourceProxyMeta]()
 
   override def commonBehavior: Actor.Receive = commonMessageHandler orElse super.commonBehavior
 
   override def preStart(): Unit = {
     ref ! CommunicationProxyRef(self)
-    context.parent ! AgentAvailable(key)
-    context.system.eventStream.subscribe(self, classOf[DisassociatedEvent])
+    context.parent ! AgentProxyAvailable(key)
+    logger.debug(s"Agent proxy $key started, pointing at $ref")
     super.preStart()
   }
 
-  override def postStop(): Unit = {
-    super.postStop()
-    context.system.eventStream.unsubscribe(self, classOf[DisassociatedEvent])
-  }
-
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
-    case T_INFO => topicUpdate(T_INFO, info, singleTarget = Some(ref))
-    case T_TAPS => topicUpdate(T_TAPS, taps, singleTarget = Some(ref))
+    case T_INFO => publishInfo()
+    case T_LIST => publishDatasources()
   }
 
   override def processTopicCommand(sourceRef: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
-    case T_ADD_TAP =>
-      maybeData.foreach(ref ! CreateTap(_))
+    case T_ADD =>
+      maybeData.foreach(ref ! CreateDatasource(_))
       OK().right
   }
 
+  private def publishInfo() = T_INFO !! info
+
+  private def publishDatasources() = T_LIST !! Some(Json.toJson(datasources.collect{
+    case DatasourceProxyMeta(_, _, k, true) => Json.obj("id" -> k.key)
+  }))
+
   private def commonMessageHandler: Receive = {
-    case TapAvailable(x) =>
-      confirmedTaps = confirmedTaps :+ x
-      topicUpdate(T_TAPS, taps)
-    case GenericJSONMessage(jsonString) =>
-      Json.parse(jsonString).asOpt[JsValue] foreach process
+    case DatasourceProxyAvailable(x) =>
+      datasources = datasources.map {
+        case b @ DatasourceProxyMeta(_, _, k, false) if k == x => b.copy(confirmed = true)
+        case v => v
+      }
+      publishDatasources()
+
+    case AgentInfo(jsValue) => processInfo(jsValue)
+    case AgentDatasources(list) => processListOfTaps(list)
+
     case DisassociatedEvent(_, remoteAddr, _) =>
       if (ref.path.address == remoteAddr) {
-        self ! PoisonPill
+        context.stop(self)
       }
-    case StartTapProxy(id, tapRef) =>
-      if (!activeTaps.contains(id)) activeTaps = activeTaps + (id -> DatasourceProxyActor.start(key / id, tapRef))
+
+    case Terminated(actor) =>
+      datasources = datasources.filter(_.ref != actor)
+      publishDatasources()
 
   }
 
-  private def taps = Some(Json.toJson(confirmedTaps.map { x => Json.obj("id" -> x.key)}))
-
-  private def process(json: JsValue) = {
-    (json \ "info").asOpt[JsValue] foreach processInfo
-    (json \ "taps").asOpt[JsArray] foreach processListOfTaps
-  }
 
   private def processInfo(json: JsValue) = {
     info = Some(json)
     logger.debug(s"Received agent info update: $info")
-    topicUpdate(T_INFO, info)
+    publishInfo()
   }
 
-  private def processListOfTaps(json: JsArray) = {
-    logger.debug(s"Received taps update: $json")
+  private def processListOfTaps(list: List[DatasourceRef]) = {
+    logger.debug(s"Received datasources update: $list")
 
-    val listOfIds = for (
-      tapDetails <- json.value;
-      id <- (tapDetails \ "id").asOpt[String];
-      ref <- (tapDetails \ "ref").asOpt[String]
-    ) yield id -> ref
-
-    activeTaps.keys filterNot listOfIds.contains foreach killTapProxy
-    listOfIds.filterNot {
-      case (i, r) => activeTaps.contains(i)
-    } foreach {
-      case (i, r) => createTapProxy(i, r)
+    datasources.filterNot { d => list.exists(_.id == d.id) } foreach { dsToKill =>
+      logger.debug(s"Datasource $dsToKill is no longer active, terminating proxy")
+      dsToKill.ref ! PoisonPill
     }
-  }
 
-  private def createTapProxy(id: String, tapRef: String) = {
-    implicit val ec = context.dispatcher
-    context.actorSelection(ref.path.address.toString + "/user/" + tapRef).resolveOne(5.seconds).onComplete {
-      case Success(result) =>
-        self ! StartTapProxy(id, result)
-      case Failure(failure) =>
-        logger.warn(s"Unable to resolve $id at $ref", failure)
+    list.foreach { ds =>
+      if (!datasources.exists(_.id == ds.id)) {
+        val compKey = key / UUID.randomUUID().toString
+        val actor = DatasourceProxyActor.start(compKey, ds.ref)
+        context.watch(actor)
+        datasources  = datasources :+ DatasourceProxyMeta(ds.id, actor, compKey, confirmed = false)
+      }
     }
+
+    publishDatasources()
   }
 
-  private def killTapProxy(id: String) = {
-    activeTaps.get(id).foreach(_ ! PoisonPill)
-  }
 
 }
 
-case class StartTapProxy(id: String, ref: ActorRef)

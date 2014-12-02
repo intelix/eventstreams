@@ -14,16 +14,20 @@
  * limitations under the License.
  */
 
-package common.actors
+package agent.controller
 
-import java.util.UUID
+import akka.actor.ActorRef
+import play.api.libs.json.JsValue
 
-import akka.actor.Actor
+case class DatasourceRef(id: String, ref: ActorRef)
 
-trait ActorUtils extends Actor {
+object AgentMessagesV1 {
 
-  val uuid = UUID.randomUUID()
+  case class AgentInfo(jsValue: JsValue)
 
-  def hasChildWithId(id: String) = context.child(ActorTools.actorFriendlyId(id)).isDefined
+  case class AgentDatasources(list: List[DatasourceRef])
 
+  case class DatasourceInfo(jsValue: JsValue)
+  case class DatasourceConfig(jsValue: JsValue)
 }
+

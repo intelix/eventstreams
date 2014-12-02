@@ -25,6 +25,8 @@ import common._
 import common.actors._
 import hq._
 import play.api.libs.json.{JsNumber, JsValue, Json}
+import play.api.libs.json.extensions._
+import play.api.libs.json._
 
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -145,7 +147,7 @@ class GateActor(id: String)
     logger.info(s"Fully acknowledged $correlationId ")
     correlationToOrigin.get(correlationId).foreach { origin =>
       logger.info(s"Ack ${origin.originalCorrelationId} with tap at ${origin.sender}")
-      origin.sender ! Acknowledge(origin.originalCorrelationId)
+      forwarderActor.foreach(_ ! RouteTo(origin.sender, Acknowledge(origin.originalCorrelationId)))
     }
   }
 
@@ -154,11 +156,9 @@ class GateActor(id: String)
 
   def convert(id: Long, message: Any): Option[JsonFrame] = message match {
     case m@ProducedMessage(MessageWithAttachments(bs: ByteString, attachments), c: Cursor) =>
-      Some(JsonFrame(Json.obj(
-        "tags" -> Json.arr("source"),
-        "id" -> id,
-        "value" -> bs.utf8String,
-        "source" -> attachments),
+      logger.debug(s"Original message at the gate: ${bs.utf8String}")
+      val json = attachments.set(__ \ "value" -> JsString(bs.utf8String)).set( __ \ "id" -> JsNumber(id))
+      Some(JsonFrame(json,
         ctx = Map[String, JsValue]("source.id" -> JsNumber(id))))
     case m: JsonFrame =>
       // TODO add route slip to the context
@@ -193,7 +193,7 @@ class GateActor(id: String)
 
   private def flowMessagesHandlerForClosedGate: Receive = {
     case m: Acknowledgeable[_] =>
-      sender ! GateStateUpdate(GateClosed())
+      forwarderActor.foreach(_ ! RouteTo(sender, GateStateUpdate(GateClosed())))
   }
 
   private def canAcceptAnotherMessage = inFlightCount < 10 // TODO configurable
@@ -222,9 +222,9 @@ class GateActor(id: String)
     case GateStateCheck(ref) =>
       logger.debug(s"Received state check from $ref, our state: $isPipelineActive")
       if (isPipelineActive) {
-        ref ! GateStateUpdate(GateOpen())
+        forwarderActor.foreach(_ ! RouteTo(ref, GateStateUpdate(GateOpen())))
       } else {
-        ref ! GateStateUpdate(GateClosed())
+        forwarderActor.foreach(_ ! RouteTo(ref, GateStateUpdate(GateClosed())))
       }
     case Terminated(ref) if sinks.contains(ref) =>
       logger.info(s"Sink is gone: $ref")
@@ -236,8 +236,11 @@ class GateActor(id: String)
   }
 }
 
+case class RouteTo(ref: ActorRef, msg: Any)
+
 class Forwarder(forwardTo: ActorRef) extends ActorWithComposableBehavior {
   override def commonBehavior: Receive = {
+    case RouteTo(ref, msg) => ref ! msg
     case x => forwardTo.forward(x)
   }
 }

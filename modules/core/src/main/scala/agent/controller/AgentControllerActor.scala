@@ -16,6 +16,9 @@
 
 package agent.controller
 
+import java.util.UUID
+
+import agent.controller.AgentMessagesV1.{AgentInfo, AgentDatasources}
 import agent.controller.flow.DatasourceActor
 import agent.shared._
 import akka.actor.{ActorRef, Props, Terminated}
@@ -24,8 +27,10 @@ import com.typesafe.config.Config
 import common.Fail
 import common.ToolExt.configHelper
 import common.actors._
-import hq.{TopicKey, ComponentKey}
+import hq.ComponentKey
 import net.ceedubs.ficus.Ficus._
+import play.api.libs.json._
+import play.api.libs.json.extensions._
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
@@ -44,7 +49,6 @@ class AgentControllerActor(implicit config: Config)
   with ActorWithConfigStore
   with ReconnectingActor {
 
-  implicit val system = context.system
   implicit val mat = FlowMaterializer()
   var commProxy: Option[ActorRef] = None
   var datasources: Map[ComponentKey, ActorRef] = Map()
@@ -61,7 +65,7 @@ class AgentControllerActor(implicit config: Config)
   }
 
   override def onConnectedToEndpoint(): Unit = {
-    remoteActorRef.foreach(_ ! Handshake(self, config.as[String]("ehub.agent.name")))
+    remoteActorRef.foreach(_ ! Handshake(self, uuid))
     super.onConnectedToEndpoint()
   }
 
@@ -71,36 +75,27 @@ class AgentControllerActor(implicit config: Config)
     super.onDisconnectedFromEndpoint()
   }
 
-  def snapshot = Json.obj(
-    "taps" -> Json.toJson(datasources.keys.map { x =>
-      Json.obj(
-        "id" -> x.key,
-        "ref" -> ("controller/" + ActorTools.actorFriendlyId(x.key.toString))
-      )
-    }.toArray))
-
   override def afterApplyConfig(): Unit = sendToHQAll()
 
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addDatasource(Some(props), maybeState)
+  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addDatasource(Some(key), Some(props), maybeState)
 
-
-  private def addDatasource(maybeData: Option[JsValue], maybeState: Option[JsValue]) =
+  private def addDatasource(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
     for (
-      data <- maybeData \/> Fail("Invalid payload");
-      name <- data ~> "name" \/> Fail("No name provided");
-      nonEmptyName <- if (name.isEmpty) -\/("Name is blank") else name.right
+      data <- maybeData \/> Fail("Invalid payload")
     ) yield {
-      val actor = DatasourceActor.start(nonEmptyName)
+      logger.debug(s"Original config for $key: $maybeData ")
+      val datasourceKey = key | "ds/" + UUID.randomUUID().toString
+      val actor = DatasourceActor.start(datasourceKey)
       context.watch(actor)
       actor ! InitialConfig(data, maybeState)
-      (actor, nonEmptyName)
+      (actor, datasourceKey)
     }
 
   private def commonMessageHandler: Receive = {
     case CommunicationProxyRef(ref) =>
       commProxy = Some(ref)
       sendToHQAll()
-    case CreateTap(cfg) => addDatasource(Some(cfg), None) match {
+    case CreateDatasource(cfg) => addDatasource(None, Some(cfg), None) match {
       case \/-((actor, name)) =>
         logger.info(s"Datasource $name successfully created")
       case -\/(error) =>
@@ -111,7 +106,9 @@ class AgentControllerActor(implicit config: Config)
         case (route, otherRef) => otherRef != ref
       }
       sendToHQ(snapshot)
+
     case DatasourceAvailable(key) =>
+      logger.debug(s"Available datasource: $key")
       datasources = datasources + (key -> sender())
       sendToHQ(snapshot)
   }
@@ -121,22 +118,25 @@ class AgentControllerActor(implicit config: Config)
     sendToHQ(snapshot)
   }
 
-  private def sendToHQ(json: JsValue) =
+  private def sendToHQ(msg: Any) =
     commProxy foreach { actor =>
-      logger.debug(s"$json -> $actor")
-      actor ! GenericJSONMessage(json.toString())
+      logger.debug(s"$msg -> $actor")
+      actor ! msg
     }
 
-
-  private def info = Json.obj(
-    "info" -> Json.obj(
-      "name" -> config.as[String]("ehub.agent.name"),
-      "description" -> config.as[String]("ehub.agent.description"),
-      "location" -> config.as[String]("ehub.agent.location"),
-      "address" -> context.self.path.address.toString,
-      "state" -> "active"
-    )
+  private def snapshot = AgentDatasources(
+    datasources.map {
+      case (key, ref) => DatasourceRef(key.key, ref)
+    }.toList
   )
+
+  private def info = AgentInfo(Json.obj(
+    "name" -> config.as[String]("ehub.agent.name"),
+    "description" -> config.as[String]("ehub.agent.description"),
+    "location" -> config.as[String]("ehub.agent.location"),
+    "address" -> context.self.path.address.toString,
+    "state" -> "active"
+  ))
 
 
 }

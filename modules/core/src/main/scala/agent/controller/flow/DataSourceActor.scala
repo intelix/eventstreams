@@ -18,15 +18,18 @@ package agent.controller.flow
 
 import java.nio.charset.Charset
 
+import agent.controller.AgentMessagesV1.{DatasourceConfig, DatasourceInfo}
+import agent.controller.DatasourceAvailable
 import agent.flavors.files._
 import agent.shared._
-import akka.actor.{ActorRefFactory, ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorRefFactory, Props}
 import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import common.actors._
 import common.{BecomeActive, BecomePassive, Stop}
+import hq.ComponentKey
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
@@ -49,7 +52,9 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
   private var flow: Option[FlowInstance] = None
   private var cursor2config: Option[Cursor => Option[JsValue]] = None
 
-  override def storageKey: Option[String] = Some(s"ds/$dsId")
+  override def storageKey: Option[String] = Some(dsId)
+
+  val key = ComponentKey(dsId)
 
   override def becomeActive(): Unit = {
     startFlow()
@@ -66,8 +71,9 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
       case ProducedMessage(_, c: Cursor) =>
         for (
           func <- cursor2config;
-          state <- func(c)
-        ) updateConfigState(Some(state)) // TODO (low priority) aggregate and send updates every sec or so, and on postStop
+          state <- func(c);
+          cfg <- propsConfig
+        ) updateConfigSnapshot(cfg, Some(state)) // TODO (low priority) aggregate and send updates every sec or so, and on postStop
     }
     case CommunicationProxyRef(ref) =>
       commProxy = Some(ref)
@@ -76,6 +82,9 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
       updateConfigProps(data)
     case ResetTapState() =>
       updateConfigState(None)
+    case RemoveTap() =>
+      removeConfig()
+      context.stop(self)
   }
 
 
@@ -98,6 +107,9 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
     flow = None
 
     def buildProcessorFlow(props: JsValue): Flow[In, Out] = {
+
+      logger.debug(s"Building processor flow from $props")
+
       val convert = Flow[In].map {
         case ProducedMessage(msg, c) =>
           ProducedMessage(MessageWithAttachments(msg, Json.obj()), c)
@@ -111,7 +123,7 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
 
       val setTags = Flow[Out].map {
         case ProducedMessage(MessageWithAttachments(msg, json), c) =>
-          val modifiedJson = json set __ \ "tags" -> (props \ "tags").asOpt[JsArray].getOrElse(Json.arr())
+          val modifiedJson = json set __ \ "tags" -> (props \ "tags").asOpt[String].map(_.split(",").map(_.trim)).map(Json.toJson(_)).getOrElse(Json.arr())
           ProducedMessage(MessageWithAttachments(msg, modifiedJson), c)
       }
 
@@ -126,7 +138,7 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
       RollingFileMonitorTarget(
         (targetProps \ "directory").as[String],
         (targetProps \ "mainPattern").as[String],
-        (targetProps \ "rollPattern").as[String],
+        (targetProps \ "rollingPattern").as[String],
         f => f.lastModified())
     }
 
@@ -161,7 +173,7 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
         case _ => None
       }
 
-      FileMonitorActorPublisher.props(fId, buildFileMonitorTarget(props \ "target"), buildState())
+      FileMonitorActorPublisher.props(fId, buildFileMonitorTarget(props), buildState())
     }
 
     def buildProducer(fId: String, config: JsValue): Props = {
@@ -169,7 +181,7 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
       logger.debug(s"Building producer from $config")
 
       (config \ "class").asOpt[String] match {
-        case Some("file") => buildFileProducer(fId, config \ "props")
+        case Some("file") => buildFileProducer(fId, config)
         case _ => throw new IllegalArgumentException(Json.stringify(config))
       }
     }
@@ -181,7 +193,7 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
 
     def buildSink(fId: String, config: JsValue): Props = {
       (config \ "class").asOpt[String] match {
-        case Some("akka") => buildAkkaSink(fId, config \ "props")
+        case Some("akka") => buildAkkaSink(fId, config)
         case _ => BlackholeAutoAckSinkActor.props
       }
     }
@@ -192,9 +204,9 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
     val publisherActor: ActorRef = context.actorOf(publisherProps)
     val publisher = PublisherSource(ActorPublisher[In](publisherActor))
 
-    val processingSteps = buildProcessorFlow(config \ "preprocessing")
+    val processingSteps = buildProcessorFlow(config)
 
-    val sinkProps = buildSink(dsId, config \ "endpoint")
+    val sinkProps = buildSink(dsId, config \ "sink")
     val sinkActor = context.actorOf(sinkProps)
     val sink = SubscriberSink(ActorSubscriber[Out](sinkActor))
 
@@ -205,6 +217,15 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
     flow = Some(FlowInstance(materializedFlow, publisherActor, sinkActor))
 
     if (isPipelineActive) startFlow()
+
+  }
+
+
+  override def onInitialConfigApplied(): Unit = context.parent ! DatasourceAvailable(key)
+
+
+  override def afterApplyConfig(): Unit = {
+    sendToHQ(props)
   }
 
   private def startFlow(): Unit = {
@@ -225,16 +246,24 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
     sendToHQAll()
   }
 
-  private def info: JsValue = Json.obj("info" -> Json.obj("id" -> "Test", "name" -> "temp name", "state" -> (if (active) "active" else "passive"))) // TODO
+  private def props =
+    DatasourceConfig(propsConfig.getOrElse(Json.obj()))
+  private def info =
+    DatasourceInfo(Json.obj(
+      "id" -> "Test",
+      "name" -> "temp name",
+      "state" -> (if (active) "active" else "passive")
+    ))
 
   private def sendToHQAll() = {
     sendToHQ(info)
+    sendToHQ(props)
   }
 
-  private def sendToHQ(json: JsValue) = {
+  private def sendToHQ(msg: Any) = {
     commProxy foreach { actor =>
-      logger.debug(s"$json -> $actor")
-      actor ! GenericJSONMessage(Json.stringify(json))
+      logger.debug(s"$msg -> $actor")
+      actor ! msg
     }
   }
 

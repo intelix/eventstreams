@@ -24,7 +24,8 @@ import scala.util.{Failure, Success}
 
 trait ReconnectingActor
   extends ActorWithComposableBehavior
-  with WithRemoteActorRef {
+  with WithRemoteActorRef
+  with ActorWithDisassociationMonitor {
 
   implicit private val ec = context.dispatcher
   private var peer: Option[ActorRef] = None
@@ -46,17 +47,6 @@ trait ReconnectingActor
   def onConnectedToEndpoint() = {}
 
   def onDisconnectedFromEndpoint() = {}
-
-  override def preStart(): Unit = {
-    context.system.eventStream.subscribe(self, classOf[DisassociatedEvent])
-    super.preStart()
-  }
-
-  override def postStop(): Unit = {
-    context.system.eventStream.unsubscribe(self, classOf[DisassociatedEvent])
-    super.postStop()
-  }
-
 
   def scheduleReconnect(duration: FiniteDuration = reconnectAttemptInterval) = {
     context.system.scheduler.scheduleOnce(duration, self, Associate())

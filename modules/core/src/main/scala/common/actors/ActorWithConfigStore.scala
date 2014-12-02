@@ -82,14 +82,18 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior {
 
   private def cacheAndApplyConfig(props: JsValue, maybeState: Option[JsValue]): Unit = {
     val isInitialConfig = propsConfig.isEmpty
-    propsConfig = Some(props)
-    stateConfig = maybeState
-    storageKey.foreach { key =>
-      beforeApplyConfig()
-      applyConfig(key, props, maybeState)
-      afterApplyConfig()
-      logger.info(s"Applied configuration with key $key, initial: $isInitialConfig")
-      if (isInitialConfig) onInitialConfigApplied()
+    if (!isInitialConfig && propsConfig.get.equals(props) && stateConfig.equals(maybeState)) {
+      logger.debug(s"Configuration and state have not changed - update ignored")
+    } else {
+      propsConfig = Some(props)
+      stateConfig = maybeState
+      storageKey.foreach { key =>
+        beforeApplyConfig()
+        applyConfig(key, props, maybeState)
+        afterApplyConfig()
+        logger.info(s"Applied configuration with key $key, initial: $isInitialConfig")
+        if (isInitialConfig) onInitialConfigApplied()
+      }
     }
   }
 
@@ -101,7 +105,9 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior {
         applyConfig(e.key, e.config, e.state)
       })
       afterApplyConfig()
-    case StoredConfig(_, cfg) => cfg.foreach { e => cacheAndApplyConfig(e.config, e.state)}
+    case StoredConfig(_, cfg) =>
+      logger.debug(s"Received stored config")
+      cfg.foreach { e => cacheAndApplyConfig(e.config, e.state)}
     case InitialConfig(c, s) => propsConfig match {
       case None =>
         logger.info(s"Received initial configuration: $c state: $s")
