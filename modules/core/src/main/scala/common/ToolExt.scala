@@ -16,13 +16,17 @@
 
 package common
 
-import play.api.libs.json.{JsArray, JsValue}
+import play.api.libs.json.{Json, JsArray, JsValue}
 
 import scala.language.implicitConversions
+import scalaz._
+import Scalaz._
 
 object ToolExt {
 
   implicit def configHelper(config: JsValue): ConfigExtOps = ConfigExtOps(config)
+  implicit def configHelper(config: Option[JsValue]): ConfigExtOps = ConfigExtOps(config | Json.obj())
+
 
   case class ConfigExtOps(config: JsValue) {
     def #>(key: String) = (config \ key).asOpt[JsValue]

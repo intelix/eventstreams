@@ -16,13 +16,18 @@
 
 package common.actors
 
+import java.util.Date
+
 import akka.actor.Actor
-import common.{BecomePassive, BecomeActive}
+import common.{NowProvider, BecomePassive, BecomeActive}
+import org.ocpsoft.prettytime.PrettyTime
 
 
-trait PipelineWithStatesActor extends ActorWithComposableBehavior {
+trait PipelineWithStatesActor extends ActorWithComposableBehavior with NowProvider {
 
+  private val p = new PrettyTime()
   private var requestedState: Option[RequestedState] = None
+  private var date: Option[Long] = None
 
   def lastRequestedState = requestedState
 
@@ -36,16 +41,23 @@ trait PipelineWithStatesActor extends ActorWithComposableBehavior {
 
   def becomePassive(): Unit = {}
 
+  def prettyTimeSinceStateChange = date match {
+    case None => "never"
+    case Some(l) => p.format(new Date(l))
+  }
+
   override def commonBehavior: Actor.Receive = handlePipelineStateChanges orElse super.commonBehavior
 
   private def handlePipelineStateChanges: Actor.Receive = {
     case BecomeActive() =>
       logger.debug("Becoming active")
       requestedState = Some(Active())
+      date = Some(now)
       becomeActive()
     case BecomePassive() =>
       logger.debug("Becoming passive")
       requestedState = Some(Passive())
+      date = Some(now)
       becomePassive()
   }
 

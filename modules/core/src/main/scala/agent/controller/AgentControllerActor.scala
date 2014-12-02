@@ -24,7 +24,7 @@ import agent.shared._
 import akka.actor.{ActorRef, Props, Terminated}
 import akka.stream.FlowMaterializer
 import com.typesafe.config.Config
-import common.Fail
+import common.{NowProvider, Fail}
 import common.ToolExt.configHelper
 import common.actors._
 import hq.ComponentKey
@@ -47,7 +47,8 @@ case class DatasourceAvailable(key: ComponentKey)
 class AgentControllerActor(implicit config: Config)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
-  with ReconnectingActor {
+  with ReconnectingActor
+  with NowProvider {
 
   implicit val mat = FlowMaterializer()
   var commProxy: Option[ActorRef] = None
@@ -85,9 +86,11 @@ class AgentControllerActor(implicit config: Config)
     ) yield {
       logger.debug(s"Original config for $key: $maybeData ")
       val datasourceKey = key | "ds/" + UUID.randomUUID().toString
+      var json = data
+      if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
       val actor = DatasourceActor.start(datasourceKey)
       context.watch(actor)
-      actor ! InitialConfig(data, maybeState)
+      actor ! InitialConfig(json, maybeState)
       (actor, datasourceKey)
     }
 

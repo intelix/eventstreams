@@ -17,6 +17,7 @@
 package agent.controller.flow
 
 import java.nio.charset.Charset
+import java.util.Date
 
 import agent.controller.AgentMessagesV1.{DatasourceConfig, DatasourceInfo}
 import agent.controller.DatasourceAvailable
@@ -27,34 +28,46 @@ import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
 import akka.util.ByteString
+import common.ToolExt.configHelper
 import common.actors._
 import common.{BecomeActive, BecomePassive, Stop}
-import hq.ComponentKey
+import hq.{TopicKey, ComponentKey}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
+
+import scalaz._
+import Scalaz._
 
 
 object DatasourceActor {
   def props(dsId: String)(implicit mat: FlowMaterializer) = Props(new DatasourceActor(dsId))
-  def start(dsId: String)(implicit mat: FlowMaterializer, f: ActorRefFactory) =  f.actorOf(props(dsId), ActorTools.actorFriendlyId(dsId))
+
+  def start(dsId: String)(implicit mat: FlowMaterializer, f: ActorRefFactory) = f.actorOf(props(dsId), ActorTools.actorFriendlyId(dsId))
 }
 
 
 class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
   extends ActorWithComposableBehavior
   with PipelineWithStatesActor
-  with ActorWithConfigStore {
+  with ActorWithConfigStore
+  with ActorWithPeriodicalBroadcasting {
 
   type In = ProducedMessage[ByteString, Cursor]
   type Out = ProducedMessage[MessageWithAttachments[ByteString], Cursor]
-  var commProxy: Option[ActorRef] = None
-  var active = false
+  val key = ComponentKey(dsId)
+
+
+  private def name = propsConfig ~> 'name | "N/A"
+  private def created = prettyTime.format(new Date(propsConfig ++> 'created | now))
+  private var endpointType = "N/A"
+  private var endpointDetails = "N/A"
+
+  private var commProxy: Option[ActorRef] = None
+  private var active = false
   private var flow: Option[FlowInstance] = None
   private var cursor2config: Option[Cursor => Option[JsValue]] = None
 
   override def storageKey: Option[String] = Some(dsId)
-
-  val key = ComponentKey(dsId)
 
   override def becomeActive(): Unit = {
     startFlow()
@@ -188,7 +201,10 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
 
 
     def buildAkkaSink(fId: String, props: JsValue): Props = {
-      SubscriberBoundaryInitiatingActor.props((props \ "url").as[String])
+      val url = props ~> 'url | "N/A"
+      endpointType = "akka"
+      endpointDetails = url
+      SubscriberBoundaryInitiatingActor.props(props ~> "url" | "N/A")
     }
 
     def buildSink(fId: String, config: JsValue): Props = {
@@ -225,7 +241,7 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
 
 
   override def afterApplyConfig(): Unit = {
-    sendToHQ(props)
+    sendToHQAll()
   }
 
   private def startFlow(): Unit = {
@@ -248,10 +264,15 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
 
   private def props =
     DatasourceConfig(propsConfig.getOrElse(Json.obj()))
+
   private def info =
     DatasourceInfo(Json.obj(
       "id" -> "Test",
-      "name" -> "temp name",
+      "created" -> created,
+      "name" -> name,
+      "endpointType" -> endpointType,
+      "endpointDetails" -> endpointDetails,
+      "sinceStateChange" -> prettyTimeSinceStateChange,
       "state" -> (if (active) "active" else "passive")
     ))
 
@@ -267,7 +288,9 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
     }
   }
 
-
+  override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
+    (TopicKey("info"), 5, () => info, sendToHQ _)
+  )
 }
 
 case class FlowInstance(flow: MaterializedMap, source: ActorRef, sink: ActorRef)

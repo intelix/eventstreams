@@ -16,8 +16,11 @@
 
 package common
 
+import org.ocpsoft.prettytime.PrettyTime
+
 trait NowProvider {
 
   def now = System.currentTimeMillis()
+  def prettyTime = new PrettyTime()
 
 }

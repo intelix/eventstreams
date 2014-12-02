@@ -40,6 +40,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_ds_table_row'], function (Reac
                     <th>Name</th>
                     <th>Endpoint</th>
                     <th>Current rate</th>
+                    <th>Created</th>
                     <th>Last state change</th>
                     <th>State</th>
                     <th></th>

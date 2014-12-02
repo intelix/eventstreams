@@ -36,7 +36,10 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
         renderData: function () {
 
             var state;
-            switch (this.state.info.state) {
+
+            var info = this.state.info;
+
+            switch (info.state) {
                 case "active": state = <span className="label label-success">open - ok</span>; break;
                 case "passive": state = <span className="label label-default">closed</span>; break;
                 default: state = <span className="label label-warning">unknown - this.state.info.state</span>; break;
@@ -44,13 +47,14 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
 
             return <tr>
 
-                <td><a href="#" onClick={this.handleClick}>{this.state.info.name}</a></td>
-                <td>akka.tcp://ehub@localhost:12345/user/gatename</td>
+                <td><a href="#" onClick={this.handleClick}>{info.name}</a></td>
+                <td>[{info.endpointType}] {info.endpointDetails}</td>
                     <td>10/min</td>
-                    <td>1 month ago</td>
+                <td>{info.created}</td>
+                <td>{info.sinceStateChange}</td>
                 <td>{state}</td>
                 <td>
-                    <StartStopButton {...this.props} state={this.state.info.state} route={this.props.id} />
+                    <StartStopButton {...this.props} state={info.state} route={this.props.id} />
                     <DeleteButton {...this.props} route={this.props.id} />
                     <ResetButton {...this.props} route={this.props.id} />
                 </td>
