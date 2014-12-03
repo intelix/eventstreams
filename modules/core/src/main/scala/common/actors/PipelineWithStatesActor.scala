@@ -25,7 +25,6 @@ import org.ocpsoft.prettytime.PrettyTime
 
 trait PipelineWithStatesActor extends ActorWithComposableBehavior with NowProvider {
 
-  private val p = new PrettyTime()
   private var requestedState: Option[RequestedState] = None
   private var date: Option[Long] = None
 
@@ -43,7 +42,7 @@ trait PipelineWithStatesActor extends ActorWithComposableBehavior with NowProvid
 
   def prettyTimeSinceStateChange = date match {
     case None => "never"
-    case Some(l) => p.format(new Date(l))
+    case Some(l) => prettyTimeFormat(l)
   }
 
   override def commonBehavior: Actor.Receive = handlePipelineStateChanges orElse super.commonBehavior

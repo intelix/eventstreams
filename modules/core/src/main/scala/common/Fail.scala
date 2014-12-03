@@ -37,6 +37,8 @@ object OK {
 
 class JustOK(val message: Option[String]) extends OK {
   override def +(other: OK): OK = new JustOK(other.message)
+
+  override def toString: String = "OK"
 }
 
 class OKWithDetails(arg: => String, val message: Option[String]) extends OK {
@@ -46,11 +48,11 @@ class OKWithDetails(arg: => String, val message: Option[String]) extends OK {
     case x: JustOK => this
     case x: OKWithDetails => OK(details + " and " + x.details)
   }
-  override def toString: String = arg
+  override def toString: String = "OK: " + arg
 }
 
 class FailWithCause(arg: => String, val message: Option[String]) extends Fail {
   lazy val cause = arg
 
-  override def toString: String = arg
+  override def toString: String = "Fail: " + arg
 }

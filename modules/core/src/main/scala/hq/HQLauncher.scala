@@ -23,7 +23,7 @@ import common.storage.ConfigStorageActor
 import hq.agents.AgentsManagerActor
 import hq.cluster.ClusterManagerActor
 import hq.flows.FlowManagerActor
-import hq.gates.GateManagerActor
+import hq.gates.{RetentionManagerActor, GateManagerActor}
 import hq.routing.MessageRouterActor
 
 /**
@@ -44,5 +44,6 @@ object HQLauncher extends App {
   AgentsManagerActor.start
   FlowManagerActor.start
 
+  RetentionManagerActor.start
 
 }

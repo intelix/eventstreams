@@ -38,8 +38,10 @@ define(['react', 'coreMixin', 'streamMixin', 'app_gates_table_row'], function (R
             function header() {
                 return <tr>
                     <th>Name</th>
+                    <th>Address</th>
                     <th>Retention</th>
                     <th>Retained data</th>
+                    <th>Overflow</th>
                     <th>In-flight</th>
                     <th>Current rate</th>
                     <th>Avg events/day</th>

@@ -16,14 +16,28 @@
 
 package common.actors
 
-import java.util.UUID
+import java.nio.ByteBuffer
 
 import akka.actor.Actor
+import com.eaio.uuid.UUID
+import org.apache.commons.codec.binary.Base64
 
 trait ActorUtils extends Actor {
 
-  val uuid = UUID.randomUUID()
-
   def hasChildWithId(id: String) = context.child(ActorTools.actorFriendlyId(id)).isDefined
+
+  val uuid = shortUUID
+
+  def shortUUID: String = {
+    val uuid = new UUID()
+    val bb = ByteBuffer allocate 16
+    bb putLong uuid.getClockSeqAndNode
+    bb putLong uuid.getTime
+    bb.flip
+    val result = Base64 encodeBase64URLSafeString bb.array
+    bb.clear
+    result
+  }
+
 
 }

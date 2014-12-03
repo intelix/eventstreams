@@ -37,6 +37,11 @@
       "type": "integer",
       "minimum": 1
     },
+    "storageKey": {
+      "propertyOrder": 41,
+      "title": "Storage key",
+      "type": "string"
+    },
     "overflowPolicy": {
       "propertyOrder": 50,
       "title": "Overflow policy",
@@ -77,7 +82,8 @@
     "name",
     "initialState",
     "maxInFlight",
-    "overflowPolicy"
+    "overflowPolicy",
+    "retentionPolicy"
   ],
   "definitions": {
     "retentionNone": {

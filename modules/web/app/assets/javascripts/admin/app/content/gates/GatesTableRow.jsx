@@ -36,29 +36,33 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
         renderData: function () {
             var self = this;
 
+            var info = self.state.info;
+
             var state;
-            switch (self.state.info.state) {
+            switch (info.state) {
                 case "active": state = <span className="label label-success">open - ok</span>; break;
                 case "passive": state = <span className="label label-default">closed</span>; break;
-                default: state = <span className="label label-warning">unknown - this.state.info.state</span>; break;
+                default: state = <span className="label label-warning">unknown - {info.state}</span>; break;
             }
 
-            var mainLink = self.state.info.name;
+            var mainLink = info.name;
             if (self.state.connected) {
                 mainLink = <a href="#" onClick={this.handleClick} >{mainLink}</a>;
             }
 
             return <tr ref='monitorVisibility'>
                 <td>{mainLink}</td>
-                <td>5 days</td>
+                <td>{info.address}</td>
+                <td>{info.retention}</td>
                 <td>100,237</td>
+                <td>{info.overflow}</td>
                 <td>10</td>
                 <td>10/min</td>
                 <td>1,007</td>
                 <td><span className="label label-success">5</span></td>
                 <td><span className="label label-success">3</span><span className="label label-default">1</span></td>
-                <td>1 month ago</td>
-                <td>1 day ago</td>
+                <td>{info.created}</td>
+                <td>{info.sinceStateChange}</td>
                 <td>{state}</td>
                 <td>
                     <StartStopButton {...self.props} state={self.state.info.state} route={self.props.id} />

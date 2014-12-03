@@ -39,8 +39,12 @@ define(['react', 'coreMixin', 'app_content_nodetabs', 'app_gates_table', 'app_ga
                     "address": "",
                     "initialState": "Closed",
                     "maxInFlight": 100,
+                    "storageKey": "default",
                     "overflowPolicy": {
                         "type": "backpressure"
+                    },
+                    "retentionPolicy": {
+                        "type": "none"
                     }
                 };
                 this.setState({editBlock: <EditBlock addr={this.state.selected} addRoute="gates" title="Gate configuration" defaults={defaults} />});

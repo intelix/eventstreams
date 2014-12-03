@@ -57,8 +57,12 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                         "type": "integer",
                         "minimum": 1
                     },
-                    "overflowPolicy": {
-                        "propertyOrder": 50,
+                    "storageKey": {
+                        "propertyOrder": 41,
+                        "title": "Storage key",
+                        "type": "string"
+                    },                    "overflowPolicy": {
+                    "propertyOrder": 50,
                         "title": "Overflow policy",
                         "type": "object",
                         "oneOf": [
@@ -82,7 +86,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
 
                 },
                 "additionalProperties": true,
-                "required": ["name", "initialState", "maxInFlight", "overflowPolicy"],
+                "required": ["name", "initialState", "maxInFlight", "overflowPolicy", "retentionPolicy"],
                 "definitions": {
                     "retentionNone": {
                         "type": "object",

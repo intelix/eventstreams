@@ -23,7 +23,8 @@ import hq._
 import play.api.libs.json.{JsValue, Json}
 
 import scala.collection.mutable
-import scala.concurrent.duration.{DurationDouble, FiniteDuration}
+import scala.concurrent.duration.{DurationLong, FiniteDuration}
+
 
 object WebsocketActor {
   def props(out: ActorRef) = Props(new WebsocketActor(out))

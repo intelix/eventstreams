@@ -52,7 +52,7 @@ class AgentsManagerActor
   private def handler: Receive = {
     case Handshake(ref, id) =>
       logger.info(s"Received handshake from $id ref $ref")
-      context.watch(AgentProxyActor.start(key / id.toString, ref))
+      context.watch(AgentProxyActor.start(key / id, ref))
     case AgentProxyAvailable(name) =>
       logger.info(s"Agent proxy confirmed $name")
       agents = agents + (name -> sender())

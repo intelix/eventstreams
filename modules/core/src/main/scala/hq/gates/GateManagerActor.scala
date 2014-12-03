@@ -20,9 +20,10 @@ import java.util.UUID
 
 import akka.actor._
 import common.actors._
-import common.{Fail, OK}
+import common.{NowProvider, Fail, OK}
 import hq._
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json._
+import play.api.libs.json.extensions._
 
 import scalaz.Scalaz._
 
@@ -38,7 +39,8 @@ case class GateAvailable(id: ComponentKey)
 class GateManagerActor
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
-  with SingleComponentActor {
+  with SingleComponentActor
+  with NowProvider {
 
   type GatesMap = Map[ComponentKey, ActorRef]
 
@@ -78,9 +80,11 @@ class GateManagerActor
       data <- maybeData \/> Fail("Invalid payload")
     ) yield {
       val gateKey = key | "gate/" + UUID.randomUUID().toString
+      var json = data
+      if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
       val actor = GateActor.start(gateKey)
       context.watch(actor)
-      actor ! InitialConfig(data, maybeState)
+      actor ! InitialConfig(json, maybeState)
       OK("Gate successfully created")
     }
 

@@ -39,7 +39,7 @@ case class GateStateCheck(ref: ActorRef)
 case class GateStateUpdate(state: GateState)
 
 
-case class Handshake(ref: ActorRef, uuid: UUID) extends AgentControllerMessage
+case class Handshake(ref: ActorRef, uuid: String) extends AgentControllerMessage
 case class CommunicationProxyRef(ref: ActorRef) extends AgentControllerMessage
 
 //case class GenericJSONMessage(json: String)
