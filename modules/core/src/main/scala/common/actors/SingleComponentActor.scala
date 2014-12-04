@@ -42,6 +42,7 @@ trait SingleComponentActor
   val T_KILL = TopicKey("kill")
   val T_RESET = TopicKey("reset")
   val T_UPDATE_PROPS = TopicKey("update_props")
+  val T_REPLAY = TopicKey("replay")
 
   def key: ComponentKey
 

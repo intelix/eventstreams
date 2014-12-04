@@ -32,6 +32,7 @@ import play.api.libs.json.{JsNumber, JsValue, Json, _}
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scalaz.Scalaz._
+import scalaz.\/
 
 object GateActor {
   def props(id: String) = Props(new GateActor(id))
@@ -43,6 +44,17 @@ object GateActor {
 case class RegisterSink(sinkRef: ActorRef)
 
 private case class InflightMessage(originalCorrelationId: Long, originator: ActorRef, retentionPending: Boolean, deliveryPending: Boolean)
+
+
+sealed trait GateState {
+  def details: Option[String]
+}
+case class GateStateUnknown(details: Option[String] = None) extends GateState
+case class GateStateOpen(details: Option[String] = None) extends GateState
+case class GateStateClosed(details: Option[String] = None) extends GateState
+case class GateStateReplay(details: Option[String] = None) extends GateState
+case class GateStateError(details: Option[String] = None) extends GateState
+
 
 
 class GateActor(id: String)
@@ -61,6 +73,10 @@ class GateActor(id: String)
   var maxInFlight = 10
   var retentionPolicy: RetentionPolicy = new RetentionPolicyNone()
   var overflowPolicy: OverflowPolicy = new OverflowPolicyBackpressure()
+
+  var currentState: GateState = GateStateUnknown(Some("Initialising"))
+
+
   private var sinks: Set[ActorRef] = Set()
   private var forwarderId: Option[String] = None
   private var forwarderActor: Option[ActorRef] = None
@@ -75,14 +91,23 @@ class GateActor(id: String)
   override def preStart(): Unit = {
 
     if (isPipelineActive)
-      switchToCustomBehavior(flowMessagesHandlerForOpenGate)
+      openGate()
     else
-      switchToCustomBehavior(flowMessagesHandlerForClosedGate)
+      closeGate()
 
     super.preStart()
 
   }
 
+
+  def openGate(): Unit = {
+    currentState = GateStateOpen(Some("ok"))
+    switchToCustomBehavior(flowMessagesHandlerForOpenGate)
+  }
+  def closeGate(): Unit = {
+    currentState = GateStateClosed()
+    switchToCustomBehavior(flowMessagesHandlerForClosedGate)
+  }
 
   override def postStop(): Unit = {
     forwarderActor.foreach(context.system.stop)
@@ -95,13 +120,26 @@ class GateActor(id: String)
   override def commonBehavior: Actor.Receive = messageHandler orElse super.commonBehavior
 
   override def becomeActive(): Unit = {
+    openGate()
     topicUpdate(T_INFO, info)
-    switchToCustomBehavior(flowMessagesHandlerForOpenGate)
   }
 
   override def becomePassive(): Unit = {
+    closeGate()
     topicUpdate(T_INFO, info)
-    switchToCustomBehavior(flowMessagesHandlerForClosedGate)
+  }
+
+  def stateAsString = currentState match {
+    case GateStateUnknown(_) => "unknown"
+    case GateStateOpen(_) => "active"
+    case GateStateClosed(_) => "passive"
+    case GateStateReplay(_) => "replay"
+    case GateStateError(_) => "error"
+  }
+
+  def stateDetailsAsString = currentState.details match {
+    case Some(x) => x
+    case _ => ""
   }
 
   def info = propsConfig.map { cfg =>
@@ -113,7 +151,8 @@ class GateActor(id: String)
       "retention" -> retentionPolicy.info,
       "sinceStateChange" -> prettyTimeSinceStateChange,
       "created" -> created,
-      "state" -> (if (isPipelineActive) "active" else "passive")
+      "state" -> stateAsString,
+      "stateDetails" -> stateDetailsAsString
     )
   }
 
@@ -123,7 +162,15 @@ class GateActor(id: String)
     case TopicKey(x) => logger.debug(s"Unknown topic $x")
   }
 
+  def initiateReplay() : \/[Fail,OK] = {
+    RetentionManagerActor.path ! InitiateReplay(self)
+    currentState = GateStateReplay(Some("awaiting"))
+    topicUpdate(T_INFO, info)
+    OK().right
+  }
+
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
+    case T_REPLAY => initiateReplay()
     case T_STOP =>
       lastRequestedState match {
         case Some(Active()) =>
@@ -246,6 +293,27 @@ class GateActor(id: String)
       } else {
         logger.debug(s"Unable to accept another message, in flight count $inFlightCount")
       }
+    case ReplayedEvent(originalCId, msg) =>
+      if (canAcceptAnotherMessage) {
+        logger.info(s"New replayed message arrived at the gate $id ... $originalCId")
+        val frame = JsonFrame(Json.parse(msg).as[JsValue], Map())
+        val correlationId = deliverMessage(frame)
+        correlationToOrigin += correlationId ->
+          InflightMessage(
+            originalCId,
+            sender(),
+            retentionPending = false,
+            deliveryPending = true)
+      } else {
+        logger.debug(s"Unable to accept another message, in flight count $inFlightCount")
+      }
+    case ReplayEnd() =>
+      openGate()
+      topicUpdate(T_INFO, info)
+    case ReplayStart() =>
+      currentState = GateStateReplay(Some("replaying ..."))
+      topicUpdate(T_INFO, info)
+
   }
 
   private def checkCompleteness(correlationId: Long) = correlationToOrigin.get(correlationId).foreach { m =>

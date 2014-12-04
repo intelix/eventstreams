@@ -18,6 +18,7 @@ package hq.gates
 
 import java.util.Calendar
 
+import agent.shared.Acknowledge
 import akka.actor.{ActorRef, Props}
 import akka.agent.Agent
 import com.sksamuel.elastic4s.ElasticClient
@@ -26,11 +27,11 @@ import com.sksamuel.elastic4s.source.StringDocumentSource
 import com.typesafe.config.Config
 import common.JsonFrame
 import common.actors.{ActorObjWithConfig, ActorWithComposableBehavior}
-import hq.flows.core.{DeliveryFailed, DeliverySuccessful}
 import org.elasticsearch.common.settings.ImmutableSettings
 import play.api.libs.json.{JsValue, Json}
 
 import scala.collection.immutable.Map
+import scala.collection.mutable
 import scala.util.{Failure, Success}
 
 object RetentionManagerActor extends ActorObjWithConfig {
@@ -43,10 +44,19 @@ case class ScheduleStorage(ref: ActorRef, correlationId: Long, key: String, id: 
 
 case class MessageStored(correlationId: Long)
 
+case class InitiateReplay(ref: ActorRef)
+
+case class ReplayStart()
+case class ReplayEnd()
+
+case class ReplayedEvent(correlationId: Long, msg: String)
+
 class RetentionManagerActor(config: Config) extends ActorWithComposableBehavior {
 
   implicit val ec = context.dispatcher
 
+  // TODO do properly
+  var counter = System.nanoTime()
 
   private val host = config.getString("ehub.gates.retention.elastic.host")
   private val cluster = config.getString("ehub.gates.retention.elastic.cluster")
@@ -58,6 +68,10 @@ class RetentionManagerActor(config: Config) extends ActorWithComposableBehavior 
   private val queue = collection.mutable.Queue[JsonFrame]()
   private val clientAgent = Agent(Some(ElasticClient.remote(settings, (host, port))))
 
+  case class ClientRef(scrollId: String, ref: ActorRef)
+
+  var replayBuckets = mutable.Map[ClientRef, List[ReplayedEvent]]()
+
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
   def buildIndex(key: String) = Map(
@@ -66,22 +80,95 @@ class RetentionManagerActor(config: Config) extends ActorWithComposableBehavior 
     case (k, (m, v)) => k.replaceAll("%" + m, v.toString)
   }
 
-  def enqueue(m: ScheduleStorage) = {
-    clientAgent.get().foreach { esclient =>
-      val targetIndex = buildIndex(m.key)
+  def withClient(f: ElasticClient => Unit) = clientAgent.get().foreach(f)
 
-      esclient.execute {
-        logger.debug(s"Delivering -> $targetIndex : $m")
-          index into targetIndex id m.id doc StringDocumentSource(Json.stringify(m.v))
-      } onComplete {
-        case Success(_) => m.ref ! MessageStored(m.correlationId)
-        case Failure(fail) => logger.debug(s"Failed to deliver ${m.correlationId}", fail)
+  def enqueue(m: ScheduleStorage) = withClient { esclient =>
+    val targetIndex = buildIndex(m.key)
+
+    esclient.execute {
+      logger.debug(s"Delivering -> $targetIndex : $m")
+      index into targetIndex id m.id doc StringDocumentSource(Json.stringify(m.v))
+    } onComplete {
+      case Success(_) => m.ref ! MessageStored(m.correlationId)
+      case Failure(fail) => logger.debug(s"Failed to deliver ${m.correlationId}", fail)
+    }
+  }
+
+  def initiateReplay(m: InitiateReplay): Unit = withClient { esclient =>
+
+    m.ref ! ReplayStart()
+
+    esclient.execute {
+      search in "gate-default-*" scroll "1m" limit 2
+    } onComplete {
+      case Success(r) =>
+        val scrollId = r.getScrollId
+        val list = r.getHits.getHits.map { h =>
+          counter = counter + 1
+          ReplayedEvent(counter, h.getSourceAsString)}.toList
+        logger.debug(s"First time , total hist: ${r.getHits.getTotalHits} in this block: ${list.length}")
+
+        // TODO send more than one
+
+        // TODO code duplication
+        if (list.isEmpty) {
+          m.ref ! ReplayEnd()
+        } else {
+          replayBuckets += ClientRef(scrollId, m.ref) -> list
+          m.ref ! list.head
+        }
+
+      case Failure(fail) => logger.debug(s"Failed", fail)
+    }
+
+  }
+
+  def moreResultsFor(cref: ClientRef) = withClient { esclient =>
+    logger.debug(s"Continuing querying ${cref.scrollId}")
+    esclient.searchScroll(cref.scrollId, "1m") onComplete {
+      case Success(r) =>
+        val scrollId = r.getScrollId
+        val list = r.getHits.getHits.map { h =>
+          counter = counter + 1
+          ReplayedEvent(counter, h.getSourceAsString)}.toList
+        logger.debug(s"This time , total hist: ${r.getHits.getTotalHits} in this block: ${list.length}")
+        // TODO send more than one
+        // TODO code duplication
+        if (list.isEmpty) {
+          cref.ref ! ReplayEnd()
+        } else {
+          replayBuckets += ClientRef(scrollId, cref.ref) -> list
+          cref.ref ! list.head
+        }
+
+      case Failure(fail) => logger.debug(s"Failed", fail)
+    }
+
+
+  }
+
+  def acknowledgeAndContinueReplaying(correlationId: Long) = {
+    replayBuckets collectFirst {
+      case (s, l) if l.exists(_.correlationId == correlationId) => (s, l.filter(_.correlationId != correlationId))
+    } foreach { x =>
+      val (cref, list) = x
+      if (list.isEmpty) {
+        replayBuckets -= cref
+        moreResultsFor(cref)
+      } else {
+        replayBuckets += cref -> list
+        cref.ref ! list.head
       }
     }
+
+
+
   }
 
   private def handler: Receive = {
     case m: ScheduleStorage => enqueue(m)
+    case m: InitiateReplay => initiateReplay(m)
+    case Acknowledge(id) => acknowledgeAndContinueReplaying(id)
   }
 }
 

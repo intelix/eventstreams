@@ -51,6 +51,7 @@
             app_gates_table: adminApp("content/gates/GatesTable"),
             app_gates_table_row: adminApp("content/gates/GatesTableRow"),
             app_gates_editor: adminApp("content/gates/GatesEditor"),
+            app_gates_button_replay: adminApp("content/gates/ReplayButton"),
 
             app_flows: adminApp("content/flows/Content"),
             app_flows_table: adminApp("content/flows/FlowsTable"),

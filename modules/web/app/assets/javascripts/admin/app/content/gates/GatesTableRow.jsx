@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_button_startstop', 'app_content_button_delete'],
-    function (React, coreMixin, streamMixin, visibilityMixin, StartStopButton, DeleteButton) {
+define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_button_startstop', 'app_content_button_delete', 'app_gates_button_replay'],
+    function (React, coreMixin, streamMixin, visibilityMixin, StartStopButton, DeleteButton, ReplayButton) {
 
     return React.createClass({
         mixins: [coreMixin, streamMixin, visibilityMixin],
@@ -40,8 +40,11 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
 
             var state;
             switch (info.state) {
-                case "active": state = <span className="label label-success">open - ok</span>; break;
-                case "passive": state = <span className="label label-default">closed</span>; break;
+                case "active": state = <span className="label label-success">open{info.stateDetails ? " - " + info.stateDetails : ""}</span>; break;
+                case "passive": state = <span className="label label-default">closed{info.stateDetails ? " - " + info.stateDetails : ""}</span>; break;
+                case "replay": state = <span className="label label-info">replaying{info.stateDetails ? " - " + info.stateDetails : ""}</span>; break;
+                case "error": state = <span className="label label-danger">error{info.stateDetails ? " - " + info.stateDetails : ""}</span>; break;
+                case "unknown": state = <span className="label label-warning">n/a{info.stateDetails ? " - " + info.stateDetails : ""}</span>; break;
                 default: state = <span className="label label-warning">unknown - {info.state}</span>; break;
             }
 
@@ -67,6 +70,7 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
                 <td>
                     <StartStopButton {...self.props} state={self.state.info.state} route={self.props.id} />
                     <DeleteButton {...self.props} route={self.props.id} />
+                    <ReplayButton {...self.props} route={self.props.id} />
                 </td>
             </tr>;
         },
