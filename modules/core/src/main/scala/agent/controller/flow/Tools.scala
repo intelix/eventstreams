@@ -18,10 +18,13 @@ package agent.controller.flow
 
 import com.typesafe.scalalogging.StrictLogging
 import common.JsonFrame
+import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
+import scala.annotation.tailrec
 import scala.language.implicitConversions
+import scala.util.matching.Regex
 import scala.util.{Failure, Success, Try}
 
 object Tools extends StrictLogging {
@@ -29,6 +32,8 @@ object Tools extends StrictLogging {
   private val arrayMatch = "^a(.)$".r
   private val singleTypeMatch = "^(.)$".r
   private val macroMatch = ".*[$][{]([^}]+)[}].*".r
+
+  private val dateMatch = ".*[%][{]now:([^}]+)[}].*".r
 
   implicit def s2b(s: String): Boolean = s.toBoolean
 
@@ -79,24 +84,26 @@ object Tools extends StrictLogging {
     x
   }
 
+  def macroReplacement(frame: JsonFrame, v: String): String = macroReplacement(frame.event, frame.ctx, v)
   def macroReplacement(frame: JsonFrame, v: JsValue): JsValue = macroReplacement(frame.event, frame.ctx, v)
-
-
-  def macroReplacement(json: JsValue, ctx: Map[String, JsValue], v: JsValue): JsValue = {
+  def macroReplacement(json: JsValue, ctx: Map[String, JsValue], v: JsValue): JsValue = JsString(macroReplacement(json, ctx, v.asOpt[String].getOrElse("")))
+  def macroReplacement(json: JsValue, ctx: Map[String, JsValue], v: String): String = {
+    @tailrec
     def repl(value: String): String = {
 
       logger.debug("Trying to match " + value + " with " + macroMatch)
 
       value match {
+        case dateMatch(s) =>
+          logger.debug("Matched " + value + " with " + dateMatch + " to " + s)
+          repl(value.replace("${now:" + s + "}", DateTimeFormat.forPattern(s).print(System.currentTimeMillis())))
         case macroMatch(s) =>
           logger.debug("Matched " + value + " with " + macroMatch + " to " + s)
           repl(value.replace("${" + s + "}", locateFieldValue(json, ctx, s)))
         case _ => value
       }
     }
-
-
-    JsString(repl(v.asOpt[String].getOrElse("")))
+    repl(v)
   }
 
   private def fieldTypeConverter(fieldType: String):String = fieldType.toLowerCase match {

@@ -38,7 +38,7 @@ define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, stream
             var self = this;
 
             var buttonClasses = this.cx({
-                'disabled': (!self.state.connected),
+                'disabled': (!self.state.connected || !self.props.enabled),
                 'btn btn-primary btn-xs': true
             });
 

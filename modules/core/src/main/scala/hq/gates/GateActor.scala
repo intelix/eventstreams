@@ -16,8 +16,7 @@
 
 package hq.gates
 
-import java.util.UUID
-
+import agent.controller.flow.Tools
 import agent.flavors.files.{Cursor, ProducedMessage}
 import agent.shared._
 import akka.actor._
@@ -26,13 +25,13 @@ import common.ToolExt.configHelper
 import common._
 import common.actors._
 import hq._
+import play.api.libs.json._
 import play.api.libs.json.extensions._
-import play.api.libs.json.{JsNumber, JsValue, Json, _}
 
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scalaz.Scalaz._
-import scalaz.\/
+import scalaz.{-\/, \/}
 
 object GateActor {
   def props(id: String) = Props(new GateActor(id))
@@ -49,12 +48,16 @@ private case class InflightMessage(originalCorrelationId: Long, originator: Acto
 sealed trait GateState {
   def details: Option[String]
 }
-case class GateStateUnknown(details: Option[String] = None) extends GateState
-case class GateStateOpen(details: Option[String] = None) extends GateState
-case class GateStateClosed(details: Option[String] = None) extends GateState
-case class GateStateReplay(details: Option[String] = None) extends GateState
-case class GateStateError(details: Option[String] = None) extends GateState
 
+case class GateStateUnknown(details: Option[String] = None) extends GateState
+
+case class GateStateOpen(details: Option[String] = None) extends GateState
+
+case class GateStateClosed(details: Option[String] = None) extends GateState
+
+case class GateStateReplay(details: Option[String] = None) extends GateState
+
+case class GateStateError(details: Option[String] = None) extends GateState
 
 
 class GateActor(id: String)
@@ -104,6 +107,7 @@ class GateActor(id: String)
     currentState = GateStateOpen(Some("ok"))
     switchToCustomBehavior(flowMessagesHandlerForOpenGate)
   }
+
   def closeGate(): Unit = {
     currentState = GateStateClosed()
     switchToCustomBehavior(flowMessagesHandlerForClosedGate)
@@ -148,9 +152,10 @@ class GateActor(id: String)
       "address" -> address,
       "initial" -> initialState,
       "overflow" -> overflowPolicy.info,
-      "retention" -> retentionPolicy.info,
+      "retention" -> retentionPolicy.getInfo,
       "sinceStateChange" -> prettyTimeSinceStateChange,
       "created" -> created,
+      "replaySupported" -> retentionPolicy.replaySupported,
       "state" -> stateAsString,
       "stateDetails" -> stateDetailsAsString
     )
@@ -162,15 +167,20 @@ class GateActor(id: String)
     case TopicKey(x) => logger.debug(s"Unknown topic $x")
   }
 
-  def initiateReplay() : \/[Fail,OK] = {
-    RetentionManagerActor.path ! InitiateReplay(self)
-    currentState = GateStateReplay(Some("awaiting"))
-    topicUpdate(T_INFO, info)
-    OK().right
-  }
+
+  def messageAllowance = if (maxInFlight - correlationToOrigin.size < 1) 1 else maxInFlight - correlationToOrigin.size
 
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
-    case T_REPLAY => initiateReplay()
+    case T_REPLAY =>
+      lastRequestedState match {
+        case Some(Active()) =>
+          logger.info("Already started")
+          Fail(message = Some("Gate must be stopped")).left
+        case _ =>
+          logger.info("Initiating replay ")
+          retentionPolicy.initiateReplay(self, messageAllowance)
+          OK().right
+      }
     case T_STOP =>
       lastRequestedState match {
         case Some(Active()) =>
@@ -215,15 +225,30 @@ class GateActor(id: String)
   override def getSetOfActiveEndpoints: Set[ActorRef] = sinks
 
 
+  def enrichInboundJsonFrame(inboundCorrelationId: Long, frame: JsonFrame) = {
+    val eventId = frame.event ~> 'eventId | shortUUID
+    val eventType = frame.event ~> 'eventType | "default";
+    val timestamp = frame.event ++> 'ts | now
+    var trace = (frame.event ##> 'trace).map(_.map(_.asOpt[String] | "")) | List()
+    if (!trace.contains(id)) trace = trace :+ id
+
+    JsonFrame(
+      frame.event.set(
+        __ \ 'eventId -> JsString(eventId),
+        __ \ 'eventType -> JsString(eventType),
+        __ \ 'trace -> Json.toJson(trace.toArray),
+        __ \ 'ts -> JsNumber(timestamp)),
+      frame.ctx + ("correlationId" -> JsNumber(inboundCorrelationId)) + ("processedTs" -> JsNumber(now))
+    )
+  }
+
   def convertInboundPayload(id: Long, message: Any): Option[JsonFrame] = message match {
-    case m@ProducedMessage(MessageWithAttachments(bs: ByteString, attachments), c: Cursor) =>
+    case m@ProducedMessage(MessageWithAttachments(bs: ByteString, attachments), _, c: Cursor) =>
       logger.debug(s"Original message at the gate: ${bs.utf8String}")
-      val json = attachments.set(__ \ "value" -> JsString(bs.utf8String)).set(__ \ "id" -> JsNumber(id))
-      Some(JsonFrame(json,
-        ctx = Map[String, JsValue]("source.id" -> JsNumber(id))))
-    case m: JsonFrame =>
-      // TODO add route slip to the context
-      Some(m)
+      val json = attachments.set(__ \ "value" -> JsString(bs.utf8String))
+      Some(enrichInboundJsonFrame(id, JsonFrame(json,
+        ctx = Map[String, JsValue]())))
+    case m: JsonFrame => Some(enrichInboundJsonFrame(id,m))
     case x =>
       logger.warn(s"Unsupported message type at the gate  $id: $x")
       None
@@ -234,7 +259,6 @@ class GateActor(id: String)
     initialState = propsConfig ~> 'initialState | "Closed"
     maxInFlight = propsConfig +> 'maxInFlight | 10
     address = props ~> 'address | key
-    retentionStorageKey = props ~> 'storageKey | "default"
     created = prettyTimeFormat(props ++> 'created | now)
     overflowPolicy = OverflowPolicyBuilder(propsConfig #> 'overflowPolicy)
     retentionPolicy = RetentionPolicyBuilder(propsConfig #> 'retentionPolicy)
@@ -263,6 +287,29 @@ class GateActor(id: String)
   private def flowMessagesHandlerForClosedGate: Receive = {
     case m: Acknowledgeable[_] =>
       forwarderActor.foreach(_ ! RouteTo(sender(), GateStateUpdate(GateClosed())))
+    case ReplayedEvent(originalCId, msg) =>
+      if (canAcceptAnotherMessage) {
+        logger.info(s"New replayed message arrived at the gate $id ... $originalCId")
+        val frame = JsonFrame(Json.parse(msg).as[JsValue], Map())
+        val correlationId = deliverMessage(frame)
+        correlationToOrigin += correlationId ->
+          InflightMessage(
+            originalCId,
+            sender(),
+            retentionPending = false,
+            deliveryPending = true)
+      } else {
+        logger.debug(s"Unable to accept another message, in flight count $inFlightCount")
+      }
+    case ReplayEnd() =>
+      currentState = GateStateClosed()
+      topicUpdate(T_INFO, info)
+    case ReplayFailed(error) =>
+      currentState = GateStateError()
+      topicUpdate(T_INFO, info)
+    case ReplayStart() =>
+      currentState = GateStateReplay(Some("in progress"))
+      topicUpdate(T_INFO, info)
   }
 
   private def canAcceptAnotherMessage = correlationToOrigin.size < maxInFlight
@@ -284,7 +331,7 @@ class GateActor(id: String)
                 m.id,
                 sender(),
                 retentionPending = retentionPolicy.scheduleRetention(
-                  correlationId, msg.event ~> 'id | shortUUID, retentionStorageKey, msg.event),
+                  correlationId, msg),
                 deliveryPending = true)
           }
         } else {
@@ -292,27 +339,13 @@ class GateActor(id: String)
         }
       } else {
         logger.debug(s"Unable to accept another message, in flight count $inFlightCount")
+        if (overflowPolicy.ackAndDrop) {
+          if (!isDup(m, sender())) {
+            logger.info(s"Dropped ${m.id} from ${sender()}")
+            forwarderActor.foreach(_ ! RouteTo(sender(), Acknowledge(m.id)))
+          }
+        }
       }
-    case ReplayedEvent(originalCId, msg) =>
-      if (canAcceptAnotherMessage) {
-        logger.info(s"New replayed message arrived at the gate $id ... $originalCId")
-        val frame = JsonFrame(Json.parse(msg).as[JsValue], Map())
-        val correlationId = deliverMessage(frame)
-        correlationToOrigin += correlationId ->
-          InflightMessage(
-            originalCId,
-            sender(),
-            retentionPending = false,
-            deliveryPending = true)
-      } else {
-        logger.debug(s"Unable to accept another message, in flight count $inFlightCount")
-      }
-    case ReplayEnd() =>
-      openGate()
-      topicUpdate(T_INFO, info)
-    case ReplayStart() =>
-      currentState = GateStateReplay(Some("replaying ..."))
-      topicUpdate(T_INFO, info)
 
   }
 
@@ -350,62 +383,82 @@ class GateActor(id: String)
 
 
   trait RetentionPolicy {
-    def scheduleRetention(correlationId: Long, id: String, key: String, m: JsValue): Boolean
+    def initiateReplay(ref: ActorRef, limit: Int): \/[Fail, OK] = -\/(Fail(message = Some("No retention policy configured for the gate")))
 
-    def info: String
+    def scheduleRetention(correlationId: Long, m: JsonFrame): Boolean
+    def replaySupported: Boolean
+    def getInfo: String
   }
 
   trait OverflowPolicy {
+    val ackAndDrop: Boolean = false
+
     def info: String
   }
 
   class RetentionPolicyNone extends RetentionPolicy {
-    override def info: String = "None"
-
-    def scheduleRetention(correlationId: Long, id: String, key: String, m: JsValue): Boolean = false
-
+    override def getInfo: String = "None"
+    override def replaySupported = false
+    override def scheduleRetention(correlationId: Long, m: JsonFrame): Boolean = false
   }
 
-  class RetentionPolicyDays(val count: Int) extends RetentionPolicy {
-    override def info: String = s"$count day(s)"
+  trait BaseRetentionPolicy extends RetentionPolicy{
+    def json: Option[JsValue]
 
-    def scheduleRetention(correlationId: Long, id: String, key: String, m: JsValue): Boolean = {
-      RetentionManagerActor.path ! ScheduleStorage(self, correlationId, key, id, m)
+    val count = json +> 'count | 1
+    val indexPattern = json ~> 'indexPattern | "gate-${now:yyyy-MM-dd}"
+    val eventType = json ~> 'eventType | "${eventType}"
+    val replayIndexPattern = json ~> 'replayIndexPattern | "gate-${now:yyyy-MM-dd}"
+    val replayEventType = json ~> 'replayEventType | ""
+
+    override def replaySupported = true
+
+    override def scheduleRetention(correlationId: Long, m: JsonFrame): Boolean = {
+      val id = m.event ~> 'eventId | shortUUID
+      val etype = Tools.macroReplacement(m, eventType)
+      val idx = Tools.macroReplacement(m, indexPattern)
+      RetentionManagerActor.path ! ScheduleStorage(self, correlationId, idx, etype, id, m.event)
       true
+    }
+
+    override def initiateReplay(ref: ActorRef, limit: Int): \/[Fail, OK] = {
+      val idx = Tools.macroReplacement(Json.obj(), Map[String,JsValue](), replayIndexPattern)
+      RetentionManagerActor.path ! InitiateReplay(ref, idx, replayEventType, limit)
+      currentState = GateStateReplay(Some("awaiting"))
+      topicUpdate(T_INFO, info)
+      OK().right
     }
   }
 
-  class RetentionPolicyCount(val count: Int) extends RetentionPolicy {
-    override def info: String = s"$count event(s)"
+  class RetentionPolicyDays(val json: Option[JsValue]) extends BaseRetentionPolicy {
+    override def getInfo: String = s"$count day(s)"
+  }
 
-    def scheduleRetention(correlationId: Long, id: String, key: String, m: JsValue): Boolean = {
-      RetentionManagerActor.path ! ScheduleStorage(self, correlationId, key, id, m)
-      true
-    }
+  class RetentionPolicyCount(val json: Option[JsValue]) extends BaseRetentionPolicy {
+    override def getInfo: String = s"$count event(s)"
   }
 
   class OverflowPolicyBackpressure extends OverflowPolicy {
     override def info: String = "Backpressure"
   }
 
-  class OverflowPolicyDrop(val dropOldest: Boolean) extends OverflowPolicy {
+  class OverflowPolicyDrop() extends OverflowPolicy {
     override def info: String = "Drop"
+
+    override val ackAndDrop: Boolean = true
   }
 
   object RetentionPolicyBuilder {
     def apply(j: Option[JsValue]) = j ~> 'type match {
-      case Some("days") => new RetentionPolicyDays(j +> 'count | 1)
-      case Some("count") => new RetentionPolicyCount(j +> 'count | 1000)
+      case Some("days") => new RetentionPolicyDays(j)
+      case Some("count") => new RetentionPolicyCount(j)
       case _ => new RetentionPolicyNone()
     }
   }
 
   object OverflowPolicyBuilder {
     def apply(j: Option[JsValue]) = j ~> 'type match {
-      case Some("drop") => j ~> 'policy match {
-        case Some(x) if x.toLowerCase == "latest" => new OverflowPolicyDrop(false)
-        case _ => new OverflowPolicyDrop(true)
-      }
+      case Some("drop") =>  new OverflowPolicyDrop()
       case _ => new OverflowPolicyBackpressure()
     }
   }

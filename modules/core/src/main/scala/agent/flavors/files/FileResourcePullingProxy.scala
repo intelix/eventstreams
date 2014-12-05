@@ -22,6 +22,7 @@ import akka.actor.Props
 import akka.stream.actor.ActorPublisherMessage
 import akka.util.ByteString
 import common.actors.{ActorWithComposableBehavior, ActorWithTicks, PipelineWithStatesActor, ShutdownablePublisherActor}
+import play.api.libs.json.JsValue
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
@@ -53,7 +54,7 @@ class FileResourcePullingProxy(flowId: String, target: MonitorTarget)(implicit i
 }
 
 
-case class ProducedMessage[T, C <: Cursor](bs: T, c: C)
+case class ProducedMessage[T, C <: Cursor](bs: T, attachments: Option[JsValue], c: C)
 
 class PullingActorPublisher[T, C <: Cursor](val proxy: ResourcePullingProxy[T, C], val initialCursor: Option[C])
                                                       (implicit ec: ExecutionContext)
@@ -104,7 +105,7 @@ class PullingActorPublisher[T, C <: Cursor](val proxy: ResourcePullingProxy[T, C
           currentCursor = Some(e.cursor)
 
           if (e.data.isDefined) {
-            onNext(ProducedMessage(e.data.get, e.cursor))
+            onNext(ProducedMessage(e.data.get, e.attachments, e.cursor))
             logger.info(s"Published next entry, current cursor: $currentCursor")
 
             if (e.hasMore)

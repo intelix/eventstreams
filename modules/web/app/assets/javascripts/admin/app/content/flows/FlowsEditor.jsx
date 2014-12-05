@@ -95,6 +95,10 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                     "title": "Gate"
                                 },
                                 {
+                                    "$ref": "#/definitions/instructionGroovy",
+                                    "title": "Groovy"
+                                },
+                                {
                                     "$ref": "#/definitions/instructionDrop",
                                     "title": "Drop"
                                 },
@@ -558,6 +562,40 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                             }
                         },
                         "required": ["class"]
+                    },
+                    "instructionGroovy": {
+                        "type": "object",
+                        "properties": {
+                            "class": {
+                                "propertyOrder": 10,
+                                "title": "Type",
+                                "type": "string",
+                                "template": "groovy"
+                            },
+                            "name": {
+                                "propertyOrder": 10,
+                                "title": "Name",
+                                "type": "string"
+                            },
+                            "code": {
+                                "propertyOrder": 20,
+                                "title": "Code",
+                                "type": "string",
+                                "format": "textarea"
+                            },
+                            "simpleCondition": {
+                                "propertyOrder": 30,
+                                "$ref": "#/definitions/simpleCondition"
+                            },
+                            "condition": {
+                                "propertyOrder": 120,
+                                "$ref": "#/definitions/condition"
+                            }
+                        },
+                        "required": [
+                            "class",
+                            "code"
+                        ]
                     },
                     "instructionLog": {
                         "type": "object",

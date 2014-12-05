@@ -53,6 +53,13 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
                 mainLink = <a href="#" onClick={this.handleClick} >{mainLink}</a>;
             }
 
+            var replayButton;
+            if (info.replaySuppported) {
+                replayButton = <ReplayButton {...self.props} enabled={info.state == 'passive'} route={self.props.id} />;
+            } else {
+                replayButton = "";
+            }
+
             return <tr ref='monitorVisibility'>
                 <td>{mainLink}</td>
                 <td>{info.address}</td>
@@ -68,9 +75,9 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
                 <td>{info.sinceStateChange}</td>
                 <td>{state}</td>
                 <td>
-                    <StartStopButton {...self.props} state={self.state.info.state} route={self.props.id} />
+                    <StartStopButton {...self.props} state={info.state} route={self.props.id} />
                     <DeleteButton {...self.props} route={self.props.id} />
-                    <ReplayButton {...self.props} route={self.props.id} />
+                    {replayButton}
                 </td>
             </tr>;
         },

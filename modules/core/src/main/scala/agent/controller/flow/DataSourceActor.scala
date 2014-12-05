@@ -31,12 +31,11 @@ import akka.util.ByteString
 import common.ToolExt.configHelper
 import common.actors._
 import common.{BecomeActive, BecomePassive, Stop}
-import hq.{TopicKey, ComponentKey}
+import hq.{ComponentKey, TopicKey}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
-import scalaz._
-import Scalaz._
+import scalaz.Scalaz._
 
 
 object DatasourceActor {
@@ -55,13 +54,8 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
   type In = ProducedMessage[ByteString, Cursor]
   type Out = ProducedMessage[MessageWithAttachments[ByteString], Cursor]
   val key = ComponentKey(dsId)
-
-
-  private def name = propsConfig ~> 'name | "N/A"
-  private def created = prettyTime.format(new Date(propsConfig ++> 'created | now))
   private var endpointType = "N/A"
   private var endpointDetails = "N/A"
-
   private var commProxy: Option[ActorRef] = None
   private var active = false
   private var flow: Option[FlowInstance] = None
@@ -81,7 +75,7 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
 
   override def commonBehavior: Receive = super.commonBehavior orElse {
     case Acknowledged(id, msg) => msg match {
-      case ProducedMessage(_, c: Cursor) =>
+      case ProducedMessage(_, _, c: Cursor) =>
         for (
           func <- cursor2config;
           state <- func(c);
@@ -99,7 +93,6 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
       removeConfig()
       context.stop(self)
   }
-
 
   override def applyConfig(key: String, config: JsValue, state: Option[JsValue]): Unit = {
 
@@ -124,20 +117,21 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
       logger.debug(s"Building processor flow from $props")
 
       val convert = Flow[In].map {
-        case ProducedMessage(msg, c) =>
-          ProducedMessage(MessageWithAttachments(msg, Json.obj()), c)
+        case ProducedMessage(msg, a, c) =>
+          ProducedMessage(MessageWithAttachments(msg, a | Json.obj()), None, c)
       }
 
       val setSource = Flow[Out].map {
-        case ProducedMessage(MessageWithAttachments(msg, json), c) =>
+        case ProducedMessage(MessageWithAttachments(msg, json), _, c) =>
           val modifiedJson = json set __ \ "sourceId" -> JsString((props \ "sourceId").asOpt[String].getOrElse("undefined"))
-          ProducedMessage(MessageWithAttachments(msg, modifiedJson), c)
+          ProducedMessage(MessageWithAttachments(msg, modifiedJson), None, c)
       }
 
       val setTags = Flow[Out].map {
-        case ProducedMessage(MessageWithAttachments(msg, json), c) =>
-          val modifiedJson = json set __ \ "tags" -> (props \ "tags").asOpt[String].map(_.split(",").map(_.trim)).map(Json.toJson(_)).getOrElse(Json.arr())
-          ProducedMessage(MessageWithAttachments(msg, modifiedJson), c)
+        case ProducedMessage(MessageWithAttachments(msg, json), _, c) =>
+          val v = (props \ "tags").asOpt[String].map(_.split(",").map(_.trim)).map(Json.toJson(_)).getOrElse(Json.arr())
+          val modifiedJson = json set __ \ "tags" -> v
+          ProducedMessage(MessageWithAttachments(msg, modifiedJson), None, c)
       }
 
       convert.via(setSource).via(setTags)
@@ -236,13 +230,19 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
 
   }
 
-
   override def onInitialConfigApplied(): Unit = context.parent ! DatasourceAvailable(key)
-
 
   override def afterApplyConfig(): Unit = {
     sendToHQAll()
   }
+
+  override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
+    (TopicKey("info"), 5, () => info, sendToHQ _)
+  )
+
+  private def name = propsConfig ~> 'name | "N/A"
+
+  private def created = prettyTime.format(new Date(propsConfig ++> 'created | now))
 
   private def startFlow(): Unit = {
     flow.foreach { v =>
@@ -287,10 +287,6 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
       actor ! msg
     }
   }
-
-  override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
-    (TopicKey("info"), 5, () => info, sendToHQ _)
-  )
 }
 
 case class FlowInstance(flow: MaterializedMap, source: ActorRef, sink: ActorRef)

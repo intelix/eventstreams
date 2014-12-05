@@ -16,9 +16,11 @@
 
 package agent.flavors.files
 
+import play.api.libs.json.JsValue
+
 import scala.concurrent.duration.DurationDouble
 
-case class DataChunk[T, C <: Cursor](data: Option[T], cursor: C, hasMore: Boolean)
+case class DataChunk[T, C <: Cursor](data: Option[T], attachments: Option[JsValue], cursor: C, hasMore: Boolean)
 
 
 trait ResourcePullingProxy[T, C <: Cursor] {

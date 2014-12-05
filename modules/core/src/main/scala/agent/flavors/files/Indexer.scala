@@ -23,9 +23,9 @@ import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.zip.{GZIPInputStream, ZipInputStream}
 
-import agent.flavors._
 import akka.util.ByteString
 import com.typesafe.scalalogging.LazyLogging
+import play.api.libs.json.{JsValue, Json}
 
 import scala.annotation.tailrec
 import scala.util.matching.Regex
@@ -42,6 +42,8 @@ class FileIndexer extends Indexer {
 }
 
 trait OpenResource {
+  def getDetails(): Option[JsValue]
+
   def advanceTo(cursor: FileCursor): OpenResource
 
   def canAdvanceTo(cursor: FileCursor): Boolean
@@ -58,18 +60,6 @@ trait OpenResource {
 }
 
 object OpenFileResource extends LazyLogging {
-
-  private def openStream(file: File) = {
-    logger.debug(s"Opening stream from $file")
-    val rawStream = new FileInputStream(file)
-    if (file.getName.endsWith("gz")) {
-      new GZIPInputStream(rawStream)
-    } else if (file.getName.endsWith("zip")) {
-      new ZipInputStream(rawStream)
-    } else {
-      rawStream
-    }
-  }
 
   def apply(idx: ResourceIndex, id: FileResourceIdentificator)(implicit charset: Charset = Charset.forName("UTF-8")): Option[OpenResource] = {
 
@@ -94,6 +84,18 @@ object OpenFileResource extends LazyLogging {
     }
     Some(new OpenFileResource(idx, id, file, reader))
   }
+
+  private def openStream(file: File) = {
+    logger.debug(s"Opening stream from $file")
+    val rawStream = new FileInputStream(file)
+    if (file.getName.endsWith("gz")) {
+      new GZIPInputStream(rawStream)
+    } else if (file.getName.endsWith("zip")) {
+      new ZipInputStream(rawStream)
+    } else {
+      rawStream
+    }
+  }
 }
 
 class OpenFileResource(idx: ResourceIndex,
@@ -101,9 +103,9 @@ class OpenFileResource(idx: ResourceIndex,
                        file: File,
                        reader: BufferedReader) extends OpenResource with LazyLogging {
 
+  private val ab = CharBuffer.allocate(1024 * 64).array()
   private var position: Long = 0
   private var atTail: Boolean = false
-  private val ab = CharBuffer.allocate(1024 * 64).array()
 
   override def advanceTo(cursor: FileCursor): OpenResource = {
     val diff = cursor.positionWithinItem - position
@@ -137,6 +139,24 @@ class OpenFileResource(idx: ResourceIndex,
     skip(Long.MaxValue)
   }
 
+  override def atTheTail_? : Boolean = atTail
+
+  override def close(): Unit = {
+    reader.close()
+  }
+
+  override def canAdvanceTo(cursor: FileCursor): Boolean = {
+    cursor.positionWithinItem >= position && cursor.idx == idx && exists_? && not_truncated_?
+  }
+
+  override def getDetails(): Option[JsValue] = Some(Json.obj("datasource" -> Json.obj(
+    "type" -> "file",
+    "filename" -> file.getName,
+    "directory" -> file.getAbsolutePath,
+    "fileTs" -> id.createdTimestamp,
+    "fileId" -> (idx.seed + ":" + idx.resourceId)
+  )))
+
   private def skip(entries: Long): Unit = {
     val skipped = try {
       reader.skip(entries)
@@ -151,19 +171,9 @@ class OpenFileResource(idx: ResourceIndex,
     position = position + skipped
   }
 
-  override def atTheTail_? : Boolean = atTail
-
-  override def close(): Unit = {
-    reader.close()
-  }
-
   private def exists_? : Boolean = file.exists() && file.isFile
 
   private def not_truncated_? : Boolean = file.length() >= Math.max(id.sizeNow, position)
-
-  override def canAdvanceTo(cursor: FileCursor): Boolean = {
-    cursor.positionWithinItem >= position && cursor.idx == idx && exists_? && not_truncated_?
-  }
 }
 
 trait IndexerSession {
@@ -176,10 +186,65 @@ trait IndexerSession {
 
 case class FileIndexerSession(flowId: String, target: RollingFileMonitorTarget, catalog: ResourceCatalog) extends IndexerSession with LazyLogging {
 
-  private var openResource: Option[OpenResource] = None
-
   private val rolledFilePatternR = new Regex(target.rollingLogPattern)
   private val mainLogPatternR = new Regex(target.mainLogPattern)
+  var currentSeed = System.currentTimeMillis()
+  private var openResource: Option[OpenResource] = None
+
+  def toFileCursor(cursor: Cursor): Option[FileCursor] = {
+    cursor match {
+      case f: FileCursor => Some(f)
+      case NilCursor() => locateFirstResource().map(FileCursor(_, 0))
+    }
+  }
+
+  override def tailCursor: Cursor = {
+    {
+      for (
+        lastResource <- locateLastResource()
+      ) yield FileCursor(lastResource, 0)
+    } getOrElse NilCursor()
+  }
+
+  def closeIfRequired(resource: OpenResource): Unit = {
+    if (resource.atTheTail_?) {
+      closeOpenedResource()
+    }
+  }
+
+  def advanceCursor(resource: OpenResource): Cursor = {
+    if (resource.atTheTail_?)
+      locateNextResource(resource.cursor.idx) match {
+        case None => resource.cursor
+        case Some(idx) => FileCursor(idx, 0)
+      }
+    else
+      resource.cursor
+  }
+
+  override def withOpenResource[T](c: Cursor)(f: (OpenResource) => Option[T]): Option[DataChunk[T, Cursor]] = {
+    openResourceAt(c) match {
+      case Some(resource) =>
+        try {
+          val data = f(resource)
+          val newCursor = advanceCursor(resource)
+          Some(DataChunk(data, resource.getDetails(), newCursor, !resource.atTheTail_?))
+        } catch {
+          case x: Exception =>
+            logger.error(s"Error during processing open resource $resource", x)
+            None
+        } finally {
+          closeIfRequired(resource)
+        }
+      case None =>
+        logger.debug(s"No resource can be opened at $c")
+        None
+    }
+  }
+
+  override def close(): Unit = {
+    closeOpenedResource()
+  }
 
   private def listOfAllFiles(pattern: Regex): List[FileResourceIdentificator] = {
     val minAcceptableFileSize = 16
@@ -208,9 +273,6 @@ case class FileIndexerSession(flowId: String, target: RollingFileMonitorTarget, 
     list
 
   }
-
-
-  var currentSeed = System.currentTimeMillis()
 
   private def updateMemory(indexToIdentificator: List[IndexedEntity]) = catalog.update(indexToIdentificator)
 
@@ -258,7 +320,6 @@ case class FileIndexerSession(flowId: String, target: RollingFileMonitorTarget, 
     catalog.nextAfter(index)
   }
 
-
   private def reopen(fc: FileCursor): Option[OpenResource] = {
 
     @tailrec
@@ -278,14 +339,6 @@ case class FileIndexerSession(flowId: String, target: RollingFileMonitorTarget, 
 
     openResource = attempt(0).map(_.advanceTo(fc))
     openResource
-  }
-
-
-  def toFileCursor(cursor: Cursor): Option[FileCursor] = {
-    cursor match {
-      case f: FileCursor => Some(f)
-      case NilCursor() => locateFirstResource().map(FileCursor(_, 0))
-    }
   }
 
   private def openResourceAt(c: Cursor): Option[OpenResource] = {
@@ -313,55 +366,6 @@ case class FileIndexerSession(flowId: String, target: RollingFileMonitorTarget, 
       resource.moveToTail()
       Some((): Unit)
     } map (_.cursor)
-  }
-
-
-  override def tailCursor: Cursor = {
-    {
-      for (
-        lastResource <- locateLastResource()
-      ) yield FileCursor(lastResource, 0)
-    } getOrElse NilCursor()
-  }
-
-  def closeIfRequired(resource: OpenResource): Unit = {
-    if (resource.atTheTail_?) {
-      closeOpenedResource()
-    }
-  }
-
-  def advanceCursor(resource: OpenResource): Cursor = {
-    if (resource.atTheTail_?)
-      locateNextResource(resource.cursor.idx) match {
-        case None => resource.cursor
-        case Some(idx) => FileCursor(idx, 0)
-      }
-    else
-      resource.cursor
-  }
-
-  override def withOpenResource[T](c: Cursor)(f: (OpenResource) => Option[T]): Option[DataChunk[T, Cursor]] = {
-    openResourceAt(c) match {
-      case Some(resource) =>
-        try {
-          val data = f(resource)
-          val newCursor = advanceCursor(resource)
-          Some(DataChunk(data, newCursor, !resource.atTheTail_?))
-        } catch {
-          case x: Exception =>
-            logger.error(s"Error during processing open resource $resource", x)
-            None
-        } finally {
-          closeIfRequired(resource)
-        }
-      case None =>
-        logger.debug(s"No resource can be opened at $c")
-        None
-    }
-  }
-
-  override def close(): Unit = {
-    closeOpenedResource()
   }
 
 }

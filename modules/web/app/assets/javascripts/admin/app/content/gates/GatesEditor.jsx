@@ -57,12 +57,8 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                         "type": "integer",
                         "minimum": 1
                     },
-                    "storageKey": {
-                        "propertyOrder": 41,
-                        "title": "Storage key",
-                        "type": "string"
-                    },                    "overflowPolicy": {
-                    "propertyOrder": 50,
+                    "overflowPolicy": {
+                        "propertyOrder": 50,
                         "title": "Overflow policy",
                         "type": "object",
                         "oneOf": [
@@ -114,6 +110,26 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "title": "Days to keep",
                                 "type": "integer",
                                 "minimum": 1
+                            },
+                            "indexPattern": {
+                                "propertyOrder": 30,
+                                "title": "Index pattern",
+                                "type": "string"
+                            },
+                            "eventType": {
+                                "propertyOrder": 40,
+                                "title": "Event type",
+                                "type": "string"
+                            },
+                            "replayIndexPattern": {
+                                "propertyOrder": 50,
+                                "title": "Replay index pattern",
+                                "type": "string"
+                            },
+                            "replayEventType": {
+                                "propertyOrder": 60,
+                                "title": "Replay event type",
+                                "type": "string"
                             }
                         },
                         "additionalProperties": false
@@ -132,6 +148,26 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "title": "Number of events to keep",
                                 "type": "integer",
                                 "minimum": 1
+                            },
+                            "indexPattern": {
+                                "propertyOrder": 30,
+                                "title": "Index pattern",
+                                "type": "string"
+                            },
+                            "eventType": {
+                                "propertyOrder": 40,
+                                "title": "Event type",
+                                "type": "string"
+                            },
+                            "replayIndexPattern": {
+                                "propertyOrder": 50,
+                                "title": "Replay index pattern",
+                                "type": "string"
+                            },
+                            "replayEventType": {
+                                "propertyOrder": 60,
+                                "title": "Replay event type",
+                                "type": "string"
                             }
                         },
                         "additionalProperties": false
@@ -156,12 +192,6 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "title": "Type",
                                 "type": "string",
                                 "template": "drop"
-                            },
-                            "policy": {
-                                "propertyOrder": 20,
-                                "title": "Policy",
-                                "type": "string",
-                                "enum": ["Latest", "Newest"]
                             }
                         },
                         "additionalProperties": false
