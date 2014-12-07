@@ -28,7 +28,8 @@ import com.typesafe.config.Config
 import common.JsonFrame
 import common.actors.{ActorObjWithConfig, ActorWithComposableBehavior}
 import org.elasticsearch.common.settings.ImmutableSettings
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json._
+import play.api.libs.json.extensions._
 
 import scala.util.{Failure, Success}
 
@@ -154,7 +155,7 @@ class ReplayWorkerActor(clientAgent: Agent[Option[ElasticClient]], m: InitiateRe
     case Some(esclient) =>
       m.ref ! ReplayStart()
 
-      val idx = m.index + m.etype
+      val idx = m.index + "/" + m.etype
 
       esclient.execute {
         search in idx scroll "1m" limit 2

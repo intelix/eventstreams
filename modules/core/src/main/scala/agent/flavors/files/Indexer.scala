@@ -103,7 +103,7 @@ class OpenFileResource(idx: ResourceIndex,
                        file: File,
                        reader: BufferedReader) extends OpenResource with LazyLogging {
 
-  private val ab = CharBuffer.allocate(1024 * 64).array()
+  private val ab = CharBuffer.allocate(1024 * 16).array()
   private var position: Long = 0
   private var atTail: Boolean = false
 

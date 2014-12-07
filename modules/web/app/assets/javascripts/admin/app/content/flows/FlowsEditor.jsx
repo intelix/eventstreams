@@ -407,12 +407,6 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "title": "Gate name or address",
                                 "type": "string"
                             },
-                            "buffer": {
-                                "propertyOrder": 40,
-                                "title": "Buffer size",
-                                "type": "integer",
-                                "minimum": 1
-                            },
                             "simpleCondition": {
                                 "propertyOrder": 110,
                                 "$ref": "#/definitions/simpleCondition"
@@ -422,7 +416,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "$ref": "#/definitions/condition"
                             }
                         },
-                        "required": ["class"]
+                        "required": ["class","address"]
                     },
                     "instructionGrok": {
                         "type": "object",

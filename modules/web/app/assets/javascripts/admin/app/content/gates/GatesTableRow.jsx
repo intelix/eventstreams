@@ -54,7 +54,7 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
             }
 
             var replayButton;
-            if (info.replaySuppported) {
+            if (info.replaySupported) {
                 replayButton = <ReplayButton {...self.props} enabled={info.state == 'passive'} route={self.props.id} />;
             } else {
                 replayButton = "";

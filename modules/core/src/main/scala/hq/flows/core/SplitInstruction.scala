@@ -19,9 +19,10 @@ package hq.flows.core
 import agent.controller.flow.Tools._
 import com.typesafe.scalalogging.StrictLogging
 import common.ToolExt.configHelper
-import common.{Fail, JsonFrame}
+import common.{Utils, Fail, JsonFrame}
 import hq.flows.core.Builder.{SimpleInstructionType, InstructionType}
-import play.api.libs.json.{JsString, JsValue, Json}
+import play.api.libs.json._
+import play.api.libs.json.extensions._
 
 import scala.annotation.tailrec
 import scala.util.matching.Regex
@@ -33,7 +34,6 @@ private[core] object SplitInstruction extends SimpleInstructionBuilder {
 
   override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
     for (
-      id <- props ~> 'id \/> Fail(s"Invalid split instruction. Missing 'id' value. Contents: ${Json.stringify(props)}");
       source <- props ~> 'source \/> Fail(s"Invalid split instruction. Missing 'source' value. Contents: ${Json.stringify(props)}");
       pattern <- (props ~> 'pattern).map(new Regex(_)) \/> Fail(s"Invalid split instruction. Missing 'pattern' value. Contents: ${Json.stringify(props)}")
     ) yield {
@@ -49,6 +49,8 @@ private[core] object SplitInstruction extends SimpleInstructionBuilder {
 
       fr: JsonFrame => {
 
+        val sourceId = fr.event ~> 'eventId | "!"+ Utils.generateShortUUID
+
         val sourceField = macroReplacement(fr, JsString(source))
 
         val (resultList, newRemainder) = ext(List(), Some(remainder.getOrElse("") + locateFieldValue(fr, sourceField).asOpt[String].getOrElse("")))
@@ -57,8 +59,17 @@ private[core] object SplitInstruction extends SimpleInstructionBuilder {
 
         logger.debug(s"After split, events: ${resultList.size}, remainder: $newRemainder")
 
-        resultList.map { value =>
-          JsonFrame(setValue("s", JsString(value), toPath(sourceField), fr.event), fr.ctx)
+        var counter = 0
+
+        resultList.map(_.trim).filter(!_.isEmpty).map { value =>
+          val event = setValue("s", JsString(value), toPath(sourceField), fr.event).set(
+            __ \ 'eventId -> JsString(sourceId + ":" + counter)
+          )
+
+          counter = counter + 1
+
+          JsonFrame(event, fr.ctx)
+
         }
 
       }

@@ -29,13 +29,25 @@ object ToolExt {
 
 
   case class ConfigExtOps(config: JsValue) {
+
     def #>(key: String) = (config \ key).asOpt[JsValue]
 
     def #>(key: Symbol) = (config \ key.name).asOpt[JsValue]
 
-    def ~>(key: String) = (config \ key).asOpt[String]
+    def ~>(key: String) = (config \ key).asOpt[String] match {
+      case Some(s) if !s.trim.isEmpty => Some(s)
+      case _ => None
+    }
 
-    def ~>(key: Symbol) = (config \ key.name).asOpt[String]
+    def ~>(key: Symbol) = (config \ key.name).asOpt[String]  match {
+      case Some(s) if !s.trim.isEmpty => Some(s)
+      case _ => None
+    }
+
+    def ~*>(key: String) = (config \ key).asOpt[String]
+
+    def ~*>(key: Symbol) = (config \ key.name).asOpt[String]
+
 
     def +>(key: String) = (config \ key).asOpt[Int]
 

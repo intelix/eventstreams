@@ -33,7 +33,7 @@ object Tools extends StrictLogging {
   private val singleTypeMatch = "^(.)$".r
   private val macroMatch = ".*[$][{]([^}]+)[}].*".r
 
-  private val dateMatch = ".*[%][{]now:([^}]+)[}].*".r
+  private val dateMatch = ".*[$][{]now:([^}]+)[}].*".r
 
   implicit def s2b(s: String): Boolean = s.toBoolean
 

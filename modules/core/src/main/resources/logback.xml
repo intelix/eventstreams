@@ -22,6 +22,7 @@
         </layout>
     </appender>
 
+
     <logger name="scala.slick" level="INFO" />
 
     <logger name="akka.cluster.ClusterHeartbeatSender" level="WARN" />

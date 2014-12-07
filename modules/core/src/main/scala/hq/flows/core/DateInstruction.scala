@@ -78,7 +78,6 @@ private[core] object DateInstruction extends SimpleInstructionBuilder {
 
   override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
     for (
-      id <- props ~> 'id \/> Fail(s"Invalid date instruction. Missing 'id' value. Contents: ${Json.stringify(props)}");
       source <- props ~> 'source \/> Fail(s"Invalid date instruction. Missing 'source' value. Contents: ${Json.stringify(props)}");
       pattern <- (props ~> 'pattern).map(DateTimeFormat.forPattern) \/> Fail(s"Invalid date instruction. Missing 'pattern' value. Contents: ${Json.stringify(props)}")
     ) yield {
@@ -87,11 +86,11 @@ private[core] object DateInstruction extends SimpleInstructionBuilder {
       val targetZone = props ~> 'targetZone
       var targetPattern = Try((props ~> 'targetPattern).map(DateTimeFormat.forPattern)).getOrElse(Some(default)) | default
       val sourcePattern = zone match {
-        case Some(l) => pattern.withZone(DateTimeZone.forID(l))
+        case Some(l) if !l.isEmpty => pattern.withZone(DateTimeZone.forID(l))
         case None => pattern
       }
       targetPattern = targetZone match {
-        case Some(l) => targetPattern.withZone(DateTimeZone.forID(l))
+        case Some(l) if !l.isEmpty => targetPattern.withZone(DateTimeZone.forID(l))
         case None => targetPattern
       }
       val targetFmtField = props ~> 'targetFmtField | default_targetFmtField
