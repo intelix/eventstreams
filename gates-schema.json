@@ -37,6 +37,11 @@
       "type": "integer",
       "minimum": 1
     },
+    "allowNoSinks": {
+      "propertyOrder": 41,
+      "title": "Accept without sinks",
+      "type": "boolean"
+    },
     "overflowPolicy": {
       "propertyOrder": 50,
       "title": "Overflow policy",

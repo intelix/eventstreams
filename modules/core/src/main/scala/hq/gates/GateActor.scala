@@ -75,6 +75,7 @@ class GateActor(id: String)
   var retentionStorageKey = "default"
   var created = prettyTimeFormat(now)
   var maxInFlight = 100
+  var acceptWithoutSinks = false
   var retentionPolicy: RetentionPolicy = new RetentionPolicyNone()
   var overflowPolicy: OverflowPolicy = new OverflowPolicyBackpressure()
 
@@ -155,6 +156,7 @@ class GateActor(id: String)
       "overflow" -> overflowPolicy.info,
       "retention" -> retentionPolicy.getInfo,
       "sinceStateChange" -> prettyTimeSinceStateChange,
+      "acceptWithoutSinks" -> acceptWithoutSinks,
       "created" -> created,
       "replaySupported" -> retentionPolicy.replaySupported,
       "state" -> stateAsString,
@@ -257,6 +259,7 @@ class GateActor(id: String)
     name = propsConfig ~> 'name | "default"
     initialState = propsConfig ~> 'initialState | "Closed"
     maxInFlight = propsConfig +> 'maxInFlight | 10
+    acceptWithoutSinks = propsConfig ?> 'acceptWithoutSinks | false
     address = props ~> 'address | key
     created = prettyTimeFormat(props ++> 'created | now)
     overflowPolicy = OverflowPolicyBuilder(propsConfig #> 'overflowPolicy)
@@ -302,14 +305,14 @@ class GateActor(id: String)
         if (!isDup(sender(), m.id)) {
           logger.info(s"New unique message arrived at the gate $id ... ${m.id}")
           convertInboundPayload(m.id, m.msg) foreach { msg =>
-            val correlationId = deliverMessage(msg)
+            val correlationId = if (sinks.isEmpty && acceptWithoutSinks) generateCorrelationId(msg) else deliverMessage(msg)
             correlationToOrigin += correlationId ->
               InflightMessage(
                 m.id,
                 sender(),
                 retentionPending = retentionPolicy.scheduleRetention(
                   correlationId, msg),
-                deliveryPending = true)
+                deliveryPending = sinks.nonEmpty || !acceptWithoutSinks)
           }
         } else {
           logger.info(s"Received duplicate message at $id ${m.id}")

@@ -42,6 +42,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_gates_table_row'], function (R
                     <th>Retention</th>
                     <th>Retained data</th>
                     <th>Overflow</th>
+                    <th>Sink req</th>
                     <th>In-flight</th>
                     <th>Current rate</th>
                     <th>Avg events/day</th>

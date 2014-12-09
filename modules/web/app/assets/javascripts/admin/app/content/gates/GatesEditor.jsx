@@ -57,6 +57,11 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                         "type": "integer",
                         "minimum": 1
                     },
+                    "acceptWithoutSinks": {
+                        "propertyOrder": 41,
+                        "title": "Accept without sinks",
+                        "type": "boolean"
+                    },
                     "overflowPolicy": {
                         "propertyOrder": 50,
                         "title": "Overflow policy",
@@ -82,7 +87,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
 
                 },
                 "additionalProperties": true,
-                "required": ["name", "initialState", "maxInFlight", "overflowPolicy", "retentionPolicy"],
+                "required": ["name", "initialState", "maxInFlight", "acceptWithoutSinks", "overflowPolicy", "retentionPolicy"],
                 "definitions": {
                     "retentionNone": {
                         "type": "object",

@@ -38,6 +38,13 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
 
             var info = self.state.info;
 
+            var sinkReq;
+            if (info.acceptWithoutSinks) {
+                sinkReq = <span className="label label-warning">no</span>;
+            } else {
+                sinkReq = <span className="label label-success">yes</span>;
+            }
+
             var state;
             switch (info.state) {
                 case "active": state = <span className="label label-success">open{info.stateDetails ? " - " + info.stateDetails : ""}</span>; break;
@@ -66,6 +73,7 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
                 <td>{info.retention}</td>
                 <td>100,237</td>
                 <td>{info.overflow}</td>
+                <td>{sinkReq}</td>
                 <td>10</td>
                 <td>10/min</td>
                 <td>1,007</td>
@@ -83,7 +91,7 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
         },
         renderLoading: function () {
             return (
-                <tr><td colSpan="12">loading...</td></tr>
+                <tr><td colSpan="15">loading...</td></tr>
             );
         },
 

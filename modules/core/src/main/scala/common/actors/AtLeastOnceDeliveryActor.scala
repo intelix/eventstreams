@@ -46,7 +46,7 @@ trait AtLeastOnceDeliveryActor[T]
   def fullyAcknowledged(correlationId: Long, msg: T)
 
   def deliverMessage(msg: T) = {
-    val nextCorrelationId = correlationId(msg)
+    val nextCorrelationId = generateCorrelationId(msg)
     list = list :+ InFlight[T](0, msg, nextCorrelationId, getSetOfActiveEndpoints, Set(), Set(), 0)
     logger.debug(s"Message $nextCorrelationId queued. In-flight: ${list.size}")
     deliverIfPossible()
@@ -104,7 +104,7 @@ trait AtLeastOnceDeliveryActor[T]
     case AcknowledgeAsReceived(x) => acknowledgeReceived(x, sender())
   }
 
-  private def correlationId(m: T): Long = {
+  def generateCorrelationId(m: T): Long = {
     counter = counter + 1
     counter
   }

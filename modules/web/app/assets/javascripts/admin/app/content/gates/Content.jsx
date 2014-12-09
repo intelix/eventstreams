@@ -39,7 +39,7 @@ define(['react', 'coreMixin', 'app_content_nodetabs', 'app_gates_table', 'app_ga
                     "address": "",
                     "initialState": "Closed",
                     "maxInFlight": 100,
-                    "storageKey": "default",
+                    "acceptWithoutSinks": false,
                     "overflowPolicy": {
                         "type": "backpressure"
                     },
