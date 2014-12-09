@@ -30,6 +30,22 @@ import scalaz._
 private[core] object GrokInstruction extends SimpleInstructionBuilder {
   val configId = "grok"
 
+  def nextField(frame: JsonFrame, fvt: ((String, String), String)): JsonFrame =
+    fvt match {
+      case ((f, v), t) =>
+        logger.debug(s"next field: $f = $v of $t")
+        JsonFrame(setValue(t, macroReplacement(frame, JsString(v)), toPath(macroReplacement(frame, JsString(f))), frame.event), frame.ctx)
+    }
+
+  def populateContext(frame: JsonFrame, gv: (String, String)): JsonFrame =
+    gv match {
+      case (g, v) =>
+        logger.debug(s"adding to context: $g = $v")
+        JsonFrame(frame.event, frame.ctx + (g -> JsString(v)))
+    }
+
+
+
   override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
     for (
       pattern <- props ~> 'pattern \/> Fail(s"Invalid grok instruction. Missing 'pattern' value. Contents: ${Json.stringify(props)}");
@@ -50,20 +66,6 @@ private[core] object GrokInstruction extends SimpleInstructionBuilder {
       values = valuesList.split(',').map(_.trim)
     ) yield {
 
-      def nextField(frame: JsonFrame, fvt: ((String, String), String)): JsonFrame =
-        fvt match {
-          case ((f, v), t) =>
-            logger.debug(s"next field: $f = $v of $t")
-            JsonFrame(setValue(t, macroReplacement(frame, JsString(v)), toPath(macroReplacement(frame, JsString(f))), frame.event), frame.ctx)
-        }
-
-      def populateContext(frame: JsonFrame, gv: (String, String)): JsonFrame =
-        gv match {
-          case (g, v) =>
-            logger.debug(s"adding to context: $g = $v")
-            JsonFrame(frame.event, frame.ctx + (g -> JsString(v)))
-        }
-
       def contextToFrame(frame: JsonFrame, rmatch: Regex.Match): JsonFrame =
         (groups zip rmatch.subgroups).foldLeft(frame)(populateContext)
 
@@ -71,7 +73,6 @@ private[core] object GrokInstruction extends SimpleInstructionBuilder {
       def matcherToFrame(frame: JsonFrame, rmatch: Regex.Match): JsonFrame =
         (fields zip values zip types)
           .foldLeft(contextToFrame(frame, rmatch))(nextField)
-
 
       fr: JsonFrame =>
 

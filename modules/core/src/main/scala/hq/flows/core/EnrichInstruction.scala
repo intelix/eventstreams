@@ -31,9 +31,9 @@ private[core] object EnrichInstruction extends SimpleInstructionBuilder {
 
   override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
     for (
-      fieldName <- props ~> 'fieldName \/> Fail(s"Invalid enrich instruction. Missing 'fieldName' value. Contents: ${Json.stringify(props)}");
-      fieldValue <- props #> 'fieldValue \/> Fail(s"Invalid enrich instruction. Missing 'fieldValue' branch. Contents: ${Json.stringify(props)}")
+      fieldName <- props ~> 'fieldName \/> Fail(s"Invalid enrich instruction. Missing 'fieldName' value. Contents: ${Json.stringify(props)}")
     ) yield {
+      val fieldValue = props #> 'fieldValue | JsString("")
       val fieldType = props ~> 'fieldType | "s"
 
       frame: JsonFrame => {
