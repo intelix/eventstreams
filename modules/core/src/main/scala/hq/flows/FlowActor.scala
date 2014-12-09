@@ -20,10 +20,12 @@ import akka.actor._
 import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
+import common.ToolExt.configHelper
 import common._
-import common.actors.{ActorTools, ActorWithConfigStore, PipelineWithStatesActor, SingleComponentActor}
+import common.actors._
 import hq._
 import hq.flows.core.{Builder, FlowComponents}
+import nl.grons.metrics.scala.MetricName
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
@@ -36,10 +38,25 @@ object FlowActor {
 }
 
 
+sealed trait FlowState {
+  def details: Option[String]
+}
+
+case class FlowStateUnknown(details: Option[String] = None) extends FlowState
+
+case class FlowStateActive(details: Option[String] = None) extends FlowState
+
+case class FlowStatePassive(details: Option[String] = None) extends FlowState
+
+case class FlowStateError(details: Option[String] = None) extends FlowState
+
+
 class FlowActor(id: String)
   extends PipelineWithStatesActor
   with ActorWithConfigStore
-  with SingleComponentActor {
+  with SingleComponentActor
+  with ActorWithPeriodicalBroadcasting
+  with WithMetrics {
 
   implicit val mat = FlowMaterializer()
   implicit val dispatcher = context.system.dispatcher
@@ -51,6 +68,18 @@ class FlowActor(id: String)
   private var flow: Option[MaterializedMap] = None
 
 
+  override lazy val metricBaseName: MetricName = MetricName("flow")
+
+  val _inrate = metrics.meter(s"$id.source")
+  val _outrate = metrics.meter(s"$id.sink")
+
+
+  var name = "default"
+  var initialState = "Closed"
+  var created = prettyTimeFormat(now)
+  var currentState: FlowState = FlowStateUnknown(Some("Initialising"))
+
+
   override def storageKey: Option[String] = Some(id)
 
   override def key = ComponentKey(id)
@@ -59,13 +88,48 @@ class FlowActor(id: String)
 
   override def commonBehavior: Actor.Receive = super.commonBehavior
 
+
+  def publishInfo() = {
+    T_INFO !! info
+    T_DYNINFO !! infoDynamic
+  }
+
+  def publishProps() = T_PROPS !! propsConfig
+
+  def stateDetailsAsString = currentState.details match {
+    case Some(v) => stateAsString + " - " + v
+    case _ => stateAsString
+  }
+
+  def stateAsString = currentState match {
+    case FlowStateUnknown(_) => "unknown"
+    case FlowStateActive(_) => "active"
+    case FlowStatePassive(_) => "passive"
+    case FlowStateError(_) => "error"
+  }
+
+
+  def info = Some(Json.obj(
+    "name" -> name,
+    "initial" -> initialState,
+    "sinceStateChange" -> prettyTimeSinceStateChange,
+    "created" -> created,
+    "state" -> stateAsString,
+    "stateDetails" -> stateDetailsAsString
+  ))
+  def infoDynamic = Some(Json.obj(
+    "inrate" -> ("%.2f" format _inrate.oneMinuteRate),
+    "outrate" -> ("%.2f" format _outrate.oneMinuteRate)
+  ))
+
+
   override def becomeActive(): Unit = {
-    openTap()
+    openFlow()
     publishInfo()
   }
 
   override def becomePassive(): Unit = {
-    closeTap()
+    closeFlow()
     publishInfo()
   }
 
@@ -73,6 +137,10 @@ class FlowActor(id: String)
     case T_INFO => publishInfo()
     case T_PROPS => publishProps()
   }
+
+  override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
+    (T_DYNINFO, 5, () => infoDynamic, T_DYNINFO !! _)
+  )
 
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
     case T_STOP =>
@@ -107,17 +175,27 @@ class FlowActor(id: String)
       ) yield result
   }
 
-  def closeTap() = {
+  def closeFlow() = {
+    currentState = FlowStatePassive()
+
     logger.debug(s"Tap closed")
     tapActor.foreach(_ ! BecomePassive())
     flowActors.foreach(_.foreach(_ ! BecomePassive()))
   }
 
   override def applyConfig(key: String, config: JsValue, maybeState: Option[JsValue]): Unit = {
+
+    name = config ~> 'name | "default"
+    initialState = config ~> 'initialState | "Closed"
+    created = prettyTimeFormat(config ++> 'created | now)
+
+
     terminateFlow(Some("Applying new configuration"))
 
-    Builder()(config, context) match {
+    Builder()(config, context, id) match {
       case -\/(fail) =>
+        currentState = FlowStateError(fail.message)
+
         logger.info(s"Unable to build flow $id: failed with $fail")
       case \/-(FlowComponents(tap, pipeline, sink)) =>
         resetFlowWith(tap, pipeline, sink)
@@ -130,20 +208,8 @@ class FlowActor(id: String)
     publishInfo()
   }
 
-  private def publishProps() = T_PROPS !! propsConfig
-
-  private def publishInfo() = T_INFO !! info
-
-  private def info = Some(Json.obj(
-    "name" -> id,
-    "text" -> (s"$id is " + (if (flow.isDefined) "valid" else "invalid")),
-    "config" -> propsConfig,
-    "stateConfig" -> (stateConfig | Json.obj()),
-    "state" -> (if (isPipelineActive) "active" else "passive")
-  ))
-
   private def terminateFlow(reason: Option[String]) = {
-    closeTap()
+    closeFlow()
     tapActor.foreach(_ ! Stop(reason))
     tapActor = None
     sinkActor = None
@@ -151,8 +217,10 @@ class FlowActor(id: String)
     flow = None
   }
 
-  private def openTap() = {
+  private def openFlow() = {
     logger.debug(s"Tap opened")
+    currentState = FlowStateActive(Some("ok"))
+
     flowActors.foreach(_.foreach(_ ! BecomeActive()))
     sinkActor.foreach(_ ! BecomeActive())
     tapActor.foreach(_ ! BecomeActive())
@@ -187,7 +255,7 @@ class FlowActor(id: String)
     sinkActor = Some(sinkA)
     flowActors = Some(pipelineActors)
 
-    if (isPipelineActive) openTap()
+    if (isPipelineActive) openFlow()
   }
 
 

@@ -24,10 +24,13 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
 
 
         subscriptionConfig: function (props) {
-            return [{address: props.addr, route: props.id, topic: 'info', dataKey: 'info'}];
+            return [
+                {address: props.addr, route: props.id, topic: 'info', dataKey: 'info'},
+                {address: props.addr, route: props.id, topic: 'dyninfo', dataKey: 'dyninfo'}
+            ];
         },
         getInitialState: function () {
-            return {info: false}
+            return {info: false, dyninfo: false}
         },
 
         handleClick: function() {
@@ -35,23 +38,40 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
         },
 
         renderData: function () {
+            var self = this;
+
+            var info = self.state.info;
+            var dyninfo = self.state.dyninfo;
 
             var state;
-            switch (this.state.info.state) {
-                case "active": state = <span className="label label-success">open - ok</span>; break;
-                case "passive": state = <span className="label label-default">closed</span>; break;
-                default: state = <span className="label label-warning">unknown - this.state.info.state</span>; break;
+            switch (info.state) {
+                case "active": state = <span className="label label-success">{info.stateDetails}</span>; break;
+                case "passive": state = <span className="label label-default">{info.stateDetails}</span>; break;
+                case "error": state = <span className="label label-danger">{info.stateDetails}</span>; break;
+                case "unknown": state = <span className="label label-warning">{info.stateDetails}</span>; break;
+                default: state = <span className="label label-warning">unknown - {info.state}</span>; break;
             }
 
+            var mainLink = info.name;
+            if (self.state.connected) {
+                mainLink = <a href="#" onClick={this.handleClick} >{mainLink}</a>;
+            }
+
+            var inRate = "N/A";
+            if (dyninfo.inrate) inRate = dyninfo.inrate +"/s";
+            var outRate = "N/A";
+            if (dyninfo.outrate) outRate = dyninfo.outrate +"/s";
+
+
             return <tr>
-                <td><a href="#" onClick={this.handleClick}>{this.state.info.name}</a></td>
-                <td>5/min</td>
-                <td>10/min</td>
-                <td>1 month ago</td>
-                <td>just now</td>
+                <td>{mainLink}</td>
+                <td>{inRate}</td>
+                <td>{outRate}</td>
+                <td>{info.created}</td>
+                <td>{info.sinceStateChange}</td>
                 <td>{state}</td>
                 <td>
-                    <StartStopButton {...this.props} state={this.state.info.state} route={this.props.id} />
+                    <StartStopButton {...this.props} state={info.state} route={this.props.id} />
                     <DeleteButton {...this.props} route={this.props.id} />
                 </td>
             </tr>;

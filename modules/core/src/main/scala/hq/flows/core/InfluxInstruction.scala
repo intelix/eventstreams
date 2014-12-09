@@ -33,7 +33,7 @@ import scalaz.\/
 private[core] object InfluxInstruction extends BuilderFromConfig[InstructionType] {
   val configId = "influx"
 
-  override def build(props: JsValue, maybeData: Option[Condition]): \/[Fail, InstructionType] =
+  override def build(props: JsValue, maybeData: Option[Condition], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
       series <- props ~> 'series \/> Fail(s"Invalid influx instruction configuration. Missing 'series' value. Contents: ${Json.stringify(props)}")
     ) yield InfluxInstructionActor.props(series, props)

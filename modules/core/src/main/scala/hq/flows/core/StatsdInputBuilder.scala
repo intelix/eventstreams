@@ -25,8 +25,9 @@ import akka.stream.actor.ActorPublisherMessage.Request
 import akka.util.ByteString
 import common.ToolExt.configHelper
 import common.actors._
-import common.{NowProvider, Fail, JsonFrame}
+import common.{WithMetrics, NowProvider, Fail, JsonFrame}
 import hq.flows.core.Builder.TapActorPropsType
+import nl.grons.metrics.scala.MetricName
 import org.joda.time.DateTime
 import play.api.libs.json.{JsNumber, JsString, JsValue, Json}
 
@@ -39,10 +40,8 @@ import scalaz._
 private[core] object StatsdInputBuilder extends BuilderFromConfig[TapActorPropsType] {
   val configId = "statsd"
 
-  override def build(props: JsValue, maybeData: Option[Condition]): \/[Fail, TapActorPropsType] =
-    for (
-      id <- props ~> 'id \/> Fail(s"Invalid statsd input configuration. Missing 'id' value. Contents: ${Json.stringify(props)}")
-    ) yield StatsdActor.props(id, props)
+  override def build(props: JsValue, maybeData: Option[Condition], id: Option[String] = None): \/[Fail, TapActorPropsType] =
+    StatsdActor.props(id | "default", props).right
 }
 
 private object StatsdActor {
@@ -56,7 +55,12 @@ private class StatsdActor(id: String, config: JsValue)
   with ActorWithComposableBehavior
   with PipelineWithStatesActor
   with ActorWithTicks
-  with NowProvider {
+  with NowProvider
+  with WithMetrics {
+
+  override lazy val metricBaseName: MetricName = MetricName("flow")
+
+  val _rate = metrics.meter(s"$id.source")
 
   implicit val system = context.system
 
@@ -165,7 +169,10 @@ private class StatsdActor(id: String, config: JsValue)
   @tailrec
   private def deliverIfPossible(): Unit = {
     if (isActive && isPipelineActive && totalDemand > 0 && queue.size > 0) {
-      parse(queue.dequeue()) foreach onNext
+      _rate.mark()
+      parse(queue.dequeue()) foreach { v =>
+        onNext(v)
+      }
       deliverIfPossible()
     }
   }

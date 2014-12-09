@@ -23,7 +23,9 @@ define(['wsclient'], function (client) {
         },
 
         componentDidMount: function () {
-            this.startListenerWithParams(this.props);
+            var self = this;
+            self.componentAvailable = true;
+            self.startListenerWithParams(self.props);
         },
 
         unsubscribeFor: function (config) {
@@ -51,7 +53,7 @@ define(['wsclient'], function (client) {
                     var partialStateUpdate = {};
                     if (dataStateKey) partialStateUpdate[dataStateKey] = flag;
                     partialStateUpdate[internalStateTrackingKey] = flag;
-                    self.setState(partialStateUpdate);
+                    if (self.componentAvailable) self.setState(partialStateUpdate);
                     if (onStateChange) onStateChange(flag);
                 }
             }
@@ -60,7 +62,7 @@ define(['wsclient'], function (client) {
                 if (dataKey) {
                     var partialStateUpdate = {};
                     partialStateUpdate[dataKey] = data;
-                    self.setState(partialStateUpdate);
+                    if (self.componentAvailable) self.setState(partialStateUpdate);
                 }
                 if (onData) onData(data);
             }
@@ -104,7 +106,7 @@ define(['wsclient'], function (client) {
 
             function wsOpenHandler() {
                 if (!self.state || !self.state.connected) {
-                    self.setState({connected: true});
+                    if (self.componentAvailable) self.setState({connected: true});
                     if (self.onConnected) self.onConnected();
                 }
                 if (self.state.visibility === true || self.state.visibility === undefined) {
@@ -120,7 +122,7 @@ define(['wsclient'], function (client) {
                     self.logDebug("Received ws disconnected event");
                 }
                 if (self.state && self.state.connected) {
-                    self.setState({connected: false});
+                    if (self.componentAvailable) self.setState({connected: false});
                     if (self.onDisconnected) self.onDisconnected();
                 }
             }
@@ -139,6 +141,7 @@ define(['wsclient'], function (client) {
 
         componentWillUnmount: function () {
             var self = this;
+            self.componentAvailable = false;
 
             if (self.handle) {
                 var configs = self.subscriptionConfig ? self.subscriptionConfig(self.props) : [];

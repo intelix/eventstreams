@@ -32,7 +32,7 @@ import scalaz._
 private[core] object SplitInstruction extends SimpleInstructionBuilder {
   val configId = "split"
 
-  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
+  override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
       source <- props ~> 'source \/> Fail(s"Invalid split instruction. Missing 'source' value. Contents: ${Json.stringify(props)}");
       pattern <- (props ~> 'pattern).map(new Regex(_)) \/> Fail(s"Invalid split instruction. Missing 'pattern' value. Contents: ${Json.stringify(props)}")

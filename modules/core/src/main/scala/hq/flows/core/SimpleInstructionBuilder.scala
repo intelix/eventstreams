@@ -28,7 +28,7 @@ import scalaz.{\/-, -\/, \/}
 trait SimpleInstructionBuilder extends BuilderFromConfig[InstructionType] with StrictLogging {
   def maxInFlight = 16
 
-  def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType]
+  def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType]
 
   def wrapInCondition(instr: SimpleInstructionType, maybeCondition: Option[Condition]) : SimpleInstructionType =
     maybeCondition match {
@@ -41,6 +41,6 @@ trait SimpleInstructionBuilder extends BuilderFromConfig[InstructionType] with S
       }
     }
 
-  override def build(props: JsValue, maybeCondition: Option[Condition]): \/[Fail, InstructionType] =
-    simpleInstruction(props).map { instr => SimpleInstructionWrappingActor.props(wrapInCondition(instr, maybeCondition), maxInFlight) }
+  override def build(props: JsValue, maybeCondition: Option[Condition], id: Option[String] = None): \/[Fail, InstructionType] =
+    simpleInstruction(props, id).map { instr => SimpleInstructionWrappingActor.props(wrapInCondition(instr, maybeCondition), maxInFlight) }
 }

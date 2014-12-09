@@ -23,10 +23,13 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
         componentName: function() { return "app/content/gates/TableRow/" + this.props.id; },
 
         subscriptionConfig: function (props) {
-            return [{address: props.addr, route: props.id, topic: 'info', dataKey: 'info'}];
+            return [
+                {address: props.addr, route: props.id, topic: 'info', dataKey: 'info'},
+                {address: props.addr, route: props.id, topic: 'dyninfo', dataKey: 'dyninfo'}
+            ];
         },
         getInitialState: function () {
-            return {info: false}
+            return {info: false, dyninfo: false}
         },
 
         handleClick: function() {
@@ -37,21 +40,22 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
             var self = this;
 
             var info = self.state.info;
+            var dyninfo = self.state.dyninfo;
 
             var sinkReq;
             if (info.acceptWithoutSinks) {
-                sinkReq = <span className="label label-warning">no</span>;
+                sinkReq = "no";
             } else {
-                sinkReq = <span className="label label-success">yes</span>;
+                sinkReq = "yes";
             }
 
             var state;
             switch (info.state) {
-                case "active": state = <span className="label label-success">open{info.stateDetails ? " - " + info.stateDetails : ""}</span>; break;
-                case "passive": state = <span className="label label-default">closed{info.stateDetails ? " - " + info.stateDetails : ""}</span>; break;
-                case "replay": state = <span className="label label-info">replaying{info.stateDetails ? " - " + info.stateDetails : ""}</span>; break;
-                case "error": state = <span className="label label-danger">error{info.stateDetails ? " - " + info.stateDetails : ""}</span>; break;
-                case "unknown": state = <span className="label label-warning">n/a{info.stateDetails ? " - " + info.stateDetails : ""}</span>; break;
+                case "active": state = <span className="label label-success">{info.stateDetails}</span>; break;
+                case "passive": state = <span className="label label-default">{info.stateDetails}</span>; break;
+                case "replay": state = <span className="label label-info">{info.stateDetails}</span>; break;
+                case "error": state = <span className="label label-danger">{info.stateDetails}</span>; break;
+                case "unknown": state = <span className="label label-warning">{info.stateDetails}</span>; break;
                 default: state = <span className="label label-warning">unknown - {info.state}</span>; break;
             }
 
@@ -67,18 +71,23 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
                 replayButton = "";
             }
 
+            var currentRate = "N/A";
+            if (dyninfo.rate) currentRate = dyninfo.rate +"/s";
+            var meanRate = "N/A";
+            if (dyninfo.mrate) meanRate = dyninfo.mrate +"/s";
+
             return <tr ref='monitorVisibility'>
                 <td>{mainLink}</td>
                 <td>{info.address}</td>
                 <td>{info.retention}</td>
-                <td>100,237</td>
+                <td>{dyninfo.retained}</td>
                 <td>{info.overflow}</td>
                 <td>{sinkReq}</td>
-                <td>10</td>
-                <td>10/min</td>
-                <td>1,007</td>
-                <td><span className="label label-success">5</span></td>
-                <td><span className="label label-success">3</span><span className="label label-default">1</span></td>
+                <td>{dyninfo.inflight}</td>
+                <td>{currentRate}</td>
+                <td>{meanRate}</td>
+                <td>{dyninfo.activeDS}</td>
+                <td>{info.sinks}</td>
                 <td>{info.created}</td>
                 <td>{info.sinceStateChange}</td>
                 <td>{state}</td>

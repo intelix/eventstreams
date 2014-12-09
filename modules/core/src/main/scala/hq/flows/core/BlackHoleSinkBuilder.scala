@@ -19,29 +19,38 @@ package hq.flows.core
 import akka.actor.{Actor, Props}
 import akka.stream.actor.ActorSubscriberMessage.OnNext
 import akka.stream.actor.{RequestStrategy, WatermarkRequestStrategy, ZeroRequestStrategy}
-import common.{BecomeActive, Fail}
+import common.{WithMetrics, BecomeActive, Fail}
 import common.actors.{Acknowledged, ActorWithComposableBehavior, PipelineWithStatesActor, ShutdownableSubscriberActor}
 import hq.flows.core.Builder.SinkActorPropsType
+import nl.grons.metrics.scala.MetricName
 import play.api.libs.json.JsValue
 
-import scalaz.{\/, \/-}
+import scalaz._
+import Scalaz._
 
 private[core] object BlackHoleSinkBuilder extends BuilderFromConfig[SinkActorPropsType] {
   val configId = "blackhole"
 
-  override def build(props: JsValue, maybeData: Option[Condition]): \/[Fail, SinkActorPropsType] =
-    \/-(BlackholeAutoAckSinkActor.props)
+  override def build(props: JsValue, maybeData: Option[Condition], id: Option[String] = None): \/[Fail, SinkActorPropsType] =
+    \/-(BlackholeAutoAckSinkActor.props(id))
 
 }
 
 private object BlackholeAutoAckSinkActor {
-  def props = Props(new BlackholeAutoAckSinkActor())
+  def props(id: Option[String]) = Props(new BlackholeAutoAckSinkActor(id))
 }
 
-private class BlackholeAutoAckSinkActor
+private class BlackholeAutoAckSinkActor(maybeId: Option[String])
   extends ActorWithComposableBehavior
-  with ShutdownableSubscriberActor with PipelineWithStatesActor {
+  with ShutdownableSubscriberActor
+  with PipelineWithStatesActor
+  with WithMetrics {
 
+  val id = maybeId | "default"
+
+  override lazy val metricBaseName: MetricName = MetricName("flow")
+
+  val _rate = metrics.meter(s"$id.sink")
 
   var disableFlow = ZeroRequestStrategy
   var enableFlow = WatermarkRequestStrategy(1024, 96)
@@ -57,6 +66,7 @@ private class BlackholeAutoAckSinkActor
   override def commonBehavior: Actor.Receive = super.commonBehavior orElse {
     case OnNext(msg) =>
       logger.debug(s"Sent into the black hole: $msg")
+      _rate.mark()
       context.parent ! Acknowledged[Any](-1, msg)
   }
 

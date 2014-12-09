@@ -38,7 +38,7 @@ import scalaz.\/
 private[core] object ElasticsearchInstruction extends BuilderFromConfig[InstructionType] {
   val configId = "es"
 
-  override def build(props: JsValue, maybeData: Option[Condition]): \/[Fail, InstructionType] =
+  override def build(props: JsValue, maybeData: Option[Condition], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
       index <- props ~> 'index \/> Fail(s"Invalid elasticsearch instruction configuration. Missing 'index' value. Contents: ${Json.stringify(props)}")
     ) yield ElasticsearchInstructionActor.props(index, props)

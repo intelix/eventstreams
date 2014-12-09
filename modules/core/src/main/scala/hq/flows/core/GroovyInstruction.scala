@@ -30,7 +30,7 @@ import scalaz._
 private[core] object GroovyInstruction extends SimpleInstructionBuilder {
   val configId = "groovy"
 
-  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
+  override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
       code <- props ~> 'code \/> Fail(s"Invalid groovy instruction. Missing 'code' value. Contents: ${Json.stringify(props)}")
     ) yield {

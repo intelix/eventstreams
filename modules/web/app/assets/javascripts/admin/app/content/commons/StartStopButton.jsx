@@ -52,7 +52,7 @@ define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, stream
                     </button>;
             } else {
                 buttonClasses = this.cx({
-                    'disabled': (!self.state.connected),
+                    'disabled': (!self.state.connected || this.props.state != 'passive'),
                     'btn-success': true
                 });
                 button =

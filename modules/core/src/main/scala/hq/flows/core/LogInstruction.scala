@@ -29,7 +29,7 @@ import scalaz._
 private[core] object LogInstruction extends SimpleInstructionBuilder {
   val configId = "log"
 
-  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] = {
+  override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] = {
 
     val level = props ~> 'level | "INFO"
     val loggerName = props ~> 'logger | "default"

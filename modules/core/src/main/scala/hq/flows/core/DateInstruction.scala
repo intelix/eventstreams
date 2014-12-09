@@ -76,7 +76,7 @@ private[core] object DateInstruction extends SimpleInstructionBuilder {
   val default_targetFmtField = "date_fmt"
   val default_targetTsField = "date_ts"
 
-  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
+  override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
       source <- props ~> 'source \/> Fail(s"Invalid date instruction. Missing 'source' value. Contents: ${Json.stringify(props)}");
       pattern <- (props ~> 'pattern).map(DateTimeFormat.forPattern) \/> Fail(s"Invalid date instruction. Missing 'pattern' value. Contents: ${Json.stringify(props)}")

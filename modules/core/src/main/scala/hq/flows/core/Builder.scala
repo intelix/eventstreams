@@ -35,26 +35,26 @@ object Builder extends StrictLogging {
   type SimpleInstructionType = (JsonFrame) => scala.collection.immutable.Seq[JsonFrame]
 
 
-  def apply()(implicit config: JsValue, f: ActorRefFactory): \/[Fail, FlowComponents] =
+  def apply()(implicit config: JsValue, f: ActorRefFactory, id: String): \/[Fail, FlowComponents] =
     for (
       tap <- buildTap;
       pipeline <- buildProcessingPipeline
-    ) yield FlowComponents(tap, pipeline, BlackholeAutoAckSinkActor.props)
+    ) yield FlowComponents(tap, pipeline, BlackholeAutoAckSinkActor.props(Some(id)))
 
 
-  def buildTap(implicit config: JsValue, f: ActorRefFactory): \/[Fail, TapActorPropsType] = {
+  def buildTap(implicit config: JsValue, f: ActorRefFactory, id: String): \/[Fail, TapActorPropsType] = {
     val allBuilders = Seq(GateInputBuilder, StatsdInputBuilder)
     for (
       input <- config #> 'tap \/> Fail("Invalid config: missing 'tap' branch");
       inputClass <- input ~> 'class \/> Fail("Invalid input config: missing 'class' value");
       builder <- allBuilders.find(_.configId == inputClass)
         \/> Fail(s"Unsupported or invalid input class $inputClass. Supported classes: ${allBuilders.map(_.configId)}");
-      tap <- builder.build(input, None)
+      tap <- builder.build(input, None, Some(id))
     ) yield tap
 
   }
 
-  def buildInstruction(implicit config: JsValue): \/[Fail, InstructionType] = {
+  def buildInstruction(implicit config: JsValue, id: String): \/[Fail, InstructionType] = {
     val allBuilders = Seq(
       AddTagInstruction,
       EnrichInstruction,
@@ -73,17 +73,17 @@ object Builder extends StrictLogging {
       builder <- allBuilders.find(_.configId == instClass)
         \/> Fail(s"Unsupported or invalid instruction class $instClass. Supported classes: ${allBuilders.map(_.configId)}");
       condition <- SimpleCondition(config ~> 'simpleCondition) | Condition(config #> 'condition);
-      instr <- builder.build(config, Some(condition))
+      instr <- builder.build(config, Some(condition), Some(id))
     ) yield instr
   }
 
-  def buildProcessingPipeline(implicit config: JsValue): \/[Fail, Seq[InstructionType]] =
+  def buildProcessingPipeline(implicit config: JsValue, id: String): \/[Fail, Seq[InstructionType]] =
     for (
       instructions <- config ##> 'pipeline \/> Fail("Invalid pipeline config: missing 'pipeline' value");
       folded <- instructions.foldLeft[\/[Fail, Seq[InstructionType]]](\/-(List())) { (agg, next) =>
         for (
           list <- agg;
-          instr <- buildInstruction(next)
+          instr <- buildInstruction(next, id)
         ) yield list :+ instr
       }
     ) yield folded

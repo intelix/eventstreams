@@ -20,11 +20,12 @@ import agent.shared.{AcknowledgeAsReceived, AcknowledgeAsProcessed, Acknowledgea
 import akka.actor.{ActorRefFactory, Props}
 import akka.stream.actor.ActorPublisher
 import akka.stream.actor.ActorPublisherMessage.Request
-import common.{JsonFrame, Fail}
+import common.{WithMetrics, JsonFrame, Fail}
 import common.ToolExt.configHelper
 import common.actors._
 import hq.flows.core.Builder.TapActorPropsType
 import hq.gates.RegisterSink
+import nl.grons.metrics.scala.MetricName
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
@@ -33,24 +34,29 @@ import scalaz._
 private[core] object GateInputBuilder extends BuilderFromConfig[TapActorPropsType] {
   val configId = "gate"
 
-  override def build(props: JsValue, maybeData: Option[Condition]): \/[Fail, TapActorPropsType] =
+  override def build(props: JsValue, maybeData: Option[Condition], id: Option[String] = None): \/[Fail, TapActorPropsType] =
     for (
       address <- props ~> 'name \/> Fail(s"Invalid gate input configuration. Missing 'name' value. Contents: ${Json.stringify(props)}")
-    ) yield GateInputActor.props(address)
+    ) yield GateInputActor.props(id | "default", address)
 }
 
 private object GateInputActor {
-  def props(address: String) = Props(new GateInputActor(address))
+  def props(id: String, address: String) = Props(new GateInputActor(id, address))
 
-  def start(address: String)(implicit f: ActorRefFactory) = f.actorOf(props(address))
+  def start(id: String, address: String)(implicit f: ActorRefFactory) = f.actorOf(props(id, address))
 }
 
-private class GateInputActor(address: String)
+private class GateInputActor(id: String, address: String)
   extends ActorWithComposableBehavior
   with ShutdownablePublisherActor[JsonFrame]
   with ReconnectingActor
   with PipelineWithStatesActor
-  with ActorWithDupTracking {
+  with ActorWithDupTracking
+  with WithMetrics {
+
+  override lazy val metricBaseName: MetricName = MetricName("flow")
+
+  val _rate = metrics.meter(s"$id.source")
 
 
   override def monitorConnectionWithDeathWatch: Boolean = true
@@ -93,6 +99,7 @@ private class GateInputActor(address: String)
         if (!isDup(sender(), m.id)) {
           sender() ! AcknowledgeAsReceived(i)
           logger.debug(s"New message at gate tap (demand $totalDemand) [$address]: ${m.id} - produced and acknowledged")
+          _rate.mark()
           onNext(f)
           sender() ! AcknowledgeAsProcessed(i)
         } else {

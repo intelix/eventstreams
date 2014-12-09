@@ -28,7 +28,7 @@ import scalaz._
 private[core] object AddTagInstruction extends SimpleInstructionBuilder {
   val configId = "addtag"
 
-  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
+  override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
       tagName <- props ~> 'tagName \/> Fail(s"Invalid addtag instruction. Missing 'tagName' value. Contents: ${Json.stringify(props)}")
     ) yield {

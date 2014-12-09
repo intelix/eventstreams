@@ -40,16 +40,16 @@ define(['react', 'coreMixin', 'streamMixin', 'app_gates_table_row'], function (R
                     <th>Name</th>
                     <th>Address</th>
                     <th>Retention</th>
-                    <th>Retained data</th>
+                    <th>Retained</th>
                     <th>Overflow</th>
                     <th>Sink req</th>
                     <th>In-flight</th>
-                    <th>Current rate</th>
-                    <th>Avg events/day</th>
-                    <th>Datasources</th>
+                    <th>Current</th>
+                    <th>Mean</th>
+                    <th>Sources</th>
                     <th>Sinks</th>
                     <th>Created</th>
-                    <th>Last state change</th>
+                    <th>State changed</th>
                     <th>State</th>
                     <th></th>
                 </tr>;

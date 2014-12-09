@@ -46,6 +46,10 @@ case class MessageStored(correlationId: Long)
 
 case class InitiateReplay(ref: ActorRef, index: String, etype: String, limit: Int)
 
+case class GetRetainedCount(ref: ActorRef, index: String, etype: String)
+
+case class RetainedCount(count: Long)
+
 case class ReplayStart()
 
 case class ReplayEnd()
@@ -94,9 +98,25 @@ class RetentionManagerActor(config: Config) extends ActorWithComposableBehavior 
     }
   }
 
+  def retrieveRetainedCount(m: GetRetainedCount) = withClient { esclient =>
+      val idx = m.index + "/" + m.etype
+
+      esclient.execute {
+        count from idx
+      } onComplete {
+        case Success(r) =>
+          val count = r.getCount
+          logger.info(s"Count $idx: $count")
+          m.ref ! RetainedCount(count)
+        case Failure(fail) =>
+          logger.warn(s"Unable to retrieve count for $idx")
+      }
+  }
+
   private def handler: Receive = {
     case m: ScheduleStorage => enqueue(m)
     case m: InitiateReplay => context.actorOf(ReplayWorkerActor.props(clientAgent, m))
+    case m: GetRetainedCount => retrieveRetainedCount(m)
   }
 }
 
@@ -146,7 +166,7 @@ class ReplayWorkerActor(clientAgent: Agent[Option[ElasticClient]], m: InitiateRe
     case Some(esclient) =>
       val scId = scrollId.get
       logger.debug(s"Continuing querying $scId")
-      esclient.searchScroll(scId, "1m") onComplete {
+      esclient.searchScroll(scId, "1m")  onComplete {
         case Success(r) =>
           scrollId = Some(r.getScrollId)
           scrollSessionStartedAt = Some(now)
@@ -183,7 +203,7 @@ class ReplayWorkerActor(clientAgent: Agent[Option[ElasticClient]], m: InitiateRe
       val idx = m.index + "/" + m.etype
 
       esclient.execute {
-        search in idx sort(by field "ts", by field "insertSequence") scroll "1m" limit 2
+        search in idx sort(by field "ts", by field "insertSequence") scroll "1m" limit m.limit
       } onComplete {
         case Success(r) =>
           scrollId = Some(r.getScrollId)

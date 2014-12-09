@@ -46,7 +46,7 @@ private[core] object GrokInstruction extends SimpleInstructionBuilder {
 
 
 
-  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
+  override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
       pattern <- props ~> 'pattern \/> Fail(s"Invalid grok instruction. Missing 'pattern' value. Contents: ${Json.stringify(props)}");
       regex = new Regex(pattern);

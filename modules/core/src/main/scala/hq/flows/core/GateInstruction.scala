@@ -30,7 +30,7 @@ import scalaz.\/
 private[core] object GateInstruction extends BuilderFromConfig[InstructionType] {
   val configId = "gate"
 
-  override def build(props: JsValue, maybeData: Option[Condition]): \/[Fail, InstructionType] =
+  override def build(props: JsValue, maybeData: Option[Condition], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
       address <- props ~> 'address \/> Fail(s"Invalid gate instruction configuration. Missing 'address' value. Contents: ${Json.stringify(props)}")
     ) yield GateInstructionActor.props(address, props)

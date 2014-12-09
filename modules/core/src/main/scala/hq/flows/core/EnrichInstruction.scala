@@ -29,7 +29,7 @@ import scalaz._
 private[core] object EnrichInstruction extends SimpleInstructionBuilder {
   val configId = "enrich"
 
-  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
+  override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
       fieldName <- props ~> 'fieldName \/> Fail(s"Invalid enrich instruction. Missing 'fieldName' value. Contents: ${Json.stringify(props)}")
     ) yield {

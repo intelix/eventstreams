@@ -49,7 +49,6 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
 
                 <td><a href="#" onClick={this.handleClick}>{info.name}</a></td>
                 <td>[{info.endpointType}] {info.endpointDetails}</td>
-                    <td>10/min</td>
                 <td>{info.created}</td>
                 <td>{info.sinceStateChange}</td>
                 <td>{state}</td>
@@ -62,7 +61,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
         },
         renderLoading: function () {
             return (
-                <tr><td colSpan="6">loading...</td></tr>
+                <tr><td colSpan="5">loading...</td></tr>
             );
         },
 

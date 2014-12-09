@@ -447,22 +447,22 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "type": "string"
                             },
                             "groups": {
-                                "propertyOrder": 70,
+                                "propertyOrder": 50,
                                 "title": "List of groups",
                                 "type": "string"
                             },
                             "values": {
-                                "propertyOrder": 80,
+                                "propertyOrder": 60,
                                 "title": "List of values",
                                 "type": "string"
                             },
                             "fields": {
-                                "propertyOrder": 50,
+                                "propertyOrder": 70,
                                 "title": "List of target fields",
                                 "type": "string"
                             },
                             "types": {
-                                "propertyOrder": 60,
+                                "propertyOrder": 80,
                                 "title": "List of target types",
                                 "type": "string"
                             },

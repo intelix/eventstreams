@@ -23,5 +23,5 @@ import scalaz.\/
 
 trait BuilderFromConfig[T] {
    def configId: String
-   def build(props: JsValue, maybeCondition: Option[Condition]): \/[Fail,T]
+   def build(props: JsValue, maybeCondition: Option[Condition], id: Option[String] = None): \/[Fail,T]
  }

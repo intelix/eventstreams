@@ -65,7 +65,10 @@ class GateActor(id: String)
   with AtLeastOnceDeliveryActor[JsonFrame]
   with ActorWithConfigStore
   with SingleComponentActor
-  with ActorWithDupTracking {
+  with ActorWithDupTracking
+  with ActorWithPeriodicalBroadcasting
+  with ActorWithTicks
+  with WithMetrics {
 
 
   private val correlationToOrigin: mutable.Map[Long, InflightMessage] = mutable.Map()
@@ -79,7 +82,13 @@ class GateActor(id: String)
   var retentionPolicy: RetentionPolicy = new RetentionPolicyNone()
   var overflowPolicy: OverflowPolicy = new OverflowPolicyBackpressure()
 
+  var retainedDataCount: Option[Long] = None
+
   var currentState: GateState = GateStateUnknown(Some("Initialising"))
+
+  val _rateMeter = metrics.meter(s"gate.$id.rate")
+
+  val activeDatasources = mutable.Map[ActorRef, Long]()
 
 
   private var sinks: Set[ActorRef] = Set()
@@ -105,8 +114,21 @@ class GateActor(id: String)
   }
 
 
+  private def publishInfo() = {
+    T_INFO !! info
+    T_DYNINFO !! infoDynamic
+  }
+  private def publishProps() = T_PROPS !! propsConfig
+
+
+  override def processTick(): Unit = {
+    super.processTick()
+    clearActiveDatasourceList()
+  }
+
   def openGate(): Unit = {
     currentState = GateStateOpen(Some("ok"))
+    retentionPolicy.getCount(self)
     switchToCustomBehavior(flowMessagesHandlerForOpenGate)
   }
 
@@ -127,12 +149,12 @@ class GateActor(id: String)
 
   override def becomeActive(): Unit = {
     openGate()
-    topicUpdate(T_INFO, info)
+    publishInfo()
   }
 
   override def becomePassive(): Unit = {
     closeGate()
-    topicUpdate(T_INFO, info)
+    publishInfo()
   }
 
   def stateAsString = currentState match {
@@ -144,29 +166,42 @@ class GateActor(id: String)
   }
 
   def stateDetailsAsString = currentState.details match {
-    case Some(x) => x
-    case _ => ""
+    case Some(v) => stateAsString + " - " + v
+    case _ => stateAsString
   }
 
-  def info = propsConfig.map { cfg =>
-    Json.obj(
-      "name" -> name,
-      "address" -> address,
-      "initial" -> initialState,
-      "overflow" -> overflowPolicy.info,
-      "retention" -> retentionPolicy.getInfo,
-      "sinceStateChange" -> prettyTimeSinceStateChange,
-      "acceptWithoutSinks" -> acceptWithoutSinks,
-      "created" -> created,
-      "replaySupported" -> retentionPolicy.replaySupported,
-      "state" -> stateAsString,
-      "stateDetails" -> stateDetailsAsString
-    )
+  def retainedDataAsString = retainedDataCount match {
+    case Some(v) => "~"+v
+    case _ => "N/A"
   }
+
+  def info = Some(Json.obj(
+    "name" -> name,
+    "address" -> address,
+    "initial" -> initialState,
+    "overflow" -> overflowPolicy.info,
+    "retention" -> retentionPolicy.getInfo,
+    "sinceStateChange" -> prettyTimeSinceStateChange,
+    "acceptWithoutSinks" -> acceptWithoutSinks,
+    "created" -> created,
+    "replaySupported" -> retentionPolicy.replaySupported,
+    "state" -> stateAsString,
+    "stateDetails" -> stateDetailsAsString,
+    "sinks" -> sinks.size
+  ))
+
+  def infoDynamic = Some(Json.obj(
+    "rate" -> ("%.2f" format _rateMeter.oneMinuteRate),
+    "mrate" -> ("%.2f" format _rateMeter.meanRate),
+    "activeDS" -> activeDatasources.size,
+    "inflight" -> correlationToOrigin.size,
+    "retained" -> retainedDataAsString
+  ))
+
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
-    case T_INFO => topicUpdate(T_INFO, info, singleTarget = Some(ref))
-    case T_PROPS => topicUpdate(T_PROPS, propsConfig, singleTarget = Some(ref))
+    case T_INFO => publishInfo()
+    case T_PROPS => publishProps()
     case TopicKey(x) => logger.debug(s"Unknown topic $x")
   }
 
@@ -256,14 +291,14 @@ class GateActor(id: String)
   }
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {
-    name = propsConfig ~> 'name | "default"
-    initialState = propsConfig ~> 'initialState | "Closed"
-    maxInFlight = propsConfig +> 'maxInFlight | 10
-    acceptWithoutSinks = propsConfig ?> 'acceptWithoutSinks | false
+    name = props ~> 'name | "default"
+    initialState = props ~> 'initialState | "Closed"
+    maxInFlight = props +> 'maxInFlight | 10
+    acceptWithoutSinks = props ?> 'acceptWithoutSinks | false
     address = props ~> 'address | key
     created = prettyTimeFormat(props ++> 'created | now)
-    overflowPolicy = OverflowPolicyBuilder(propsConfig #> 'overflowPolicy)
-    retentionPolicy = RetentionPolicyBuilder(propsConfig #> 'retentionPolicy)
+    overflowPolicy = OverflowPolicyBuilder(props #> 'overflowPolicy)
+    retentionPolicy = RetentionPolicyBuilder(props #> 'retentionPolicy)
 
     val newForwarderId = ActorTools.actorFriendlyId(address)
     forwarderId match {
@@ -275,8 +310,8 @@ class GateActor(id: String)
   }
 
   override def afterApplyConfig(): Unit = {
-    topicUpdate(T_INFO, info)
-    topicUpdate(T_PROPS, propsConfig)
+    publishInfo()
+    publishProps()
   }
 
   private def reopenForwarder(newForwarderId: String) = {
@@ -288,6 +323,7 @@ class GateActor(id: String)
 
   private def flowMessagesHandlerForClosedGate: Receive = {
     case m: Acknowledgeable[_] =>
+      updateActiveDatasourceListWith(sender())
       forwarderActor.foreach(_ ! RouteTo(sender(), GateStateUpdate(GateClosed())))
   }
 
@@ -302,13 +338,15 @@ class GateActor(id: String)
     case _ => false
   }
 
-  //  private def isDup(m: Acknowledgeable[_], sender: ActorRef) = correlationToOrigin.exists {
-//    case (_, InflightMessage(originalCorrelationId, ref, _, _)) =>
-//      originalCorrelationId == m.id && ref == sender
-//  }
+  private def clearActiveDatasourceList() = activeDatasources.collect {
+    case (a,l) if now - l > 1.minute.toMillis => a
+  } foreach activeDatasources.remove
+
+  private def updateActiveDatasourceListWith(ref: ActorRef) = activeDatasources += ref -> now
 
   private def flowMessagesHandlerForOpenGate: Receive = {
     case m: Acknowledgeable[_] =>
+      updateActiveDatasourceListWith(sender())
       if (canAcceptAnotherMessage) {
         forwarderActor.foreach(_ ! RouteTo(sender(), AcknowledgeAsReceived(m.id)))
         if (!isDup(sender(), m.id)) {
@@ -349,13 +387,13 @@ class GateActor(id: String)
       }
     case ReplayEnd() =>
       currentState = GateStateOpen()
-      topicUpdate(T_INFO, info)
+      publishInfo()
     case ReplayFailed(error) =>
       currentState = GateStateError()
-      topicUpdate(T_INFO, info)
+      publishInfo()
     case ReplayStart() =>
       currentState = GateStateReplay(Some("in progress"))
-      topicUpdate(T_INFO, info)
+      publishInfo()
 
   }
 
@@ -365,10 +403,12 @@ class GateActor(id: String)
       logger.info(s"Ack ${m.originalCorrelationId} with tap at ${m.originator}")
       forwarderActor.foreach(_ ! RouteTo(m.originator, AcknowledgeAsProcessed(m.originalCorrelationId)))
       correlationToOrigin -= correlationId
+      _rateMeter.mark()
     }
   }
 
   private def messageHandler: Receive = {
+    case RetainedCount(count) => retainedDataCount = Some(count)
     case GateStateCheck(ref) =>
       logger.debug(s"Received state check from $ref, our state: $isPipelineActive")
       if (isPipelineActive) {
@@ -379,12 +419,15 @@ class GateActor(id: String)
     case Terminated(ref) if sinks.contains(ref) =>
       logger.info(s"Sink is gone: $ref")
       sinks -= ref
+      publishInfo()
     case RegisterSink(sinkRef) =>
       sinks += sender()
       context.watch(sinkRef)
       logger.info(s"New sink: ${sender()}")
+      publishInfo()
     case MessageStored(correlationId) =>
       logger.debug(s"Message $correlationId stored")
+      retainedDataCount = retainedDataCount.map(_ + 1)
       correlationToOrigin.get(correlationId).foreach { m =>
         correlationToOrigin += correlationId -> m.copy(retentionPending = false)
         checkCompleteness(correlationId)
@@ -394,6 +437,7 @@ class GateActor(id: String)
 
   trait RetentionPolicy {
     def initiateReplay(ref: ActorRef, limit: Int): \/[Fail, OK] = -\/(Fail(message = Some("No retention policy configured for the gate")))
+    def getCount(ref: ActorRef): \/[Fail, OK] = -\/(Fail(message = Some("No retention policy configured for the gate")))
 
     def scheduleRetention(correlationId: Long, m: JsonFrame): Boolean
     def replaySupported: Boolean
@@ -419,7 +463,7 @@ class GateActor(id: String)
     val indexPattern = json ~> 'indexPattern | "gate-${now:yyyy-MM-dd}"
     val eventType = json ~> 'eventType | "${eventType}"
     val replayIndexPattern = json ~> 'replayIndexPattern | "gate-${now:yyyy-MM-dd}"
-    val replayEventType = json ~> 'replayEventType | ""
+    val replayEventType = json ~> 'replayEventType | "${eventType}"
 
     override def replaySupported = true
 
@@ -431,11 +475,17 @@ class GateActor(id: String)
       true
     }
 
+    override def getCount(ref: ActorRef): \/[Fail, OK] = {
+      val idx = Tools.macroReplacement(Json.obj(), Map[String,JsValue](), replayIndexPattern)
+      RetentionManagerActor.path ! GetRetainedCount(ref, idx, replayEventType)
+      OK().right
+    }
+
     override def initiateReplay(ref: ActorRef, limit: Int): \/[Fail, OK] = {
       val idx = Tools.macroReplacement(Json.obj(), Map[String,JsValue](), replayIndexPattern)
       RetentionManagerActor.path ! InitiateReplay(ref, idx, replayEventType, limit)
       currentState = GateStateReplay(Some("awaiting"))
-      topicUpdate(T_INFO, info)
+      publishInfo()
       OK().right
     }
   }
@@ -473,7 +523,9 @@ class GateActor(id: String)
     }
   }
 
-
+  override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
+    (T_DYNINFO, 5, () => infoDynamic, T_DYNINFO !! _)
+  )
 }
 
 case class RouteTo(ref: ActorRef, msg: Any)

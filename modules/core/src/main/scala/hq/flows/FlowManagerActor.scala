@@ -23,7 +23,8 @@ import common.{OK, Fail}
 import common.ToolExt.configHelper
 import common.actors._
 import hq._
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json._
+import play.api.libs.json.extensions._
 
 import scalaz.Scalaz._
 import scalaz._
@@ -82,9 +83,11 @@ class FlowManagerActor
       data <- maybeData \/> Fail("Invalid payload", Some("Invalid configuration"))
     ) yield {
       val flowKey = key | "flow/" + UUID.randomUUID().toString
+      var json = data
+      if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
       val actor = FlowActor.start(flowKey)
       context.watch(actor)
-      actor ! InitialConfig(data, maybeState)
+      actor ! InitialConfig(json, maybeState)
       OK("Flow successfully created")
     }
 

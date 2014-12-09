@@ -36,6 +36,7 @@ trait SingleComponentActor
   val T_EDIT = TopicKey("edit")
   val T_LIST = TopicKey("list")
   val T_INFO = TopicKey("info")
+  val T_DYNINFO = TopicKey("dyninfo")
   val T_PROPS = TopicKey("props")
   val T_START = TopicKey("start")
   val T_STOP = TopicKey("stop")
@@ -47,8 +48,9 @@ trait SingleComponentActor
   def key: ComponentKey
 
   case class Publisher(key: TopicKey) {
-    def !!(data: Option[JsValue]) = {
-      topicUpdate(key, data)
+    def !!(data: Any) = data match {
+      case d : Option[JsValue] => topicUpdate(key, d)
+      case d  => logger.info(s"Unsupported payload type $d")
     }
   }
   implicit def toPublisher(key: TopicKey): Publisher = Publisher(key)

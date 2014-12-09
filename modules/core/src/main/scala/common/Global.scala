@@ -14,16 +14,12 @@
  * limitations under the License.
  */
 
-package hq.flows.core
+package common
 
-import common.{Fail, JsonFrame}
-import hq.flows.core.Builder.SimpleInstructionType
-import play.api.libs.json.JsValue
-
-import scalaz._
-
-private[core] object DropInstruction extends SimpleInstructionBuilder {
-  val configId = "drop"
-  override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] = \/- { frame: JsonFrame => List() }
+object Global {
+  val metricRegistry = new com.codahale.metrics.MetricRegistry()
 }
 
+trait WithMetrics extends nl.grons.metrics.scala.InstrumentedBuilder {
+  val metricRegistry = Global.metricRegistry
+}
