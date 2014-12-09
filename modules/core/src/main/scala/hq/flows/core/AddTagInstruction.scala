@@ -17,26 +17,26 @@
 package hq.flows.core
 
 import agent.controller.flow.Tools._
-import com.typesafe.scalalogging.StrictLogging
-import common.{JsonFrame, Fail}
 import common.ToolExt.configHelper
-import hq.flows.core.Builder.{SimpleInstructionType, InstructionType}
+import common.{Fail, JsonFrame}
+import hq.flows.core.Builder.SimpleInstructionType
 import play.api.libs.json.{JsString, JsValue, Json}
 
 import scalaz.Scalaz._
 import scalaz._
 
-private[core] object EnrichInstruction extends SimpleInstructionBuilder {
-  val configId = "enrich"
+private[core] object AddTagInstruction extends SimpleInstructionBuilder {
+  val configId = "addtag"
 
   override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
     for (
-      fieldName <- props ~> 'fieldName \/> Fail(s"Invalid enrich instruction. Missing 'fieldName' value. Contents: ${Json.stringify(props)}")
+      tagName <- props ~> 'tagName \/> Fail(s"Invalid addtag instruction. Missing 'tagName' value. Contents: ${Json.stringify(props)}")
     ) yield {
-      val fieldValue = props #> 'fieldValue | JsString("")
-      val fieldType = props ~> 'fieldType | "s"
 
       frame: JsonFrame => {
+
+        val fieldName = "tags"
+        val fieldType = "as"
 
         logger.debug(s"Original frame: $frame")
 
@@ -44,7 +44,7 @@ private[core] object EnrichInstruction extends SimpleInstructionBuilder {
 
         logger.debug("Key path: {}", keyPath)
 
-        val replacement: JsValue = macroReplacement(frame, fieldValue)
+        val replacement: JsValue = macroReplacement(frame, JsString(tagName))
 
         logger.debug(s"Replacement: $replacement type $fieldType" )
 

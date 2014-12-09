@@ -56,6 +56,7 @@ object Builder extends StrictLogging {
 
   def buildInstruction(implicit config: JsValue): \/[Fail, InstructionType] = {
     val allBuilders = Seq(
+      AddTagInstruction,
       EnrichInstruction,
       GrokInstruction,
       GroovyInstruction,

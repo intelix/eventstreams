@@ -83,6 +83,10 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                     "title": "Enrich"
                                 },
                                 {
+                                    "$ref": "#/definitions/instructionAddTag",
+                                    "title": "Add tag"
+                                },
+                                {
                                     "$ref": "#/definitions/instructionSplit",
                                     "title": "Split"
                                 },
@@ -510,6 +514,37 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                     "Number array",
                                     "Boolean array"
                                 ]
+                            },
+                            "simpleCondition": {
+                                "propertyOrder": 110,
+                                "$ref": "#/definitions/simpleCondition"
+                            },
+                            "condition": {
+                                "propertyOrder": 120,
+                                "$ref": "#/definitions/condition"
+                            }
+                        },
+                        "required": ["class"]
+                    },
+                    "instructionAddTag": {
+                        "type": "object",
+                        "title": "Add tag",
+                        "properties": {
+                            "class": {
+                                "propertyOrder": 10,
+                                "title": "Type",
+                                "type": "string",
+                                "template": "addtag"
+                            },
+                            "name": {
+                                "propertyOrder": 20,
+                                "title": "Name",
+                                "type": "string"
+                            },
+                            "tagName": {
+                                "propertyOrder": 30,
+                                "title": "Tag name",
+                                "type": "string"
                             },
                             "simpleCondition": {
                                 "propertyOrder": 110,
