@@ -63,7 +63,7 @@ object Common {
     "org.webjars" % "react" % "0.12.0",
     "org.webjars" % "toastr" % "2.1.0",
     "org.scalaz" %% "scalaz-core" % "7.1.0",
-    "com.sksamuel.elastic4s" %% "elastic4s" % "1.3.3",
+    "com.sksamuel.elastic4s" %% "elastic4s" % "1.4.0",
     "com.ning" % "async-http-client" % "1.0.0",
     "org.ocpsoft.prettytime" % "prettytime" % "3.2.5.Final",
     "nl.grons" %% "metrics-scala" % "3.3.0_a2.3",

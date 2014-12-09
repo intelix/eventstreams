@@ -16,11 +16,12 @@
 
 package common.actors
 
-import agent.shared.{Acknowledge, Acknowledgeable}
+import agent.shared.{AcknowledgeAsReceived, AcknowledgeAsProcessed, Acknowledgeable}
 import akka.actor.ActorRef
 import common.NowProvider
 
 import scala.concurrent.duration.DurationInt
+import scala.util.Random
 
 case class Acknowledged[T](correlationId: Long, msg: T)
 
@@ -29,15 +30,14 @@ trait AtLeastOnceDeliveryActor[T]
   extends ActorWithTicks
   with NowProvider {
 
-
   private var list = Vector[InFlight[T]]()
-  private var counter = now
+  private var counter = new Random().nextLong() // TODO replace counter with uuid + seq
 
   override def commonBehavior: Receive = handleRedeliveryMessages orElse super.commonBehavior
 
   final def inFlightCount = list.size
 
-  def configUnacknowledgedMessagesResendInterval = 5.seconds
+  def configUnacknowledgedMessagesResendInterval = 1.seconds
 
   def canDeliverDownstreamRightNow: Boolean
 
@@ -47,39 +47,61 @@ trait AtLeastOnceDeliveryActor[T]
 
   def deliverMessage(msg: T) = {
     val nextCorrelationId = correlationId(msg)
-    list = list :+ send(InFlight[T](0, msg, nextCorrelationId, getSetOfActiveEndpoints, Set()))
+    list = list :+ InFlight[T](0, msg, nextCorrelationId, getSetOfActiveEndpoints, Set(), Set(), 0)
+    logger.debug(s"Message $nextCorrelationId queued. In-flight: ${list.size}")
+    deliverIfPossible()
     nextCorrelationId
   }
 
 
-  private def filter() = {
+  private def filter() =
     list = list.filter {
-      case InFlight(_, msg, cId, endpoints, sentTo) if endpoints.isEmpty && sentTo.nonEmpty =>
-        fullyAcknowledged(cId, msg)
+      case m : InFlight[_] if m.endpoints.isEmpty && m.processedAck.nonEmpty =>
+        fullyAcknowledged(m.correlationId, m.msg)
         false
       case _ => true
     }
-  }
 
-  def acknowledgeUpTo(correlationId: Long, ackedByRef: ActorRef) = {
-    logger.info(s"Ack: $correlationId from $ackedByRef")
+
+  private def acknowledgeProcessed(correlationId: Long, ackedByRef: ActorRef) = {
+    logger.info(s"Processed Ack: $correlationId from $ackedByRef")
 
     list = list.map {
-      case InFlight(time, msg, cId, endpoints, sentTo) if cId <= correlationId && endpoints.contains(ackedByRef) =>
-        InFlight[T](time, msg, cId, endpoints.filter(_ != ackedByRef), sentTo + ackedByRef)
+      case m : InFlight[_] if m.correlationId == correlationId =>
+        m.copy[T](
+          endpoints = m.endpoints.filter(_ != ackedByRef),
+          processedAck = m.processedAck + ackedByRef,
+          receivedAck = m.receivedAck + ackedByRef
+        )
       case other => other
     }
 
     filter()
+    deliverIfPossible()
+  }
+
+  private def acknowledgeReceived(correlationId: Long, ackedByRef: ActorRef) = {
+    logger.info(s"Received Ack: $correlationId from $ackedByRef")
+
+    list = list.map {
+      case m : InFlight[_] if m.correlationId == correlationId =>
+        m.copy[T](
+          receivedAck = m.receivedAck + ackedByRef
+        )
+      case other => other
+    }
+
+    deliverIfPossible()
   }
 
   override def internalProcessTick() = {
-    resendAllPending()
+    deliverIfPossible()
     super.internalProcessTick()
   }
 
-  def handleRedeliveryMessages: Receive = {
-    case Acknowledge(x) => acknowledgeUpTo(x, sender())
+  private def handleRedeliveryMessages: Receive = {
+    case AcknowledgeAsProcessed(x) => acknowledgeProcessed(x, sender())
+    case AcknowledgeAsReceived(x) => acknowledgeReceived(x, sender())
   }
 
   private def correlationId(m: T): Long = {
@@ -87,23 +109,26 @@ trait AtLeastOnceDeliveryActor[T]
     counter
   }
 
-  private def resendAllPending() = {
+  private def deliverIfPossible(forceResend: Boolean = false) =
     if (canDeliverDownstreamRightNow && list.nonEmpty) {
-      logger.debug(s"Resending pending messages. Total inflight: $inFlightCount")
-      list = for (
-        next <- list
-      ) yield resend(next)
+      list.find { m => m.endpoints.exists(!m.receivedAck.contains(_)) } foreach { toDeliver =>
+        val newInflight = resend(toDeliver, forceResend)
+        list = list.map {
+          case m if m.correlationId == newInflight.correlationId => newInflight
+          case other => other
+        }
+      }
+      filter()
     }
-    filter()
-  }
 
-  private def resend(m: InFlight[T]): InFlight[T] = {
-    if (canDeliverDownstreamRightNow && now - m.sentTime > configUnacknowledgedMessagesResendInterval.toMillis) {
+
+  private def resend(m: InFlight[T], forceResend: Boolean = false): InFlight[T] =
+    if (canDeliverDownstreamRightNow && (forceResend || now - m.sentTime > configUnacknowledgedMessagesResendInterval.toMillis)) {
       val inflight = send(m)
-      logger.debug(s"Resending $inflight")
+      logger.debug(s"Sent (attempt ${m.sendAttempts} $inflight")
       inflight
     } else m
-  }
+
 
   private def send(m: InFlight[T]): InFlight[T] = canDeliverDownstreamRightNow match {
     case true =>
@@ -111,18 +136,29 @@ trait AtLeastOnceDeliveryActor[T]
 
       var remainingEndpoints = m.endpoints.filter(activeEndpoints.contains)
 
-      if (remainingEndpoints.isEmpty && m.sentTo.isEmpty) remainingEndpoints = activeEndpoints
+      if (remainingEndpoints.isEmpty && m.processedAck.isEmpty) remainingEndpoints = activeEndpoints
 
-      remainingEndpoints.foreach { actor =>
+      remainingEndpoints.filter(!m.receivedAck.contains(_)).foreach { actor =>
+        logger.debug(s"Sending ${m.correlationId} -> $actor")
         actor ! Acknowledgeable(m.msg, m.correlationId)
       }
 
-      InFlight[T](now, m.msg, m.correlationId, remainingEndpoints, m.sentTo)
+      m.copy(
+        sentTime = now, endpoints = remainingEndpoints, sendAttempts = m.sendAttempts + 1
+      )
+
     case false => m
   }
 
 
 }
 
-private case class InFlight[T](sentTime: Long, msg: T, correlationId: Long, endpoints: Set[ActorRef], sentTo: Set[ActorRef])
+private case class InFlight[T](
+                                sentTime: Long,
+                                msg: T,
+                                correlationId: Long,
+                                endpoints: Set[ActorRef],
+                                processedAck: Set[ActorRef],
+                                receivedAck: Set[ActorRef],
+                                sendAttempts: Int)
 

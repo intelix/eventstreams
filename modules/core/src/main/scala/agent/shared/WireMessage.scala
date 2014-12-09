@@ -27,7 +27,8 @@ trait AgentControllerMessage extends WireMessage
 trait AgentMessage extends WireMessage
 
 case class Acknowledgeable[T](msg: T, id: Long) extends AgentMessage
-case class Acknowledge(id: Long) extends AgentMessage
+case class AcknowledgeAsProcessed(id: Long) extends AgentMessage
+case class AcknowledgeAsReceived(id: Long) extends AgentMessage
 case class MessageWithAttachments[T](msg: T, attachments: JsValue) extends AgentMessage
 
 

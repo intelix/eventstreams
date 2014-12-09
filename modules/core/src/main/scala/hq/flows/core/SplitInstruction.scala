@@ -38,6 +38,7 @@ private[core] object SplitInstruction extends SimpleInstructionBuilder {
       pattern <- (props ~> 'pattern).map(new Regex(_)) \/> Fail(s"Invalid split instruction. Missing 'pattern' value. Contents: ${Json.stringify(props)}")
     ) yield {
 
+      var sequence = 0L
       var remainder : Option[String] = None
 
       @tailrec
@@ -53,17 +54,26 @@ private[core] object SplitInstruction extends SimpleInstructionBuilder {
 
         val sourceField = macroReplacement(fr, JsString(source))
 
-        val (resultList, newRemainder) = ext(List(), Some(remainder.getOrElse("") + locateFieldValue(fr, sourceField).asOpt[String].getOrElse("")))
+
+        sequence = sequence + 1
+
+        val str = Some(remainder.getOrElse("") + locateFieldValue(fr, sourceField).asOpt[String].getOrElse(""))
+
+        logger.debug(s"Before split $sequence, remainder: $remainder and complete string: $str")
+
+        val (resultList, newRemainder) = ext(List(), str)
 
         remainder = newRemainder
 
-        logger.debug(s"After split, events: ${resultList.size}, remainder: $newRemainder")
+        logger.debug(s"After split $sequence, events: ${resultList.size}, remainder: $newRemainder")
 
         var counter = 0
 
+
         resultList.map(_.trim).filter(!_.isEmpty).map { value =>
           val event = setValue("s", JsString(value), toPath(sourceField), fr.event).set(
-            __ \ 'eventId -> JsString(sourceId + ":" + counter)
+            __ \ 'eventId -> JsString(sourceId + ":" + counter),
+            __ \ 'splitSequence -> JsNumber(sequence)
           )
 
           counter = counter + 1

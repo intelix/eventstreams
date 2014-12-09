@@ -64,7 +64,8 @@ class GateActor(id: String)
   extends PipelineWithStatesActor
   with AtLeastOnceDeliveryActor[JsonFrame]
   with ActorWithConfigStore
-  with SingleComponentActor {
+  with SingleComponentActor
+  with ActorWithDupTracking {
 
 
   private val correlationToOrigin: mutable.Map[Long, InflightMessage] = mutable.Map()
@@ -73,7 +74,7 @@ class GateActor(id: String)
   var initialState = "Closed"
   var retentionStorageKey = "default"
   var created = prettyTimeFormat(now)
-  var maxInFlight = 10
+  var maxInFlight = 100
   var retentionPolicy: RetentionPolicy = new RetentionPolicyNone()
   var overflowPolicy: OverflowPolicy = new OverflowPolicyBackpressure()
 
@@ -173,9 +174,8 @@ class GateActor(id: String)
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
     case T_REPLAY =>
       lastRequestedState match {
-        case Some(Active()) =>
-          logger.info("Already started")
-          Fail(message = Some("Gate must be stopped")).left
+        case Some(Passive()) =>
+          Fail(message = Some("Gate must be started")).left
         case _ =>
           logger.info("Initiating replay ")
           retentionPolicy.initiateReplay(self, messageAllowance)
@@ -208,7 +208,7 @@ class GateActor(id: String)
     case T_UPDATE_PROPS =>
       for (
         data <- maybeData \/> Fail("Invalid request");
-        result <- updateConfigProps(data)
+        result <- updateAndApplyConfigProps(data)
       ) yield result
   }
 
@@ -287,6 +287,41 @@ class GateActor(id: String)
   private def flowMessagesHandlerForClosedGate: Receive = {
     case m: Acknowledgeable[_] =>
       forwarderActor.foreach(_ ! RouteTo(sender(), GateStateUpdate(GateClosed())))
+  }
+
+  private def canAcceptAnotherMessage = correlationToOrigin.size < maxInFlight
+
+//  private def isDup(m: Acknowledgeable[_], sender: ActorRef) = correlationToOrigin.exists {
+//    case (_, InflightMessage(originalCorrelationId, ref, _, _)) =>
+//      originalCorrelationId == m.id && ref == sender
+//  }
+
+  private def flowMessagesHandlerForOpenGate: Receive = {
+    case m: Acknowledgeable[_] =>
+      if (canAcceptAnotherMessage) {
+        forwarderActor.foreach(_ ! RouteTo(sender(), AcknowledgeAsReceived(m.id)))
+        if (!isDup(sender(), m.id)) {
+          logger.info(s"New unique message arrived at the gate $id ... ${m.id}")
+          convertInboundPayload(m.id, m.msg) foreach { msg =>
+            val correlationId = deliverMessage(msg)
+            correlationToOrigin += correlationId ->
+              InflightMessage(
+                m.id,
+                sender(),
+                retentionPending = retentionPolicy.scheduleRetention(
+                  correlationId, msg),
+                deliveryPending = true)
+          }
+        } else {
+          logger.info(s"Received duplicate message at $id ${m.id}")
+        }
+      } else {
+        logger.debug(s"Unable to accept another message, in flight count $inFlightCount")
+        if (overflowPolicy.ackAndDrop) {
+          forwarderActor.foreach(_ ! RouteTo(sender(), AcknowledgeAsProcessed(m.id)))
+          logger.info(s"Dropped ${m.id} from ${sender()}")
+        }
+      }
     case ReplayedEvent(originalCId, msg) =>
       if (canAcceptAnotherMessage) {
         logger.info(s"New replayed message arrived at the gate $id ... $originalCId")
@@ -302,7 +337,7 @@ class GateActor(id: String)
         logger.debug(s"Unable to accept another message, in flight count $inFlightCount")
       }
     case ReplayEnd() =>
-      currentState = GateStateClosed()
+      currentState = GateStateOpen()
       topicUpdate(T_INFO, info)
     case ReplayFailed(error) =>
       currentState = GateStateError()
@@ -310,42 +345,6 @@ class GateActor(id: String)
     case ReplayStart() =>
       currentState = GateStateReplay(Some("in progress"))
       topicUpdate(T_INFO, info)
-  }
-
-  private def canAcceptAnotherMessage = correlationToOrigin.size < maxInFlight
-
-  private def isDup(m: Acknowledgeable[_], sender: ActorRef) = correlationToOrigin.exists {
-    case (_, InflightMessage(originalCorrelationId, ref, _, _)) =>
-      originalCorrelationId == m.id && ref == sender
-  }
-
-  private def flowMessagesHandlerForOpenGate: Receive = {
-    case m: Acknowledgeable[_] =>
-      if (canAcceptAnotherMessage) {
-        logger.info(s"New message arrived at the gate $id ... ${m.id}")
-        if (!isDup(m, sender())) {
-          convertInboundPayload(m.id, m.msg) foreach { msg =>
-            val correlationId = deliverMessage(msg)
-            correlationToOrigin += correlationId ->
-              InflightMessage(
-                m.id,
-                sender(),
-                retentionPending = retentionPolicy.scheduleRetention(
-                  correlationId, msg),
-                deliveryPending = true)
-          }
-        } else {
-          logger.info(s"Received duplicate message $id ${m.id}")
-        }
-      } else {
-        logger.debug(s"Unable to accept another message, in flight count $inFlightCount")
-        if (overflowPolicy.ackAndDrop) {
-          if (!isDup(m, sender())) {
-            logger.info(s"Dropped ${m.id} from ${sender()}")
-            forwarderActor.foreach(_ ! RouteTo(sender(), Acknowledge(m.id)))
-          }
-        }
-      }
 
   }
 
@@ -353,7 +352,7 @@ class GateActor(id: String)
     if (!m.deliveryPending && !m.retentionPending) {
       logger.info(s"Fully acknowledged $correlationId ")
       logger.info(s"Ack ${m.originalCorrelationId} with tap at ${m.originator}")
-      forwarderActor.foreach(_ ! RouteTo(m.originator, Acknowledge(m.originalCorrelationId)))
+      forwarderActor.foreach(_ ! RouteTo(m.originator, AcknowledgeAsProcessed(m.originalCorrelationId)))
       correlationToOrigin -= correlationId
     }
   }

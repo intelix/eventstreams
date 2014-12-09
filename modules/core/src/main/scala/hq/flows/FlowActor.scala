@@ -103,7 +103,7 @@ class FlowActor(id: String)
     case T_UPDATE_PROPS =>
       for (
         data <- maybeData \/> Fail("No data");
-        result <- updateConfigProps(data)
+        result <- updateAndApplyConfigProps(data)
       ) yield result
   }
 

@@ -16,13 +16,13 @@
 
 package hq.flows.core
 
-import agent.shared.{Acknowledge, Acknowledgeable}
+import agent.shared.{AcknowledgeAsReceived, AcknowledgeAsProcessed, Acknowledgeable}
 import akka.actor.{ActorRefFactory, Props}
 import akka.stream.actor.ActorPublisher
 import akka.stream.actor.ActorPublisherMessage.Request
 import common.{JsonFrame, Fail}
 import common.ToolExt.configHelper
-import common.actors.{PipelineWithStatesActor, ReconnectingActor, ShutdownablePublisherActor, ActorWithComposableBehavior}
+import common.actors._
 import hq.flows.core.Builder.TapActorPropsType
 import hq.gates.RegisterSink
 import play.api.libs.json.{JsValue, Json}
@@ -36,20 +36,21 @@ private[core] object GateInputBuilder extends BuilderFromConfig[TapActorPropsTyp
   override def build(props: JsValue, maybeData: Option[Condition]): \/[Fail, TapActorPropsType] =
     for (
       address <- props ~> 'name \/> Fail(s"Invalid gate input configuration. Missing 'name' value. Contents: ${Json.stringify(props)}")
-    ) yield GateActor.props(address)
+    ) yield GateInputActor.props(address)
 }
 
-private object GateActor {
-  def props(address: String) = Props(new GateActor(address))
+private object GateInputActor {
+  def props(address: String) = Props(new GateInputActor(address))
 
   def start(address: String)(implicit f: ActorRefFactory) = f.actorOf(props(address))
 }
 
-private class GateActor(address: String)
+private class GateInputActor(address: String)
   extends ActorWithComposableBehavior
   with ShutdownablePublisherActor[JsonFrame]
   with ReconnectingActor
-  with PipelineWithStatesActor {
+  with PipelineWithStatesActor
+  with ActorWithDupTracking {
 
 
   override def monitorConnectionWithDeathWatch: Boolean = true
@@ -89,20 +90,26 @@ private class GateActor(address: String)
   def handlerWhenActive: Receive = {
     case m @ Acknowledgeable(f:JsonFrame,i) =>
       if (totalDemand > 0) {
-        logger.debug(s"New message at gate tap (demand $totalDemand) [$address]: $m - produced and acknowledged")
-        onNext(f)
-        sender ! Acknowledge(i)
+        if (!isDup(sender(), m.id)) {
+          sender() ! AcknowledgeAsReceived(i)
+          logger.debug(s"New message at gate tap (demand $totalDemand) [$address]: ${m.id} - produced and acknowledged")
+          onNext(f)
+          sender() ! AcknowledgeAsProcessed(i)
+        } else {
+          logger.debug(s"Duplicate message at gate tap (demand $totalDemand) [$address]: ${m.id}  - produced and acknowledged")
+          sender() ! AcknowledgeAsReceived(i)
+        }
       } else {
-        logger.debug(s"New message at gate tap (demand $totalDemand) [$address]: $m - ignored, no demand")
+        logger.debug(s"New message at gate tap (demand $totalDemand) [$address]: ${m.id} - ignored, no demand")
       }
-    case m: Acknowledgeable[_] => logger.warn(s"Unexpected message at tap [$address]: $m - ignored")
+    case m: Acknowledgeable[_] => logger.warn(s"Unexpected message at tap [$address]: ${m.id} - ignored")
     case Request(n) => logger.debug(s"Downstream requested $n messages")
   }
 
   def handlerWhenPassive: Receive = {
     case m @ Acknowledgeable(f:JsonFrame,i) =>
       logger.debug(s"Not active, message ignored")
-    case m: Acknowledgeable[_] => logger.warn(s"Unexpected message at tap [$address]: $m - ignored")
+    case m: Acknowledgeable[_] => logger.warn(s"Unexpected message at tap [$address]: ${m.id} - ignored")
     case Request(n) => logger.debug(s"Downstream requested $n messages")
   }
 

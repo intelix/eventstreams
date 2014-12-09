@@ -201,7 +201,8 @@ case class FileIndexerSession(flowId: String, target: RollingFileMonitorTarget, 
   override def tailCursor: Cursor = {
     {
       for (
-        lastResource <- locateLastResource()
+        lastResource <- locateFirstResource()
+//          lastResource <- locateLastResource()   TODO - make it configurable
       ) yield FileCursor(lastResource, 0)
     } getOrElse NilCursor()
   }

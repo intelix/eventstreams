@@ -18,14 +18,14 @@ package hq.gates
 
 import java.util.Calendar
 
-import agent.shared.Acknowledge
+import agent.shared.AcknowledgeAsProcessed
 import akka.actor.{ActorRef, Props}
 import akka.agent.Agent
 import com.sksamuel.elastic4s.ElasticClient
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.source.StringDocumentSource
 import com.typesafe.config.Config
-import common.JsonFrame
+import common.{NowProvider, JsonFrame}
 import common.actors.{ActorObjWithConfig, ActorWithComposableBehavior}
 import org.elasticsearch.common.settings.ImmutableSettings
 import play.api.libs.json._
@@ -55,7 +55,7 @@ case class ReplayedEvent(correlationId: Long, msg: String)
 
 case class ClientRef(scrollId: String, ref: ActorRef)
 
-class RetentionManagerActor(config: Config) extends ActorWithComposableBehavior {
+class RetentionManagerActor(config: Config) extends ActorWithComposableBehavior with NowProvider {
 
   implicit val ec = context.dispatcher
 
@@ -69,6 +69,8 @@ class RetentionManagerActor(config: Config) extends ActorWithComposableBehavior 
   private val clientAgent = Agent[Option[ElasticClient]](Some(ElasticClient.remote(settings, (host, port))))
 
 
+  private var insertSequence = now
+
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
   def withClient(f: ElasticClient => Unit) = clientAgent.get().foreach(f)
@@ -76,12 +78,18 @@ class RetentionManagerActor(config: Config) extends ActorWithComposableBehavior 
   def enqueue(m: ScheduleStorage) = withClient { esclient =>
     val targetIndex = m.index + "/" + m.etype
 
+    val json = m.v.set(__ \ 'insertSequence -> JsNumber(insertSequence))
+
+    insertSequence = insertSequence + 1
+
     esclient.execute {
-      logger.debug(s"Delivering -> $targetIndex : $m")
-      index into targetIndex id m.id doc StringDocumentSource(Json.stringify(m.v))
+      logger.debug(s"ES Delivering ${m.correlationId} -> $targetIndex : $json to $clientAgent  $settings at $host:$port  into $cluster")
+      index into targetIndex id m.id doc StringDocumentSource(Json.stringify(json))
     } onComplete {
-      case Success(_) => m.ref ! MessageStored(m.correlationId)
-      case Failure(fail) => logger.debug(s"Failed to deliver ${m.correlationId}", fail)
+      case Success(_) =>
+        logger.debug(s"ES Delivered ${m.correlationId}")
+        m.ref ! MessageStored(m.correlationId)
+      case Failure(fail) => logger.debug(s"ES Failed to deliver ${m.correlationId}", fail)
     }
   }
 
@@ -103,6 +111,8 @@ class ReplayWorkerActor(clientAgent: Agent[Option[ElasticClient]], m: InitiateRe
 
   implicit val ec = context.dispatcher
 
+
+  logger.debug(s"Initiating replay on request: $m")
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
@@ -158,7 +168,7 @@ class ReplayWorkerActor(clientAgent: Agent[Option[ElasticClient]], m: InitiateRe
       val idx = m.index + "/" + m.etype
 
       esclient.execute {
-        search in idx scroll "1m" limit 2
+        search in idx sort(by field "ts", by field "insertSequence") scroll "1m" limit 2
       } onComplete {
         case Success(r) =>
           scrollId = Some(r.getScrollId)
@@ -198,7 +208,7 @@ class ReplayWorkerActor(clientAgent: Agent[Option[ElasticClient]], m: InitiateRe
   }
 
   def handler: Receive = {
-    case Acknowledge(id) => acknowledgeAndContinueReplaying(id)
+    case AcknowledgeAsProcessed(id) => acknowledgeAndContinueReplaying(id)
   }
 }
 

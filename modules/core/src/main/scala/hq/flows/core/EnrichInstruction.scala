@@ -29,12 +29,12 @@ import scalaz._
 private[core] object EnrichInstruction extends SimpleInstructionBuilder {
   val configId = "enrich"
 
-  def field2flow(fieldProps: JsValue): \/[Fail, JsonFrame => JsonFrame] =
+  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
     for (
-      fieldName <- fieldProps ~> 'fieldName \/> Fail(s"Invalid enrich instruction. Missing 'fieldName' value. Contents: ${Json.stringify(fieldProps)}");
-      fieldValue <- fieldProps #> 'fieldValue \/> Fail(s"Invalid enrich instruction. Missing 'fieldValue' branch. Contents: ${Json.stringify(fieldProps)}")
+      fieldName <- props ~> 'fieldName \/> Fail(s"Invalid enrich instruction. Missing 'fieldName' value. Contents: ${Json.stringify(props)}");
+      fieldValue <- props #> 'fieldValue \/> Fail(s"Invalid enrich instruction. Missing 'fieldValue' branch. Contents: ${Json.stringify(props)}")
     ) yield {
-      val fieldType = fieldProps ~> 'fieldType | "s"
+      val fieldType = props ~> 'fieldType | "s"
 
       frame: JsonFrame => {
 
@@ -52,43 +52,43 @@ private[core] object EnrichInstruction extends SimpleInstructionBuilder {
 
         logger.debug("New frame: {}", value)
 
-        JsonFrame(value, frame.ctx)
+        List(JsonFrame(value, frame.ctx))
 
       }
     }
 
-  def tags2flow(props: JsValue): \/[Fail, JsonFrame => JsonFrame] =
-    (props ##> 'tags | Seq())
-      .foldLeft[\/[Fail, JsonFrame => JsonFrame]]({ x: JsonFrame => x}.right) {
-      (flow, nextConfigElement) =>
-        for (
-          aggregatedFlow <- flow;
-          nextFlowElement <- field2flow(Json.obj("name" -> "tags", "value" -> nextConfigElement, "type" -> "as"))
-        ) yield { frame: JsonFrame =>
-          nextFlowElement(aggregatedFlow(frame))
-        }
-    }
+//  def tags2flow(props: JsValue): \/[Fail, JsonFrame => JsonFrame] =
+//    (props ##> 'tags | Seq())
+//      .foldLeft[\/[Fail, JsonFrame => JsonFrame]]({ x: JsonFrame => x}.right) {
+//      (flow, nextConfigElement) =>
+//        for (
+//          aggregatedFlow <- flow;
+//          nextFlowElement <- field2flow(Json.obj("name" -> "tags", "value" -> nextConfigElement, "type" -> "as"))
+//        ) yield { frame: JsonFrame =>
+//          nextFlowElement(aggregatedFlow(frame))
+//        }
+//    }
 
-  def fields2flow(props: JsValue): \/[Fail, JsonFrame => JsonFrame] =
-    (props ##> 'fields | Seq())
-      .foldLeft[\/[Fail, JsonFrame => JsonFrame]]({ x: JsonFrame => x}.right) {
-      (flow, nextConfigElement) =>
-        for (
-          aggregatedFlow <- flow;
-          nextFlowElement <- field2flow(nextConfigElement)
-        ) yield { frame: JsonFrame =>
-          nextFlowElement(aggregatedFlow(frame))
-        }
-    }
+//  def fields2flow(props: JsValue): \/[Fail, JsonFrame => JsonFrame] =
+//    (props ##> 'fields | Seq())
+//      .foldLeft[\/[Fail, JsonFrame => JsonFrame]]({ x: JsonFrame => x}.right) {
+//      (flow, nextConfigElement) =>
+//        for (
+//          aggregatedFlow <- flow;
+//          nextFlowElement <- field2flow(nextConfigElement)
+//        ) yield { frame: JsonFrame =>
+//          nextFlowElement(aggregatedFlow(frame))
+//        }
+//    }
 
 
-  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
-    for (
-      tagsLeg <- tags2flow(props);
-      fieldsLeg <- fields2flow(props)
-    ) yield { frame: JsonFrame =>
-      List(tagsLeg(fieldsLeg(frame)))
-    }
+//  override def simpleInstruction(props: JsValue): \/[Fail, SimpleInstructionType] =
+//    for (
+//      tagsLeg <- tags2flow(props);
+//      fieldsLeg <- fields2flow(props)
+//    ) yield { frame: JsonFrame =>
+//      List(tagsLeg(fieldsLeg(frame)))
+//    }
 
 
 }

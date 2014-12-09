@@ -60,21 +60,49 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior {
     storageKey.foreach(configStore ! RemoveConfigFor(_))
   }
 
-  def updateConfigSnapshot(props: JsValue, state: Option[JsValue]): \/[Fail, OK] = {
+
+  private def storeConfigSnapshot(props: JsValue, state: Option[JsValue]) =
     storageKey.foreach { key => configStore ! StoreSnapshot(EntryConfigSnapshot(key, props, state))}
+
+  private def storeConfigProps(props: JsValue) =
+    storageKey.foreach { key => configStore ! StoreProps(EntryPropsConfig(key, props))}
+
+  private def storeConfigState(state: Option[JsValue]) =
+    storageKey.foreach { key => configStore ! StoreState(EntryStateConfig(key, state))}
+
+  def updateAndApplyConfigSnapshot(props: JsValue, state: Option[JsValue]): \/[Fail, OK] = {
+    storeConfigSnapshot(props, state)
     cacheAndApplyConfig(props, state)
     OK().right
   }
 
-  def updateConfigProps(props: JsValue): \/[Fail, OK] = {
-    storageKey.foreach { key => configStore ! StoreProps(EntryPropsConfig(key, props))}
+  def updateWithoutApplyConfigSnapshot(props: JsValue, state: Option[JsValue]): \/[Fail, OK] = {
+    storeConfigSnapshot(props, state)
+    cacheConfig(props, state)
+    OK().right
+  }
+
+  def updateAndApplyConfigProps(props: JsValue): \/[Fail, OK] = {
+    storeConfigProps(props)
     cacheAndApplyConfig(props, stateConfig)
     OK().right
   }
 
-  def updateConfigState(state: Option[JsValue]): \/[Fail, OK] = {
-    storageKey.foreach { key => configStore ! StoreState(EntryStateConfig(key, state))}
+  def updateWithoutApplyConfigProps(props: JsValue): \/[Fail, OK] = {
+    storeConfigProps(props)
+    cacheConfig(props, stateConfig)
+    OK().right
+  }
+
+  def updateAndApplyConfigState(state: Option[JsValue]): \/[Fail, OK] = {
+    storeConfigState(state)
     propsConfig.foreach(cacheAndApplyConfig(_, state))
+    OK().right
+  }
+
+  def updateWithoutApplyConfigState(state: Option[JsValue]): \/[Fail, OK] = {
+    storeConfigState(state)
+    propsConfig.foreach(cacheConfig(_, state))
     OK().right
   }
 
@@ -85,8 +113,7 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior {
     if (!isInitialConfig && propsConfig.get.equals(props) && stateConfig.equals(maybeState)) {
       logger.debug(s"Configuration and state have not changed - update ignored")
     } else {
-      propsConfig = Some(props)
-      stateConfig = maybeState
+      cacheConfig(props, maybeState)
       storageKey.foreach { key =>
         beforeApplyConfig()
         applyConfig(key, props, maybeState)
@@ -95,6 +122,11 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior {
         if (isInitialConfig) onInitialConfigApplied()
       }
     }
+  }
+
+  private def cacheConfig(props: JsValue, maybeState: Option[JsValue]): Unit = {
+    propsConfig = Some(props)
+    stateConfig = maybeState
   }
 
   private def handler: Receive = {
@@ -111,7 +143,7 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior {
     case InitialConfig(c, s) => propsConfig match {
       case None =>
         logger.info(s"Received initial configuration: $c state: $s")
-        updateConfigSnapshot(c, s)
+        updateAndApplyConfigSnapshot(c, s)
       case Some(_) =>
         logger.info(s"Initial config received but ignored - the actor already initialised with the config: $propsConfig and state $stateConfig")
     }

@@ -80,15 +80,15 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
           func <- cursor2config;
           state <- func(c);
           cfg <- propsConfig
-        ) updateConfigSnapshot(cfg, Some(state)) // TODO (low priority) aggregate and send updates every sec or so, and on postStop
+        ) updateWithoutApplyConfigSnapshot(cfg, Some(state)) // TODO (low priority) aggregate and send updates every sec or so, and on postStop
     }
     case CommunicationProxyRef(ref) =>
       commProxy = Some(ref)
       sendToHQAll()
     case ReconfigureTap(data) =>
-      updateConfigProps(data)
+      updateAndApplyConfigProps(data)
     case ResetTapState() =>
-      updateConfigState(None)
+      updateAndApplyConfigState(None)
     case RemoveTap() =>
       removeConfig()
       context.stop(self)
