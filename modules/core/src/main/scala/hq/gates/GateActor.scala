@@ -236,9 +236,8 @@ class GateActor(id: String)
       frame.event.set(
         __ \ 'eventId -> JsString(eventId),
         __ \ 'eventType -> JsString(eventType),
-        __ \ 'trace -> Json.toJson(trace.toArray),
         __ \ 'ts -> JsNumber(timestamp)),
-      frame.ctx + ("correlationId" -> JsNumber(inboundCorrelationId)) + ("processedTs" -> JsNumber(now))
+      frame.ctx + ("correlationId" -> JsNumber(inboundCorrelationId)) + ("processedTs" -> JsNumber(now)) + ("trace" -> Json.toJson(trace.toArray))
     )
   }
 
