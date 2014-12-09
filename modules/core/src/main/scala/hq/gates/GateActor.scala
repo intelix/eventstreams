@@ -291,9 +291,18 @@ class GateActor(id: String)
       forwarderActor.foreach(_ ! RouteTo(sender(), GateStateUpdate(GateClosed())))
   }
 
-  private def canAcceptAnotherMessage = correlationToOrigin.size < maxInFlight
+  private def canAcceptAnotherMessage = currentState match {
+    case GateStateOpen(_) => correlationToOrigin.size < maxInFlight
+    case _ => false
+  }
 
-//  private def isDup(m: Acknowledgeable[_], sender: ActorRef) = correlationToOrigin.exists {
+  private def canAcceptAnotherReplayMessage = currentState match {
+    case GateStateOpen(_) => correlationToOrigin.size < maxInFlight
+    case GateStateReplay(_) => correlationToOrigin.size < maxInFlight
+    case _ => false
+  }
+
+  //  private def isDup(m: Acknowledgeable[_], sender: ActorRef) = correlationToOrigin.exists {
 //    case (_, InflightMessage(originalCorrelationId, ref, _, _)) =>
 //      originalCorrelationId == m.id && ref == sender
 //  }
@@ -325,16 +334,16 @@ class GateActor(id: String)
         }
       }
     case ReplayedEvent(originalCId, msg) =>
-      if (canAcceptAnotherMessage) {
+      if (canAcceptAnotherReplayMessage) {
         logger.info(s"New replayed message arrived at the gate $id ... $originalCId")
         val frame = JsonFrame(Json.parse(msg).as[JsValue], Map())
-        val correlationId = deliverMessage(frame)
+        val correlationId = if (sinks.isEmpty && acceptWithoutSinks) generateCorrelationId(frame) else deliverMessage(frame)
         correlationToOrigin += correlationId ->
           InflightMessage(
             originalCId,
             sender(),
             retentionPending = false,
-            deliveryPending = true)
+            deliveryPending = sinks.nonEmpty || !acceptWithoutSinks)
       } else {
         logger.debug(s"Unable to accept another message, in flight count $inFlightCount")
       }

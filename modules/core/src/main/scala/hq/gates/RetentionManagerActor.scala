@@ -25,12 +25,13 @@ import com.sksamuel.elastic4s.ElasticClient
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.source.StringDocumentSource
 import com.typesafe.config.Config
-import common.{NowProvider, JsonFrame}
-import common.actors.{ActorObjWithConfig, ActorWithComposableBehavior}
+import common.actors.{ActorWithTicks, ActorObjWithConfig, ActorWithComposableBehavior}
+import common.{JsonFrame, NowProvider}
 import org.elasticsearch.common.settings.ImmutableSettings
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
+import scala.concurrent.duration.DurationLong
 import scala.util.{Failure, Success}
 
 object RetentionManagerActor extends ActorObjWithConfig {
@@ -104,18 +105,31 @@ object ReplayWorkerActor {
   def props(clientAgent: Agent[Option[ElasticClient]], m: InitiateReplay) = Props(new ReplayWorkerActor(clientAgent, m))
 }
 
-class ReplayWorkerActor(clientAgent: Agent[Option[ElasticClient]], m: InitiateReplay) extends ActorWithComposableBehavior {
+class ReplayWorkerActor(clientAgent: Agent[Option[ElasticClient]], m: InitiateReplay)
+  extends ActorWithComposableBehavior
+  with ActorWithTicks
+  with NowProvider {
+
+  implicit val ec = context.dispatcher
   var pending = List[ReplayedEvent]()
   var counter = 0L
   var scrollId: Option[String] = None
-
-  implicit val ec = context.dispatcher
+  var scrollSessionStartedAt: Option[Long] = None
+  var scrollSessionTimeout = 1.minute.toMillis
 
 
   logger.debug(s"Initiating replay on request: $m")
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
+
+  override def processTick(): Unit = {
+    super.processTick()
+    scrollSessionStartedAt match {
+      case Some(t) if now - t > scrollSessionTimeout => finishWithFailure("Replay session timeout")
+      case _ => ()
+    }
+  }
 
   def sendHead() = m.ref ! pending.head
 
@@ -134,7 +148,8 @@ class ReplayWorkerActor(clientAgent: Agent[Option[ElasticClient]], m: InitiateRe
       logger.debug(s"Continuing querying $scId")
       esclient.searchScroll(scId, "1m") onComplete {
         case Success(r) =>
-          val scrollId = r.getScrollId
+          scrollId = Some(r.getScrollId)
+          scrollSessionStartedAt = Some(now)
           val list = r.getHits.getHits.map { h =>
             counter = counter + 1
             ReplayedEvent(counter, h.getSourceAsString)
@@ -172,6 +187,7 @@ class ReplayWorkerActor(clientAgent: Agent[Option[ElasticClient]], m: InitiateRe
       } onComplete {
         case Success(r) =>
           scrollId = Some(r.getScrollId)
+          scrollSessionStartedAt = Some(now)
           val list = r.getHits.getHits.map { h =>
             counter = counter + 1
             ReplayedEvent(counter, h.getSourceAsString)
