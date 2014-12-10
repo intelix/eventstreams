@@ -82,6 +82,8 @@ class GateActor(id: String)
   var retentionPolicy: RetentionPolicy = new RetentionPolicyNone()
   var overflowPolicy: OverflowPolicy = new OverflowPolicyBackpressure()
 
+  var eventSequenceCounter = now
+
   var retainedDataCount: Option[Long] = None
 
   var currentState: GateState = GateStateUnknown(Some("Initialising"))
@@ -190,13 +192,20 @@ class GateActor(id: String)
     "sinks" -> sinks.size
   ))
 
-  def infoDynamic = Some(Json.obj(
-    "rate" -> ("%.2f" format _rateMeter.oneMinuteRate),
-    "mrate" -> ("%.2f" format _rateMeter.meanRate),
-    "activeDS" -> activeDatasources.size,
-    "inflight" -> correlationToOrigin.size,
-    "retained" -> retainedDataAsString
-  ))
+  def infoDynamic = currentState match {
+    case GateStateOpen(_) | GateStateReplay(_) => Some(Json.obj(
+      "rate" -> ("%.2f" format _rateMeter.oneMinuteRate),
+      "mrate" -> ("%.2f" format _rateMeter.meanRate),
+      "activeDS" -> activeDatasources.size,
+      "inflight" -> correlationToOrigin.size,
+      "retained" -> retainedDataAsString
+    ))
+    case _ => Some(Json.obj(
+      "activeDS" -> activeDatasources.size,
+      "inflight" -> correlationToOrigin.size,
+      "retained" -> retainedDataAsString
+    ))
+  }
 
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
@@ -262,16 +271,25 @@ class GateActor(id: String)
   override def getSetOfActiveEndpoints: Set[ActorRef] = sinks
 
 
+  def nextEventSequence() = {
+    eventSequenceCounter = eventSequenceCounter + 1
+    eventSequenceCounter
+  }
+
   def enrichInboundJsonFrame(inboundCorrelationId: Long, frame: JsonFrame) = {
     val eventId = frame.event ~> 'eventId | shortUUID
-    val eventType = frame.event ~> 'eventType | "default";
+    val eventSeq = frame.event ++> 'eventSeq | nextEventSequence()
+    val eventType = frame.event ~> 'eventType | "default"
     val timestamp = frame.event ++> 'ts | now
     var trace = (frame.event ##> 'trace).map(_.map(_.asOpt[String] | "")) | List()
     if (!trace.contains(id)) trace = trace :+ id
 
+
+
     JsonFrame(
       frame.event.set(
         __ \ 'eventId -> JsString(eventId),
+        __ \ 'eventSeq -> JsNumber(eventSeq),
         __ \ 'eventType -> JsString(eventType),
         __ \ 'ts -> JsNumber(timestamp)),
       frame.ctx + ("correlationId" -> JsNumber(inboundCorrelationId)) + ("processedTs" -> JsNumber(now)) + ("trace" -> Json.toJson(trace.toArray))

@@ -52,13 +52,14 @@ private class InfluxInstructionActor(series: String, config: JsValue)
 
   implicit val ec = context.dispatcher
 
-  private val maxInFlight = config +> 'buffer | 96
+  private val maxInFlight = config +> 'buffer | 1000
 
   private val bulkSizeLimit = config +> 'bulkSizeLimit | 100
   private val bulkCollectionPeriodMillis = config +> 'bulkCollectionPeriodMillis | 1000
 
   private val database = config ~> 'db | "series"
 
+  private val eventSeqSource = config ~> 'sequenceSource | "eventSeq"
   private val timeSource = config ~> 'timeSource | "date_ts"
   private val columns = config ~> 'columns | "value"
   private val points = config ~> 'points | "points"
@@ -110,12 +111,12 @@ private class InfluxInstructionActor(series: String, config: JsValue)
     (now - lastSent.getOrElse(0L)) > bulkCollectionPeriodMillis || queue.size >= bulkSizeLimit
 
   private def toPoints(frame: JsonFrame): JsValue =
-    Json.toJson((timeSource + "," + points).split(",").map { pointSource =>
-      locateFieldValue(frame, pointSource.trim).asOpt[JsValue] | JsNull
+    Json.toJson((timeSource + "," + eventSeqSource + "," + points).split(",").map { field =>
+      locateFieldValue(frame, field.trim).asOpt[JsValue] | JsNull
     }.toArray[JsValue])
 
   private def toColumns: JsValue =
-    Json.toJson(JsString("time") +: columns.split(",").map { column =>
+    Json.toJson(JsString("time") +: JsString("sequence_number") +: columns.split(",").map { column =>
       JsString(column.trim())
     }.toArray[JsValue])
 
@@ -145,7 +146,7 @@ private class InfluxInstructionActor(series: String, config: JsValue)
 
         val combined = Json.toJson(uniqueSeries.toArray)
 
-        c.writeSeries(combined) match {
+        c.writeSeriesWithTimePrecision(combined, "ms") match {
           case Some(err) =>
             logger.error(s"Delivery failed with error: $err")
           case None =>

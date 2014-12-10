@@ -19,7 +19,7 @@ package hq.flows.core
 import agent.controller.flow.Tools._
 import com.typesafe.scalalogging.StrictLogging
 import common.ToolExt.configHelper
-import common.{Utils, Fail, JsonFrame}
+import common.{NowProvider, Utils, Fail, JsonFrame}
 import hq.flows.core.Builder.{SimpleInstructionType, InstructionType}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
@@ -29,7 +29,7 @@ import scala.util.matching.Regex
 import scalaz.Scalaz._
 import scalaz._
 
-private[core] object SplitInstruction extends SimpleInstructionBuilder {
+private[core] object SplitInstruction extends SimpleInstructionBuilder with NowProvider {
   val configId = "split"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
@@ -51,6 +51,9 @@ private[core] object SplitInstruction extends SimpleInstructionBuilder {
       fr: JsonFrame => {
 
         val sourceId = fr.event ~> 'eventId | "!"+ Utils.generateShortUUID
+        val eventSeq = fr.event ++> 'eventSeq | now
+
+        val baseEventSeq = eventSeq << 16
 
         val sourceField = macroReplacement(fr, JsString(source))
 
@@ -69,10 +72,10 @@ private[core] object SplitInstruction extends SimpleInstructionBuilder {
 
         var counter = 0
 
-
         resultList.map(_.trim).filter(!_.isEmpty).map { value =>
           val event = setValue("s", JsString(value), toPath(sourceField), fr.event).set(
             __ \ 'eventId -> JsString(sourceId + ":" + counter),
+            __ \ 'eventSeq -> JsNumber(baseEventSeq + counter),
             __ \ 'splitSequence -> JsNumber(sequence)
           )
 
