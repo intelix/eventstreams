@@ -83,6 +83,10 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                     "title": "Enrich"
                                 },
                                 {
+                                    "$ref": "#/definitions/instructionReplace",
+                                    "title": "Replace"
+                                },
+                                {
                                     "$ref": "#/definitions/instructionAddTag",
                                     "title": "Add tag"
                                 },
@@ -103,8 +107,16 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                     "title": "Groovy"
                                 },
                                 {
+                                    "$ref": "#/definitions/instructionDropField",
+                                    "title": "Drop field"
+                                },
+                                {
+                                    "$ref": "#/definitions/instructionDropTag",
+                                    "title": "Drop tag"
+                                },
+                                {
                                     "$ref": "#/definitions/instructionDrop",
-                                    "title": "Drop"
+                                    "title": "Drop event"
                                 },
                                 {
                                     "$ref": "#/definitions/instructionDate",
@@ -526,6 +538,47 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                         },
                         "required": ["class"]
                     },
+                    "instructionReplace": {
+                        "type": "object",
+                        "title": "Regexp replace",
+                        "properties": {
+                            "class": {
+                                "propertyOrder": 10,
+                                "title": "Type",
+                                "type": "string",
+                                "template": "replace"
+                            },
+                            "name": {
+                                "propertyOrder": 20,
+                                "title": "Name",
+                                "type": "string"
+                            },
+                            "fieldName": {
+                                "propertyOrder": 30,
+                                "title": "Field name",
+                                "type": "string"
+                            },
+                            "pattern": {
+                                "propertyOrder": 31,
+                                "title": "Pattern",
+                                "type": "string"
+                            },
+                            "replacementValue": {
+                                "propertyOrder": 40,
+                                "title": "Replacement value",
+                                "type": "string"
+                            },
+                            "simpleCondition": {
+                                "propertyOrder": 110,
+                                "$ref": "#/definitions/simpleCondition"
+                            },
+                            "condition": {
+                                "propertyOrder": 120,
+                                "$ref": "#/definitions/condition"
+                            }
+                        },
+                        "required": ["class", "fieldName","pattern"]
+                    },
                     "instructionAddTag": {
                         "type": "object",
                         "title": "Add tag",
@@ -556,6 +609,68 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                             }
                         },
                         "required": ["class"]
+                    },
+                    "instructionDropTag": {
+                        "type": "object",
+                        "title": "Drop tag",
+                        "properties": {
+                            "class": {
+                                "propertyOrder": 10,
+                                "title": "Type",
+                                "type": "string",
+                                "template": "droptag"
+                            },
+                            "name": {
+                                "propertyOrder": 20,
+                                "title": "Name",
+                                "type": "string"
+                            },
+                            "tagName": {
+                                "propertyOrder": 30,
+                                "title": "Tag name",
+                                "type": "string"
+                            },
+                            "simpleCondition": {
+                                "propertyOrder": 110,
+                                "$ref": "#/definitions/simpleCondition"
+                            },
+                            "condition": {
+                                "propertyOrder": 120,
+                                "$ref": "#/definitions/condition"
+                            }
+                        },
+                        "required": ["class","tagName"]
+                    },
+                    "instructionDropField": {
+                        "type": "object",
+                        "title": "Drop field",
+                        "properties": {
+                            "class": {
+                                "propertyOrder": 10,
+                                "title": "Type",
+                                "type": "string",
+                                "template": "dropfield"
+                            },
+                            "name": {
+                                "propertyOrder": 20,
+                                "title": "Name",
+                                "type": "string"
+                            },
+                            "fieldName": {
+                                "propertyOrder": 30,
+                                "title": "Field name",
+                                "type": "string"
+                            },
+                            "simpleCondition": {
+                                "propertyOrder": 110,
+                                "$ref": "#/definitions/simpleCondition"
+                            },
+                            "condition": {
+                                "propertyOrder": 120,
+                                "$ref": "#/definitions/condition"
+                            }
+                        },
+                        "required": ["class","fieldName"]
                     },
                     "instructionSplit": {
                         "type": "object",

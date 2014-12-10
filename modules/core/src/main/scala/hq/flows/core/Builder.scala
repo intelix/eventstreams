@@ -58,9 +58,12 @@ object Builder extends StrictLogging {
     val allBuilders = Seq(
       AddTagInstruction,
       EnrichInstruction,
+      ReplaceInstruction,
       GrokInstruction,
       GroovyInstruction,
       LogInstruction,
+      DropFieldInstruction,
+      DropTagInstruction,
       DropInstruction,
       SplitInstruction,
       DateInstruction,
