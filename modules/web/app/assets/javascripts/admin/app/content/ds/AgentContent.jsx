@@ -43,6 +43,8 @@ define(['react', 'coreMixin', 'app_ds_agentstabs', 'app_ds_table', 'app_ds_edito
                     "source": {
                         "class": "file",
                         "directory": "",
+                        "startWith": "Last",
+                        "fileOrdering": "Last Modified and Name",
                         "mainPattern": "",
                         "rollingPattern": ""
                     },

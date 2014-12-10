@@ -201,8 +201,10 @@ case class FileIndexerSession(flowId: String, target: RollingFileMonitorTarget, 
   override def tailCursor: Cursor = {
     {
       for (
-        lastResource <- locateFirstResource()
-//          lastResource <- locateLastResource()   TODO - make it configurable
+        lastResource <- target.initialPosition match {
+          case StartWithFirst() => locateFirstResource()
+          case StartWithLast() => locateLastResource()
+        }
       ) yield FileCursor(lastResource, 0)
     } getOrElse NilCursor()
   }
@@ -255,12 +257,14 @@ case class FileIndexerSession(flowId: String, target: RollingFileMonitorTarget, 
     })
       .filter(f => f.isFile && !f.getName.startsWith(".") && f.length() > minAcceptableFileSize)
       .sortWith({
-      case (f1, f2) =>
-        if (f1.lastModified() != f2.lastModified()) {
+      case (f1, f2) => target.orderBy match {
+        case OrderByLastModifiedAndName() => if (f1.lastModified() != f2.lastModified()) {
           f1.lastModified() < f2.lastModified()
         } else {
           f1.getName.compareTo(f2.getName) < 0
         }
+        case OrderByNameOnly() => f1.getName.compareTo(f2.getName) < 0
+      }
     })
       .map { f =>
       val attributes = Files.readAttributes(f.toPath, classOf[BasicFileAttributes])

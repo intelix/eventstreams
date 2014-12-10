@@ -90,6 +90,24 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], functi
                                 "title": "Directory",
                                 "type": "string"
                             },
+                            "startWith": {
+                                "propertyOrder": 21,
+                                "title": "Start with",
+                                "type": "string",
+                                "enum": [
+                                    "Last",
+                                    "First"
+                                ]
+                            },
+                            "fileOrdering": {
+                                "propertyOrder": 22,
+                                "title": "Order by",
+                                "type": "string",
+                                "enum": [
+                                    "Last Modified and Name",
+                                    "Name only"
+                                ]
+                            },
                             "mainPattern": {
                                 "propertyOrder": 30,
                                 "title": "Current filename pattern",

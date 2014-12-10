@@ -20,4 +20,18 @@ import java.io.File
 
 sealed trait MonitorTarget
 
-case class RollingFileMonitorTarget(directory: String, mainLogPattern: String, rollingLogPattern: String, orderBy: (File) => Any) extends MonitorTarget
+sealed trait InitialPosition
+case class StartWithLast() extends InitialPosition
+case class StartWithFirst() extends InitialPosition
+
+sealed trait FileOrdering
+case class OrderByLastModifiedAndName() extends FileOrdering
+case class OrderByNameOnly() extends FileOrdering
+
+
+case class RollingFileMonitorTarget(
+                                     directory: String,
+                                     mainLogPattern: String,
+                                     rollingLogPattern: String,
+                                     initialPosition: InitialPosition,
+                                     orderBy: FileOrdering) extends MonitorTarget

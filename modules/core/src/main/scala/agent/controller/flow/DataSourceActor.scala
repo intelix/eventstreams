@@ -146,7 +146,15 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
         (targetProps \ "directory").as[String],
         (targetProps \ "mainPattern").as[String],
         (targetProps \ "rollingPattern").as[String],
-        f => f.lastModified())
+        (targetProps \ "startWith").asOpt[String].map(_.toLowerCase) match {
+          case Some("first") => StartWithFirst()
+          case _ => StartWithLast()
+        },
+        (targetProps \ "fileOrdering").asOpt[String].map(_.toLowerCase) match {
+          case Some("name only") => OrderByNameOnly()
+          case _ => OrderByLastModifiedAndName()
+        }
+      )
     }
 
     def buildState(): Option[Cursor] = {
