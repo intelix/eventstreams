@@ -117,10 +117,14 @@ class FlowActor(id: String)
     "state" -> stateAsString,
     "stateDetails" -> stateDetailsAsString
   ))
-  def infoDynamic = Some(Json.obj(
-    "inrate" -> ("%.2f" format _inrate.oneMinuteRate),
-    "outrate" -> ("%.2f" format _outrate.oneMinuteRate)
-  ))
+
+  def infoDynamic = currentState match {
+    case FlowStateActive(_) => Some(Json.obj(
+      "inrate" -> ("%.2f" format _inrate.oneMinuteRate),
+      "outrate" -> ("%.2f" format _outrate.oneMinuteRate)
+    ))
+    case _ => Some(Json.obj())
+  }
 
 
   override def becomeActive(): Unit = {
@@ -136,6 +140,7 @@ class FlowActor(id: String)
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
     case T_INFO => publishInfo()
     case T_PROPS => publishProps()
+    case T_DYNINFO => publishInfo()
   }
 
   override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
