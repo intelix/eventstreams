@@ -14,50 +14,54 @@
  * limitations under the License.
  */
 
-package hq.flows
+package hq.gates
+
+import java.util.UUID
 
 import akka.actor._
 import common.actors._
-import common.{Fail, OK, Utils}
+import common.{Utils, NowProvider, Fail, OK}
 import hq._
+import hq.flows.FlowActor
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
+import scala.collection.mutable
 import scalaz.Scalaz._
-import scalaz._
+import scalaz.\/
 
 
-object FlowManagerActor extends ActorObjWithoutConfig {
-  def id = "flows"
+object GateSensorManagerActor {
+  def props(id: String) = Props(new GateSensorManagerActor(id))
 
-  def props = Props(new FlowManagerActor())
+  def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id), ActorTools.actorFriendlyId(id))
 }
 
-case class FlowAvailable(id: ComponentKey)
+case class GateSensorAvailable(id: ComponentKey)
 
-class FlowManagerActor
+class GateSensorManagerActor(id: String)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
-  with SingleComponentActor {
+  with SingleComponentActor
+  with NowProvider {
 
-  override val key = ComponentKey("flows")
+  override val key = ComponentKey(id + "/sensors")
 
-  type FlowMap = Map[ComponentKey, ActorRef]
-
-  var flows: Monitored[FlowMap] = withMonitor[FlowMap](listUpdate)(Map())
+  var sensors = mutable.Map[ComponentKey, ActorRef]()
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  override def partialStorageKey = Some("flow/")
+  override def partialStorageKey = Some(id + "/sensor")
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = startActor(Some(key), Some(props), maybeState)
 
-  def listUpdate = topicUpdateEffect(T_LIST, list)
-  def list = () => Some(Json.toJson(flows.get.keys.map { x => Json.obj("id" -> x.key)}.toArray))
+  def publishList() = T_LIST !! list
+
+  def list = Some(Json.toJson(sensors.keys.map { x => Json.obj("id" -> x.key)}.toArray))
 
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
-    case T_LIST => listUpdate()
+    case T_LIST => publishList()
   }
 
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
@@ -65,28 +69,23 @@ class FlowManagerActor
   }
 
   def handler: Receive = {
-    case FlowAvailable(route) =>
-      flows = flows.map { list => list + (route -> sender())}
+    case GateSensorAvailable(route) =>
+      sensors += route -> sender()
     case Terminated(ref) =>
-      flows = flows.map { list =>
-        list.filter {
-          case (route, otherRef) => otherRef != ref
-        }
-      }
+      sensors.collect { case (k, v) if v == ref => k} foreach sensors.remove
   }
 
-  private def startActor(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) : \/[Fail,OK] =
+  private def startActor(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]): \/[Fail, OK] =
     for (
       data <- maybeData \/> Fail("Invalid payload", Some("Invalid configuration"))
     ) yield {
-      val flowKey = key | "flow/" + Utils.generateShortUUID
+      val entryKey = key | id + "/sensor/" + shortUUID
       var json = data
       if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
-      val actor = FlowActor.start(flowKey)
+      val actor = GateSensorActor.start(entryKey)
       context.watch(actor)
       actor ! InitialConfig(json, maybeState)
-      OK("Flow successfully created")
+      OK("Sensor successfully created")
     }
-
 
 }

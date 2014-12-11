@@ -91,7 +91,7 @@ class FlowActor(id: String)
 
   def publishInfo() = {
     T_INFO !! info
-    T_DYNINFO !! infoDynamic
+    T_STATS !! infoDynamic
   }
 
   def publishProps() = T_PROPS !! propsConfig
@@ -140,11 +140,11 @@ class FlowActor(id: String)
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
     case T_INFO => publishInfo()
     case T_PROPS => publishProps()
-    case T_DYNINFO => publishInfo()
+    case T_STATS => publishInfo()
   }
 
   override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
-    (T_DYNINFO, 5, () => infoDynamic, T_DYNINFO !! _)
+    (T_STATS, 5, () => infoDynamic, T_STATS !! _)
   )
 
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {

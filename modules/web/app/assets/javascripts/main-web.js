@@ -73,6 +73,7 @@
 
             lz: "/assets/javascripts/lz-string",
             coreMixin: "tools/CoreMixin",
+            paginationMixin: "tools/PaginationMixin",
             streamMixin: "tools/StreamMixin",
             visibilityMixin: "tools/VisibilityMixin",
             logging: "tools/Logging",

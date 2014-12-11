@@ -13,21 +13,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-define(['react', 'coreMixin', 'streamMixin', 'app_gates_table_row'], function (React, coreMixin, streamMixin, Row) {
+define(['react', 'coreMixin', 'streamMixin', 'paginationMixin', 'app_gates_table_row'], function (React, coreMixin, streamMixin, paginationMixin, Row) {
 
     return React.createClass({
-        mixins: [coreMixin, streamMixin],
+        mixins: [coreMixin, streamMixin, paginationMixin],
 
-        componentName: function() { return "app/content/gates/Table"; },
+        componentName: function () {
+            return "app/content/gates/Table";
+        },
 
         subscriptionConfig: function (props) {
             return [{address: props.addr, route: 'gates', topic: 'list', dataKey: 'list'}];
         },
         getInitialState: function () {
-            return {list: null}
+            return {
+                list: null,
+                pageSize: 10,
+                page: 1
+            }
         },
 
-        handleAddNew: function() {
+        subscribeToEvents: function () {
+            return [
+                ["tableRowClicked", this.handleTableRowClick]
+            ]
+        },
+
+        handleTableRowClick: function (evt) {
+            this.setState({tableShrinked: !this.state.tableShrinked, selectedItem: evt.detail.id});
+        },
+
+        handleAddNew: function () {
             this.raiseEvent("addGate", {});
         },
 
@@ -35,8 +51,11 @@ define(['react', 'coreMixin', 'streamMixin', 'app_gates_table_row'], function (R
             var props = this.props;
             var self = this;
 
-            function header() {
-                return <tr>
+            var shrinked = self.state.tableShrinked;
+
+            var header;
+            if (!shrinked) {
+                header = <tr>
                     <th>Name</th>
                     <th>Address</th>
                     <th>Retention</th>
@@ -53,10 +72,16 @@ define(['react', 'coreMixin', 'streamMixin', 'app_gates_table_row'], function (R
                     <th>State</th>
                     <th></th>
                 </tr>;
+            } else {
+                header = <tr>
+                    <th>Name</th>
+                    <th>State</th>
+                </tr>;
             }
 
+
             function row(el) {
-                return <Row {...props} key={el.id} id={el.id} />;
+                return <Row {...props} key={el.id} id={el.id} shrinked={shrinked} selected={el.id == self.state.selectedItem}/>;
             }
 
             var buttonClasses = this.cx({
@@ -65,25 +90,64 @@ define(['react', 'coreMixin', 'streamMixin', 'app_gates_table_row'], function (R
 
             var addButton = <div className="withspace">
                 <button type="button" className={"btn btn-default btn-sm " + buttonClasses} onClick={self.handleAddNew} >
-                Add new
+                    Add new
                 </button>
             </div>;
 
-            return (
-                <div>
-                    {addButton}
+            var pagination = self.renderPagination();
 
-                    <table className="table table-striped">
-                        <thead>
-                        {header()}
-                        </thead>
-                        <tbody>
-                        {self.state.list.map(row)}
-                        </tbody>
+            var tableContent = <span>
+                {addButton}
 
-                    </table>
-                </div>
-            );
+                <table  className="table table-striped table-hover" >
+                    <thead>
+                        {header}
+                    </thead>
+                    <tbody >
+                        {self.itemsOnCurrentPage().map(row)}
+                    </tbody>
+                </table>
+
+                {pagination}
+            </span>;
+
+
+
+            if (shrinked) {
+                return (
+                    <div className="row">
+                        <div className="col-md-2">
+                        {tableContent}
+                        </div>
+                        <div className="col-md-5">
+                            <div className="panel panel-default withspace info">
+                                <div className="panel-heading">Panel heading</div>
+
+                                <table className="table">
+                                    ...
+                                </table>
+                            </div>
+                        </div>
+                        <div className="col-md-5">
+                            <div className="panel panel-default withspace">
+                                <div className="panel-heading">Panel heading</div>
+
+                                <table className="table">
+                                    ...
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                );
+            } else {
+                return (
+                    <div className="row">
+                        <div className="col-md-12">
+                        {tableContent}
+                        </div>
+                    </div>
+                );
+            }
         },
         renderLoading: function () {
             return (

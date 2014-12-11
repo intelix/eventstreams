@@ -16,14 +16,12 @@
 
 package hq.agents
 
-import java.util.UUID
-
 import agent.controller.AgentMessagesV1.{AgentDatasources, AgentInfo}
 import agent.controller.DatasourceRef
 import agent.shared.{CommunicationProxyRef, CreateDatasource}
 import akka.actor._
 import akka.remote.DisassociatedEvent
-import common.OK
+import common.{Utils, OK}
 import common.actors._
 import hq._
 import play.api.libs.json.{JsValue, Json}
@@ -115,7 +113,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
 
     list.foreach { ds =>
       if (!datasources.exists(_.id == ds.id)) {
-        val compKey = key / UUID.randomUUID().toString
+        val compKey = key / Utils.generateShortUUID
         val actor = DatasourceProxyActor.start(compKey, ds.ref)
         context.watch(actor)
         datasources  = datasources :+ DatasourceProxyMeta(ds.id, actor, compKey, confirmed = false)

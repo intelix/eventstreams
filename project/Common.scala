@@ -13,18 +13,23 @@ object Common {
   // Common settings for every project
   def settings (theName: String) = Seq(
     name := theName,
-    organization := "com.myweb",
+    organization := "au.com.intelix",
     version := "1.0-SNAPSHOT",
     scalaVersion := "2.11.2",
     doc in Compile <<= target.map(_ / "none"),
     scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked", "-language:reflectiveCalls")
   )
   // Settings for the app, i.e. the root project
-  val appSettings = settings(appName)
+  val appSettings = settings(appName) ++: Seq(
+    resolvers += "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
+  )
+
   // Settings for every module, i.e. for every subproject
   def moduleSettings (module: String) = settings(module) ++: Seq(
-    javaOptions in Test += s"-Dconfig.resource=application.conf"
+    javaOptions in Test += s"-Dconfig.resource=application.conf",
+    resolvers += "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
   )
+
   // Settings for every service, i.e. for admin and web subprojects
   def serviceSettings (module: String) = moduleSettings(module) ++: Seq(
     includeFilter in (Assets, LessKeys.less) := "*.less",
@@ -35,6 +40,7 @@ object Common {
 
   val commonDependencies = Seq(
     ws,
+    "com.typesafe.play" %% "play-cache" % "2.3.6",
     "com.googlecode.scalascriptengine" %% "scalascriptengine" % "1.3.10",
     "org.scala-lang" % "scala-compiler" % "2.11.1",
     "org.codehaus.groovy" % "groovy-all" % "2.3.6",
@@ -68,7 +74,6 @@ object Common {
     "org.ocpsoft.prettytime" % "prettytime" % "3.2.5.Final",
     "nl.grons" %% "metrics-scala" % "3.3.0_a2.3",
     "com.eaio.uuid" % "uuid" % "3.2"
-
 
   )
 }

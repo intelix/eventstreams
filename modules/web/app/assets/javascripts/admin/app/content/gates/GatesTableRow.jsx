@@ -25,22 +25,26 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
         subscriptionConfig: function (props) {
             return [
                 {address: props.addr, route: props.id, topic: 'info', dataKey: 'info'},
-                {address: props.addr, route: props.id, topic: 'dyninfo', dataKey: 'dyninfo'}
+                {address: props.addr, route: props.id, topic: 'stats', dataKey: 'stats'}
             ];
         },
         getInitialState: function () {
-            return {info: false, dyninfo: false}
+            return {info: false, stats: false}
         },
 
         handleClick: function() {
             this.raiseEvent("editGate", {id: this.props.id});
         },
 
+        handleRowClick: function() {
+            this.raiseEvent("tableRowClicked", {id: this.props.id});
+        },
+
         renderData: function () {
             var self = this;
 
             var info = self.state.info;
-            var dyninfo = self.state.dyninfo;
+            var stats = self.state.stats;
 
             var sinkReq;
             if (info.acceptWithoutSinks) {
@@ -72,35 +76,42 @@ define(['react', 'coreMixin', 'streamMixin', 'visibilityMixin', 'app_content_but
             }
 
             var currentRate = "N/A";
-            if (dyninfo.rate) currentRate = dyninfo.rate +"/s";
+            if (stats.rate) currentRate = stats.rate +"/s";
             var meanRate = "N/A";
-            if (dyninfo.mrate) meanRate = dyninfo.mrate +"/s";
+            if (stats.mrate) meanRate = stats.mrate +"/s";
 
-            return <tr ref='monitorVisibility'>
-                <td>{mainLink}</td>
-                <td>{info.address}</td>
-                <td>{info.retention}</td>
-                <td>{dyninfo.retained}</td>
-                <td>{info.overflow}</td>
-                <td>{sinkReq}</td>
-                <td>{dyninfo.inflight}</td>
-                <td>{currentRate}</td>
-                <td>{meanRate}</td>
-                <td>{dyninfo.activeDS}</td>
-                <td>{info.sinks}</td>
-                <td>{info.created}</td>
-                <td>{info.sinceStateChange}</td>
-                <td>{state}</td>
-                <td>
-                    <StartStopButton {...self.props} state={info.state} route={self.props.id} />
-                    <DeleteButton {...self.props} route={self.props.id} />
+            if (self.props.shrinked) {
+                return <tr  className={self.props.selected?"warning":""} ref='monitorVisibility' onClick={self.handleRowClick.bind(self, self.props.id)}>
+                    <td>{mainLink}</td>
+                    <td>{state}</td>
+                </tr>;
+            } else {
+                return <tr ref='monitorVisibility' onClick={self.handleRowClick}>
+                    <td>{mainLink}</td>
+                    <td>{info.address}</td>
+                    <td>{info.retention}</td>
+                    <td>{stats.retained}</td>
+                    <td>{info.overflow}</td>
+                    <td>{sinkReq}</td>
+                    <td>{stats.inflight}</td>
+                    <td>{currentRate}</td>
+                    <td>{meanRate}</td>
+                    <td>{stats.activeDS}</td>
+                    <td>{info.sinks}</td>
+                    <td>{info.created}</td>
+                    <td>{info.sinceStateChange}</td>
+                    <td>{state}</td>
+                    <td>
+                        <StartStopButton {...self.props} state={info.state} route={self.props.id} />
+                        <DeleteButton {...self.props} route={self.props.id} />
                     {replayButton}
-                </td>
-            </tr>;
+                    </td>
+                </tr>;
+            }
         },
         renderLoading: function () {
             return (
-                <tr><td colSpan="15">loading...</td></tr>
+                <tr><td colSpan={this.props.shrinked?2:15}>loading...</td></tr>
             );
         },
 

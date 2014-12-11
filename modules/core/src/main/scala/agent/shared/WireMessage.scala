@@ -16,39 +16,47 @@
 
 package agent.shared
 
-import java.util.UUID
-
 import akka.actor.ActorRef
 import play.api.libs.json.JsValue
 
 trait WireMessage
 
 trait AgentControllerMessage extends WireMessage
+
 trait AgentMessage extends WireMessage
 
 case class Acknowledgeable[T](msg: T, id: Long) extends AgentMessage
+
 case class AcknowledgeAsProcessed(id: Long) extends AgentMessage
+
 case class AcknowledgeAsReceived(id: Long) extends AgentMessage
+
 case class MessageWithAttachments[T](msg: T, attachments: JsValue) extends AgentMessage
 
 
 sealed trait GateState
+
 case class GateClosed() extends GateState
+
 case class GateOpen() extends GateState
 
 case class GateStateCheck(ref: ActorRef)
+
 case class GateStateUpdate(state: GateState)
 
 
 case class Handshake(ref: ActorRef, uuid: String) extends AgentControllerMessage
+
 case class CommunicationProxyRef(ref: ActorRef) extends AgentControllerMessage
 
-//case class GenericJSONMessage(json: String)
 
 
 case class CreateDatasource(config: JsValue) extends AgentControllerMessage
+
 case class ReconfigureTap(config: JsValue) extends AgentControllerMessage
+
 case class RemoveTap() extends AgentControllerMessage
+
 case class ResetTapState() extends AgentControllerMessage
 
 

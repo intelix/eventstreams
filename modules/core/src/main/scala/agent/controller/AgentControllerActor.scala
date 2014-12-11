@@ -16,15 +16,13 @@
 
 package agent.controller
 
-import java.util.UUID
-
 import agent.controller.AgentMessagesV1.{AgentInfo, AgentDatasources}
 import agent.controller.flow.DatasourceActor
 import agent.shared._
 import akka.actor.{ActorRef, Props, Terminated}
 import akka.stream.FlowMaterializer
 import com.typesafe.config.Config
-import common.{NowProvider, Fail}
+import common.{Utils, NowProvider, Fail}
 import common.ToolExt.configHelper
 import common.actors._
 import hq.ComponentKey
@@ -85,7 +83,7 @@ class AgentControllerActor(implicit config: Config)
       data <- maybeData \/> Fail("Invalid payload")
     ) yield {
       logger.debug(s"Original config for $key: $maybeData ")
-      val datasourceKey = key | "ds/" + UUID.randomUUID().toString
+      val datasourceKey = key | "ds/" + Utils.generateShortUUID
       var json = data
       if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
       val actor = DatasourceActor.start(datasourceKey)

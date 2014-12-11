@@ -40,6 +40,7 @@ object GateActor {
 }
 
 
+
 case class RegisterSink(sinkRef: ActorRef)
 
 private case class InflightMessage(originalCorrelationId: Long, originator: ActorRef, retentionPending: Boolean, deliveryPending: Boolean)
@@ -104,6 +105,8 @@ class GateActor(id: String)
 
   override def storageKey: Option[String] = Some(id)
 
+
+
   override def preStart(): Unit = {
 
     if (isPipelineActive)
@@ -118,7 +121,7 @@ class GateActor(id: String)
 
   private def publishInfo() = {
     T_INFO !! info
-    T_DYNINFO !! infoDynamic
+    T_STATS !! stats
   }
   private def publishProps() = T_PROPS !! propsConfig
 
@@ -192,7 +195,7 @@ class GateActor(id: String)
     "sinks" -> sinks.size
   ))
 
-  def infoDynamic = currentState match {
+  def stats = currentState match {
     case GateStateOpen(_) | GateStateReplay(_) => Some(Json.obj(
       "rate" -> ("%.2f" format _rateMeter.oneMinuteRate),
       "mrate" -> ("%.2f" format _rateMeter.meanRate),
@@ -542,7 +545,7 @@ class GateActor(id: String)
   }
 
   override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
-    (T_DYNINFO, 5, () => infoDynamic, T_DYNINFO !! _)
+    (T_STATS, 5, () => stats, T_STATS !! _)
   )
 }
 

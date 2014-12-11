@@ -96,3 +96,15 @@ body {
 p{padding:20px;}
 
 .withspace { margin-top: 30px; }
+
+table, th, td {
+  border: 2px solid white;
+  -webkit-border-radius:0px;
+  border-radius:0px;
+}
+.bootstrap-table .table {
+  margin-bottom: 0 !important;
+  border-bottom: 0px solid #dddddd;
+  border-collapse: collapse !important;
+  border-radius: 0px;
+}

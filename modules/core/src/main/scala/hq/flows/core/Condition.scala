@@ -20,8 +20,10 @@ import agent.controller.flow.Tools._
 import com.typesafe.scalalogging.StrictLogging
 import common.ToolExt.configHelper
 import common.{Fail, JsonFrame, OK}
-import play.api.libs.json.{JsArray, JsString, JsValue, Json}
+import play.api.libs.json._
 
+import scala.collection.mutable
+import scala.util.Try
 import scala.util.matching.Regex
 import scalaz.Scalaz._
 import scalaz._
@@ -33,11 +35,19 @@ sealed trait Condition extends StrictLogging {
   def metFor(frame: JsonFrame): CheckResult
 }
 
+private object Support {
+  val regexCache = mutable.Map[String, Regex]()
+  def regexFor(s: Option[String]) : Option[Regex] = s.map { key => regexCache.getOrElseUpdate(key, new Regex(key)) }
+}
+
 object SimpleCondition extends StrictLogging {
+
 
   val tagRegex = "#(.+)".r
   val isNot = "(.+?)!=(.+)".r
   val is = "(.+?)=(.+)".r
+  val isLess = "(.+?)<(.+)".r
+  val isMore = "(.+?)>(.+)".r
 
   def apply(optStr: Option[String]): Option[\/[Fail, Condition]] = {
 
@@ -60,6 +70,8 @@ object SimpleCondition extends StrictLogging {
               x <- eachAnd.trim match {
                 case isNot(a, b) => \/-(("isnot", a, b))
                 case is(a, b) => \/-(("is", a, b))
+                case isLess(a, b) => \/-(("isless", a, b))
+                case isMore(a, b) => \/-(("ismore", a, b))
                 case x => -\/(Fail(s"Invalid expression $x source ${eachAnd.trim}"))
               };
               (cond, fieldOrTag, value) = x;
@@ -71,7 +83,8 @@ object SimpleCondition extends StrictLogging {
             ) yield Json.obj(
               "class" -> cl,
               "name" -> nm,
-              cond -> value
+              "value" -> value,
+              "cond" -> cond
             )
           }
 
@@ -118,8 +131,12 @@ object SimpleCondition extends StrictLogging {
   }
 }
 
-private case class AlwaysTrueCondition() extends Condition {
+case class AlwaysTrueCondition() extends Condition {
   override def metFor(frame: JsonFrame): CheckResult = OK("always true condition").right
+}
+
+case class NeverTrueCondition() extends Condition {
+  override def metFor(frame: JsonFrame): CheckResult = Fail("always false condition").left
 }
 
 private case class AnyCondition(conditions: Seq[Condition]) extends Condition {
@@ -136,73 +153,147 @@ private case class AllCondition(conditions: Seq[Condition]) extends Condition {
     } | OK().right
 }
 
-private case class FieldCondition(name: String, is: Option[Regex], isnot: Option[Regex]) extends Condition {
+private case class FieldCondition(name: String, criteriaValue: Option[String], criteriaCondition: Option[String]) extends Condition {
   override def metFor(frame: JsonFrame): CheckResult =
     checkConditions(
       locateFieldValue(
         frame, macroReplacement(frame, JsString(name))))
 
-  def checkConditions(value: JsValue): CheckResult =
-    for (
-      isMet <- is match {
-        case Some(regex) => regex.findFirstIn(value) match {
-          case None => Fail(s"'is' condition failed: $regex in $value. ").left
-          case Some(_) => OK(s"'is' condition succeeded: $regex in $value. ").right
+  def checkConditions(valueToCheck: JsValue): CheckResult =
+    criteriaCondition match {
+      case None => OK("condition not defined. skipped").right
+      case Some("is") => criteriaValue match {
+        case Some(expectedValue) => valueToCheck match {
+          case JsNumber(numericValueToCheck) => Try {
+            if (numericValueToCheck ==  BigDecimal(expectedValue))
+              OK(s"'is' condition succeeded: $numericValueToCheck == $expectedValue").right
+            else
+              Fail(s"'is' condition failed: $numericValueToCheck is not == $expectedValue").left
+          }.recover {
+            case _ => Fail(s"'is' condition failed: Unparsable number $expectedValue in criteria").left
+          }.get
+          case other => other.asOpt[String].map { stringValueToCheck =>
+            Support.regexFor(criteriaValue) match {
+              case Some(regex) => regex.findFirstIn(stringValueToCheck) match {
+                case None => Fail(s"'is' condition failed: $regex in $stringValueToCheck. ").left
+                case Some(_) => OK(s"'is' condition succeeded: $regex in $stringValueToCheck. ").right
+              }
+              case None => OK(s"'is' condition not defined (value is blank), skipped. ").right
+            }
+          } | Fail(s"'is' condition failed: $other is not comparable").left
         }
-        case None => OK(s"'is' condition not defined, skipped. ").right
-      };
-      isNotMet <- isnot match {
-        case Some(regex) => regex.findFirstIn(value) match {
-          case Some(_) => Fail(s"'isnot' condition failed: $regex in $value. ").left
-          case None => OK(s"'isnot' condition succeeded: $regex in $value. ").right
-        }
-        case None => OK(s"'isnot' condition not defined, skipped. ").right
+        case None => OK(s"'is' condition not defined (value is blank), skipped. ").right
       }
-    ) yield isMet + isNotMet
+      case Some("isnot") => criteriaValue match {
+        case Some(expectedValue) => valueToCheck match {
+          case JsNumber(numericValueToCheck) => Try {
+            if (numericValueToCheck !=  BigDecimal(expectedValue))
+              OK(s"'isnot' condition succeeded: $numericValueToCheck != $expectedValue").right
+            else
+              Fail(s"'isnot' condition failed: $numericValueToCheck is == $expectedValue").left
+          }.recover {
+            case _ => Fail(s"'isnot' condition failed: Unparsable number $expectedValue in criteria").left
+          }.get
+          case other => other.asOpt[String].map { stringValueToCheck =>
+            Support.regexFor(criteriaValue) match {
+              case Some(regex) => regex.findFirstIn(stringValueToCheck) match {
+                case Some(_) => Fail(s"'isnot' condition failed: $regex in $stringValueToCheck. ").left
+                case None => OK(s"'isnot' condition succeeded: $regex in $stringValueToCheck. ").right
+              }
+              case None => OK(s"'isnot' condition not defined (value is blank), skipped. ").right
+            }
+          } | Fail(s"'is' condition failed: $other is not comparable").left
+        }
+        case None => OK(s"'isnot' condition not defined (value is blank), skipped. ").right
+      }
+      case Some("isless") => criteriaValue match {
+        case Some(expectedValue) => valueToCheck match {
+          case JsNumber(numericValueToCheck) => Try {
+            if (numericValueToCheck <  BigDecimal(expectedValue))
+              OK(s"'isless' condition succeeded: $numericValueToCheck < $expectedValue").right
+            else
+              Fail(s"'isless' condition failed: $numericValueToCheck is not < $expectedValue").left
+          }.recover {
+            case _ => Fail(s"'isless' condition failed: Unparsable number $expectedValue in criteria").left
+          }.get
+          case other => other.asOpt[String].map { stringValueToCheck =>
+            if (stringValueToCheck < expectedValue)
+              OK(s"'isless' condition succeeded: $stringValueToCheck < $expectedValue").right
+            else
+              Fail(s"'isless' condition failed: $stringValueToCheck is not < $expectedValue").left
+          } | Fail(s"'isless' condition failed: $other is not comparable").left
+        }
+        case None => OK(s"'isless' condition not defined (value is blank), skipped. ").right
+      }
+      case Some("ismore") => criteriaValue match {
+        case Some(expectedValue) => valueToCheck match {
+          case JsNumber(numericValueToCheck) => Try {
+            if (numericValueToCheck > BigDecimal(expectedValue))
+              OK(s"'ismore' condition succeeded: $numericValueToCheck > $expectedValue").right
+            else
+              Fail(s"'ismore' condition failed: $numericValueToCheck is not > $expectedValue").left
+          }.recover {
+            case _ => Fail(s"'ismore' condition failed: Unparsable number $expectedValue in criteria").left
+          }.get
+          case other => other.asOpt[String].map { stringValueToCheck =>
+            if (stringValueToCheck > expectedValue)
+              OK(s"'ismore' condition succeeded: $stringValueToCheck > $expectedValue").right
+            else
+              Fail(s"'ismore' condition failed: $stringValueToCheck is not > $expectedValue").left
+          } | Fail(s"'ismore' condition failed: $other is not comparable").left
+        }
+        case None => OK(s"'ismore' condition not defined (value is blank), skipped. ").right
+      }
+      case x => Fail("Unsupported condition $x").left
+    }
 
-  override def toString = s"Field $name is $is and isnot $isnot"
+  override def toString = s"Field $name cond: $criteriaCondition val: $criteriaValue"
 }
 
-private case class TagCondition(name: String, is: Option[Regex], isnot: Option[Regex]) extends Condition {
+private case class TagCondition(name: String, criteriaValue: Option[String], criteriaCondition: Option[String]) extends Condition {
   override def metFor(frame: JsonFrame): CheckResult = {
     checkConditions(
       locateFieldValue(frame, "tags").asOpt[JsArray].map(_.value.map(_.asOpt[String].getOrElse("")).filter(_ == name)))
   }
-
   def checkConditions(value: Option[Seq[String]]): CheckResult =
-    for (
-      isMet <- is match {
-        case Some(regex) =>
-          val exists = value.exists(_.exists(regex.findFirstIn(_) match {
-            case None => false
-            case Some(_) => true
-          }))
-          if (exists)
-            OK(s"'is' condition succeeded: $regex in $value. ").right
-          else
-            Fail(s"'is' condition failed: $regex in $value. ").left
-        case None => OK(s"'is' condition not defined, skipped. ").right
-      };
-      isNotMet <- isnot match {
-        case Some(regex) =>
-          val exists = value.exists(_.exists(regex.findFirstIn(_) match {
-            case None => false
-            case Some(_) => true
-          }))
-          if (!exists)
-            OK(s"'isnot' condition succeeded: $regex in $value. ").right
-          else
-            Fail(s"'isnot' condition failed: $regex in $value. ").left
-        case None => OK(s"'isnot' condition not defined, skipped. ").right
-      }
-    ) yield isMet + isNotMet
+    criteriaCondition match {
+      case None => OK("condition not defined. skipped").right
+      case Some("is") =>
+        Support.regexFor(criteriaValue) match {
+          case Some(regex) =>
+            val exists = value.exists(_.exists(regex.findFirstIn(_) match {
+              case None => false
+              case Some(_) => true
+            }))
+            if (exists)
+              OK(s"'is' condition succeeded: $regex in $value. ").right
+            else
+              Fail(s"'is' condition failed: $regex in $value. ").left
+          case None => OK(s"'is' condition not defined, skipped. ").right
+        }
+      case Some("isnot") =>
+        Support.regexFor(criteriaValue) match {
+          case Some(regex) =>
+            val exists = value.exists(_.exists(regex.findFirstIn(_) match {
+              case None => false
+              case Some(_) => true
+            }))
+            if (!exists)
+              OK(s"'isnot' condition succeeded: $regex in $value. ").right
+            else
+              Fail(s"'isnot' condition failed: $regex in $value. ").left
+          case None => OK(s"'isnot' condition not defined, skipped. ").right
+        }
+      case x => Fail("Unsupported condition $x").left
+    }
 
-  override def toString = s"Tag $name is $is and isnot $isnot"
+  override def toString = s"Tag $name $name cond: $criteriaCondition val: $criteriaValue"
 }
 
 
 object Condition {
 
+  val neverTrue = new NeverTrueCondition()
 
   def apply(optConfig: Option[JsValue]): \/[Fail, Condition] =
     optConfig.flatMap(condition) | alwaysTrue
@@ -227,17 +318,17 @@ object Condition {
   private def tag(config: JsValue): \/[Fail, Condition] =
     for (
       name <- config ~> 'name \/> Fail(s"Invalid tag config. Missing 'name' value. Contents: ${Json.stringify(config)}");
-      is = config ~> 'is map (new Regex(_));
-      isnot = config ~> 'isnot map (new Regex(_))
-    ) yield TagCondition(name, is, isnot)
+      v = config ~> 'value ;
+      c = config ~> 'cond
+    ) yield TagCondition(name, v, c)
 
 
   private def field(config: JsValue): \/[Fail, Condition] =
     for (
       name <- config ~> 'name \/> Fail(s"Invalid field config. Missing 'name' value. Contents: ${Json.stringify(config)}");
-      is = config ~> 'is map (new Regex(_));
-      isnot = config ~> 'isnot map (new Regex(_))
-    ) yield FieldCondition(name, is, isnot)
+      v = config ~> 'value ;
+      c = config ~> 'cond
+    ) yield FieldCondition(name, v, c)
 
 
   private def conditionSequence(seq: Seq[JsValue]): \/[Fail, Seq[Condition]] =

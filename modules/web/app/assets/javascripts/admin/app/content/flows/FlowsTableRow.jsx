@@ -26,11 +26,11 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
         subscriptionConfig: function (props) {
             return [
                 {address: props.addr, route: props.id, topic: 'info', dataKey: 'info'},
-                {address: props.addr, route: props.id, topic: 'dyninfo', dataKey: 'dyninfo'}
+                {address: props.addr, route: props.id, topic: 'stats', dataKey: 'stats'}
             ];
         },
         getInitialState: function () {
-            return {info: false, dyninfo: false}
+            return {info: false, stats: false}
         },
 
         handleClick: function() {
@@ -41,7 +41,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
             var self = this;
 
             var info = self.state.info;
-            var dyninfo = self.state.dyninfo;
+            var stats = self.state.stats;
 
             var state;
             switch (info.state) {
@@ -58,9 +58,9 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
             }
 
             var inRate = "N/A";
-            if (dyninfo.inrate) inRate = dyninfo.inrate +"/s";
+            if (stats.inrate) inRate = stats.inrate +"/s";
             var outRate = "N/A";
-            if (dyninfo.outrate) outRate = dyninfo.outrate +"/s";
+            if (stats.outrate) outRate = stats.outrate +"/s";
 
 
             return <tr>

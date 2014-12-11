@@ -36,7 +36,7 @@ trait SingleComponentActor
   val T_EDIT = TopicKey("edit")
   val T_LIST = TopicKey("list")
   val T_INFO = TopicKey("info")
-  val T_DYNINFO = TopicKey("dyninfo")
+  val T_STATS = TopicKey("stats")
   val T_PROPS = TopicKey("props")
   val T_START = TopicKey("start")
   val T_STOP = TopicKey("stop")

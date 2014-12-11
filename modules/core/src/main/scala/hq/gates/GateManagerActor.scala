@@ -16,8 +16,6 @@
 
 package hq.gates
 
-import java.util.UUID
-
 import akka.actor._
 import common.actors._
 import common.{NowProvider, Fail, OK}
@@ -79,7 +77,7 @@ class GateManagerActor
     for (
       data <- maybeData \/> Fail("Invalid payload")
     ) yield {
-      val gateKey = key | "gate/" + UUID.randomUUID().toString
+      val gateKey = key | "gate/" + shortUUID
       var json = data
       if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
       val actor = GateActor.start(gateKey)
