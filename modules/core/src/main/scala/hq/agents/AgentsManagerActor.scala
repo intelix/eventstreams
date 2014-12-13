@@ -42,11 +42,22 @@ class AgentsManagerActor
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  private def publishList() = T_LIST !! Some(Json.toJson(agents.keys.map { x => Json.obj("id" -> x.key)}.toArray))
+  private def publishList() = T_LIST !! Some(Json.toJson(agents.keys.map { x => Json.obj("ckey" -> x.key)}.toArray))
 
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
     case T_LIST => publishList()
+  }
+
+
+  override def onTerminated(ref: ActorRef): Unit = {
+    logger.info(s"Agent proxy terminated $ref")
+    agents = agents.filter {
+      case (name, otherRef) => otherRef != ref
+    }
+    publishList()
+
+    super.onTerminated(ref)
   }
 
   private def handler: Receive = {
@@ -56,12 +67,6 @@ class AgentsManagerActor
     case AgentProxyAvailable(name) =>
       logger.info(s"Agent proxy confirmed $name")
       agents = agents + (name -> sender())
-      publishList()
-    case Terminated(ref) =>
-      logger.info(s"Agent proxy terminated $ref")
-      agents = agents.filter {
-        case (name, otherRef) => otherRef != ref
-      }
       publishList()
   }
 

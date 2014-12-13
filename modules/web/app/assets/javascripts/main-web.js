@@ -30,55 +30,30 @@
             bootstrap: "../lib/bootstrap/js/bootstrap",
             toastr: "../lib/toastr/toastr",
 
-
-            app_layout: adminApp("Layout"),
-
-            app_navbar: adminApp("navigation/Navbar"),
-            app_navbar_el_mixin: adminApp("navigation/NavbarElementMixin"),
-            app_navbar_gates: adminApp("navigation/NavbarGates"),
-            app_navbar_flows: adminApp("navigation/NavbarFlows"),
-            app_navbar_ds: adminApp("navigation/NavbarDatasources"),
-            app_navbar_notif: adminApp("navigation/NavbarNotifications"),
-
-            app_content: adminApp("content/ContentManager"),
-            app_content_nodetabs: adminApp("content/commons/ClusterNodesTabs"),
-            app_content_editor_mixin: adminApp("content/commons/JSONEditorModalMixin"),
-            app_content_button_startstop: adminApp("content/commons/StartStopButton"),
-            app_content_button_delete: adminApp("content/commons/DeleteButton"),
-            app_content_button_reset: adminApp("content/commons/ResetButton"),
-
-            app_gates: adminApp("content/gates/Content"),
-            app_gates_table: adminApp("content/gates/GatesTable"),
-            app_gates_table_row: adminApp("content/gates/GatesTableRow"),
-            app_gates_editor: adminApp("content/gates/GatesEditor"),
-            app_gates_button_replay: adminApp("content/gates/ReplayButton"),
-
-            app_flows: adminApp("content/flows/Content"),
-            app_flows_table: adminApp("content/flows/FlowsTable"),
-            app_flows_table_row: adminApp("content/flows/FlowsTableRow"),
-            app_flows_editor: adminApp("content/flows/FlowsEditor"),
-
-            app_ds: adminApp("content/ds/Content"),
-            app_ds_agentstabs: adminApp("content/ds/AgentsTabs"),
-            app_ds_agent_content: adminApp("content/ds/AgentContent"),
-            app_ds_table: adminApp("content/ds/DatasourcesTable"),
-            app_ds_table_row: adminApp("content/ds/DatasourcesTableRow"),
-            app_ds_editor: adminApp("content/ds/DatasourcesEditor"),
-            app_ds_agentname: adminApp("content/ds/AgentName"),
-
-            app_notif: adminApp("content/notif/Content"),
-
+            common_nodetabs: adminApp("content/commons/ClusterNodesTabs"),
+            common_editor_mixin: adminApp("content/commons/JSONEditorModalMixin"),
+            common_button_startstop: adminApp("content/commons/StartStopButton"),
+            common_button_delete: adminApp("content/commons/DeleteButton"),
+            common_button_edit: adminApp("content/commons/EditButton"),
+            common_button_reset: adminApp("content/commons/ResetButton"),
+            common_statelabel: adminApp("content/commons/StateLabel"),
+            common_rate: adminApp("content/commons/Rate"),
+            common_yesno: adminApp("content/commons/YesNo"),
+            common_panel_startstop: adminApp("content/commons/StartStopPanel"),
+            common_panel_delete: adminApp("content/commons/DeletePanel"),
+            common_tabs: adminApp("content/commons/Tabs"),
 
 
 
             lz: "/assets/javascripts/lz-string",
-            coreMixin: "tools/CoreMixin",
+            core_mixin: "tools/CoreMixin",
             paginationMixin: "tools/PaginationMixin",
-            streamMixin: "tools/StreamMixin",
-            visibilityMixin: "tools/VisibilityMixin",
             logging: "tools/Logging",
             wsclient: "tools/ServerClient"
         },
+        packages: [
+            'admin/app'
+        ],
         shim: {
             bootstrap: {
                 deps: ["jquery"]
@@ -92,6 +67,6 @@
         }
     });
 
-    require(["admin/app"]);
+    require(["admin/main"]);
 
 })();

@@ -108,3 +108,28 @@ table, th, td {
   border-collapse: collapse !important;
   border-radius: 0px;
 }
+
+
+@media (min-width: 992px) {
+  ._col-md-2 > .panel > .panel-body {
+    min-height: 150px;
+  }
+  ._col-md-3 > .panel > .panel-body {
+    min-height: 150px;
+  }
+}
+
+tr.expanded {
+  background-color: #ffffff;
+}
+td.expanded {
+  background-color: #ffffff;
+}
+
+tr.clickable {
+  -webkit-user-select: none; /* webkit (safari, chrome) browsers */
+  -moz-user-select: none; /* mozilla browsers */
+  -khtml-user-select: none; /* webkit (konqueror) browsers */
+  -ms-user-select: none; /* IE10+ */
+  cursor: pointer;
+}

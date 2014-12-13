@@ -53,7 +53,7 @@ class FlowManagerActor
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = startActor(Some(key), Some(props), maybeState)
 
   def listUpdate = topicUpdateEffect(T_LIST, list)
-  def list = () => Some(Json.toJson(flows.get.keys.map { x => Json.obj("id" -> x.key)}.toArray))
+  def list = () => Some(Json.toJson(flows.get.keys.map { x => Json.obj("ckey" -> x.key)}.toArray))
 
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
@@ -64,15 +64,20 @@ class FlowManagerActor
     case T_ADD => startActor(None, maybeData, None)
   }
 
+
+  override def onTerminated(ref: ActorRef): Unit = {
+    flows = flows.map { list =>
+      list.filter {
+        case (route, otherRef) => otherRef != ref
+      }
+    }
+
+    super.onTerminated(ref)
+  }
+
   def handler: Receive = {
     case FlowAvailable(route) =>
       flows = flows.map { list => list + (route -> sender())}
-    case Terminated(ref) =>
-      flows = flows.map { list =>
-        list.filter {
-          case (route, otherRef) => otherRef != ref
-        }
-      }
   }
 
   private def startActor(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) : \/[Fail,OK] =

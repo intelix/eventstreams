@@ -51,7 +51,7 @@ class GateManagerActor
 
   def listUpdate = topicUpdateEffect(T_LIST, list)
 
-  def list = () => Some(Json.toJson(gates.get.keys.map { x => Json.obj("id" -> x.key)}.toArray))
+  def list = () => Some(Json.toJson(gates.get.keys.map { x => Json.obj("ckey" -> x.key)}.toArray))
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
     case T_LIST => listUpdate()
@@ -62,13 +62,19 @@ class GateManagerActor
 
   }
 
-  def handler: Receive = {
-    case GateAvailable(route) => gates = gates.map { list => list + (route -> sender())}
-    case Terminated(ref) => gates = gates.map { list =>
+
+  override def onTerminated(ref: ActorRef): Unit = {
+    gates = gates.map { list =>
       list.filter {
         case (route, otherRef) => otherRef != ref
       }
     }
+    super.onTerminated(ref)
+  }
+
+  def handler: Receive = {
+    case GateAvailable(route) => gates = gates.map { list => list + (route -> sender())}
+
   }
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addGate(Some(key), Some(props), maybeState)

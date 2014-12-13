@@ -86,8 +86,16 @@ class GateSensorActor(id: String)
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
 
+  override def preStart(): Unit = {
+    super.preStart()
+  }
+
   def publishInfo() = {
     T_INFO !! info
+    T_STATS !! stats
+  }
+
+  def publishStats() = {
     T_STATS !! stats
   }
 
@@ -107,7 +115,8 @@ class GateSensorActor(id: String)
 
   def stats = currentState match {
     case GateSensorStateActive(_) => Some(Json.obj(
-      "signalCount" -> accountedSignalsCount
+      "current" -> accountedSignalsCount,
+      "total" -> totalSignalsCount
     ))
     case _ => Some(Json.obj())
   }
@@ -118,7 +127,10 @@ class GateSensorActor(id: String)
     "sinceStateChange" -> prettyTimeSinceStateChange,
     "created" -> created,
     "state" -> stateAsString,
-    "stateDetails" -> stateDetailsAsString
+    "stateDetails" -> stateDetailsAsString,
+    "class" -> signalClass,
+    "subclass" -> (signalSubclass | "-"),
+    "level" -> level.name
   ))
 
 
@@ -135,6 +147,7 @@ class GateSensorActor(id: String)
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
     case T_INFO => publishInfo()
     case T_PROPS => publishProps()
+    case T_STATS => publishStats()
   }
 
 
@@ -244,6 +257,12 @@ class GateSensorActor(id: String)
     } else None
 
   override def afterApplyConfig(): Unit = {
+
+    if (isPipelineActive)
+      startSensor()
+    else
+      stopSensor()
+
     publishProps()
     publishInfo()
   }

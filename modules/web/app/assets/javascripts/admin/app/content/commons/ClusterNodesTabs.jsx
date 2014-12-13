@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, streamMixin) {
+define(['react', 'core_mixin'], function (React, core_mixin) {
 
     return React.createClass({
-        mixins: [coreMixin, streamMixin],
+        mixins: [core_mixin],
 
         componentName: function() { return "app/content/commons/ClusterNodeTabs"; },
 

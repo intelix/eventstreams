@@ -14,23 +14,23 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'app_content_button_delete', 'app_content_button_reset'],
-    function (React, coreMixin, streamMixin, StartStopButton, DeleteButton, ResetButton) {
+define(['react', 'core_mixin', 'common_button_startstop', 'common_button_delete', 'common_button_reset'],
+    function (React, core_mixin, StartStopButton, DeleteButton, ResetButton) {
 
     return React.createClass({
-        mixins: [coreMixin, streamMixin],
+        mixins: [core_mixin],
 
-        componentName: function() { return "app/content/ds/TableRow/" + this.props.id; },
+        componentName: function() { return "app/content/ds/TableRow/" + this.props.ckey; },
 
         subscriptionConfig: function (props) {
-            return [{address: props.addr, route: props.id, topic: 'info', dataKey: 'info'}];
+            return [{address: props.addr, route: props.ckey, topic: 'info', dataKey: 'info'}];
         },
         getInitialState: function () {
             return {info: false}
         },
 
         handleClick: function() {
-            this.raiseEvent("editDatasource", {id: this.props.id});
+            this.raiseEvent("editDatasource", {ckey: this.props.ckey});
         },
 
         renderData: function () {
@@ -53,9 +53,9 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
                 <td>{info.sinceStateChange}</td>
                 <td>{state}</td>
                 <td>
-                    <StartStopButton {...this.props} state={info.state} route={this.props.id} />
-                    <DeleteButton {...this.props} route={this.props.id} />
-                    <ResetButton {...this.props} route={this.props.id} />
+                    <StartStopButton {...this.props} state={info.state} />
+                    <DeleteButton {...this.props}  />
+                    <ResetButton {...this.props} />
                 </td>
             </tr>;
         },

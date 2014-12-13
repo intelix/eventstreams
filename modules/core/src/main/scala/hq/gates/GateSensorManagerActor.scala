@@ -34,7 +34,7 @@ import scalaz.\/
 object GateSensorManagerActor {
   def props(id: String) = Props(new GateSensorManagerActor(id))
 
-  def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id), ActorTools.actorFriendlyId(id))
+  def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id), ActorTools.actorFriendlyId(id + "/sensors"))
 }
 
 case class GateSensorAvailable(id: ComponentKey)
@@ -51,13 +51,13 @@ class GateSensorManagerActor(id: String)
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  override def partialStorageKey = Some(id + "/sensor")
+  override def partialStorageKey = Some("sensor/" + id + "/")
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = startActor(Some(key), Some(props), maybeState)
 
   def publishList() = T_LIST !! list
 
-  def list = Some(Json.toJson(sensors.keys.map { x => Json.obj("id" -> x.key)}.toArray))
+  def list = Some(Json.toJson(sensors.keys.map { x => Json.obj("ckey" -> x.key)}.toArray))
 
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
@@ -68,18 +68,25 @@ class GateSensorManagerActor(id: String)
     case T_ADD => startActor(None, maybeData, None)
   }
 
+
+  override def onTerminated(ref: ActorRef): Unit = {
+    sensors.collect { case (k, v) if v == ref => k} foreach sensors.remove
+    publishList()
+
+    super.onTerminated(ref)
+  }
+
   def handler: Receive = {
     case GateSensorAvailable(route) =>
       sensors += route -> sender()
-    case Terminated(ref) =>
-      sensors.collect { case (k, v) if v == ref => k} foreach sensors.remove
+      publishList()
   }
 
   private def startActor(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]): \/[Fail, OK] =
     for (
       data <- maybeData \/> Fail("Invalid payload", Some("Invalid configuration"))
     ) yield {
-      val entryKey = key | id + "/sensor/" + shortUUID
+      val entryKey = key | "sensor/" + id + "/" + shortUUID
       var json = data
       if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
       val actor = GateSensorActor.start(entryKey)

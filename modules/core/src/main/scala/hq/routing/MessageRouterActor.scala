@@ -160,13 +160,9 @@ class MessageRouterActor(implicit val cluster: Cluster)
   override def processCommand(ref: ActorRef, subject: RemoteSubj, replyToSubj: Option[Any], maybeData: Option[JsValue]) =
     forwardDownstream(subject, Command(self, subject, convertSubject(replyToSubj.getOrElse(None)), maybeData))
 
-  private def handler: Receive = {
-    case Update(_, subj, data, cacheable) => publishToClients(subj, Update(self, _, data, cacheable))
-    case CommandErr(_, subj, data) => convertSubject(subj) foreach { remoteSubj => forwardDownstream(remoteSubj, CommandErr(self, remoteSubj, data)) }
-    case CommandOk(_, subj, data) => convertSubject(subj) foreach { remoteSubj => forwardDownstream(remoteSubj, CommandOk(self, remoteSubj, data)) }
-    case Stale(_, subj) => publishToClients(subj, Stale(self, _))
-    case RegisterComponent(component, ref) => register(ref, component)
-    case Terminated(ref) if isProviderRef(ref) =>
+
+  override def onTerminated(ref: ActorRef): Unit = {
+    if (isProviderRef(ref)) {
       staticRoutes = staticRoutes.map {
         case (component, state) if ref == state.ref =>
           collectSubjects { subj =>
@@ -178,6 +174,16 @@ class MessageRouterActor(implicit val cluster: Cluster)
         case (component, state) => component -> state
       }
       scheduleRemoval(ref)
+    }
+    super.onTerminated(ref)
+  }
+
+  private def handler: Receive = {
+    case Update(_, subj, data, cacheable) => publishToClients(subj, Update(self, _, data, cacheable))
+    case CommandErr(_, subj, data) => convertSubject(subj) foreach { remoteSubj => forwardDownstream(remoteSubj, CommandErr(self, remoteSubj, data)) }
+    case CommandOk(_, subj, data) => convertSubject(subj) foreach { remoteSubj => forwardDownstream(remoteSubj, CommandOk(self, remoteSubj, data)) }
+    case Stale(_, subj) => publishToClients(subj, Stale(self, _))
+    case RegisterComponent(component, ref) => register(ref, component)
     case RemoveIfInactive(ref) => removeRoute(ref)
   }
 

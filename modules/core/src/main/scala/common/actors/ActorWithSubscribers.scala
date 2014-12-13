@@ -65,12 +65,18 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior {
 
   private def isOneOfTheSubscribers(ref: ActorRef) = subscribers.values.exists(_.contains(ref))
 
+
+  override def onTerminated(ref: ActorRef): Unit = {
+    if (isOneOfTheSubscribers(ref)) removeSubscriber(ref)
+    super.onTerminated(ref)
+  }
+
   private def handleMessages: Receive = {
     case Subscribe(sourceRef, subj) => convertSubject(subj) foreach(addSubscriber(sourceRef, _))
     case Unsubscribe(sourceRef, subj) => convertSubject(subj) foreach(removeSubscriber(sourceRef, _))
     case Command(sourceRef, subj, replyToSubj, data) =>
       convertSubject(subj) foreach(processCommand(sourceRef, _, replyToSubj, data))
-    case Terminated(ref) if isOneOfTheSubscribers(ref) => removeSubscriber(ref)
+
   }
 
   private def addSubscriber(ref: ActorRef, subject: T): Unit = {

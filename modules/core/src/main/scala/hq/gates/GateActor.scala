@@ -109,6 +109,8 @@ class GateActor(id: String)
 
   override def preStart(): Unit = {
 
+    GateSensorManagerActor.start(id)
+
     if (isPipelineActive)
       openGate()
     else
@@ -183,6 +185,7 @@ class GateActor(id: String)
   def info = Some(Json.obj(
     "name" -> name,
     "address" -> address,
+    "addressFull" -> (forwarderActor.map(_.toString) | "N/A"),
     "initial" -> initialState,
     "overflow" -> overflowPolicy.info,
     "retention" -> retentionPolicy.getInfo,
@@ -428,6 +431,16 @@ class GateActor(id: String)
     }
   }
 
+
+  override def onTerminated(ref: ActorRef): Unit = {
+    if (sinks.contains(ref)) {
+      logger.info(s"Sink is gone: $ref")
+      sinks -= ref
+      publishInfo()
+    }
+    super.onTerminated(ref)
+  }
+
   private def messageHandler: Receive = {
     case RetainedCount(count) => retainedDataCount = Some(count)
     case GateStateCheck(ref) =>
@@ -437,10 +450,6 @@ class GateActor(id: String)
       } else {
         forwarderActor.foreach(_ ! RouteTo(ref, GateStateUpdate(GateClosed())))
       }
-    case Terminated(ref) if sinks.contains(ref) =>
-      logger.info(s"Sink is gone: $ref")
-      sinks -= ref
-      publishInfo()
     case RegisterSink(sinkRef) =>
       sinks += sender()
       context.watch(sinkRef)

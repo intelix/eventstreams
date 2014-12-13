@@ -2,6 +2,7 @@ package hq.signals
 
 sealed trait SignalLevel {
   def code: Int
+  def name: String
 }
 
 object SignalLevel {
@@ -18,32 +19,32 @@ object SignalLevel {
 }
 
 case class SignalLevelVeryLow() extends SignalLevel {
-  val name = "Very low"
+  override val name = "Very low"
   override final def code: Int = 1
 }
 
 case class SignalLevelLow() extends SignalLevel {
-  val name = "Low"
+  override val name = "Low"
   override final def code: Int = 3
 }
 
 case class SignalLevelMedium() extends SignalLevel {
-  val name = "Medium"
+  override val name = "Medium"
   override final def code: Int = 5
 }
 
 case class SignalLevelHigh() extends SignalLevel {
-  val name = "High"
+  override val name = "High"
   override final def code: Int = 7
 }
 
 case class SignalLevelVeryHigh() extends SignalLevel {
-  val name = "Very high"
+  override val name = "Very high"
   override final def code: Int = 9
 }
 
 case class SignalLevelMaximum() extends SignalLevel {
-  val name = "Maximum"
+  override val name = "Maximum"
   override final def code: Int = 10
 }
 

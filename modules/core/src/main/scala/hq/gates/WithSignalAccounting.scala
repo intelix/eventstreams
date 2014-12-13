@@ -9,17 +9,18 @@ import scala.collection.mutable
 trait WithSignalAccounting extends ActorWithTicks with NowProvider {
 
   private val buckets = mutable.Map[Long, Int]()
-  private var totalCounter = 0L
-
-  private def currentBucket: Long = bucketByTs(now)
-  private def bucketByTs(ts: Long): Long = ts / 1000
+  private var accountedCounter: Long = 0
+  private var totalCounter: Long = 0
 
   def signalAccountingPeriodSec: Int = 0
 
-  def accountedSignalsCount = totalCounter
+  def accountedSignalsCount = accountedCounter
+
+  def totalSignalsCount = accountedCounter
 
   def resetSignalAccounting() = {
     buckets.clear()
+    accountedCounter = 0
     totalCounter = 0
   }
 
@@ -28,6 +29,7 @@ trait WithSignalAccounting extends ActorWithTicks with NowProvider {
     val validBucket = currentBucket - signalAccountingPeriodSec + 1
     if (bucket >= validBucket) {
       buckets += bucket -> (buckets.getOrElse(bucket, 0) + 1)
+      accountedCounter = accountedCounter + 1
       totalCounter = totalCounter + 1
     }
   }
@@ -35,10 +37,14 @@ trait WithSignalAccounting extends ActorWithTicks with NowProvider {
   override def internalProcessTick(): Unit = {
     super.internalProcessTick()
     val validBucket = currentBucket - signalAccountingPeriodSec + 1
-    buckets.collect { case (k, v) if k < validBucket => (k,v)} foreach {
+    buckets.collect { case (k, v) if k < validBucket => (k, v)} foreach {
       case (k, v) =>
         buckets.remove(k)
-        totalCounter = totalCounter - v
+        accountedCounter = accountedCounter - v
     }
   }
+
+  private def currentBucket: Long = bucketByTs(now)
+
+  private def bucketByTs(ts: Long): Long = ts / 1000
 }

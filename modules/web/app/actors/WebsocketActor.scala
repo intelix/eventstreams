@@ -52,8 +52,15 @@ class WebsocketActor(out: ActorRef)
 
   override def preStart(): Unit = {
     super.preStart()
-    logger.info(s"Accepted WebSocket connection, proxy actor: $out")
+    logger.info(s"Accepted WebSocket connection, proxy actor: $out this actor: $self")
     LocalClusterAwareActor.path ! InfoRequest()
+  }
+
+
+  @throws[Exception](classOf[Exception])
+  override def postStop(): Unit = {
+    super.postStop()
+    logger.info(s"Closing WebSocket connection, proxy actor: $out this actor: $self")
   }
 
   override def commonBehavior: Actor.Receive = messageHandler orElse super.commonBehavior

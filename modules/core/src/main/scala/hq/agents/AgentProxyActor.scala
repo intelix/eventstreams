@@ -71,7 +71,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
   private def publishInfo() = T_INFO !! info
 
   private def publishDatasources() = T_LIST !! Some(Json.toJson(datasources.collect{
-    case DatasourceProxyMeta(_, _, k, true) => Json.obj("id" -> k.key)
+    case DatasourceProxyMeta(_, _, k, true) => Json.obj("ckey" -> k.key)
   }))
 
   private def commonMessageHandler: Receive = {
@@ -90,12 +90,15 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
         context.stop(self)
       }
 
-    case Terminated(actor) =>
-      datasources = datasources.filter(_.ref != actor)
-      publishDatasources()
-
   }
 
+
+  override def onTerminated(ref: ActorRef): Unit = {
+    datasources = datasources.filter(_.ref != ref)
+    publishDatasources()
+
+    super.onTerminated(ref)
+  }
 
   private def processInfo(json: JsValue) = {
     info = Some(json)

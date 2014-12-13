@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin', 'app_flows_table_row'], function (React, coreMixin, streamMixin, Row) {
+define(['react', 'core_mixin', './FlowsTableRow'], function (React, core_mixin, Row) {
 
     return React.createClass({
-        mixins: [coreMixin, streamMixin],
+        mixins: [core_mixin],
 
         componentName: function() { return "app/content/flows/Table"; },
 
@@ -48,7 +48,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_flows_table_row'], function (R
             }
 
             function row(el) {
-                return <Row {...props} key={el.id} id={el.id} />;
+                return <Row {...props} key={el.ckey} ckey={el.ckey} />;
             }
 
             var addButton = <div className="withspace">

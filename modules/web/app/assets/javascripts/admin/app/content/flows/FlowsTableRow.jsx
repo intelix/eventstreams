@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'app_content_button_delete'],
-    function (React, coreMixin, streamMixin, StartStopButton, DeleteButton) {
+define(['react', 'core_mixin', 'common_button_startstop', 'common_button_delete'],
+    function (React, core_mixin, StartStopButton, DeleteButton) {
 
     return React.createClass({
-        mixins: [coreMixin, streamMixin],
+        mixins: [core_mixin],
 
-        componentName: function() { return "app/content/flows/TableRow/" + this.props.id; },
+        componentName: function() { return "app/content/flows/TableRow/" + this.props.ckey; },
 
 
         subscriptionConfig: function (props) {
             return [
-                {address: props.addr, route: props.id, topic: 'info', dataKey: 'info'},
-                {address: props.addr, route: props.id, topic: 'stats', dataKey: 'stats'}
+                {address: props.addr, route: props.ckey, topic: 'info', dataKey: 'info'},
+                {address: props.addr, route: props.ckey, topic: 'stats', dataKey: 'stats'}
             ];
         },
         getInitialState: function () {
@@ -34,7 +34,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
         },
 
         handleClick: function() {
-            this.raiseEvent("editFlow", {id: this.props.id});
+            this.raiseEvent("editFlow", {ckey: this.props.ckey});
         },
 
         renderData: function () {
@@ -71,8 +71,8 @@ define(['react', 'coreMixin', 'streamMixin', 'app_content_button_startstop', 'ap
                 <td>{info.sinceStateChange}</td>
                 <td>{state}</td>
                 <td>
-                    <StartStopButton {...this.props} state={info.state} route={this.props.id} />
-                    <DeleteButton {...this.props} route={this.props.id} />
+                    <StartStopButton {...this.props} state={info.state}  />
+                    <DeleteButton {...this.props} />
                 </td>
             </tr>;
         },

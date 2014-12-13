@@ -16,15 +16,20 @@
 
 package common.actors
 
-import akka.actor.Terminated
+import akka.actor.{ActorRef, Terminated}
 import akka.remote.transport.ThrottlerTransportAdapter.Direction.Receive
 import com.typesafe.scalalogging.StrictLogging
 
 trait ActorWithComposableBehavior extends ActorUtils with StrictLogging {
 
+  def onTerminated(ref:ActorRef) = {
+    logger.debug(s"Watched actor terminated $ref")
+  }
+
+
+
   def commonBehavior: Receive = {
-    case Terminated(ref) =>
-      logger.warn(s"Unhandled Terminated($ref), swallowing")
+    case Terminated(ref) => onTerminated(ref)
     case msg: Loggable => logger.info(String.valueOf(msg))
   }
 

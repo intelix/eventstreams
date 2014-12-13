@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'app_ds_agentstabs', 'app_ds_table', 'app_ds_editor'],
-    function (React, coreMixin, AgentsTabs, Table, EditBlock) {
+define(['react', 'core_mixin', './AgentsTabs', './DatasourcesTable', './DatasourcesEditor'],
+    function (React, core_mixin, AgentsTabs, Table, EditBlock) {
 
         return React.createClass({
-            mixins: [coreMixin],
+            mixins: [core_mixin],
 
             componentName: function() { return "app/content/ds/AgentContent"; },
 
@@ -29,7 +29,7 @@ define(['react', 'coreMixin', 'app_ds_agentstabs', 'app_ds_table', 'app_ds_edito
             subscribeToEvents: function() { return [
                 ["addDatasource", this.openModal],
                 ["editDatasource", this.openEditModal],
-                ["modalClosed", this.closeModal],
+                ["dsModalClosed", this.closeModal],
                 ["agentSelected", this.handleAgentSelectionEvent],
             ]},
 
@@ -53,17 +53,17 @@ define(['react', 'coreMixin', 'app_ds_agentstabs', 'app_ds_table', 'app_ds_edito
                         "url": "akka.tcp://ehub@localhost:12345/user/GATENAME"
                     }
                 };
-                this.setState({editBlock: <EditBlock addr={this.props.addr} addRoute={this.state.agentSelected} title="Datasource configuration" defaults={defaults} />});
+                this.setState({editBlock: <EditBlock addr={this.props.addr} addRoute={this.state.agentSelected} title="Datasource configuration" defaults={defaults} editorId="ds"/>});
             },
             openEditModal: function (evt) {
-                this.setState({editBlock: <EditBlock addr={this.props.addr} id={evt.detail.id} title="Datasource configuration"/>});
+                this.setState({editBlock: <EditBlock addr={this.props.addr} ckey={evt.detail.ckey} title="Datasource configuration"  editorId="ds"/>});
             },
             closeModal: function () {
                 this.setState({editBlock: false});
             },
 
             handleAgentSelectionEvent: function (evt) {
-                this.setState({agentSelected: evt.detail.id});
+                this.setState({agentSelected: evt.detail.ckey});
             },
 
 
@@ -72,7 +72,7 @@ define(['react', 'coreMixin', 'app_ds_agentstabs', 'app_ds_table', 'app_ds_edito
                 return <div>
                     <AgentsTabs {...this.props} />
                     {this.state.editBlock ? this.state.editBlock : ""}
-                    {this.state.agentSelected ? <Table id={this.state.agentSelected} {...this.props}/> : ""}
+                    {this.state.agentSelected ? <Table ckey={this.state.agentSelected} {...this.props}/> : ""}
                 </div>;
             }
         });

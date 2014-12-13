@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin', 'app_ds_table_row'], function (React, coreMixin, streamMixin, Row) {
+define(['react', 'core_mixin', './DatasourcesTableRow'], function (React, core_mixin, Row) {
 
     return React.createClass({
-        mixins: [coreMixin, streamMixin],
+        mixins: [core_mixin],
 
         componentName: function() { return "app/content/ds/Table"; },
 
         subscriptionConfig: function (props) {
-            return [{address: props.addr, route: props.id, topic: 'list', dataKey: 'list'}];
+            return [{address: props.addr, route: props.ckey, topic: 'list', dataKey: 'list'}];
         },
         getInitialState: function () {
             return {list: null}
@@ -47,7 +47,7 @@ define(['react', 'coreMixin', 'streamMixin', 'app_ds_table_row'], function (Reac
             }
 
             function row(el) {
-                return <Row {...props} key={el.id} id={el.id} />;
+                return <Row {...props} key={el.ckey} ckey={el.ckey} />;
             }
 
             var addButton = <div className="withspace">

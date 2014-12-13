@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin'], function (React, coreMixin) {
+define(['react', 'core_mixin'], function (React, core_mixin) {
 
     return {
 
@@ -22,10 +22,10 @@ define(['react', 'coreMixin'], function (React, coreMixin) {
             return {active: this.props.active}
         },
 
-        onMount: function() {
+        componentDidMount: function() {
             this.addEventListener("navBarSelection", this.handleSelectionEvent);
         },
-        onUnmount: function() {
+        componentWillUnmount: function() {
             this.removeEventListener("navBarSelection", this.handleSelectionEvent);
         },
 
@@ -35,7 +35,7 @@ define(['react', 'coreMixin'], function (React, coreMixin) {
 
         handleClick: function() {
             if (!this.state.active) {
-                this.raiseEvent("navBarSelection", {id: this.props.id});
+                this.raiseEvent("navBarSelection", {ckey: this.props.ckey});
                 this.setState({active: true});
             }
         },

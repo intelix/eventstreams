@@ -26,7 +26,7 @@ define(['react'], function (React) {
         },
 
         subscriptionConfig: function (props) {
-            return props.id ? [{address: props.addr, route: props.id, topic: 'props', onData: this.onData}] : [];
+            return props.ckey ? [{address: props.addr, route: props.ckey, topic: 'props', onData: this.onData}] : [];
         },
 
         onData: function (data) {
@@ -35,7 +35,7 @@ define(['react'], function (React) {
 
         componentDidMount: function () {
             var self = this;
-            if (!self.props.id) {
+            if (!self.props.ckey) {
                 var defaults = this.props.defaults || {};
                 self.setState({data: defaults});
             }
@@ -45,7 +45,7 @@ define(['react'], function (React) {
             var self = this;
             if (self.state.data) {
                 $(self.refs.modal.getDOMNode()).on('hidden.bs.modal', function (e) {
-                    self.raiseEvent("modalClosed", {});
+                    self.raiseEvent(self.props.editorId + "ModalClosed", {});
                 });
                 $(self.refs.modal.getDOMNode()).modal({backdrop: false});
 
@@ -62,6 +62,8 @@ define(['react'], function (React) {
 
         handleAdd: function (e) {
             var self = this;
+            alert(self.props.addRoute);
+
             var value = self.editor.getValue();
             if (self.props.addRoute) {
                 self.sendCommand(self.props.addr, self.props.addRoute, "add", value);
@@ -69,8 +71,8 @@ define(['react'], function (React) {
                     self.onConfigWillBeAdded(value);
                 }
             }
-            if (self.props.id) {
-                self.sendCommand(self.props.addr, self.props.id, "update_props", value);
+            if (self.props.ckey) {
+                self.sendCommand(self.props.addr, self.props.ckey, "update_props", value);
                 if (self.onConfigWillBeUpdated) {
                     self.onConfigWillBeUpdated(value);
                 }

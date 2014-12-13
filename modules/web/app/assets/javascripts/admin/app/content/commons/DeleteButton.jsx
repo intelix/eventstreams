@@ -14,15 +14,17 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, streamMixin) {
+define(['react', 'core_mixin'], function (React, core_mixin) {
 
     // use this.sendCommand(subject, data) to talk to server
 
     return React.createClass({
 
-        mixins: [coreMixin, streamMixin],
+        mixins: [core_mixin],
 
-        componentName: function() { return "app/content/commons/DeleteButton/" + this.props.route; },
+        componentName: function () {
+            return "app/content/commons/DeleteButton/" + this.props.ckey;
+        },
 
         getInitialState: function () {
             return {connected: false}
@@ -30,7 +32,7 @@ define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, stream
 
         handleKill: function (e) {
             if (confirm("Are you sure?")) {
-                this.sendCommand(this.props.addr, this.props.route, "kill", {});
+                this.sendCommand(this.props.addr, this.props.ckey, "kill", {});
             }
         },
 
@@ -39,16 +41,13 @@ define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, stream
 
             var buttonClasses = this.cx({
                 'disabled': (!self.state.connected),
-                'btn btn-primary btn-xs': true
+                'btn btn-danger btn-sm': true
             });
 
 
-            var button =
-                <button type="button" ref="button" className={buttonClasses} onClick={this.handleKill}>
-                delete
-                </button>;
-
-            return button;
+            return (
+                <button type="button" ref="button" className={buttonClasses} onClick={this.handleKill}>Delete</button>
+            );
         }
     });
 

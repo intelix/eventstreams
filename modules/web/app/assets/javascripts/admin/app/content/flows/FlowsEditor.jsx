@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin', 'app_content_editor_mixin'], function (React, coreMixin, streamMixin, editorMixin) {
+define(['react', 'core_mixin', 'common_editor_mixin'], function (React, core_mixin, editorMixin) {
 
     return React.createClass({
-        mixins: [coreMixin, streamMixin, editorMixin],
+        mixins: [core_mixin, editorMixin],
 
         componentName: function() { return "app/content/flows/Editor"; },
 

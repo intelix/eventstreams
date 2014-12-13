@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, streamMixin) {
+define(['react', 'core_mixin'], function (React, core_mixin) {
 
     return React.createClass({
-        mixins: [coreMixin, streamMixin],
+        mixins: [core_mixin],
 
         componentName: function() { return "app/content/ds/AgentName"; },
 
 
         subscriptionConfig: function (props) {
-            return [{address:props.addr, route:props.id, topic:'info', dataKey: 'info'}];
+            return [{address:props.addr, route:props.ckey, topic:'info', dataKey: 'info'}];
         },
 
         getInitialState: function () {

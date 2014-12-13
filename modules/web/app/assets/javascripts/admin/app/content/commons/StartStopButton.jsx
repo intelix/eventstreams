@@ -14,25 +14,25 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, streamMixin) {
+define(['react', 'core_mixin'], function (React, core_mixin) {
 
     // use this.sendCommand(subject, data) to talk to server
 
     return React.createClass({
 
-        mixins: [coreMixin, streamMixin],
+        mixins: [core_mixin],
 
-        componentName: function() { return "app/content/commons/StartStopButton/" + this.props.route; },
+        componentName: function() { return "app/content/commons/StartStopButton/" + this.props.ckey; },
 
         getInitialState: function () {
             return {connected: false}
         },
 
         handleStop: function(e) {
-            this.sendCommand(this.props.addr, this.props.route, "stop", {});
+            this.sendCommand(this.props.addr, this.props.ckey, "stop", {});
         },
         handleStart: function(e) {
-            this.sendCommand(this.props.addr, this.props.route, "start", {});
+            this.sendCommand(this.props.addr, this.props.ckey, "start", {});
         },
 
         render: function () {
@@ -44,11 +44,11 @@ define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, stream
             if (this.props.state == 'active') {
                 buttonClasses = this.cx({
                     'disabled': (!self.state.connected),
-                    'btn-default': true
+                    'btn-warning': true
                 });
                 button =
-                    <button type="button" className={"btn btn-xs " + buttonClasses} onClick={this.handleStop}>
-                    stop
+                    <button type="button" className={"btn btn-sm " + buttonClasses} onClick={this.handleStop}>
+                    Stop
                     </button>;
             } else {
                 buttonClasses = this.cx({
@@ -56,8 +56,8 @@ define(['react', 'coreMixin', 'streamMixin'], function (React, coreMixin, stream
                     'btn-success': true
                 });
                 button =
-                    <button type="button" className={"btn btn-xs " + buttonClasses} onClick={this.handleStart}>
-                    start
+                    <button type="button" className={"btn btn-sm " + buttonClasses} onClick={this.handleStart}>
+                    Start
                     </button>;
             }
 

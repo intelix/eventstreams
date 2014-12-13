@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-define(['react', 'coreMixin', 'streamMixin', 'app_ds_agentname'], function (React, coreMixin, streamMixin, AgentName) {
+define(['react', 'core_mixin', './AgentName'], function (React, core_mixin, AgentName) {
 
     return React.createClass({
-        mixins: [coreMixin, streamMixin],
+        mixins: [core_mixin],
 
         componentName: function() { return "app/content/ds/AgentTabs"; },
 
@@ -29,9 +29,9 @@ define(['react', 'coreMixin', 'streamMixin', 'app_ds_agentname'], function (Reac
             return {list: null, selected: false}
         },
 
-        onSelectionMade: function(id) {
-            this.raiseEvent("agentSelected", {id: id});
-            this.setState({selected: id});
+        onSelectionMade: function(ckey) {
+            this.raiseEvent("agentSelected", {ckey: ckey});
+            this.setState({selected: ckey});
         },
 
 
@@ -40,8 +40,8 @@ define(['react', 'coreMixin', 'streamMixin', 'app_ds_agentname'], function (Reac
                 var wasSelected = this.state ? this.state.selected : false;
                 var newSelected = wasSelected;
                 var list = data ? data : [];
-                if (newSelected && !list.some(function(el) { return el.id == newSelected})) newSelected = false;
-                if (!newSelected && list.length > 0) newSelected = list[0].id;
+                if (newSelected && !list.some(function(el) { return el.ckey == newSelected})) newSelected = false;
+                if (!newSelected && list.length > 0) newSelected = list[0].ckey;
                 if (newSelected != wasSelected) this.onSelectionMade(newSelected);
         },
 
@@ -68,11 +68,11 @@ define(['react', 'coreMixin', 'streamMixin', 'app_ds_agentname'], function (Reac
 
                             var tabClasses = cx({
                                 'disabled': (!connected),
-                                'active': selected == el.id
+                                'active': selected == el.ckey
                             });
 
-                            return  <li key={el.id} onClick={self.onSelectionMade.bind(self, el.id)} role="presentation" className={tabClasses}>
-                                <AgentName addr={props.addr} id={el.id}/>
+                            return  <li key={el.ckey} onClick={self.onSelectionMade.bind(self, el.ckey)} role="presentation" className={tabClasses}>
+                                <AgentName addr={props.addr} ckey={el.ckey}/>
                             </li>;
                             })}
                     </ul>

@@ -69,6 +69,15 @@ trait ReconnectingActor
     }
   }
 
+
+  override def onTerminated(ref: ActorRef): Unit = {
+    if (peer.contains(ref)) {
+      logger.info("Disconnected... ")
+      disconnect()
+    }
+    super.onTerminated(ref)
+  }
+
   def handleReconnectMessages: Receive = {
     case Connected(ref) =>
       logger.info(s"Connected to $ref")
@@ -77,9 +86,6 @@ trait ReconnectingActor
       onConnectedToEndpoint()
     case Associate() =>
       initiateReconnect()
-    case Terminated(ref) if peer.contains(ref) =>
-      logger.info("Disconnected... ")
-      disconnect()
     case DisassociatedEvent(local, remote, inbound) =>
       logger.info("Disconnected... ")
       peer match {

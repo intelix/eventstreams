@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-define(['react','logging'], function (React, logging) {
+define(['react','logging','wsclient'], function (React, logging, client) {
 
     var evtElement = window;
     window.onscroll = function (event) {
@@ -70,13 +70,174 @@ define(['react','logging'], function (React, logging) {
         },
 
 
-        componentWillUpdate: function (newProps, newState) {
-            if (this.onComponentUpdate) this.onComponentUpdate(newProps, newState);
+        subId2String: function (id) {
+            return id ? id.address + "/" + id.route + "[" + id.topic + "]" : "Nil";
+        },
+
+
+        unsubscribeFor: function (config) {
+            var self = this;
+            self.handle.unsubscribe(config.address, config.route, config.topic, self.subscriptionCallback);
+            if (self.isDebug()) {
+                self.logDebug("Closed subscription for " + self.subId2String(config));
+            }
+        },
+
+
+        subscribeFor: function (config) {
+            var self = this;
+
+            var onStateChange = config.onStateChange;
+            var onData = config.onData;
+            var dataKey = config.dataKey;
+            var dataStateKey = dataKey ? dataKey + "_stale" : false;
+
+            var subIdAsStr = self.subId2String(config);
+            var internalStateTrackingKey = subIdAsStr + "_state";
+
+            function updateStaleFlag(flag) {
+                if (self.state[internalStateTrackingKey] != flag) {
+                    var partialStateUpdate = {};
+                    if (dataStateKey) partialStateUpdate[dataStateKey] = flag;
+                    partialStateUpdate[internalStateTrackingKey] = flag;
+                    if (self.componentAvailable) self.setState(partialStateUpdate);
+                    if (onStateChange) onStateChange(flag);
+                }
+            }
+
+            function updateData(data) {
+                if (dataKey) {
+                    var partialStateUpdate = {};
+                    partialStateUpdate[dataKey] = data;
+                    if (self.componentAvailable) self.setState(partialStateUpdate);
+                }
+                if (onData) onData(data);
+            }
+
+            self.subscriptionCallback = function (type, data) {
+                if (self.isDebug()) {
+                    self.logDebug("Data IN: " + type + " for " + subIdAsStr);
+                }
+
+                if (type == "D") {
+                    updateStaleFlag(true);
+                } else {
+                    updateStaleFlag(false);
+                    updateData(data);
+                }
+
+            };
+
+            self.handle.subscribe(config.address, config.route, config.topic, self.subscriptionCallback);
+            if (self.isDebug()) {
+                self.logDebug("Opened subscription for " + subIdAsStr);
+            }
+
+        },
+
+        startListenerWithParams: function (props) {
+            var self = this;
+            var configs = self.subscriptionConfig ? self.subscriptionConfig(props) : [];
+            this.handle = client.getHandle();
+            this.sendCommand = this.handle.command;
+
+            function subscribe() {
+                if (configs && configs.constructor == Array && configs.length > 0) {
+                    configs.forEach(self.subscribeFor);
+                } else {
+                    if (self.isDebug()) {
+                        self.logDebug("Initialised without subscription");
+                    }
+                }
+            }
+
+            function wsOpenHandler() {
+                if (!self.state || !self.state.connected) {
+                    if (self.componentAvailable) self.setState({connected: true});
+                    if (self.onConnected) self.onConnected();
+                }
+                if (self.state && (self.state.visibility === true || self.state.visibility === undefined)) {
+                    if (self.isDebug()) {
+                        self.logDebug("Received ws connected event, re-subscribing");
+                    }
+                    subscribe();
+                }
+            }
+
+            function wsClosedHandler() {
+                if (self.isDebug()) {
+                    self.logDebug("Received ws disconnected event");
+                }
+                if (self.state && self.state.connected) {
+                    if (self.componentAvailable) self.setState({connected: false});
+                    if (self.onDisconnected) self.onDisconnected();
+                }
+            }
+
+            this.handle.addWsOpenEventListener(wsOpenHandler);
+            this.handle.addWsClosedEventListener(wsClosedHandler);
+
+
+            if (this.handle.connected) {
+                wsOpenHandler();
+            } else {
+                wsClosedHandler();
+            }
+
+        },
+
+        closeAllSubscriptions: function () {
+            var self = this;
+            if (self.isDebug()) {
+                self.logDebug("Closing subscriptions on request...");
+            }
+            var configs = self.subscriptionConfig ? self.subscriptionConfig(self.props) : [];
+            configs.forEach(this.unsubscribeFor);
+        },
+        reopenAllSubscriptions: function () {
+            var self = this;
+            if (self.isDebug()) {
+                self.logDebug("Reopening subscriptions on request...");
+            }
+            var configs = self.subscriptionConfig ? self.subscriptionConfig(self.props) : [];
+            configs.forEach(this.subscribeFor);
+        },
+
+
+
+        visibilityMonitorEnabled: function() {
+            return this.refs.monitorVisibility;
+        },
+
+        checkVisibility: function () {
+            var self = this;
+            var element = self.refs.monitorVisibility;
+            if (this.visibilityMonitorEnabled()) {
+                var dom = element.getDOMNode();
+                var lastState = self.state.visibility;
+                if (lastState === undefined) lastState = true;
+                var currentlyVisible = $(dom).visible(true);
+                if (lastState != currentlyVisible) {
+                    this.setState({visibility: currentlyVisible});
+                    if (currentlyVisible) {
+                        self.reopenAllSubscriptions();
+                    } else {
+                        self.closeAllSubscriptions();
+                    }
+                }
+            }
+        },
+
+
+        componentDidUpdate: function() {
+            var self = this;
+            self.checkVisibility();
         },
 
         componentWillMount: function () {
-            if (this.subscribeToEvents) {
-                var eventslist = this.subscribeToEvents();
+            var self = this;
+            if (self.subscribeToEvents) {
+                var eventslist = self.subscribeToEvents();
                 eventslist.forEach(function (el) {
                     addEventListener(el[0], el[1]);
                 });
@@ -84,21 +245,79 @@ define(['react','logging'], function (React, logging) {
         },
 
         componentDidMount: function () {
-            if (this.onMount) {
-                this.onMount();
+            var self = this;
+            self.componentAvailable = true;
+            self.startListenerWithParams(self.props);
+
+            if (self.visibilityMonitorEnabled()) {
+                self.addEventListener("resize", self.checkVisibility);
+                self.addEventListener("onscroll", self.checkVisibility);
+                self.checkVisibility();
             }
+
+
         },
+
+
         componentWillUnmount: function () {
-            if (this.subscribeToEvents) {
-                var eventslist = this.subscribeToEvents();
+            var self = this;
+            self.componentAvailable = false;
+
+            if (self.handle) {
+                var configs = self.subscriptionConfig ? self.subscriptionConfig(self.props) : [];
+
+                if (configs && configs.constructor == Array && configs.length > 0) {
+                    configs.forEach(self.unsubscribeFor);
+                }
+
+                self.handle.stop();
+                self.handle = null;
+            }
+            if (self.subscribeToEvents) {
+                var eventslist = self.subscribeToEvents();
                 eventslist.forEach(function (el) {
                     removeEventListener(el[0], el[1]);
                 });
             }
-            if (this.onUnmount) {
-                this.onUnmount();
+
+            if (self.visibilityMonitorEnabled()) {
+                self.removeEventListener("resize", self.checkVisibility);
+                self.removeEventListener("onscroll", self.checkVisibility);
+            }
+        },
+
+
+        componentWillReceiveProps: function (nextProps) {
+            var self = this;
+
+            function different(id1, id2) {
+                return id1.address != id2.address ||
+                    id1.route != id2.route ||
+                    id1.topic != id2.topic;
+            }
+
+            if (self.handle) {
+                var configs = self.subscriptionConfig ? self.subscriptionConfig(self.props) : [];
+                var newConfigs = self.subscriptionConfig ? self.subscriptionConfig(nextProps) : [];
+
+                var toClose = configs.filter(function (config) {
+                    return !newConfigs.some(function (newConfig) {
+                        return !different(config, newConfig);
+                    });
+                });
+                var toOpen = newConfigs.filter(function (config) {
+                    return !configs.some(function (newConfig) {
+                        return !different(config, newConfig);
+                    });
+                });
+
+                toClose.forEach(self.unsubscribeFor);
+                toOpen.forEach(self.subscribeFor);
+
             }
         }
+
+
     };
 
 });

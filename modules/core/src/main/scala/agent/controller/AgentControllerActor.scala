@@ -92,6 +92,16 @@ class AgentControllerActor(implicit config: Config)
       (actor, datasourceKey)
     }
 
+
+  override def onTerminated(ref: ActorRef): Unit = {
+    datasources = datasources.filter {
+      case (route, otherRef) => otherRef != ref
+    }
+    sendToHQ(snapshot)
+
+    super.onTerminated(ref)
+  }
+
   private def commonMessageHandler: Receive = {
     case CommunicationProxyRef(ref) =>
       commProxy = Some(ref)
@@ -102,12 +112,6 @@ class AgentControllerActor(implicit config: Config)
       case -\/(error) =>
         logger.error(s"Unable to create datasource: $error")
     }
-    case Terminated(ref) =>
-      datasources = datasources.filter {
-        case (route, otherRef) => otherRef != ref
-      }
-      sendToHQ(snapshot)
-
     case DatasourceAvailable(key) =>
       logger.debug(s"Available datasource: $key")
       datasources = datasources + (key -> sender())
