@@ -23,7 +23,7 @@ define(['react', 'core_mixin', './Subscriber'], function (React, core_mixin, Sub
         mixins: [core_mixin],
 
         componentName: function () {
-            return "plugin/desktopnotifications/config/SubscribeButton/" + this.props.ckey;
+            return "plugin/desktopnotifications/SubscribeButton/" + this.props.ckey;
         },
 
         getInitialState: function () {
@@ -39,7 +39,9 @@ define(['react', 'core_mixin', './Subscriber'], function (React, core_mixin, Sub
 
             var buttonClasses = this.cx({
                 'disabled': (!self.state.connected),
-                'btn btn-default btn-sm': true
+                'btn btn-xs': true,
+                'btn-default': self.state.subscribed,
+                'btn-success': !self.state.subscribed
             });
 
             var button;

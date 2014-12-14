@@ -86,10 +86,13 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
   private val maxInFlight = props +> 'buffer | 1000
   var sequenceCounter: Long = 0
 
+
+
   override def occurrenceAccountingPeriodSec: Int = throttlingWindow match {
     case Some(x) if x > 0 => x
     case _ => 1
   }
+
 
   def bucketIdByTs(ts: Long): Long = ts / 1000
 
@@ -175,7 +178,8 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
 
 
   def throttlingAllowed() = throttlingAllowance match {
-    case Some(x) if x > 0 => x >= accountedOccurrencesCount
+    case Some(x) if x > 0 =>
+      x > accountedOccurrencesCount
     case _ => true
   }
 

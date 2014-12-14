@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-define(['react', 'core_mixin', './TableRow', './TableRowSelected'],
-    function (React, core_mixin, Row, RowSelected) {
+define(['react', 'core_mixin', './TableRow'],
+    function (React, core_mixin, Row) {
 
     return React.createClass({
         mixins: [core_mixin],
@@ -29,27 +29,8 @@ define(['react', 'core_mixin', './TableRow', './TableRowSelected'],
         },
         getInitialState: function () {
             return {
-                list: null,
-                selectedItems: []
+                list: null
             }
-        },
-
-        subscribeToEvents: function () {
-            return [
-                ["signalsubTableRowClicked", this.handleTableRowClick]
-            ]
-        },
-
-        handleTableRowClick: function (evt) {
-            var self = this;
-            var currentlySelected = self.state.selectedItems;
-            var newSelection = evt.detail.ckey;
-            if ($.inArray(newSelection, currentlySelected) > -1) {
-                currentlySelected = currentlySelected.filter(function(e) { return e != newSelection});
-            } else {
-                currentlySelected.push(newSelection)
-            }
-            this.setState({selectedItems: currentlySelected});
         },
 
         handleAddNew: function () {
@@ -69,15 +50,12 @@ define(['react', 'core_mixin', './TableRow', './TableRowSelected'],
                     <th>Auto-close</th>
                     <th>State</th>
                     <th>Notifications</th>
+                    <th></th>
                 </tr>;
 
 
             function row(el) {
-
-                var selected = $.inArray(el.ckey, self.state.selectedItems) > -1;
-
-                var items = [<Row {...props} key={el.ckey} ckey={el.ckey} selected={selected} />];
-                if (selected) items.push(<RowSelected {...props} key={"selected_"+el.ckey} ckey={el.ckey} />);
+                var items = [<Row {...props} key={el.ckey} ckey={el.ckey} />];
                 return items;
             }
 
@@ -94,7 +72,7 @@ define(['react', 'core_mixin', './TableRow', './TableRowSelected'],
             var tableContent = <span>
                 {addButton}
 
-                <table  className="table table-striped table-hover" >
+                <table  className="table table-striped table-condensed" >
                     <thead>
                         {header}
                     </thead>

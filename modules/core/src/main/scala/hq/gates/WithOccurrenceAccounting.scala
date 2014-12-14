@@ -50,7 +50,7 @@ trait WithOccurrenceAccounting extends ActorWithTicks with  NowProvider {
     }
   }
 
-  def clean(): Unit = {
+  private def clean(): Unit = {
     val validBucket = currentBucket - occurrenceAccountingPeriodSec + 1
     buckets.collect { case (k, v) if k < validBucket => (k, v)} foreach {
       case (k, v) =>

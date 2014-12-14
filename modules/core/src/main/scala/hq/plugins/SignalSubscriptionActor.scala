@@ -207,7 +207,7 @@ class SignalSubscriptionActor(id: String)
 
   def forward(value: JsValue) = {
     val expiry = value ++> 'expiryTs | 0
-    if (expiry < 1 || expiry >= now)
+    if (isPipelineActive && expiry < 1 || expiry >= now)
       T_SIGNAL !! Some(value)
   }
 
@@ -228,7 +228,7 @@ class SignalSubscriptionActor(id: String)
   }
 
   private def handler: Receive = {
-    case f: JsonFrame => processSignal(f.event)
+    case f: JsonFrame if isPipelineActive => processSignal(f.event)
   }
 
   private def terminateSubscription(reason: Option[String]) = {

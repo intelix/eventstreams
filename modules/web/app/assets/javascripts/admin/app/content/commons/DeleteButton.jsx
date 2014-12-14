@@ -41,7 +41,7 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
 
             var buttonClasses = this.cx({
                 'disabled': (!self.state.connected),
-                'btn btn-danger btn-sm': true
+                'btn btn-primary btn-xs': true
             });
 
 

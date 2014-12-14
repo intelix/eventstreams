@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno'],
-    function (React, core_mixin, StateLabel, Rate, YesNo) {
+define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno', 'common_button_startstop', 'common_button_delete', './ReplayButton'],
+    function (React, core_mixin, StateLabel, Rate, YesNo, StartStopButton, DeleteButton, ReplayButton) {
 
         return React.createClass({
             mixins: [core_mixin],
@@ -35,7 +35,7 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
             },
 
             handleRowClick: function () {
-                this.raiseEvent("tableRowClicked", {ckey: this.props.ckey});
+                this.raiseEvent("editGate", {ckey: this.props.ckey});
             },
 
             renderData: function () {
@@ -44,14 +44,22 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
                 var info = self.state.info;
                 var stats = self.state.stats;
 
-                var rowClasses = this.cx({
-                    'clickable': true,
-                    'warning': self.props.selected
-                });
+
+                var mainLink = info.name;
+                if (self.state.connected) {
+                    mainLink = <a href="#" onClick={this.handleRowClick} >{mainLink}</a>;
+                }
+
+                var replayButton;
+                if (info.replaySupported) {
+                    replayButton = <ReplayButton {...self.props} enabled={info.state == 'active' || info.state == 'error'} />;
+                } else {
+                    replayButton = "";
+                }
 
                 return (
-                    <tr className={rowClasses} ref='monitorVisibility' onClick={self.handleRowClick}>
-                        <td>{info.name}</td>
+                    <tr ref='monitorVisibility' >
+                        <td>{mainLink}</td>
                         <td>{info.address}</td>
                         <td>{info.retention}</td>
                         <td>{stats.retained}</td>
@@ -63,6 +71,11 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
                         <td>{stats.activeDS}</td>
                         <td>{info.sinks}</td>
                         <td><StateLabel state={info.state} details={info.stateDetails} /></td>
+                        <td>
+                            <StartStopButton {...this.props} state={info.state}  />
+                            <DeleteButton {...this.props} />
+                            {replayButton}
+                        </td>
                     </tr>
                 );
 

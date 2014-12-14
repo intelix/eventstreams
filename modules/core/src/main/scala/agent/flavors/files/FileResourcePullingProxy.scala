@@ -120,9 +120,9 @@ class PullingActorPublisher(val proxy: ResourcePullingProxy, val initialCursor: 
       proxy.cancelResource()
   }
 
-  private def convertPayload(b: ByteString, attachments: Option[JsValue]) = Json.obj(
+  private def convertPayload(b: ByteString, meta: Option[JsValue]) = Json.obj(
     "value" -> JsString(b.utf8String),
-    "attachments" -> (attachments | Json.obj())
+    "meta" -> (meta | Json.obj())
   )
 
   @tailrec
@@ -136,7 +136,7 @@ class PullingActorPublisher(val proxy: ResourcePullingProxy, val initialCursor: 
           currentCursor = FileCursorTools.toJson(e.cursor)
 
           if (e.data.isDefined) {
-            onNext(ProducedMessage(convertPayload(e.data.get, e.attachments), currentCursor))
+            onNext(ProducedMessage(convertPayload(e.data.get, e.meta), currentCursor))
             logger.info(s"Published next entry, current cursor: $currentCursor")
 
             if (e.hasMore)

@@ -41,7 +41,7 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
 
             var buttonClasses = this.cx({
                 'disabled': (!self.state.connected || !self.props.enabled),
-                'btn btn-default btn-sm': true
+                'btn btn-default btn-xs': true
             });
 
             return <button type="button" ref="button" className={buttonClasses} onClick={this.handleClick}>Replay</button>;

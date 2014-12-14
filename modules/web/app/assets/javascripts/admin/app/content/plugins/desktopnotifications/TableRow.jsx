@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno'],
-    function (React, core_mixin, StateLabel, Rate, YesNo) {
+define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno', 'common_button_startstop', 'common_button_delete', './SubscribeButton'],
+    function (React, core_mixin, StateLabel, Rate, YesNo, StartStopButton, DeleteButton, SubscribeButton) {
 
         return React.createClass({
             mixins: [core_mixin],
@@ -56,7 +56,13 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
                         <td>{info.conflate}</td>
                         <td>{info.autoClose}</td>
                         <td><StateLabel state={info.state} details={info.stateDetails} /></td>
-                        <td></td>
+                        <td>
+                            <SubscribeButton {...this.props} />
+                        </td>
+                        <td>
+                            <StartStopButton {...this.props} state={info.state}  />
+                            <DeleteButton {...this.props} />
+                        </td>
                     </tr>
                 );
 

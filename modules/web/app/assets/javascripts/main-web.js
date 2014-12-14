@@ -34,13 +34,10 @@
             common_editor_mixin: adminApp("content/commons/JSONEditorModalMixin"),
             common_button_startstop: adminApp("content/commons/StartStopButton"),
             common_button_delete: adminApp("content/commons/DeleteButton"),
-            common_button_edit: adminApp("content/commons/EditButton"),
             common_button_reset: adminApp("content/commons/ResetButton"),
             common_statelabel: adminApp("content/commons/StateLabel"),
             common_rate: adminApp("content/commons/Rate"),
             common_yesno: adminApp("content/commons/YesNo"),
-            common_panel_startstop: adminApp("content/commons/StartStopPanel"),
-            common_panel_delete: adminApp("content/commons/DeletePanel"),
             common_tabs: adminApp("content/commons/Tabs"),
 
 

@@ -18,9 +18,7 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
 
     // use this.sendCommand(subject, data) to talk to server
     if (!Notification) {
-        // TODO proper alert
-        alert('Notifications are supported in modern versions of Chrome, Firefox, Opera and Firefox.');
-        return;
+        this.logError('Notifications are supported in modern versions of Chrome, Firefox, Opera and Firefox.');
     }
 
     if (Notification.permission !== "granted")
@@ -40,7 +38,7 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
                 return [
                     {address: props.addr, route: props.ckey, topic: 'signal', onData: self.onSignal},
                     {address: props.addr, route: props.ckey, topic: 'info', dataKey: 'info'}
-                ]
+                ];
             else
                 return [{address: props.addr, route: props.ckey, topic: 'info', dataKey: 'info'}];
         },
@@ -55,7 +53,6 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
             if (Notification) {
                 if (Notification.permission !== "granted")
                     Notification.requestPermission();
-                console.log("!>>> ICON: " + data.icon);
 
                 var meta = {
                     icon: data.icon,

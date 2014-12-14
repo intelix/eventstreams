@@ -44,10 +44,10 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
             if (this.props.state == 'active') {
                 buttonClasses = this.cx({
                     'disabled': (!self.state.connected),
-                    'btn-warning': true
+                    'btn-default': true
                 });
                 button =
-                    <button type="button" className={"btn btn-sm " + buttonClasses} onClick={this.handleStop}>
+                    <button type="button" className={"btn btn-xs " + buttonClasses} onClick={this.handleStop}>
                     Stop
                     </button>;
             } else {
@@ -56,7 +56,7 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
                     'btn-success': true
                 });
                 button =
-                    <button type="button" className={"btn btn-sm " + buttonClasses} onClick={this.handleStart}>
+                    <button type="button" className={"btn btn-xs " + buttonClasses} onClick={this.handleStart}>
                     Start
                     </button>;
             }

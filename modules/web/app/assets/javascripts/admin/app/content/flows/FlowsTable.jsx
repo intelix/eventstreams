@@ -61,7 +61,7 @@ define(['react', 'core_mixin', './FlowsTableRow'], function (React, core_mixin, 
                 <div>
                     {addButton}
 
-                    <table className="table table-striped">
+                    <table className="table table-striped table-condensed">
                         <thead>
                         {header()}
                         </thead>

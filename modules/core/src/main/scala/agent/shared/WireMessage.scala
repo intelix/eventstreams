@@ -31,7 +31,6 @@ case class AcknowledgeAsProcessed(id: Long) extends AgentMessage
 
 case class AcknowledgeAsReceived(id: Long) extends AgentMessage
 
-case class MessageWithAttachments[T](msg: T, attachments: JsValue) extends AgentMessage
 
 
 sealed trait GateState

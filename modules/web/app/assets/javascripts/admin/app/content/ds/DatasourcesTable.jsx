@@ -60,7 +60,7 @@ define(['react', 'core_mixin', './DatasourcesTableRow'], function (React, core_m
                 <div>
                     {addButton}
 
-                    <table className="table table-striped">
+                    <table className="table table-striped table-condensed">
                         <thead>
                         {header()}
                         </thead>

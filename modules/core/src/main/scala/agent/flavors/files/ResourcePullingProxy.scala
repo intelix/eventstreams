@@ -22,7 +22,7 @@ import play.api.libs.json.JsValue
 
 import scala.concurrent.duration.DurationDouble
 
-case class DataChunk(data: Option[ByteString], attachments: Option[JsValue], cursor: Cursor, hasMore: Boolean)
+case class DataChunk(data: Option[ByteString], meta: Option[JsValue], cursor: Cursor, hasMore: Boolean)
 
 
 trait ResourcePullingProxy {
