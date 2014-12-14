@@ -27,28 +27,26 @@ import play.api.libs.json.{JsValue, Json}
 import scalaz.Scalaz._
 import scalaz.\/
 
-class GateInstruction extends BuilderFromConfig[InstructionType] {
-  val configId = "gate"
+class SignalSinkInstruction extends BuilderFromConfig[InstructionType] {
+  val configId = "signalsink"
 
   override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
-      address <- props ~> 'address \/> Fail(s"Invalid gate instruction configuration. Missing 'address' value. Contents: ${Json.stringify(props)}")
-    ) yield GateInstructionActor.props(address, props)
+      address <- props ~> 'signalmgrAddress \/> Fail(s"Invalid signal sink instruction configuration. Missing 'signalmgrAddress' value. Contents: ${Json.stringify(props)}")
+    ) yield SignalSinkInstructionActor.props(address, props)
 
 }
 
-private object GateInstructionActor {
-  def props(address: String, config: JsValue) = Props(new GateInstructionActor(address, config))
+private object SignalSinkInstructionActor {
+  def props(address: String, config: JsValue) = Props(new SignalSinkInstructionActor(address, config))
 }
 
-private class GateInstructionActor(address: String, config: JsValue)
+private class SignalSinkInstructionActor(address: String, config: JsValue)
   extends SubscribingPublisherActor
   with ReconnectingActor
-  with AtLeastOnceDeliveryActor[JsonFrame]
-  with ActorWithGateStateMonitoring {
+  with AtLeastOnceDeliveryActor[JsonFrame] {
 
-  val maxInFlight = config +> 'buffer | 96;
-  val blockingDelivery = config ?> 'blockingDelivery | true;
+  val maxInFlight = config +> 'buffer | 1000
   private val condition = SimpleCondition.conditionOrAlwaysTrue(config ~> 'simpleCondition)
 
   override def connectionEndpoint: String = address
@@ -61,45 +59,39 @@ private class GateInstructionActor(address: String, config: JsValue)
   override def onConnectedToEndpoint(): Unit = {
     super.onConnectedToEndpoint()
     logger.info("In connected state")
-    startGateStateMonitoring()
   }
 
   override def onDisconnectedFromEndpoint(): Unit = {
     super.onDisconnectedFromEndpoint()
     logger.info("In disconnected state")
-    stopGateStateMonitoring()
     if (isPipelineActive) initiateReconnect()
   }
 
   override def becomeActive(): Unit = {
-    logger.info(s"Sink becoming active")
+    logger.info(s"Signal sink instruction becoming active")
     initiateReconnect()
   }
 
   override def becomePassive(): Unit = {
-    logger.info(s"Sink becoming passive")
-    stopGateStateMonitoring()
+    logger.info(s"Signal sink instruction becoming passive")
     disconnect()
   }
 
-  override def canDeliverDownstreamRightNow = isActive && isPipelineActive && connected && isGateOpen
+  override def canDeliverDownstreamRightNow = isActive && isPipelineActive && connected
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
   override def fullyAcknowledged(correlationId: Long, msg: JsonFrame): Unit = {
     logger.info(s"Fully acknowledged $correlationId")
     //    context.parent ! Acknowledged(correlationId, msg)
-    if (blockingDelivery) forwardToNext(msg)
   }
 
   override def execute(value: JsonFrame): Option[Seq[JsonFrame]] = {
     // TODO log failed condition
     if (!condition.isDefined || condition.get.metFor(value).isRight) {
       deliverMessage(value)
-      if (blockingDelivery) None else Some(List(value))
-    } else {
-      Some(List(value))
     }
+    Some(List(value))
   }
 
   override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(maxInFlight) {

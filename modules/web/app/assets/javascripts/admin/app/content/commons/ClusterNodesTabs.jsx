@@ -72,7 +72,7 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
 
             if (filteredNodes.length == 0) {
                 if (!this.state.connected) return <p className="bg-warning">Waiting for the connection ...</p>
-                return <p className="bg-warning">Waiting for first HQ node to join the Cluster ...</p>
+                return <p className="bg-warning">Waiting for first {self.props.nodeName} node to join the Cluster ...</p>
             }
 
             var selected = this.state.selected;

@@ -7,9 +7,11 @@ case class Signal(signalId: String,
                   level: SignalLevel,
                   signalClass: String,
                   signalSubclass: Option[String],
+                  conflationKey: Option[String],
                   correlationId: Option[String],
                   transactionDemarcation: Option[String],
                   transactionStatus: Option[String],
                   title: Option[String],
                   body: Option[String],
-                  icon: Option[String])
+                  icon: Option[String],
+                  expiryTs: Option[Long])

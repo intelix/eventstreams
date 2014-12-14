@@ -68,7 +68,9 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
   val title = props ~> 'title
   val body = props ~> 'body
   val icon = props ~> 'icon
+  val expirySec = props +> 'expirySec
   val correlationIdTemplate = props ~> 'correlationIdTemplate
+  val conflationKeyTemplate = props ~> 'conflationKeyTemplate
   val timestampSource = props ~> 'timestampSource
   val signalSubclass = props ~> 'signalSubclass
   val throttlingWindow = props +> 'throttlingWindow
@@ -135,11 +137,13 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
 
     Signal(signalId, sequenceCounter, ts,
       eventId, level, signalClass, signalSubclass,
+      conflationKeyTemplate.map(Tools.macroReplacement(e, _)),
       correlationIdTemplate.map(Tools.macroReplacement(e, _)),
       transactionDemarcation, transactionStatus,
       title.map(Tools.macroReplacement(e, _)),
       body.map(Tools.macroReplacement(e, _)),
-      icon.map(Tools.macroReplacement(e, _)))
+      icon.map(Tools.macroReplacement(e, _)),
+      expirySec.map(_ * 1000 + now))
   }
 
   def signalToEvent(s: Signal): JsonFrame = JsonFrame(Json.obj(
@@ -155,12 +159,14 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
     } | Json.obj()),
     "signal" -> Json.obj(
       "sourceEventId" -> s.eventId,
+      "conflationKey" -> s.conflationKey,
       "correlationId" -> s.correlationId,
       "signalClass" -> s.signalClass,
       "signalSubclass" -> s.signalSubclass,
       "title" -> s.title,
       "body" -> s.body,
       "icon" -> s.icon,
+      "expiryTs" -> s.expiryTs,
       "level" -> s.level.code,
       "time" -> s.ts,
       "time_fmt" -> new DateTime(s.ts).toString(DateDefaults.default)

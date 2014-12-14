@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-define(['react', 'core_mixin'], function (React, core_mixin) {
+define(['react', 'core_mixin', './desktopnotifications/main'], function (React, core_mixin, Notifications) {
 
     return React.createClass({
         mixins: [core_mixin],
@@ -24,53 +24,26 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
         },
 
         render: function () {
+
+            var content = <Notifications />;
+
             return (
                 <div className="row">
                     <div className="col-md-2">
                         <ul className="nav nav-pills dark nav-stacked">
                             <li role="presentation" className="active">
-                                <a href="#">Home</a>
+                                <a href="#">Desktop notifications</a>
                             </li>
                             <li role="presentation">
-                                <a href="#">Profile</a>
+                                <a href="#">Notifications dashboard</a>
                             </li>
                             <li role="presentation">
-                                <a href="#">Messages</a>
+                                <a href="#">Events explorer</a>
                             </li>
                         </ul>
                     </div>
                     <div className="col-md-10">
-                        <table className="table">
-                            <caption>Optional table caption.</caption>
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>First Name</th>
-                                    <th>Last Name</th>
-                                    <th>Username</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>1</td>
-                                    <td>Mark</td>
-                                    <td>Otto</td>
-                                    <td>@mdo</td>
-                                </tr>
-                                <tr>
-                                    <td>2</td>
-                                    <td>Jacob</td>
-                                    <td>Thornton</td>
-                                    <td>@fat</td>
-                                </tr>
-                                <tr>
-                                    <td>3</td>
-                                    <td>Larry</td>
-                                    <td>the Bird</td>
-                                    <td>@twitter</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    {content}
                     </div>
 
                 </div>

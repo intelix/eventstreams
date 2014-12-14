@@ -62,7 +62,7 @@ define(['react', 'core_mixin', 'common_nodetabs', './FlowsTable', './FlowsEditor
 
                 return <div>
 
-                    <Tabs roles={["hq"]} selectorId="nodeSelectorForFlows" />
+                    <Tabs roles={["hq"]} selectorId="nodeSelectorForFlows"  nodeName="HQ" />
                     {this.state.editBlock ? this.state.editBlock : ""}
                     {this.state.selected ? <Table addr={this.state.selected}/> : ""}
                 </div>;

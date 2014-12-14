@@ -24,6 +24,7 @@ import hq.agents.AgentsManagerActor
 import hq.cluster.ClusterManagerActor
 import hq.flows.FlowManagerActor
 import hq.gates.{RetentionManagerActor, GateManagerActor}
+import hq.plugins.SignalSubscriptionManagerActor
 import hq.routing.MessageRouterActor
 import play.api.libs.json._
 import play.api.libs.json.extensions._
@@ -51,5 +52,7 @@ object HQLauncher extends App {
   FlowManagerActor.start
 
   RetentionManagerActor.start
+
+  SignalSubscriptionManagerActor.start
 
 }

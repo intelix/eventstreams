@@ -72,8 +72,18 @@
       "type": "string"
     },
     "icon": {
-      "propertyOrder": 44,
+      "propertyOrder": 43,
       "title": "Icon (URL) template",
+      "type": "string"
+    },
+    "expirySec": {
+      "propertyOrder": 44,
+      "title": "Expiry (sec)",
+      "type": "number"
+    },
+    "conflationKeyTemplate": {
+      "propertyOrder": 45,
+      "title": "Conflation key template",
       "type": "string"
     },
     "correlationIdTemplate": {

@@ -72,7 +72,7 @@ class SubscriberBoundaryInitiatingActor(endpoint: String)
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
   override def fullyAcknowledged(correlationId: Long, msg: JsonFrame): Unit = {
-    logger.info(s"Fully achnowledged $correlationId")
+    logger.info(s"Fully acknowledged $correlationId")
     context.parent ! Acknowledged(correlationId, correlationToCursor.get(correlationId))
     correlationToCursor -= correlationId
   }
