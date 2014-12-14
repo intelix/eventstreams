@@ -49,6 +49,13 @@ object SimpleCondition extends StrictLogging {
   val isLess = "(.+?)<(.+)".r
   val isMore = "(.+?)>(.+)".r
 
+  def conditionOrAlwaysTrue(optStr: Option[String]): Option[Condition] = {
+    SimpleCondition(optStr) match {
+      case Some(\/-(cond)) => Some(cond)
+      case _ => Some(Condition.alwaysTrue)
+    }
+  }
+
   def apply(optStr: Option[String]): Option[\/[Fail, Condition]] = {
 
     optStr match {
@@ -294,9 +301,10 @@ private case class TagCondition(name: String, criteriaValue: Option[String], cri
 object Condition {
 
   val neverTrue = new NeverTrueCondition()
+  val alwaysTrue = new AlwaysTrueCondition()
 
   def apply(optConfig: Option[JsValue]): \/[Fail, Condition] =
-    optConfig.flatMap(condition) | alwaysTrue
+    optConfig.flatMap(condition) | \/-(alwaysTrue)
 
   private def condition(config: JsValue): Option[\/[Fail, Condition]] =
     (config ~> 'class).map { conditionClass =>
@@ -312,8 +320,6 @@ object Condition {
       ) yield condition
     }
 
-
-  private def alwaysTrue = \/-(AlwaysTrueCondition())
 
   private def tag(config: JsValue): \/[Fail, Condition] =
     for (

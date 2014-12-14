@@ -16,18 +16,20 @@
 
 package agent.flavors.files
 
+import agent.core.Cursor
+import akka.util.ByteString
 import play.api.libs.json.JsValue
 
 import scala.concurrent.duration.DurationDouble
 
-case class DataChunk[T, C <: Cursor](data: Option[T], attachments: Option[JsValue], cursor: C, hasMore: Boolean)
+case class DataChunk(data: Option[ByteString], attachments: Option[JsValue], cursor: Cursor, hasMore: Boolean)
 
 
-trait ResourcePullingProxy[T, C <: Cursor] {
+trait ResourcePullingProxy {
 
   def pullRetryInterval = 3.second
 
-  def next(c: Option[C]): Option[DataChunk[T, C]]
+  def next(c: Option[Cursor]): Option[DataChunk]
 
   def cancelResource()
 }

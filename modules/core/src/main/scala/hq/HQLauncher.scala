@@ -25,6 +25,10 @@ import hq.cluster.ClusterManagerActor
 import hq.flows.FlowManagerActor
 import hq.gates.{RetentionManagerActor, GateManagerActor}
 import hq.routing.MessageRouterActor
+import play.api.libs.json._
+import play.api.libs.json.extensions._
+
+import scala.io.Source
 
 /**
  * Created by maks on 18/09/14.
@@ -32,6 +36,8 @@ import hq.routing.MessageRouterActor
 object HQLauncher extends App {
 
   implicit val config = ConfigFactory.load(System.getProperty("config", "hq.conf"))
+
+
 
   implicit val system = ActorSystem("ehub", config)
 

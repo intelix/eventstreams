@@ -25,7 +25,7 @@ import play.api.libs.json.{JsString, JsValue, Json}
 import scalaz.Scalaz._
 import scalaz._
 
-private[core] object AddTagInstruction extends SimpleInstructionBuilder {
+class AddTagInstruction extends SimpleInstructionBuilder {
   val configId = "addtag"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =

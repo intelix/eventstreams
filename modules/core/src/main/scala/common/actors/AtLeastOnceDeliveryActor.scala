@@ -111,7 +111,7 @@ trait AtLeastOnceDeliveryActor[T]
 
   private def deliverIfPossible(forceResend: Boolean = false) =
     if (canDeliverDownstreamRightNow && list.nonEmpty) {
-      list.find { m => m.endpoints.exists(!m.receivedAck.contains(_)) } foreach { toDeliver =>
+      list.find { m => m.endpoints.isEmpty || m.endpoints.exists(!m.receivedAck.contains(_)) } foreach { toDeliver =>
         val newInflight = resend(toDeliver, forceResend)
         list = list.map {
           case m if m.correlationId == newInflight.correlationId => newInflight

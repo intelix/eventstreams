@@ -16,9 +16,7 @@
 
 package agent.flavors.files
 
-import java.io.File
 
-sealed trait MonitorTarget
 
 sealed trait InitialPosition
 case class StartWithLast() extends InitialPosition
@@ -34,4 +32,4 @@ case class RollingFileMonitorTarget(
                                      mainLogPattern: String,
                                      rollingLogPattern: String,
                                      initialPosition: InitialPosition,
-                                     orderBy: FileOrdering) extends MonitorTarget
+                                     orderBy: FileOrdering)

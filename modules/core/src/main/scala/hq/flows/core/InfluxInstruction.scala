@@ -30,10 +30,10 @@ import scala.annotation.tailrec
 import scalaz.Scalaz._
 import scalaz.\/
 
-private[core] object InfluxInstruction extends BuilderFromConfig[InstructionType] {
+class InfluxInstruction extends BuilderFromConfig[InstructionType] {
   val configId = "influx"
 
-  override def build(props: JsValue, maybeData: Option[Condition], id: Option[String] = None): \/[Fail, InstructionType] =
+  override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
       series <- props ~> 'series \/> Fail(s"Invalid influx instruction configuration. Missing 'series' value. Contents: ${Json.stringify(props)}")
     ) yield InfluxInstructionActor.props(series, props)
@@ -70,6 +70,8 @@ private class InfluxInstructionActor(series: String, config: JsValue)
   private val user = config ~> 'user | "user"
   private val passw = config ~> 'password | ""
 
+  private val condition = SimpleCondition.conditionOrAlwaysTrue(config ~> 'simpleCondition)
+
   private var queue = List[JsonFrame]()
   private var client: Option[Client] = Some(new Client(host = host + ":" + port, username = user, password = passw, database = database))
 
@@ -92,9 +94,12 @@ private class InfluxInstructionActor(series: String, config: JsValue)
   }
 
   override def execute(value: JsonFrame): Option[Seq[JsonFrame]] = {
-    queue = queue :+ value
-    deliverIfPossible()
-    None
+    // TODO log failed condition
+    if (!condition.isDefined || condition.get.metFor(value).isRight) {
+      queue = queue :+ value
+      deliverIfPossible()
+      None
+    } else Some(List(value))
   }
 
   override def processTick(): Unit = {
@@ -108,7 +113,7 @@ private class InfluxInstructionActor(series: String, config: JsValue)
   }
 
   private def aggregatorCriteriaMet: Boolean =
-    (now - lastSent.getOrElse(0L)) > bulkCollectionPeriodMillis || queue.size >= bulkSizeLimit
+    (now - lastSent.getOrElse(0.toLong)) > bulkCollectionPeriodMillis || queue.size >= bulkSizeLimit
 
   private def toPoints(frame: JsonFrame): JsValue =
     Json.toJson((timeSource + "," + eventSeqSource + "," + points).split(",").map { field =>

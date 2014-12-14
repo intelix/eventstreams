@@ -26,7 +26,7 @@ import play.api.libs.json.JsValue
 import scalaz.Scalaz._
 import scalaz._
 
-private[core] object LogInstruction extends SimpleInstructionBuilder {
+class LogInstruction extends SimpleInstructionBuilder {
   val configId = "log"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] = {

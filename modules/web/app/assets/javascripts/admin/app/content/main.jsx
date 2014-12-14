@@ -20,13 +20,13 @@ define(
         './gates/main',
         './flows/main',
         './ds/main',
-        './notif/main'],
+        './plugins/main'],
     function (React,
               core_mixin,
               Gates,
               Flows,
               Datasources,
-              Notif) {
+              Tools) {
 
         return React.createClass({
             mixins: [core_mixin],
@@ -58,7 +58,7 @@ define(
                     case 'gates': selection = <Gates />; break;
                     case 'flows': selection = <Flows />; break;
                     case 'datasources': selection = <Datasources />; break;
-                    case 'notif': selection = <Notif />; break;
+                    case 'tools': selection = <Tools />; break;
                     default: selection = "";
                 }
 

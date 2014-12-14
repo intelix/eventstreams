@@ -17,6 +17,7 @@
 package hq.flows
 
 import akka.actor._
+import com.typesafe.config.Config
 import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
@@ -32,9 +33,9 @@ import scalaz.Scalaz._
 import scalaz.{-\/, \/-}
 
 object FlowActor {
-  def props(id: String) = Props(new FlowActor(id))
+  def props(id: String, instructions: List[Config]) = Props(new FlowActor(id, instructions))
 
-  def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id), ActorTools.actorFriendlyId(id))
+  def start(id: String, instructions: List[Config])(implicit f: ActorRefFactory) = f.actorOf(props(id, instructions), ActorTools.actorFriendlyId(id))
 }
 
 
@@ -51,7 +52,7 @@ case class FlowStatePassive(details: Option[String] = None) extends FlowState
 case class FlowStateError(details: Option[String] = None) extends FlowState
 
 
-class FlowActor(id: String)
+class FlowActor(id: String, instructions: List[Config])
   extends PipelineWithStatesActor
   with ActorWithConfigStore
   with SingleComponentActor
@@ -197,7 +198,7 @@ class FlowActor(id: String)
 
     terminateFlow(Some("Applying new configuration"))
 
-    Builder()(config, context, id) match {
+    Builder(instructions, config, context, id) match {
       case -\/(fail) =>
         currentState = FlowStateError(fail.message)
 

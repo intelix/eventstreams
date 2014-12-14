@@ -22,15 +22,24 @@ define(['react'], function (React) {
 
 
         getInitialState: function() {
-            return { data: false};
+            return { data: false, config: null};
         },
 
         subscriptionConfig: function (props) {
-            return props.ckey ? [{address: props.addr, route: props.ckey, topic: 'props', onData: this.onData}] : [];
+            return props.ckey ? [
+                {address: props.addr, route: props.mgrRoute, topic: 'configtpl', onData: this.onConfig},
+                {address: props.addr, route: props.ckey, topic: 'props', onData: this.onData}
+            ] : [
+                {address: props.addr, route: props.mgrRoute, topic: 'configtpl', onData: this.onConfig}
+            ];
         },
 
         onData: function (data) {
             this.setState({data: data});
+        },
+
+        onConfig: function (data) {
+            this.setState({config: data});
         },
 
         componentDidMount: function () {
@@ -43,7 +52,7 @@ define(['react'], function (React) {
 
         componentDidUpdate: function() {
             var self = this;
-            if (self.state.data) {
+            if (self.state.data && self.state.config) {
                 $(self.refs.modal.getDOMNode()).on('hidden.bs.modal', function (e) {
                     self.raiseEvent(self.props.editorId + "ModalClosed", {});
                 });
@@ -51,8 +60,9 @@ define(['react'], function (React) {
 
                 self.editor = new JSONEditor(self.refs.editor.getDOMNode(), {
                     theme: 'bootstrap3',
-                    schema: this.schema(),
+                    schema: self.state.config,
                     disable_properties: true,
+                    required_by_default: true,
                     disable_collapse: false,
                     no_additional_properties: true
                 });
@@ -62,16 +72,14 @@ define(['react'], function (React) {
 
         handleAdd: function (e) {
             var self = this;
-            alert(self.props.addRoute);
 
             var value = self.editor.getValue();
-            if (self.props.addRoute) {
-                self.sendCommand(self.props.addr, self.props.addRoute, "add", value);
+            if (!self.props.ckey) {
+                self.sendCommand(self.props.addr, self.props.mgrRoute, "add", value);
                 if (self.onConfigWillBeAdded) {
                     self.onConfigWillBeAdded(value);
                 }
-            }
-            if (self.props.ckey) {
+            } else {
                 self.sendCommand(self.props.addr, self.props.ckey, "update_props", value);
                 if (self.onConfigWillBeUpdated) {
                     self.onConfigWillBeUpdated(value);

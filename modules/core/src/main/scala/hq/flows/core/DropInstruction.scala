@@ -22,7 +22,7 @@ import play.api.libs.json.JsValue
 
 import scalaz._
 
-private[core] object DropInstruction extends SimpleInstructionBuilder {
+class DropInstruction extends SimpleInstructionBuilder {
   val configId = "drop"
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] = \/- { frame: JsonFrame => List() }
 }

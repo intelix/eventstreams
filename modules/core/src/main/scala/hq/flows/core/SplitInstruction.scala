@@ -29,7 +29,7 @@ import scala.util.matching.Regex
 import scalaz.Scalaz._
 import scalaz._
 
-private[core] object SplitInstruction extends SimpleInstructionBuilder with NowProvider {
+class SplitInstruction extends SimpleInstructionBuilder with NowProvider {
   val configId = "split"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
@@ -38,7 +38,7 @@ private[core] object SplitInstruction extends SimpleInstructionBuilder with NowP
       pattern <- (props ~> 'pattern).map(new Regex(_)) \/> Fail(s"Invalid split instruction. Missing 'pattern' value. Contents: ${Json.stringify(props)}")
     ) yield {
 
-      var sequence = 0L
+      var sequence: Long = 0
       var remainder : Option[String] = None
 
       @tailrec

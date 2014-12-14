@@ -16,10 +16,15 @@
 
 package agent.controller.flow
 
+import agent.core.ProducedMessage
 import akka.actor.{Actor, ActorRef, Props}
 import akka.stream.actor.ActorSubscriberMessage.OnNext
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
+import common.JsonFrame
 import common.actors._
+import play.api.libs.json.JsValue
+
+import scala.collection.mutable
 
 object SubscriberBoundaryInitiatingActor {
   def props(endpoint: String) = Props(new SubscriberBoundaryInitiatingActor(endpoint))
@@ -29,12 +34,14 @@ class SubscriberBoundaryInitiatingActor(endpoint: String)
   extends PipelineWithStatesActor
   with ShutdownableSubscriberActor
   with ReconnectingActor
-  with AtLeastOnceDeliveryActor[Any]
+  with AtLeastOnceDeliveryActor[JsonFrame]
   with ActorWithGateStateMonitoring {
 
   override def commonBehavior: Receive = handleOnNext orElse super.commonBehavior
 
   override def connectionEndpoint: String = endpoint
+
+  val correlationToCursor = mutable.Map[Long, JsValue]()
 
   override def onConnectedToEndpoint(): Unit = {
     super.onConnectedToEndpoint()
@@ -64,9 +71,10 @@ class SubscriberBoundaryInitiatingActor(endpoint: String)
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
-  override def fullyAcknowledged(correlationId: Long, msg: Any): Unit = {
+  override def fullyAcknowledged(correlationId: Long, msg: JsonFrame): Unit = {
     logger.info(s"Fully achnowledged $correlationId")
-    context.parent ! Acknowledged(correlationId, msg)
+    context.parent ! Acknowledged(correlationId, correlationToCursor.get(correlationId))
+    correlationToCursor -= correlationId
   }
 
 
@@ -75,8 +83,11 @@ class SubscriberBoundaryInitiatingActor(endpoint: String)
   }
 
   private def handleOnNext: Actor.Receive = {
+    case OnNext(ProducedMessage(value, cursor)) =>
+      logger.info(s"Next: $value")
+      val correlationid = deliverMessage(JsonFrame(value,Map()))
+      cursor.foreach(correlationToCursor += correlationid -> _)
     case OnNext(x) =>
-      logger.info(s"Next: $x")
-      deliverMessage(x)
+      logger.info(s"Next - unsupported payload: $x")
   }
 }

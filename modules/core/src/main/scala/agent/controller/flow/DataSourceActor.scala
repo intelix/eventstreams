@@ -16,52 +16,82 @@
 
 package agent.controller.flow
 
-import java.nio.charset.Charset
 import java.util.Date
 
 import agent.controller.AgentMessagesV1.{DatasourceConfig, DatasourceInfo}
 import agent.controller.DatasourceAvailable
-import agent.flavors.files._
+import agent.core.{Cursor, ProducedMessage}
 import agent.shared._
 import akka.actor.{ActorRef, ActorRefFactory, Props}
 import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
 import akka.util.ByteString
+import com.typesafe.config.Config
 import common.ToolExt.configHelper
 import common.actors._
-import common.{BecomeActive, BecomePassive, Stop}
+import common._
+import hq.flows.core.BuilderFromConfig
 import hq.{ComponentKey, TopicKey}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
 import scalaz.Scalaz._
+import scalaz._
 
 
 object DatasourceActor {
-  def props(dsId: String)(implicit mat: FlowMaterializer) = Props(new DatasourceActor(dsId))
+  def props(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer) = Props(new DatasourceActor(dsId, dsConfigs))
 
-  def start(dsId: String)(implicit mat: FlowMaterializer, f: ActorRefFactory) = f.actorOf(props(dsId), ActorTools.actorFriendlyId(dsId))
+  def start(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer, f: ActorRefFactory) = f.actorOf(props(dsId, dsConfigs), ActorTools.actorFriendlyId(dsId))
 }
 
 
-class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
+sealed trait DatasourceState {
+  def details: Option[String]
+}
+
+case class DatasourceStateUnknown(details: Option[String] = None) extends DatasourceState
+
+case class DatasourceStateActive(details: Option[String] = None) extends DatasourceState
+
+case class DatasourceStatePassive(details: Option[String] = None) extends DatasourceState
+
+case class DatasourceStateError(details: Option[String] = None) extends DatasourceState
+
+
+class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer)
   extends ActorWithComposableBehavior
   with PipelineWithStatesActor
   with ActorWithConfigStore
   with ActorWithPeriodicalBroadcasting {
 
-  type In = ProducedMessage[ByteString, Cursor]
-  type Out = ProducedMessage[MessageWithAttachments[ByteString], Cursor]
+  val allBuilders = dsConfigs.map { cfg =>
+    Class.forName(cfg.getString("class")).newInstance().asInstanceOf[BuilderFromConfig[Props]]
+  }
+
+
   val key = ComponentKey(dsId)
-  private var endpointType = "N/A"
+  var currentState: DatasourceState = DatasourceStateUnknown(Some("Initialising"))
   private var endpointDetails = "N/A"
   private var commProxy: Option[ActorRef] = None
-  private var active = false
   private var flow: Option[FlowInstance] = None
-  private var cursor2config: Option[Cursor => Option[JsValue]] = None
 
   override def storageKey: Option[String] = Some(dsId)
+
+
+
+  def stateAsString = currentState match {
+    case DatasourceStateUnknown(_) => "unknown"
+    case DatasourceStateActive(_) => "active"
+    case DatasourceStatePassive(_) => "passive"
+    case DatasourceStateError(_) => "error"
+  }
+
+  def stateDetailsAsString = currentState.details match {
+    case Some(v) => stateAsString + " - " + v
+    case _ => stateAsString
+  }
 
   override def becomeActive(): Unit = {
     startFlow()
@@ -74,13 +104,9 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
   }
 
   override def commonBehavior: Receive = super.commonBehavior orElse {
-    case Acknowledged(id, msg) => msg match {
-      case ProducedMessage(_, _, c: Cursor) =>
-        for (
-          func <- cursor2config;
-          state <- func(c);
-          cfg <- propsConfig
-        ) updateWithoutApplyConfigSnapshot(cfg, Some(state)) // TODO (low priority) aggregate and send updates every sec or so, and on postStop
+    case Acknowledged(_, Some(msg)) => msg match {
+      case c : JsValue => propsConfig.foreach { propsConfig => updateWithoutApplyConfigSnapshot(propsConfig, Some(c))} // TODO (low priority) aggregate and send updates every sec or so, and on postStop
+      case _ => ()
     }
     case CommunicationProxyRef(ref) =>
       commProxy = Some(ref)
@@ -96,12 +122,11 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
 
   override def applyConfig(key: String, config: JsValue, state: Option[JsValue]): Unit = {
 
-    import play.api.libs.json.Reads._
-    import play.api.libs.json._
 
     logger.info(s"Creating flow $dsId, config $config, initial state $state")
 
     implicit val dispatcher = context.system.dispatcher
+
     implicit val mat = FlowMaterializer()
 
     flow.foreach { v =>
@@ -112,129 +137,82 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
 
     flow = None
 
-    def buildProcessorFlow(props: JsValue): Flow[In, Out] = {
+    def buildProcessorFlow(props: JsValue): Flow[ProducedMessage, ProducedMessage] = {
 
       logger.debug(s"Building processor flow from $props")
 
-      val convert = Flow[In].map {
-        case ProducedMessage(msg, a, c) =>
-          ProducedMessage(MessageWithAttachments(msg, a | Json.obj()), None, c)
-      }
-
-      val setSource = Flow[Out].map {
-        case ProducedMessage(MessageWithAttachments(msg, json), _, c) =>
+      val setSource = Flow[ProducedMessage].map {
+        case ProducedMessage(json, c) =>
           val modifiedJson = json set __ \ "sourceId" -> JsString((props \ "sourceId").asOpt[String].getOrElse("undefined"))
-          ProducedMessage(MessageWithAttachments(msg, modifiedJson), None, c)
+          ProducedMessage(modifiedJson, c)
       }
 
-      val setTags = Flow[Out].map {
-        case ProducedMessage(MessageWithAttachments(msg, json), _, c) =>
+      val setTags = Flow[ProducedMessage].map {
+        case ProducedMessage(json, c) =>
           val v = (props \ "tags").asOpt[String].map(_.split(",").map(_.trim)).map(Json.toJson(_)).getOrElse(Json.arr())
           val modifiedJson = json set __ \ "tags" -> v
-          ProducedMessage(MessageWithAttachments(msg, modifiedJson), None, c)
+          ProducedMessage(modifiedJson, c)
       }
 
-      convert.via(setSource).via(setTags)
+      setSource.via(setTags)
     }
 
-
-    def buildFileMonitorTarget(targetProps: JsValue): MonitorTarget = {
-
-      logger.debug(s"Creating RollingFileMonitorTarget from $targetProps")
-
-      RollingFileMonitorTarget(
-        (targetProps \ "directory").as[String],
-        (targetProps \ "mainPattern").as[String],
-        (targetProps \ "rollingPattern").as[String],
-        (targetProps \ "startWith").asOpt[String].map(_.toLowerCase) match {
-          case Some("first") => StartWithFirst()
-          case _ => StartWithLast()
-        },
-        (targetProps \ "fileOrdering").asOpt[String].map(_.toLowerCase) match {
-          case Some("name only") => OrderByNameOnly()
-          case _ => OrderByLastModifiedAndName()
-        }
-      )
-    }
-
-    def buildState(): Option[Cursor] = {
-      for (
-        stateCfg <- state;
-        fileCursorCfg <- (stateCfg \ "fileCursor").asOpt[JsValue];
-        seed <- (fileCursorCfg \ "idx" \ "seed").asOpt[Long];
-        resourceId <- (fileCursorCfg \ "idx" \ "rId").asOpt[Long];
-        positionWithinItem <- (fileCursorCfg \ "pos").asOpt[Long]
-      ) yield {
-        val state = FileCursor(ResourceIndex(seed, resourceId), positionWithinItem)
-        logger.info(s"Initial state: $state")
-        state
-      }
-    }
-
-    def buildFileProducer(fId: String, props: JsValue): Props = {
-      implicit val charset = Charset.forName("UTF-8")
-      implicit val fileIndexing = new FileIndexer
-
-      logger.debug(s"Building FileMonitorActorPublisher from $props")
-
-      cursor2config = Some {
-        case FileCursor(ResourceIndex(seed, resourceId), positionWithinItem) =>
-          Some(Json.obj(
-            "fileCursor" -> Json.obj(
-              "idx" -> Json.obj(
-                "seed" -> seed,
-                "rId" -> resourceId),
-              "pos" -> positionWithinItem)))
-        case _ => None
-      }
-
-      FileMonitorActorPublisher.props(fId, buildFileMonitorTarget(props), buildState())
-    }
-
-    def buildProducer(fId: String, config: JsValue): Props = {
+    def buildProducer(fId: String, config: JsValue): \/[Fail, Props] = {
 
       logger.debug(s"Building producer from $config")
 
-      (config \ "class").asOpt[String] match {
-        case Some("file") => buildFileProducer(fId, config)
-        case _ => throw new IllegalArgumentException(Json.stringify(config))
+      for (
+        instClass <- config ~> 'class \/> Fail("Invalid datasource config: missing 'class' value");
+        builder <- allBuilders.find(_.configId == instClass)
+          \/> Fail(s"Unsupported or invalid datasource class $instClass. Supported classes: ${allBuilders.map(_.configId)}");
+        impl <- builder.build(config, state, Some(fId))
+      ) yield impl
+
+    }
+
+
+    def buildSink(fId: String, props: JsValue): \/[Fail, Props] =
+      for (
+        endpoint <- props ~> 'targetGate \/> Fail("Invalid datasource config: missing 'targetGate' value");
+        impl <- SubscriberBoundaryInitiatingActor.props(endpoint).right
+      ) yield {
+        endpointDetails = endpoint
+        impl
       }
+
+
+
+    val result = for (
+      publisherProps <-  buildProducer(dsId, config \ "source");
+      sinkProps <- buildSink(dsId, config )
+    ) yield {
+      val publisherActor: ActorRef = context.actorOf(publisherProps)
+      val publisher = PublisherSource(ActorPublisher[ProducedMessage](publisherActor))
+
+      val processingSteps = buildProcessorFlow(config)
+
+      val sinkActor = context.actorOf(sinkProps)
+      val sink = SubscriberSink(ActorSubscriber[ProducedMessage](sinkActor))
+
+      val runnableFlow: RunnableFlow = publisher.via(processingSteps).to(sink)
+
+      val materializedFlow: MaterializedMap = runnableFlow.run()
+
+      flow = Some(FlowInstance(materializedFlow, publisherActor, sinkActor))
+
+      if (isPipelineActive)
+        startFlow()
+      else
+        stopFlow()
     }
 
-
-    def buildAkkaSink(fId: String, props: JsValue): Props = {
-      val url = props ~> 'url | "N/A"
-      endpointType = "akka"
-      endpointDetails = url
-      SubscriberBoundaryInitiatingActor.props(props ~> "url" | "N/A")
+    result match {
+      case -\/(fail) =>
+        logger.warn(s"Unable to build datasource: $fail")
+        currentState = DatasourceStateError(fail.message)
+      case _ => ()
     }
 
-    def buildSink(fId: String, config: JsValue): Props = {
-      (config \ "class").asOpt[String] match {
-        case Some("akka") => buildAkkaSink(fId, config)
-        case _ => BlackholeAutoAckSinkActor.props
-      }
-    }
-
-
-
-    val publisherProps = buildProducer(dsId, config \ "source")
-    val publisherActor: ActorRef = context.actorOf(publisherProps)
-    val publisher = PublisherSource(ActorPublisher[In](publisherActor))
-
-    val processingSteps = buildProcessorFlow(config)
-
-    val sinkProps = buildSink(dsId, config \ "sink")
-    val sinkActor = context.actorOf(sinkProps)
-    val sink = SubscriberSink(ActorSubscriber[Out](sinkActor))
-
-    val runnableFlow: RunnableFlow = publisher.via(processingSteps).to(sink)
-
-    val materializedFlow: MaterializedMap = runnableFlow.run()
-
-    flow = Some(FlowInstance(materializedFlow, publisherActor, sinkActor))
-
-    if (isPipelineActive) startFlow()
 
   }
 
@@ -257,7 +235,7 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
       v.sink ! BecomeActive()
       v.source ! BecomeActive()
     }
-    active = true
+    currentState = DatasourceStateActive()
     sendToHQAll()
   }
 
@@ -266,7 +244,7 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
       v.source ! BecomePassive()
       v.sink ! BecomePassive()
     }
-    active = false
+    currentState = DatasourceStatePassive()
     sendToHQAll()
   }
 
@@ -278,10 +256,11 @@ class DatasourceActor(dsId: String)(implicit mat: FlowMaterializer)
       "id" -> "Test",
       "created" -> created,
       "name" -> name,
-      "endpointType" -> endpointType,
+      "endpointType" -> "Gate",
       "endpointDetails" -> endpointDetails,
       "sinceStateChange" -> prettyTimeSinceStateChange,
-      "state" -> (if (active) "active" else "passive")
+      "state" -> stateAsString,
+      "stateDetails" -> stateDetailsAsString
     ))
 
   private def sendToHQAll() = {

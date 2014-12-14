@@ -18,30 +18,57 @@ package agent.flavors.files
 
 import java.nio.charset.Charset
 
+import agent.core.{ProducedMessage, Cursor}
 import akka.actor.Props
 import akka.stream.actor.ActorPublisherMessage
 import akka.util.ByteString
 import common.actors.{ActorWithComposableBehavior, ActorWithTicks, PipelineWithStatesActor, ShutdownablePublisherActor}
-import play.api.libs.json.JsValue
+import play.api.libs.json._
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 
-class FileResourcePullingProxy(flowId: String, target: MonitorTarget)(implicit indexer: Indexer) extends ResourcePullingProxy[ByteString, Cursor]{
+import scalaz._
+import Scalaz._
+
+
+object FileMonitorActorPublisher {
+
+  def props(flowId: String, targetProps: JsValue, cursor: Option[JsValue] = None)
+           (implicit fileIndexing: Indexer, charset: Charset) = Props(
+    new PullingActorPublisher(new FileResourcePullingProxy(flowId, targetProps), cursor))
+
+}
+
+
+class FileResourcePullingProxy(flowId: String, targetProps: JsValue)(implicit indexer: Indexer) extends ResourcePullingProxy{
 
   var cancelled = false
 
-  val indexerSession = indexer.startSession(flowId, target)
+  val indexerSession = indexer.startSession(flowId, RollingFileMonitorTarget(
+    (targetProps \ "directory").as[String],
+    (targetProps \ "mainPattern").as[String],
+    (targetProps \ "rollingPattern").as[String],
+    (targetProps \ "startWith").asOpt[String].map(_.toLowerCase) match {
+      case Some("first") => StartWithFirst()
+      case _ => StartWithLast()
+    },
+    (targetProps \ "fileOrdering").asOpt[String].map(_.toLowerCase) match {
+      case Some("name only") => OrderByNameOnly()
+      case _ => OrderByLastModifiedAndName()
+    }
+  ))
+
 
 
   private def initialCursor : Cursor = {
     indexerSession.tailCursor
   }
 
-  override def next(c: Option[Cursor]): Option[DataChunk[ByteString, Cursor]] = {
+  override def next(c: Option[Cursor]): Option[DataChunk] = {
     if (cancelled) return None
     val cursor = c getOrElse initialCursor
-    indexerSession.withOpenResource[ByteString](cursor) { resource =>
+    indexerSession.withOpenResource(cursor) { resource =>
       resource.nextChunk()
     }
   }
@@ -54,16 +81,16 @@ class FileResourcePullingProxy(flowId: String, target: MonitorTarget)(implicit i
 }
 
 
-case class ProducedMessage[T, C <: Cursor](bs: T, attachments: Option[JsValue], c: C)
 
-class PullingActorPublisher[T, C <: Cursor](val proxy: ResourcePullingProxy[T, C], val initialCursor: Option[C])
-                                                      (implicit ec: ExecutionContext)
+
+class PullingActorPublisher(val proxy: ResourcePullingProxy, val initialCursor: Option[JsValue])
+
   extends ActorWithComposableBehavior
   with PipelineWithStatesActor
   with ActorWithTicks
-  with ShutdownablePublisherActor[ProducedMessage[T, C]] {
+  with ShutdownablePublisherActor[ProducedMessage] {
 
-  private var currentCursor = initialCursor
+  private var currentCursor : Option[JsValue] = initialCursor
 
 
   override def processTick(): Unit = {
@@ -72,7 +99,6 @@ class PullingActorPublisher[T, C <: Cursor](val proxy: ResourcePullingProxy[T, C
       case _ => ()
     }
   }
-
 
 
   override def becomeActive(): Unit = {
@@ -94,18 +120,23 @@ class PullingActorPublisher[T, C <: Cursor](val proxy: ResourcePullingProxy[T, C
       proxy.cancelResource()
   }
 
+  private def convertPayload(b: ByteString, attachments: Option[JsValue]) = Json.obj(
+    "value" -> JsString(b.utf8String),
+    "attachments" -> (attachments | Json.obj())
+  )
+
   @tailrec
   private def pullAndReleaseNext(): Unit = {
     if (totalDemand > 0 && isActive) {
-      val entry = proxy.next(currentCursor)
+      val entry = proxy.next(FileCursorTools.fromJson(currentCursor))
 
       entry match {
         case Some(e) =>
 
-          currentCursor = Some(e.cursor)
+          currentCursor = FileCursorTools.toJson(e.cursor)
 
           if (e.data.isDefined) {
-            onNext(ProducedMessage(e.data.get, e.attachments, e.cursor))
+            onNext(ProducedMessage(convertPayload(e.data.get, e.attachments), currentCursor))
             logger.info(s"Published next entry, current cursor: $currentCursor")
 
             if (e.hasMore)
@@ -122,13 +153,6 @@ class PullingActorPublisher[T, C <: Cursor](val proxy: ResourcePullingProxy[T, C
 
 }
 
-object FileMonitorActorPublisher {
-
-  def props(flowId: String, target: MonitorTarget, cursor: Option[Cursor] = None)
-           (implicit fileIndexing: Indexer, charset: Charset, ec: ExecutionContext) = Props(
-    new PullingActorPublisher[ByteString, Cursor](new FileResourcePullingProxy(flowId, target), cursor))
-
-}
 
 
 

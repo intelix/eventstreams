@@ -16,6 +16,7 @@
 
 package hq.flows.core
 
+import agent.core.ProducedMessage
 import akka.actor.{Actor, Props}
 import akka.stream.actor.ActorSubscriberMessage.OnNext
 import akka.stream.actor.{RequestStrategy, WatermarkRequestStrategy, ZeroRequestStrategy}
@@ -31,7 +32,7 @@ import Scalaz._
 private[core] object BlackHoleSinkBuilder extends BuilderFromConfig[SinkActorPropsType] {
   val configId = "blackhole"
 
-  override def build(props: JsValue, maybeData: Option[Condition], id: Option[String] = None): \/[Fail, SinkActorPropsType] =
+  override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, SinkActorPropsType] =
     \/-(BlackholeAutoAckSinkActor.props(id))
 
 }
@@ -64,10 +65,14 @@ private class BlackholeAutoAckSinkActor(maybeId: Option[String])
   }
 
   override def commonBehavior: Actor.Receive = super.commonBehavior orElse {
+    case OnNext(ProducedMessage(v,c)) =>
+      logger.debug(s"Sent into the black hole: $v")
+      _rate.mark()
+      context.parent ! Acknowledged[Option[JsValue]](-1, c)
     case OnNext(msg) =>
       logger.debug(s"Sent into the black hole: $msg")
       _rate.mark()
-      context.parent ! Acknowledged[Any](-1, msg)
+      context.parent ! Acknowledged[Option[JsValue]](-1, None)
   }
 
   override protected def requestStrategy: RequestStrategy = lastRequestedState match {

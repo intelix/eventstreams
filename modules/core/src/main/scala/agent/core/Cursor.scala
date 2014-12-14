@@ -14,16 +14,14 @@
  * limitations under the License.
  */
 
-define(['react', 'core_mixin', './NavbarElementMixin'], function (React, core_mixin, NavbarElementMixin) {
+package agent.core
 
-    return React.createClass({
-        mixins: [core_mixin, NavbarElementMixin],
+trait Cursor {
+}
 
-        componentName: function() { return "app/navigation/NavbarNotifications"; },
 
-        render: function () {
-            return this.asNavbarElement(<span>Notifications</span>);
-        }
-    });
 
-});
+
+
+
+

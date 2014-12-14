@@ -22,9 +22,9 @@ import com.typesafe.config.ConfigFactory
 
 object AgentLauncher extends App {
 
-  implicit val system =  ActorSystem("Agent",ConfigFactory.load("akka.conf"))
-
   implicit val config = ConfigFactory.load("agent.conf")
+
+  implicit val system = ActorSystem("Agent", config)
 
   ConfigStorageActor.start
   AgentControllerActor.start

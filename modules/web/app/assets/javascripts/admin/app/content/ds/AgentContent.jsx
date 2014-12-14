@@ -39,24 +39,12 @@ define(['react', 'core_mixin', './AgentsTabs', './DatasourcesTable', './Datasour
                     "desc": "",
                     "sourceId": "",
                     "tags": "",
-                    "initialState": "Stopped",
-                    "source": {
-                        "class": "file",
-                        "directory": "",
-                        "startWith": "Last",
-                        "fileOrdering": "Last Modified and Name",
-                        "mainPattern": "",
-                        "rollingPattern": ""
-                    },
-                    "sink": {
-                        "class": "akka",
-                        "url": "akka.tcp://ehub@localhost:12345/user/GATENAME"
-                    }
+                    "targetGate": "akka.tcp://ehub@localhost:12345/user/GATENAME"
                 };
-                this.setState({editBlock: <EditBlock addr={this.props.addr} addRoute={this.state.agentSelected} title="Datasource configuration" defaults={defaults} editorId="ds"/>});
+                this.setState({editBlock: <EditBlock addr={this.props.addr} mgrRoute={this.state.agentSelected}  title="Datasource configuration" defaults={defaults} editorId="ds"/>});
             },
             openEditModal: function (evt) {
-                this.setState({editBlock: <EditBlock addr={this.props.addr} ckey={evt.detail.ckey} title="Datasource configuration"  editorId="ds"/>});
+                this.setState({editBlock: <EditBlock addr={this.props.addr} mgrRoute={this.state.agentSelected} ckey={evt.detail.ckey} title="Datasource configuration"  editorId="ds"/>});
             },
             closeModal: function () {
                 this.setState({editBlock: false});

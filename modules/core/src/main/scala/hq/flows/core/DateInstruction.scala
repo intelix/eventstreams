@@ -69,12 +69,15 @@ import scalaz._
  *
  */
 
-private[core] object DateInstruction extends SimpleInstructionBuilder {
-  val configId = "date"
-
+object DateDefaults {
   val default = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ")
   val default_targetFmtField = "date_fmt"
   val default_targetTsField = "date_ts"
+
+}
+
+class DateInstruction extends SimpleInstructionBuilder {
+  val configId = "date"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
@@ -84,7 +87,7 @@ private[core] object DateInstruction extends SimpleInstructionBuilder {
 
       val zone = props ~> 'sourceZone
       val targetZone = props ~> 'targetZone
-      var targetPattern = Try((props ~> 'targetPattern).map(DateTimeFormat.forPattern)).getOrElse(Some(default)) | default
+      var targetPattern = Try((props ~> 'targetPattern).map(DateTimeFormat.forPattern)).getOrElse(Some(DateDefaults.default)) | DateDefaults.default
       val sourcePattern = zone match {
         case Some(l) if !l.isEmpty => pattern.withZone(DateTimeZone.forID(l))
         case None => pattern
@@ -93,8 +96,8 @@ private[core] object DateInstruction extends SimpleInstructionBuilder {
         case Some(l) if !l.isEmpty => targetPattern.withZone(DateTimeZone.forID(l))
         case None => targetPattern
       }
-      val targetFmtField = props ~> 'targetFmtField | default_targetFmtField
-      val targetTsField = props ~> 'targetTSField | default_targetTsField
+      val targetFmtField = props ~> 'targetFmtField | DateDefaults.default_targetFmtField
+      val targetTsField = props ~> 'targetTSField | DateDefaults.default_targetTsField
 
 
       fr: JsonFrame => {

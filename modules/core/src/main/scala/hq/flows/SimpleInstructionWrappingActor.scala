@@ -19,25 +19,33 @@ package hq.flows
 import akka.actor.{ActorRefFactory, Props}
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import common.JsonFrame
-import common.actors.SubscribingPublisherActor
+import common.actors.{ActorWithTicks, SubscribingPublisherActor}
 import hq.flows.core.Builder._
 
 object SimpleInstructionWrappingActor {
 
-  def props(instruction: SimpleInstructionType, maxInFlight: Int): Props = Props(new SimpleInstructionWrappingActor(instruction, maxInFlight))
+  def props(instruction: SimpleInstructionTypeWithGenerator, maxInFlight: Int): Props = Props(new SimpleInstructionWrappingActor(instruction, maxInFlight))
 
-  def start(f: ActorRefFactory, instruction: SimpleInstructionType, maxInFlight: Int = 96) =
+  def start(f: ActorRefFactory, instruction: SimpleInstructionTypeWithGenerator, maxInFlight: Int = 96) =
     f.actorOf(props(instruction, maxInFlight))
 
 }
 
 
-class SimpleInstructionWrappingActor(instruction: SimpleInstructionType, maxInFlight: Int) extends SubscribingPublisherActor {
+class SimpleInstructionWrappingActor(instruction: SimpleInstructionTypeWithGenerator, maxInFlight: Int)
+  extends SubscribingPublisherActor
+  with ActorWithTicks {
+
+  val (onEvent, onTick) = instruction
+
+  override def execute(value: JsonFrame) = Some(onEvent(value))
+
+  override def internalProcessTick(): Unit = {
+    super.internalProcessTick()
+    if (isActive && isPipelineActive) onTick foreach { onTickFunc => onTickFunc(millisTimeSinceStateChange) foreach forwardToNext}
+  }
 
   override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(maxInFlight) {
     override def inFlightInternally: Int = pendingToDownstreamCount
   }
-
-  override def execute(value: JsonFrame) =  Some(instruction(value))
-
 }

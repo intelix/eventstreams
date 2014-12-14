@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "title": "Transform: Drop event",
+  "properties": {
+    "class": {
+      "propertyOrder": 10,
+      "title": "Type",
+      "type": "string",
+      "template": "drop"
+    },
+    "name": {
+      "propertyOrder": 10,
+      "title": "Name",
+      "type": "string"
+    },
+    "simpleCondition": {
+      "propertyOrder": 30,
+      "$ref": "#/definitions/simpleCondition"
+    }
+  },
+  "required": ["class"]
+}

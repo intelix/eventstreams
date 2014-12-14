@@ -17,10 +17,8 @@
 package hq.gates
 
 import agent.controller.flow.Tools
-import agent.flavors.files.{Cursor, ProducedMessage}
 import agent.shared._
 import akka.actor._
-import akka.util.ByteString
 import common.ToolExt.configHelper
 import common._
 import common.actors._
@@ -303,11 +301,6 @@ class GateActor(id: String)
   }
 
   def convertInboundPayload(id: Long, message: Any): Option[JsonFrame] = message match {
-    case m@ProducedMessage(MessageWithAttachments(bs: ByteString, attachments), _, c: Cursor) =>
-      logger.debug(s"Original message at the gate: ${bs.utf8String}")
-      val json = attachments.set(__ \ "value" -> JsString(bs.utf8String))
-      Some(enrichInboundJsonFrame(id, JsonFrame(json,
-        ctx = Map[String, JsValue]())))
     case m: JsonFrame => Some(enrichInboundJsonFrame(id,m))
     case x =>
       logger.warn(s"Unsupported message type at the gate  $id: $x")

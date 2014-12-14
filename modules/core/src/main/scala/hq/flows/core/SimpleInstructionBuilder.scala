@@ -17,12 +17,13 @@
 package hq.flows.core
 
 import com.typesafe.scalalogging.StrictLogging
-import common.{JsonFrame, Fail}
+import common.ToolExt.configHelper
+import common.{Fail, JsonFrame}
 import hq.flows.SimpleInstructionWrappingActor
 import hq.flows.core.Builder._
 import play.api.libs.json.JsValue
 
-import scalaz.{\/-, -\/, \/}
+import scalaz._
 
 
 trait SimpleInstructionBuilder extends BuilderFromConfig[InstructionType] with StrictLogging {
@@ -30,7 +31,7 @@ trait SimpleInstructionBuilder extends BuilderFromConfig[InstructionType] with S
 
   def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType]
 
-  def wrapInCondition(instr: SimpleInstructionType, maybeCondition: Option[Condition]) : SimpleInstructionType =
+  def wrapInCondition(instr: SimpleInstructionType, maybeCondition: Option[Condition]): SimpleInstructionType =
     maybeCondition match {
       case None => instr
       case Some(cond) => fr: JsonFrame => cond.metFor(fr) match {
@@ -41,6 +42,10 @@ trait SimpleInstructionBuilder extends BuilderFromConfig[InstructionType] with S
       }
     }
 
-  override def build(props: JsValue, maybeCondition: Option[Condition], id: Option[String] = None): \/[Fail, InstructionType] =
-    simpleInstruction(props, id).map { instr => SimpleInstructionWrappingActor.props(wrapInCondition(instr, maybeCondition), maxInFlight) }
+  override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, InstructionType] =
+    simpleInstruction(props, id).map { instr =>
+      SimpleInstructionWrappingActor.props(
+        (wrapInCondition(instr, SimpleCondition.conditionOrAlwaysTrue(props ~> 'simpleCondition)), None),
+        maxInFlight)
+    }
 }

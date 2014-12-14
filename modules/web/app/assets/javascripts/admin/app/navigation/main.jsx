@@ -20,13 +20,13 @@ define(
         './NavbarGates',
         './NavbarFlows',
         './NavbarDatasources',
-        './NavbarNotifications'],
+        './NavbarTools'],
     function (React,
               core_mixin,
               Gates,
               Flows,
               Datasources,
-              Notif) {
+              Tools) {
 
         return React.createClass({
             mixins: [core_mixin],
@@ -50,7 +50,7 @@ define(
                                 <Gates active={true} ckey="gates"/>
                                 <Flows ckey="flows"/>
                                 <Datasources  ckey="datasources"/>
-                                <Notif ckey="notif"/>
+                                <Tools ckey="tools"/>
                             </ul>
                         </div>
                     </div>

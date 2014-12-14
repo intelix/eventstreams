@@ -34,9 +34,9 @@ import scalaz._
 private[core] object GateInputBuilder extends BuilderFromConfig[TapActorPropsType] {
   val configId = "gate"
 
-  override def build(props: JsValue, maybeData: Option[Condition], id: Option[String] = None): \/[Fail, TapActorPropsType] =
+  override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, TapActorPropsType] =
     for (
-      address <- props ~> 'name \/> Fail(s"Invalid gate input configuration. Missing 'name' value. Contents: ${Json.stringify(props)}")
+      address <- props ~> 'sourceGateName \/> Fail(s"Invalid gate input configuration. Missing 'sourceGateName' value. Contents: ${Json.stringify(props)}")
     ) yield GateInputActor.props(id | "default", address)
 }
 

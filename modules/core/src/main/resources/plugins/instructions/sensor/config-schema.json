@@ -1,0 +1,114 @@
+{
+  "type": "object",
+  "title": "Misc: Signal sensor",
+  "properties": {
+    "class": {
+      "propertyOrder": 1,
+      "title": "Type",
+      "type": "string",
+      "template": "sensor"
+    },
+    "name": {
+      "propertyOrder": 10,
+      "title": "Name",
+      "type": "string"
+    },
+    "simpleCondition": {
+      "propertyOrder": 31,
+      "$ref": "#/definitions/simpleCondition"
+    },
+    "occurrenceCondition": {
+      "propertyOrder": 32,
+      "title": "Trigger if ...",
+      "type": "string",
+      "enum": [
+        "Exactly",
+        "Less than",
+        "More than"
+      ]
+    },
+    "occurrenceCount": {
+      "propertyOrder": 33,
+      "title": "Number of events",
+      "type": "number"
+    },
+    "occurrenceWatchPeriodSec": {
+      "propertyOrder": 33,
+      "title": "Occurred in the following time window (sec)",
+      "type": "number"
+    },
+    "signalClass": {
+      "propertyOrder": 35,
+      "title": "Signal class",
+      "type": "string"
+    },
+    "signalSubclass": {
+      "propertyOrder": 36,
+      "title": "Signal subclass",
+      "type": "string"
+    },
+    "level": {
+      "propertyOrder": 38,
+      "title": "Signal level",
+      "type": "string",
+      "enum": [
+        "Very low",
+        "Low",
+        "Medium",
+        "High",
+        "Very high",
+        "Maximum"
+      ]
+    },
+    "title": {
+      "propertyOrder": 40,
+      "title": "Title template",
+      "type": "string"
+    },
+    "body": {
+      "propertyOrder": 42,
+      "title": "Body template",
+      "format": "textarea",
+      "type": "string"
+    },
+    "icon": {
+      "propertyOrder": 44,
+      "title": "Icon (URL) template",
+      "type": "string"
+    },
+    "correlationIdTemplate": {
+      "propertyOrder": 46,
+      "title": "Correlation ID template",
+      "type": "string"
+    },
+    "transactionDemarcation": {
+      "propertyOrder": 48,
+      "title": "Transaction demarcation",
+      "type": "string",
+      "enum": [
+        "None",
+        "Start",
+        "Success",
+        "Failure"
+      ]
+    },
+    "throttlingWindow": {
+      "propertyOrder": 50,
+      "title": "Throttling window",
+      "type": "number",
+      "default": 1
+    },
+    "throttlingAllowance": {
+      "propertyOrder": 51,
+      "title": "Max signals allowed",
+      "type": "number",
+      "default": 100
+    },
+    "timestampSource": {
+      "propertyOrder": 60,
+      "title": "Timestamp source (field ref)",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,68 @@
+{
+  "type": "object",
+  "title": "Sink: InfluxDB",
+  "properties": {
+    "class": {
+      "propertyOrder": 10,
+      "title": "Type",
+      "type": "string",
+      "template": "influx"
+    },
+    "name": {
+      "propertyOrder": 20,
+      "title": "Name",
+      "type": "string"
+    },
+    "db": {
+      "propertyOrder": 30,
+      "title": "Database name",
+      "type": "string"
+    },
+    "series": {
+      "propertyOrder": 40,
+      "title": "Target series",
+      "type": "string"
+    },
+    "columns": {
+      "propertyOrder": 50,
+      "title": "Target columns",
+      "type": "string"
+    },
+    "points": {
+      "propertyOrder": 60,
+      "title": "Points source",
+      "type": "string"
+    },
+    "host": {
+      "propertyOrder": 70,
+      "title": "Host name",
+      "type": "string"
+    },
+    "port": {
+      "propertyOrder": 80,
+      "title": "Port",
+      "type": "integer"
+    },
+    "user": {
+      "propertyOrder": 90,
+      "title": "Username",
+      "type": "string"
+    },
+    "password": {
+      "propertyOrder": 100,
+      "title": "Password",
+      "type": "string"
+    },
+    "simpleCondition": {
+      "propertyOrder": 110,
+      "$ref": "#/definitions/simpleCondition"
+    }
+  },
+  "required": [
+    "class",
+    "db",
+    "host",
+    "port",
+    "user"
+  ]
+}

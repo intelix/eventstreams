@@ -27,7 +27,7 @@ import play.api.libs.json.extensions._
 import scalaz.Scalaz._
 import scalaz._
 
-private[core] object GroovyInstruction extends SimpleInstructionBuilder {
+class GroovyInstruction extends SimpleInstructionBuilder {
   val configId = "groovy"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =

@@ -44,10 +44,10 @@ define(['react', 'core_mixin', 'common_nodetabs', './FlowsTable', './FlowsEditor
                     },
                     "pipeline": []
                 };
-                this.setState({editBlock: <EditBlock addr={this.state.selected} addRoute="flows" title="Flow configuration" defaults={defaults}  editorId="flow"/>});
+                this.setState({editBlock: <EditBlock addr={this.state.selected} mgrRoute="flows" title="Flow configuration" defaults={defaults}  editorId="flow"/>});
             },
             openEditModal: function (evt) {
-                this.setState({editBlock: <EditBlock addr={this.state.selected} ckey={evt.detail.ckey} title="Flow configuration"  editorId="flow"/>});
+                this.setState({editBlock: <EditBlock addr={this.state.selected} mgrRoute="flows" ckey={evt.detail.ckey} title="Flow configuration"  editorId="flow"/>});
             },
             closeModal: function () {
                 this.setState({editBlock: false});

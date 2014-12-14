@@ -16,7 +16,7 @@
 
 package agent.controller
 
-import agent.controller.AgentMessagesV1.{AgentInfo, AgentDatasources}
+import agent.controller.AgentMessagesV1.{AgentDatasourceConfigs, AgentInfo, AgentDatasources}
 import agent.controller.flow.DatasourceActor
 import agent.shared._
 import akka.actor.{ActorRef, Props, Terminated}
@@ -31,6 +31,7 @@ import play.api.libs.json._
 import play.api.libs.json.extensions._
 import play.api.libs.json.{JsValue, Json}
 
+import scala.io
 import scalaz.Scalaz._
 import scalaz._
 
@@ -42,11 +43,47 @@ object AgentControllerActor extends ActorObjWithConfig {
 
 case class DatasourceAvailable(key: ComponentKey)
 
-class AgentControllerActor(implicit config: Config)
+class AgentControllerActor(implicit sysconfig: Config)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
   with ReconnectingActor
   with NowProvider {
+
+
+  val datasourcesConfigsList = {
+    val list = sysconfig.getConfigList("ehub.datasources.sources")
+    (0 until list.size()).map(list.get).toList.sortBy[String](_.getString("name"))
+  }
+  val configSchema = {
+    var mainConfigSchema = Json.parse(
+      io.Source.fromInputStream(
+        getClass.getResourceAsStream(
+          sysconfig.getString("ehub.datasources.main-schema"))).mkString)
+    var oneOf = (mainConfigSchema \ "properties" \ "source" \ "oneOf").asOpt[JsArray].map(_.value) | Array[JsValue]()
+
+    val datasourceSchemas = datasourcesConfigsList.map { cfg =>
+      val schemaResourceName = cfg.getString("config.schema")
+      val resource = getClass.getResourceAsStream(schemaResourceName)
+      val schemaContents = io.Source.fromInputStream(resource).mkString
+      Json.parse(schemaContents)
+    }
+
+    var counter = 0
+    datasourceSchemas.foreach { instruction =>
+      counter = counter + 1
+      val refName = "ref" + counter
+      oneOf = oneOf :+ Json.obj("$ref" -> s"#/definitions/$refName")
+      val defPath = __ \ "definitions" \ refName
+      mainConfigSchema = mainConfigSchema.set(
+        defPath -> instruction
+      )
+    }
+
+    mainConfigSchema.set(
+      __ \ "properties" \ "source" \ "oneOf" -> Json.toJson(oneOf.toArray)
+    )
+  }
+
 
   implicit val mat = FlowMaterializer()
   var commProxy: Option[ActorRef] = None
@@ -56,11 +93,14 @@ class AgentControllerActor(implicit config: Config)
 
   override def commonBehavior: Receive = commonMessageHandler orElse super.commonBehavior
 
-  override def connectionEndpoint: String = config.as[String]("ehub.agent.hq.endpoint")
+  override def connectionEndpoint: String = sysconfig.as[String]("ehub.agent.hq.endpoint")
 
   override def preStart(): Unit = {
     initiateReconnect()
     super.preStart()
+
+    logger.debug(s"Datasource configs list: $datasourcesConfigsList")
+    logger.debug(s"Datasource config schema: $configSchema")
   }
 
   override def onConnectedToEndpoint(): Unit = {
@@ -86,7 +126,7 @@ class AgentControllerActor(implicit config: Config)
       val datasourceKey = key | "ds/" + Utils.generateShortUUID
       var json = data
       if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
-      val actor = DatasourceActor.start(datasourceKey)
+      val actor = DatasourceActor.start(datasourceKey, datasourcesConfigsList)
       context.watch(actor)
       actor ! InitialConfig(json, maybeState)
       (actor, datasourceKey)
@@ -119,6 +159,7 @@ class AgentControllerActor(implicit config: Config)
   }
 
   private def sendToHQAll() = {
+    sendToHQ(dsConfigs)
     sendToHQ(info)
     sendToHQ(snapshot)
   }
@@ -136,11 +177,16 @@ class AgentControllerActor(implicit config: Config)
   )
 
   private def info = AgentInfo(Json.obj(
-    "name" -> config.as[String]("ehub.agent.name"),
-    "description" -> config.as[String]("ehub.agent.description"),
-    "location" -> config.as[String]("ehub.agent.location"),
+    "name" -> sysconfig.as[String]("ehub.agent.name"),
+    "description" -> sysconfig.as[String]("ehub.agent.description"),
+    "location" -> sysconfig.as[String]("ehub.agent.location"),
     "address" -> context.self.path.address.toString,
-    "state" -> "active"
+    "state" -> "active",
+    "datasourceConfigSchema" -> configSchema
+  ))
+
+  private def dsConfigs = AgentDatasourceConfigs(Json.obj(
+    "datasourceConfigSchema" -> configSchema
   ))
 
 

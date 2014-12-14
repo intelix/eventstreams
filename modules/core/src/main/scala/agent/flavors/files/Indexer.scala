@@ -23,6 +23,7 @@ import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.zip.{GZIPInputStream, ZipInputStream}
 
+import agent.core.{NilCursor, Cursor}
 import akka.util.ByteString
 import com.typesafe.scalalogging.LazyLogging
 import play.api.libs.json.{JsValue, Json}
@@ -32,11 +33,11 @@ import scala.util.matching.Regex
 
 
 trait Indexer {
-  def startSession(flowId: String, target: MonitorTarget): IndexerSession
+  def startSession(flowId: String, target: RollingFileMonitorTarget): IndexerSession
 }
 
 class FileIndexer extends Indexer {
-  override def startSession(flowId: String, target: MonitorTarget): IndexerSession = target match {
+  override def startSession(flowId: String, target: RollingFileMonitorTarget): IndexerSession = target match {
     case t: RollingFileMonitorTarget => new FileIndexerSession(flowId, t, new H2ResourceCatalog(flowId, new File(t.directory)))
   }
 }
@@ -181,7 +182,7 @@ trait IndexerSession {
 
   def tailCursor: Cursor
 
-  def withOpenResource[T](c: Cursor)(f: OpenResource => Option[T]): Option[DataChunk[T, Cursor]]
+  def withOpenResource(c: Cursor)(f: OpenResource => Option[ByteString]): Option[DataChunk]
 }
 
 case class FileIndexerSession(flowId: String, target: RollingFileMonitorTarget, catalog: ResourceCatalog) extends IndexerSession with LazyLogging {
@@ -225,7 +226,7 @@ case class FileIndexerSession(flowId: String, target: RollingFileMonitorTarget, 
       resource.cursor
   }
 
-  override def withOpenResource[T](c: Cursor)(f: (OpenResource) => Option[T]): Option[DataChunk[T, Cursor]] = {
+  override def withOpenResource(c: Cursor)(f: (OpenResource) => Option[ByteString]): Option[DataChunk] = {
     openResourceAt(c) match {
       case Some(resource) =>
         try {
@@ -367,9 +368,9 @@ case class FileIndexerSession(flowId: String, target: RollingFileMonitorTarget, 
   }
 
   private def skipToEnd(c: Cursor): Option[Cursor] = {
-    withOpenResource[Unit](c) { resource =>
+    withOpenResource(c) { resource =>
       resource.moveToTail()
-      Some((): Unit)
+      None
     } map (_.cursor)
   }
 

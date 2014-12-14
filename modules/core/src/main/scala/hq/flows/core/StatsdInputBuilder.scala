@@ -40,7 +40,7 @@ import scalaz._
 private[core] object StatsdInputBuilder extends BuilderFromConfig[TapActorPropsType] {
   val configId = "statsd"
 
-  override def build(props: JsValue, maybeData: Option[Condition], id: Option[String] = None): \/[Fail, TapActorPropsType] =
+  override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, TapActorPropsType] =
     StatsdActor.props(id | "default", props).right
 }
 
@@ -158,8 +158,8 @@ private class StatsdActor(id: String, config: JsValue)
     Some(JsonFrame(Json.obj(
       "tags" -> Json.arr("source"),
       "id" -> id,
-      DateInstruction.default_targetFmtField -> DateTime.now().toString(DateInstruction.default),
-      DateInstruction.default_targetTsField -> DateTime.now().getMillis,
+      DateDefaults.default_targetFmtField -> DateTime.now().toString(DateDefaults.default),
+      DateDefaults.default_targetTsField -> DateTime.now().getMillis,
       "value" -> data,
       "statsd" -> (if (!parsePayload) Json.obj() else parseStatsdMessage(data)),
       "source" -> Json.obj()),

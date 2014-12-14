@@ -236,9 +236,10 @@ class GateSensorActor(id: String)
     val eventId = e.event ~> 'eventId | "undefined"
     val ts = timestampSource.flatMap { tsSource => Tools.locateFieldValue(e, tsSource).asOpt[Long]} | now
 
-    val s = Signal(ts,
+    val s = Signal("",0,ts,
       eventId, level, signalClass, signalSubclass,
       correlationIdTemplate.map(Tools.macroReplacement(e, _)),
+      None, None,
       title.map(Tools.macroReplacement(e, _)),
       body.map(Tools.macroReplacement(e, _)),
       icon.map(Tools.macroReplacement(e, _)))

@@ -24,6 +24,7 @@ case class DatasourceRef(id: String, ref: ActorRef)
 object AgentMessagesV1 {
 
   case class AgentInfo(jsValue: JsValue)
+  case class AgentDatasourceConfigs(jsValue: JsValue)
 
   case class AgentDatasources(list: List[DatasourceRef])
 

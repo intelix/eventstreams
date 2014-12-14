@@ -16,11 +16,12 @@
 
 package hq.agents
 
-import agent.controller.AgentMessagesV1.{AgentDatasources, AgentInfo}
+import agent.controller.AgentMessagesV1.{AgentDatasourceConfigs, AgentDatasources, AgentInfo}
 import agent.controller.DatasourceRef
 import agent.shared.{CommunicationProxyRef, CreateDatasource}
 import akka.actor._
 import akka.remote.DisassociatedEvent
+import common.ToolExt.configHelper
 import common.{Utils, OK}
 import common.actors._
 import hq._
@@ -45,6 +46,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
   case class DatasourceProxyMeta(id: String, ref: ActorRef, key: ComponentKey, confirmed: Boolean)
 
   private var info: Option[JsValue] = None
+  private var dsConfigs: Option[JsValue] = None
 
   private var datasources = List[DatasourceProxyMeta]()
 
@@ -60,6 +62,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
     case T_INFO => publishInfo()
     case T_LIST => publishDatasources()
+    case T_CONFIGTPL => publishConfigs()
   }
 
   override def processTopicCommand(sourceRef: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
@@ -69,6 +72,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
   }
 
   private def publishInfo() = T_INFO !! info
+  private def publishConfigs() = T_CONFIGTPL !! dsConfigs
 
   private def publishDatasources() = T_LIST !! Some(Json.toJson(datasources.collect{
     case DatasourceProxyMeta(_, _, k, true) => Json.obj("ckey" -> k.key)
@@ -83,6 +87,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
       publishDatasources()
 
     case AgentInfo(jsValue) => processInfo(jsValue)
+    case AgentDatasourceConfigs(jsValue) => processDatasourceConfigs(jsValue)
     case AgentDatasources(list) => processListOfTaps(list)
 
     case DisassociatedEvent(_, remoteAddr, _) =>
@@ -104,6 +109,12 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
     info = Some(json)
     logger.debug(s"Received agent info update: $info")
     publishInfo()
+  }
+
+  private def processDatasourceConfigs(json: JsValue) = {
+    dsConfigs = json #> 'datasourceConfigSchema
+    logger.debug(s"Received agent datasource config update: $info")
+    publishConfigs()
   }
 
   private def processListOfTaps(list: List[DatasourceRef]) = {

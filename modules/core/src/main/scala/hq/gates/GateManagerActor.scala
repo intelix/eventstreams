@@ -17,28 +17,35 @@
 package hq.gates
 
 import akka.actor._
+import com.typesafe.config.Config
 import common.actors._
 import common.{NowProvider, Fail, OK}
 import hq._
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
+import scala.io.Source
 import scalaz.Scalaz._
 
 
-object GateManagerActor extends ActorObjWithoutConfig {
+object GateManagerActor extends ActorObjWithConfig {
   def id = "gates"
 
-  def props = Props(new GateManagerActor())
+  def props(implicit config: Config) = Props(new GateManagerActor(config))
 }
 
 case class GateAvailable(id: ComponentKey)
 
-class GateManagerActor
+class GateManagerActor(sysconfig: Config)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
   with SingleComponentActor
   with NowProvider {
+
+  val configSchema = Json.parse(
+      Source.fromInputStream(
+        getClass.getResourceAsStream(
+          sysconfig.getString("ehub.gates.main-schema"))).mkString)
 
   type GatesMap = Map[ComponentKey, ActorRef]
 
@@ -53,8 +60,12 @@ class GateManagerActor
 
   def list = () => Some(Json.toJson(gates.get.keys.map { x => Json.obj("ckey" -> x.key)}.toArray))
 
+
+  def publishConfigTpl(): Unit = T_CONFIGTPL !! Some(configSchema)
+
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
     case T_LIST => listUpdate()
+    case T_CONFIGTPL => publishConfigTpl()
   }
 
   override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {

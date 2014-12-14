@@ -47,10 +47,10 @@ define(['react', 'core_mixin', 'common_nodetabs', './Table', './Editor'],
                         "type": "none"
                     }
                 };
-                this.setState({editBlock: <Editor addr={this.state.selected} addRoute="gates" title="Gate configuration" defaults={defaults}  editorId="gates"/>});
+                this.setState({editBlock: <Editor addr={this.state.selected} mgrRoute="gates" title="Gate configuration" defaults={defaults}  editorId="gates"/>});
             },
             openEditModal: function (evt) {
-                this.setState({editBlock: <Editor addr={this.state.selected} ckey={evt.detail.ckey} title="Gate configuration"  editorId="gates"/>});
+                this.setState({editBlock: <Editor addr={this.state.selected} mgrRoute="gates" ckey={evt.detail.ckey} title="Gate configuration"  editorId="gates"/>});
             },
             closeModal: function () {
                 this.setState({editBlock: false});

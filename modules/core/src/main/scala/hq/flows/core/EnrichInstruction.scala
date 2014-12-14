@@ -26,7 +26,7 @@ import play.api.libs.json.{JsString, JsValue, Json}
 import scalaz.Scalaz._
 import scalaz._
 
-private[core] object EnrichInstruction extends SimpleInstructionBuilder {
+class EnrichInstruction extends SimpleInstructionBuilder {
   val configId = "enrich"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =

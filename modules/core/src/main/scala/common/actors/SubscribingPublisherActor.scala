@@ -16,7 +16,7 @@
 
 package common.actors
 
-import akka.stream.actor.ActorPublisherMessage.{Request, Cancel}
+import akka.stream.actor.ActorPublisherMessage.{Cancel, Request}
 import akka.stream.actor.ActorSubscriberMessage.{OnComplete, OnError, OnNext}
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import common.{JsonFrame, Stop}
@@ -30,15 +30,11 @@ trait SubscribingPublisherActor
   with ActorSubscriber
   with ActorPublisher[JsonFrame] {
 
-  override def commonBehavior: Receive = handler orElse super.commonBehavior
-
   private val queue = mutable.Queue[JsonFrame]()
 
+  override def commonBehavior: Receive = handler orElse super.commonBehavior
+
   def pendingToDownstreamCount = queue.size
-
-
-  private def offer(m: JsonFrame) = queue.enqueue(m)
-  private def take() = if (queue.size > 0) Some(queue.dequeue()) else None
 
   @tailrec
   final def sendIfPossible(): Unit =
@@ -55,13 +51,6 @@ trait SubscribingPublisherActor
     sendIfPossible()
   }
 
-
-  private def stop(reason: Option[String]) = {
-    logger.info(s"Shutting down subscribing publisher, reason given: $reason")
-    onComplete()
-    context.stop(self)
-  }
-
   @throws[Exception](classOf[Exception])
   override def postStop(): Unit = {
     super.postStop()
@@ -70,15 +59,25 @@ trait SubscribingPublisherActor
 
   def execute(value: JsonFrame): Option[Seq[JsonFrame]]
 
-  private def handler : Receive = {
+  private def offer(m: JsonFrame) = queue.enqueue(m)
+
+  private def take() = if (queue.size > 0) Some(queue.dequeue()) else None
+
+  private def stop(reason: Option[String]) = {
+    logger.info(s"Shutting down subscribing publisher, reason given: $reason")
+    onComplete()
+    context.stop(self)
+  }
+
+  private def handler: Receive = {
     case Cancel => stop(Some("Cancelled"))
     case OnComplete => stop(Some("OnComplete"))
     case OnError(cause) => stop(Some("Error: " + cause.getMessage))
     case Stop(reason) => stop(reason)
 
     case OnNext(el: JsonFrame) =>
-      logger.debug(s"!>> OnNext - $isActive :  $el" )
-      if (isActive) execute(el) foreach(_.foreach(forwardToNext))
+      logger.debug(s"!>> OnNext - $isActive :  $el")
+      if (isActive) execute(el) foreach (_.foreach(forwardToNext))
     case Request(n) =>
       logger.debug(s"!>>> Request $n")
       sendIfPossible()

@@ -35,10 +35,10 @@ import scalaz.Alpha.D
 import scalaz.Scalaz._
 import scalaz.\/
 
-private[core] object ElasticsearchInstruction extends BuilderFromConfig[InstructionType] {
+class ElasticsearchInstruction extends BuilderFromConfig[InstructionType] {
   val configId = "es"
 
-  override def build(props: JsValue, maybeData: Option[Condition], id: Option[String] = None): \/[Fail, InstructionType] =
+  override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
       index <- props ~> 'index \/> Fail(s"Invalid elasticsearch instruction configuration. Missing 'index' value. Contents: ${Json.stringify(props)}")
     ) yield ElasticsearchInstructionActor.props(index, props)
@@ -68,6 +68,7 @@ private class ElasticsearchInstructionActor(idx: String, config: JsValue)
   private val settings = ImmutableSettings.settingsBuilder().put("cluster.name", cluster).build()
   private val queue = collection.mutable.Queue[JsonFrame]()
   private var client: Option[ElasticClient] = None
+  private val condition = SimpleCondition.conditionOrAlwaysTrue(config ~> 'simpleCondition)
 
   private var deliveringNow: Option[JsonFrame] = None
 
@@ -90,9 +91,12 @@ private class ElasticsearchInstructionActor(idx: String, config: JsValue)
   }
 
   override def execute(value: JsonFrame): Option[Seq[JsonFrame]] = {
-    queue.enqueue(value)
-    deliverIfPossible()
-    None
+    // TODO log failed condition
+    if (!condition.isDefined || condition.get.metFor(value).isRight) {
+      queue.enqueue(value)
+      deliverIfPossible()
+      None
+    } else Some(List(value))
   }
 
   override def processTick(): Unit = {

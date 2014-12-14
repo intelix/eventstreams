@@ -27,10 +27,10 @@ import play.api.libs.json.{JsValue, Json}
 import scalaz.Scalaz._
 import scalaz.\/
 
-private[core] object GateInstruction extends BuilderFromConfig[InstructionType] {
+class GateInstruction extends BuilderFromConfig[InstructionType] {
   val configId = "gate"
 
-  override def build(props: JsValue, maybeData: Option[Condition], id: Option[String] = None): \/[Fail, InstructionType] =
+  override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
       address <- props ~> 'address \/> Fail(s"Invalid gate instruction configuration. Missing 'address' value. Contents: ${Json.stringify(props)}")
     ) yield GateInstructionActor.props(address, props)
@@ -49,6 +49,7 @@ private class GateInstructionActor(address: String, config: JsValue)
 
   val maxInFlight = config +> 'buffer | 96;
   val blockingDelivery = config ?> 'blockingDelivery | true;
+  private val condition = SimpleCondition.conditionOrAlwaysTrue(config ~> 'simpleCondition)
 
   override def connectionEndpoint: String = address
 
@@ -92,8 +93,13 @@ private class GateInstructionActor(address: String, config: JsValue)
   }
 
   override def execute(value: JsonFrame): Option[Seq[JsonFrame]] = {
-    deliverMessage(value)
-    if (blockingDelivery) None else Some(List(value))
+    // TODO log failed condition
+    if (!condition.isDefined || condition.get.metFor(value).isRight) {
+      deliverMessage(value)
+      if (blockingDelivery) None else Some(List(value))
+    } else {
+      Some(List(value))
+    }
   }
 
   override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(maxInFlight) {

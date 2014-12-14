@@ -27,7 +27,7 @@ import scala.util.matching.Regex
 import scalaz.Scalaz._
 import scalaz._
 
-private[core] object GrokInstruction extends SimpleInstructionBuilder {
+class GrokInstruction extends SimpleInstructionBuilder {
   val configId = "grok"
 
   def nextField(frame: JsonFrame, fvt: ((String, String), String)): JsonFrame =

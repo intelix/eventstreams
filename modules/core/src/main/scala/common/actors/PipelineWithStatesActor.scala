@@ -16,11 +16,10 @@
 
 package common.actors
 
-import java.util.Date
-
 import akka.actor.Actor
-import common.{NowProvider, BecomePassive, BecomeActive}
-import org.ocpsoft.prettytime.PrettyTime
+import common.{BecomeActive, BecomePassive, NowProvider}
+import scalaz._
+import Scalaz._
 
 
 trait PipelineWithStatesActor extends ActorWithComposableBehavior with NowProvider {
@@ -34,11 +33,14 @@ trait PipelineWithStatesActor extends ActorWithComposableBehavior with NowProvid
     case Some(Active()) => true
     case _ => false
   }
+
   def isPipelinePassive = !isPipelineActive
 
   def becomeActive(): Unit = {}
 
   def becomePassive(): Unit = {}
+
+  def millisTimeSinceStateChange = date.map(now - _) | -1
 
   def prettyTimeSinceStateChange = date match {
     case None => "never"

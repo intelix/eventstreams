@@ -26,7 +26,7 @@ import play.api.libs.json.extensions._
 import scalaz.Scalaz._
 import scalaz._
 
-private[core] object DropFieldInstruction extends SimpleInstructionBuilder {
+class DropFieldInstruction extends SimpleInstructionBuilder {
   val configId = "dropfield"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
