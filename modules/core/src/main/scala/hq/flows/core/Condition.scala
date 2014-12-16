@@ -56,6 +56,13 @@ object SimpleCondition extends StrictLogging {
     }
   }
 
+  def optionalCondition(optStr: Option[String]): Option[Condition] = {
+    SimpleCondition(optStr) match {
+      case Some(\/-(cond)) => Some(cond)
+      case _ => None
+    }
+  }
+
   def apply(optStr: Option[String]): Option[\/[Fail, Condition]] = {
 
     optStr match {

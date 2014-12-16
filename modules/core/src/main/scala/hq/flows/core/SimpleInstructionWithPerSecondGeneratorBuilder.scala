@@ -27,7 +27,7 @@ import scalaz._
 
 
 trait SimpleInstructionWithPerSecondGeneratorBuilder extends BuilderFromConfig[InstructionType] with StrictLogging {
-  def maxInFlight = 16
+  def maxInFlight = 1000
 
   def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionTypeWithGenerator]
 

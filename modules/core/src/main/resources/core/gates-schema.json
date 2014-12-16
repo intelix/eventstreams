@@ -73,7 +73,7 @@
           "template": "none"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     },
     "retentionDays": {
       "type": "object",
@@ -111,7 +111,7 @@
           "type": "string"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     },
     "retentionCount": {
       "type": "object",
@@ -149,7 +149,7 @@
           "type": "string"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     },
     "overflowBackpressure": {
       "type": "object",
@@ -161,7 +161,7 @@
           "template": "backpressure"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     },
     "overflowDrop": {
       "type": "object",
@@ -173,7 +173,7 @@
           "template": "drop"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     }
   }
 }

@@ -39,10 +39,6 @@
     "simpleCondition": {
       "propertyOrder": 110,
       "$ref": "#/definitions/simpleCondition"
-    },
-    "condition": {
-      "propertyOrder": 120,
-      "$ref": "#/definitions/condition"
     }
   },
   "required": ["class"]

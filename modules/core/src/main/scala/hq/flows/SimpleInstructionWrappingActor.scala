@@ -26,7 +26,7 @@ object SimpleInstructionWrappingActor {
 
   def props(instruction: SimpleInstructionTypeWithGenerator, maxInFlight: Int): Props = Props(new SimpleInstructionWrappingActor(instruction, maxInFlight))
 
-  def start(f: ActorRefFactory, instruction: SimpleInstructionTypeWithGenerator, maxInFlight: Int = 96) =
+  def start(f: ActorRefFactory, instruction: SimpleInstructionTypeWithGenerator, maxInFlight: Int = 1000) =
     f.actorOf(props(instruction, maxInFlight))
 
 }

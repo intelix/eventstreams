@@ -65,6 +65,7 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
     case x if x < 1 => 1
     case x => x
   }
+  val simpleCondition = SimpleCondition.conditionOrAlwaysTrue(props ~> 'simpleCondition).get
   val title = props ~> 'title
   val body = props ~> 'body
   val icon = props ~> 'icon
@@ -185,14 +186,16 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
 
 
   override def execute(frame: JsonFrame): Option[Seq[JsonFrame]] = {
-    val signal = eventToSignal(frame)
-    accountSignal(signal)
-    if (throttlingAllowed() && occurrenceCondition.isMetFor(occurrenceCount, countSignals(signal.correlationId))) {
-      mark(now)
-      Some(List(frame, signalToEvent(signal)))
-    } else {
-      Some(List(frame))
-    }
+    if (simpleCondition.metFor(frame).isRight) {
+      val signal = eventToSignal(frame)
+      accountSignal(signal)
+      if (throttlingAllowed() && occurrenceCondition.isMetFor(occurrenceCount, countSignals(signal.correlationId))) {
+        mark(now)
+        Some(List(frame, signalToEvent(signal)))
+      } else {
+        Some(List(frame))
+      }
+    } else Some(List(frame))
   }
 
 

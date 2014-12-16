@@ -22,7 +22,7 @@ import org.ocpsoft.prettytime.PrettyTime
 
 trait NowProvider {
 
-  def now = System.currentTimeMillis()
+  def now = java.lang.System.currentTimeMillis()
   def prettyTime = new PrettyTime()
   def prettyTimeFormat(l:Long) = prettyTime.format(new Date(l))
 

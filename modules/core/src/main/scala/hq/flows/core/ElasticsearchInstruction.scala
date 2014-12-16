@@ -59,7 +59,7 @@ private class ElasticsearchInstructionActor(idx: String, config: JsValue)
 
   implicit val ec = context.dispatcher
 
-  private val maxInFlight = config +> 'buffer | 96
+  private val maxInFlight = config +> 'buffer | 1000
   private val branch = config ~> 'branch
   private val idSource = config ~> 'idSource | "id"
   private val host = config ~> 'host | "localhost"

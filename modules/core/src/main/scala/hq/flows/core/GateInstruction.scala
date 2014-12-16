@@ -47,7 +47,7 @@ private class GateInstructionActor(address: String, config: JsValue)
   with AtLeastOnceDeliveryActor[JsonFrame]
   with ActorWithGateStateMonitoring {
 
-  val maxInFlight = config +> 'buffer | 96;
+  val maxInFlight = config +> 'buffer | 1000;
   val blockingDelivery = config ?> 'blockingDelivery | true;
   private val condition = SimpleCondition.conditionOrAlwaysTrue(config ~> 'simpleCondition)
 

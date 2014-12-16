@@ -55,6 +55,14 @@ class SplitInstruction extends SimpleInstructionBuilder with NowProvider {
 
         val baseEventSeq = eventSeq << 16
 
+        val keepOriginalEvent = props ?> 'keepOriginalEvent | false
+        val additionalTags = (props ~> 'additionalTags | "").split(",").map(_.trim)
+
+        val index = props ~> 'index | "${index}"
+        val table = props ~> 'table | "${table}"
+        val ttl = props ~> 'ttl | "${_ttl}"
+
+
         val sourceField = macroReplacement(fr, JsString(source))
 
 
@@ -72,18 +80,30 @@ class SplitInstruction extends SimpleInstructionBuilder with NowProvider {
 
         var counter = 0
 
-        resultList.map(_.trim).filter(!_.isEmpty).map { value =>
-          val event = setValue("s", JsString(value), toPath(sourceField), fr.event).set(
+
+        val result = resultList.map(_.trim).filter(!_.isEmpty).map { value =>
+          var event = setValue("s", JsString(value), toPath(sourceField), fr.event).set(
             __ \ 'eventId -> JsString(sourceId + ":" + counter),
             __ \ 'eventSeq -> JsNumber(baseEventSeq + counter),
             __ \ 'splitSequence -> JsNumber(sequence)
           )
+
+          event = setValue("s",JsString(macroReplacement(fr, index)),__ \ 'index, event)
+          event = setValue("s",JsString(macroReplacement(fr, table)),__ \ 'table, event)
+          event = setValue("s",JsString(macroReplacement(fr, ttl)),__ \ '_ttl, event)
+
+          additionalTags.foreach { tag =>
+            event = setValue("as",JsString(tag),__ \ 'tags, event)
+          }
+
 
           counter = counter + 1
 
           JsonFrame(event, fr.ctx)
 
         }
+
+        if (keepOriginalEvent) result :+ fr else result
 
       }
     }

@@ -18,6 +18,7 @@ package agent.controller.flow
 
 import com.typesafe.scalalogging.StrictLogging
 import common.JsonFrame
+import common.ToolExt.configHelper
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
@@ -27,13 +28,18 @@ import scala.language.implicitConversions
 import scala.util.matching.Regex
 import scala.util.{Failure, Success, Try}
 
+import scalaz._
+import Scalaz._
+
 object Tools extends StrictLogging {
 
+  private val arrayPath = "^([^(]+)[(](\\d+)[)]".r
   private val arrayMatch = "^a(.)$".r
   private val singleTypeMatch = "^(.)$".r
   private val macroMatch = ".*[$][{]([^}]+)[}].*".r
 
   private val dateMatch = ".*[$][{]now:([^}]+)[}].*".r
+  private val eventDateMatch = ".*[$][{]eventts:([^}]+)[}].*".r
 
   implicit def s2b(s: String): Boolean = s.toBoolean
 
@@ -79,14 +85,20 @@ object Tools extends StrictLogging {
 
   def toPath(infixPath: String) = {
     val x = infixPath.split('.').flatMap(_.split("/"))
-      .foldLeft[JsPath](__)((path, nextKey) => path \ nextKey)
+      .foldLeft[JsPath](__)((path, nextKey) => nextKey match {
+      case arrayPath(a, b) => (path \ a)(b.toIntExact)
+      case value => path \ value
+    })
     logger.debug("path of " + infixPath + " is " + x)
     x
   }
 
   def macroReplacement(frame: JsonFrame, v: String): String = macroReplacement(frame.event, frame.ctx, v)
+
   def macroReplacement(frame: JsonFrame, v: JsValue): JsValue = macroReplacement(frame.event, frame.ctx, v)
+
   def macroReplacement(json: JsValue, ctx: Map[String, JsValue], v: JsValue): JsValue = JsString(macroReplacement(json, ctx, v.asOpt[String].getOrElse("")))
+
   def macroReplacement(json: JsValue, ctx: Map[String, JsValue], v: String): String = {
     @tailrec
     def repl(value: String): String = {
@@ -94,9 +106,12 @@ object Tools extends StrictLogging {
       logger.debug("Trying to match " + value + " with " + macroMatch)
 
       value match {
+        case eventDateMatch(s) =>
+          logger.debug("Matched " + value + " with " + eventDateMatch + " to " + s)
+          repl(value.replace("${eventts:" + s + "}", DateTimeFormat.forPattern(s).print(json ++> 'date_ts | java.lang.System.currentTimeMillis())))
         case dateMatch(s) =>
           logger.debug("Matched " + value + " with " + dateMatch + " to " + s)
-          repl(value.replace("${now:" + s + "}", DateTimeFormat.forPattern(s).print(System.currentTimeMillis())))
+          repl(value.replace("${now:" + s + "}", DateTimeFormat.forPattern(s).print(java.lang.System.currentTimeMillis())))
         case macroMatch(s) =>
           logger.debug("Matched " + value + " with " + macroMatch + " to " + s)
           repl(value.replace("${" + s + "}", locateFieldValue(json, ctx, s)))
@@ -104,16 +119,6 @@ object Tools extends StrictLogging {
       }
     }
     repl(v)
-  }
-
-  private def fieldTypeConverter(fieldType: String):String = fieldType.toLowerCase match {
-    case "string" => "s"
-    case "number" => "n"
-    case "boolean" => "b"
-    case "string array" => "as"
-    case "number array" => "an"
-    case "boolean array" => "ab"
-    case x => x
   }
 
   def setValue(fieldType: String, s: JsValue, path: JsPath, json: JsValue): JsValue =
@@ -133,6 +138,24 @@ object Tools extends StrictLogging {
         Json.obj()
     }
 
+  def templateToStringValue(frame: JsonFrame, template: String) =
+    for (
+      dirtyValue <- Tools.locateFieldValue(frame, Tools.macroReplacement(frame, template)) match {
+        case JsString(s) => Some(s)
+        case JsNumber(n) => Some(n.toString())
+        case JsBoolean(b) => None
+        case JsObject(b) => Some(b.toString())
+        case JsArray(arr) => None
+        case JsNull => None
+        case JsUndefined() => None
+      };
+      cleanValue <- dirtyValue match {
+        case x if x.trim.isEmpty => None
+        case x => Some(x)
+      }
+    ) yield cleanValue
+
+
 
   def locateFieldValue(frame: JsonFrame, v: String): JsValue = locateFieldValue(frame.event, frame.ctx, v)
 
@@ -141,13 +164,22 @@ object Tools extends StrictLogging {
       ctx.getOrElse(v, JsString(""))
     }).asOpt[JsValue].getOrElse(JsString(""))
 
-
   def jsValueOfType(t: String)(value: JsValue): JsValue = {
     t match {
       case "s" => JsString(value)
       case "b" => JsBoolean(value)
       case "n" => JsNumber(value)
     }
+  }
+
+  private def fieldTypeConverter(fieldType: String): String = fieldType.toLowerCase match {
+    case "string" => "s"
+    case "number" => "n"
+    case "boolean" => "b"
+    case "string array" => "as"
+    case "number array" => "an"
+    case "boolean array" => "ab"
+    case x => x
   }
 
 

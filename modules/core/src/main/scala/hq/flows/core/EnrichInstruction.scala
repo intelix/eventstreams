@@ -34,7 +34,7 @@ class EnrichInstruction extends SimpleInstructionBuilder {
       fieldName <- props ~> 'fieldName \/> Fail(s"Invalid enrich instruction. Missing 'fieldName' value. Contents: ${Json.stringify(props)}")
     ) yield {
       val fieldValue = props #> 'fieldValue | JsString("")
-      val fieldType = props ~> 'fieldType | "s"
+      val fieldType = props ~> 'targetType | "s"
 
       frame: JsonFrame => {
 

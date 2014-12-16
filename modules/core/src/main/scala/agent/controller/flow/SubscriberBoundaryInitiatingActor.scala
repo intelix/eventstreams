@@ -78,7 +78,7 @@ class SubscriberBoundaryInitiatingActor(endpoint: String)
   }
 
 
-  override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(96) {
+  override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(1000) {
     override def inFlightInternally: Int = inFlightCount
   }
 

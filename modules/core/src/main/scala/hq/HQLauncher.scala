@@ -36,7 +36,7 @@ import scala.io.Source
  */
 object HQLauncher extends App {
 
-  implicit val config = ConfigFactory.load(System.getProperty("config", "hq.conf"))
+  implicit val config = ConfigFactory.load(java.lang.System.getProperty("config", "hq.conf"))
 
 
 

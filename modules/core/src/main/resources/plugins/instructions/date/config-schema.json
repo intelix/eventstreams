@@ -53,10 +53,5 @@
       "propertyOrder": 110,
       "$ref": "#/definitions/simpleCondition"
     }
-  },
-  "required": [
-    "class",
-    "source",
-    "pattern"
-  ]
+  }
 }

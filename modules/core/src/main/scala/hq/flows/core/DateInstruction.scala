@@ -23,7 +23,7 @@ import com.typesafe.scalalogging.StrictLogging
 import common.ToolExt.configHelper
 import common.{Fail, JsonFrame}
 import hq.flows.core.Builder.{SimpleInstructionType, InstructionType}
-import org.joda.time.DateTimeZone
+import org.joda.time.{DateTime, DateTimeZone}
 import org.joda.time.format.DateTimeFormat
 import play.api.libs.json.{JsNumber, JsString, JsValue, Json}
 
@@ -81,16 +81,19 @@ class DateInstruction extends SimpleInstructionBuilder {
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      source <- props ~> 'source \/> Fail(s"Invalid date instruction. Missing 'source' value. Contents: ${Json.stringify(props)}");
-      pattern <- (props ~> 'pattern).map(DateTimeFormat.forPattern) \/> Fail(s"Invalid date instruction. Missing 'pattern' value. Contents: ${Json.stringify(props)}")
+      source <- props ~> 'source \/> Fail(s"Invalid date instruction. Missing 'source' value. Contents: ${Json.stringify(props)}")
     ) yield {
+
+      val pattern = (props ~> 'pattern).map(DateTimeFormat.forPattern)
 
       val zone = props ~> 'sourceZone
       val targetZone = props ~> 'targetZone
       var targetPattern = Try((props ~> 'targetPattern).map(DateTimeFormat.forPattern)).getOrElse(Some(DateDefaults.default)) | DateDefaults.default
-      val sourcePattern = zone match {
-        case Some(l) if !l.isEmpty => pattern.withZone(DateTimeZone.forID(l))
-        case None => pattern
+      val sourcePattern = pattern.map { p =>
+         zone match {
+          case Some(l) if !l.isEmpty => p.withZone(DateTimeZone.forID(l))
+          case None => p
+        }
       }
       targetPattern = targetZone match {
         case Some(l) if !l.isEmpty => targetPattern.withZone(DateTimeZone.forID(l))
@@ -104,9 +107,20 @@ class DateInstruction extends SimpleInstructionBuilder {
 
         val sourceField = macroReplacement(fr, JsString(source))
 
-        val sourceValue = locateFieldValue(fr, sourceField).asOpt[String].getOrElse("")
 
-        Try(sourcePattern.parseDateTime(sourceValue)).map { dt =>
+        Try{
+          sourcePattern match {
+            case Some(p) =>
+              val sourceValue = locateFieldValue(fr, sourceField).asOpt[String].getOrElse("")
+              logger.debug(s"Reading date from $sourceValue with $p")
+              p.parseDateTime(sourceValue)
+            case None =>
+              val sourceValue = locateFieldValue(fr, sourceField).asOpt[Long].getOrElse(0)
+              logger.debug(s"Reading date from the timestamp $sourceValue")
+              new DateTime(sourceValue)
+          }
+        }.map { dt =>
+          logger.debug(s"Source datetime: $dt -> $targetFmtField ($targetPattern)")
           List(JsonFrame(
             setValue("n", JsNumber(dt.getMillis), toPath(targetTsField),
               setValue("s", JsString(dt.toString(targetPattern)), toPath(targetFmtField), fr.event)), fr.ctx))

@@ -41,7 +41,7 @@ object Builder extends StrictLogging {
     for (
       tap <- buildTap;
       pipeline <- buildProcessingPipeline
-    ) yield FlowComponents(tap, pipeline, BlackholeAutoAckSinkActor.props(Some(id)))
+    ) yield FlowComponents(tap, pipeline :+ AutoPersistenceActor.props(id), BlackholeAutoAckSinkActor.props(Some(id)))
 
 
   def buildTap(implicit config: JsValue, f: ActorRefFactory, id: String): \/[Fail, TapActorPropsType] =
@@ -53,23 +53,6 @@ object Builder extends StrictLogging {
     val allBuilders = instructionConfigs.map { cfg =>
       Class.forName(cfg.getString("class")).newInstance().asInstanceOf[BuilderFromConfig[InstructionType]]
     }
-
-//    val allBuilders = Seq(
-//      AddTagInstruction,
-//      EnrichInstruction,
-//      ReplaceInstruction,
-//      GrokInstruction,
-//      GroovyInstruction,
-//      LogInstruction,
-//      DropFieldInstruction,
-//      DropTagInstruction,
-//      DropInstruction,
-//      SplitInstruction,
-//      DateInstruction,
-//      GateInstruction
-////      ElasticsearchInstruction,
-////      InfluxInstruction
-//    )
     for (
       instClass <- config ~> 'class \/> Fail("Invalid instruction config: missing 'class' value");
       builder <- allBuilders.find(_.configId == instClass)

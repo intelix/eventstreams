@@ -1,32 +1,44 @@
 {
   "type": "object",
-  "title": "Transform: Split",
+  "title": "Transform: Cherry-pick",
   "properties": {
     "class": {
       "propertyOrder": 10,
       "title": "Type",
       "type": "string",
-      "template": "split"
+      "template": "cherrypick"
     },
     "name": {
       "propertyOrder": 20,
       "title": "Name",
       "type": "string"
     },
-    "source": {
+    "fieldName": {
       "propertyOrder": 30,
-      "title": "Source field",
+      "title": "Field name",
       "type": "string"
     },
-    "pattern": {
+    "fieldValuePath": {
       "propertyOrder": 40,
-      "title": "Split pattern",
+      "title": "Value source (path)",
+      "type": "string"
+    },
+    "eventIdTemplate": {
+      "propertyOrder": 50,
+      "title": "Event ID Value template",
+      "default": "${eventId}_picked",
+      "type": "string"
+    },
+    "eventSeqTemplate": {
+      "propertyOrder": 60,
+      "title": "Event Sequence Value template",
+      "default": "${eventSeq}",
       "type": "string"
     },
     "keepOriginalEvent": {
       "propertyOrder": 70,
       "title": "Keep original event",
-      "default": false,
+      "default": true,
       "type": "boolean"
     },
     "additionalTags": {

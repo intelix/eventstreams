@@ -189,7 +189,7 @@ case class FileIndexerSession(flowId: String, target: RollingFileMonitorTarget, 
 
   private val rolledFilePatternR = new Regex(target.rollingLogPattern)
   private val mainLogPatternR = new Regex(target.mainLogPattern)
-  var currentSeed = System.currentTimeMillis()
+  var currentSeed = java.lang.System.currentTimeMillis()
   private var openResource: Option[OpenResource] = None
 
   def toFileCursor(cursor: Cursor): Option[FileCursor] = {
@@ -289,10 +289,10 @@ case class FileIndexerSession(flowId: String, target: RollingFileMonitorTarget, 
       case head :: Nil => catalog.indexByResourceId(head) match {
         case Some(IndexedEntity(ResourceIndex(seed, 0), _)) => List(IndexedEntity(ResourceIndex(seed, 0), head))
         case Some(IndexedEntity(ResourceIndex(seed, _), _)) =>
-          currentSeed = System.currentTimeMillis()
+          currentSeed = java.lang.System.currentTimeMillis()
           List(IndexedEntity(ResourceIndex(currentSeed, 0), head))
         case None =>
-          currentSeed = System.currentTimeMillis()
+          currentSeed = java.lang.System.currentTimeMillis()
           List(IndexedEntity(ResourceIndex(currentSeed, 0), head))
       }
       case longList =>

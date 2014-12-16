@@ -33,9 +33,10 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
                 return {info: false}
             },
 
-            handleRowClick: function () {
-                this.raiseEvent("signalsubTableRowClicked", {ckey: this.props.ckey});
+            handleClick: function() {
+                this.raiseEvent("editSignalSubscription", {ckey: this.props.ckey});
             },
+
 
             renderData: function () {
                 var self = this;
@@ -47,9 +48,15 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
                     'warning': self.props.selected
                 });
 
+                var mainLink = info.name;
+                if (self.state.connected) {
+                    mainLink = <a href="#" onClick={this.handleClick} >{mainLink}</a>;
+                }
+
+
                 return (
                     <tr className={rowClasses} ref='monitorVisibility' onClick={self.handleRowClick}>
-                        <td>{info.name}</td>
+                        <td>{mainLink}</td>
                         <td>{info.class}</td>
                         <td>{info.subclass}</td>
                         <td>{info.level}</td>

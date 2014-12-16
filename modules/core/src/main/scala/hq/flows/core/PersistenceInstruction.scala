@@ -23,32 +23,27 @@ import hq.flows.core.Builder.SimpleInstructionType
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
+import scalaz.Scalaz._
 import scalaz._
-import Scalaz._
 
-class DropFieldInstruction extends SimpleInstructionBuilder {
-  val configId = "dropfield"
+class PersistenceInstruction extends SimpleInstructionBuilder {
+  val configId = "persistence"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      fieldName <- props ~> 'fieldName \/> Fail(s"Invalid dropfield instruction. Missing 'fieldName' value. Contents: ${Json.stringify(props)}")
+      index <- props ~> 'index \/> Fail(s"Invalid persistence instruction. Missing 'index' value. Contents: ${Json.stringify(props)}");
+      table <- props ~> 'table \/> Fail(s"Invalid persistence instruction. Missing 'table' value. Contents: ${Json.stringify(props)}");
+      ttl <- props ~> 'ttl \/> Fail(s"Invalid persistence instruction. Missing 'ttl' value. Contents: ${Json.stringify(props)}")
     ) yield {
 
       frame: JsonFrame => {
 
-        logger.debug(s"Original frame: $frame")
-
-        val path = toPath(macroReplacement(frame, JsString(fieldName)).asOpt[String].getOrElse(""))
-
-        logger.debug(s"Dropping: $fieldName  at $path")
-
-        val value = frame.event.getOpt(path).map { _ =>
-          frame.event.delete(path)
-        } | frame.event
-
-        logger.debug("New frame: {}", value)
-
-        List(JsonFrame(value, frame.ctx))
+        List(JsonFrame(
+          frame.event.set(
+            __ \ 'index -> JsString(macroReplacement(frame,index)),
+            __ \ 'table -> JsString(macroReplacement(frame,table)),
+            __ \ '_ttl -> JsString(macroReplacement(frame,ttl))),
+          frame.ctx))
 
       }
     }

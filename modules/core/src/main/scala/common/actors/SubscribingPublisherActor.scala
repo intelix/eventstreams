@@ -28,7 +28,8 @@ trait SubscribingPublisherActor
   extends ActorWithComposableBehavior
   with PipelineWithStatesActor
   with ActorSubscriber
-  with ActorPublisher[JsonFrame] {
+  with ActorPublisher[JsonFrame]
+  with ActorWithTicks {
 
   private val queue = mutable.Queue[JsonFrame]()
 
@@ -84,5 +85,8 @@ trait SubscribingPublisherActor
 
   }
 
-
+  override def internalProcessTick(): Unit = {
+    super.internalProcessTick()
+    sendIfPossible()
+  }
 }
