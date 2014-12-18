@@ -87,7 +87,9 @@ class StatsdPublisher(val props: JsValue)
       logger.debug(s"Unbound!")
       context.stop(self)
       openSocket = None
-    case Request(n) => logger.debug(s"Downstream requested $n messages")
+    case Request(n) =>
+      logger.debug(s"Downstream requested $n messages")
+      deliverIfPossible()
   }
 
   override def processTick(): Unit = {

@@ -75,6 +75,10 @@ class SubscriberBoundaryInitiatingActor(endpoint: String)
     logger.info(s"Fully acknowledged $correlationId")
     context.parent ! Acknowledged(correlationId, correlationToCursor.get(correlationId))
     correlationToCursor -= correlationId
+
+    logger.debug(s"!>>>>> boundary - ${isPipelineActive} && ${connected}  && ${isGateOpen} && ${inFlightCount}")
+
+
   }
 
 

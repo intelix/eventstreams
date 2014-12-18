@@ -21,12 +21,14 @@ object Common {
   )
   // Settings for the app, i.e. the root project
   val appSettings = settings(appName) ++: Seq(
-    resolvers += "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
+    resolvers += "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
+    resolvers += "JAnalyse Repository" at "http://www.janalyse.fr/repository/"
   )
 
   // Settings for every module, i.e. for every subproject
   def moduleSettings (module: String) = settings(module) ++: Seq(
     javaOptions in Test += s"-Dconfig.resource=application.conf",
+    resolvers += "JAnalyse Repository" at "http://www.janalyse.fr/repository/",
     resolvers += "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
   )
 
@@ -73,7 +75,9 @@ object Common {
     "com.ning" % "async-http-client" % "1.0.0",
     "org.ocpsoft.prettytime" % "prettytime" % "3.2.5.Final",
     "nl.grons" %% "metrics-scala" % "3.3.0_a2.3",
-    "com.eaio.uuid" % "uuid" % "3.2"
+    "com.eaio.uuid" % "uuid" % "3.2",
+    "fr.janalyse" %% "janalyse-jmx" % "0.7.1" % "compile"
+
 
   )
 }
