@@ -1,0 +1,28 @@
+{
+  "type": "object",
+  "title": "Statsd",
+  "properties": {
+    "class": {
+      "propertyOrder": 10,
+      "title": "Type",
+      "type": "string",
+      "template": "statsd"
+    },
+    "host": {
+      "propertyOrder": 20,
+      "title": "Host",
+      "type": "string"
+    },
+    "port": {
+      "propertyOrder": 30,
+      "title": "Port",
+      "type": "number"
+    },
+    "parsePayload": {
+      "propertyOrder": 40,
+      "title": "Parse payload",
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false
+}
