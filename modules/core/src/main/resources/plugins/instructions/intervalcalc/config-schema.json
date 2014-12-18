@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "title": "Transform: Interval Calculator",
+  "properties": {
+    "class": {
+      "propertyOrder": 10,
+      "title": "Type",
+      "type": "string",
+      "template": "intervalcalc"
+    },
+    "name": {
+      "propertyOrder": 20,
+      "title": "Name",
+      "type": "string"
+    },
+    "intervalFieldName": {
+      "propertyOrder": 30,
+      "title": "Field name",
+      "type": "string"
+    },
+   "simpleCondition": {
+      "propertyOrder": 110,
+      "$ref": "#/definitions/simpleCondition"
+    }
+  },
+  "required": ["class"]
+}
