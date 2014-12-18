@@ -38,13 +38,21 @@ class DropFieldInstruction extends SimpleInstructionBuilder {
 
         logger.debug(s"Original frame: $frame")
 
-        val path = toPath(macroReplacement(frame, JsString(fieldName)).asOpt[String].getOrElse(""))
+        val field = macroReplacement(frame, fieldName)
 
-        logger.debug(s"Dropping: $fieldName  at $path")
-
-        val value = frame.event.getOpt(path).map { _ =>
-          frame.event.delete(path)
-        } | frame.event
+        val value = if (field.startsWith("?")) {
+          val actualFieldName = field.substring(1).toLowerCase
+          frame.event.updateAll { case (p, js) if JsPathExtension.hasKey(p).map(_.toLowerCase == actualFieldName) | false =>
+            logger.debug(s"Dropping: $actualFieldName  at $p")
+            JsNull
+          }
+        } else {
+          val path = toPath(macroReplacement(frame, JsString(field)).asOpt[String].getOrElse(""))
+          logger.debug(s"Dropping: $fieldName  at $path")
+          frame.event.getOpt(path).map { _ =>
+            frame.event.set(path -> JsNull)
+          } | frame.event
+        }
 
         logger.debug("New frame: {}", value)
 
