@@ -18,7 +18,7 @@ package hq.flows.core
 
 import common.ToolExt.configHelper
 import common.{Fail, JsonFrame}
-import groovy.json.JsonSlurper
+import groovy.json.{JsonBuilder, JsonSlurper}
 import groovy.lang.{Binding, GroovyShell}
 import hq.flows.core.Builder.SimpleInstructionType
 import play.api.libs.json._
@@ -41,16 +41,23 @@ class GroovyInstruction extends SimpleInstructionBuilder {
         binding.setVariable("foo", new Integer(2))
         var shell = new GroovyShell(binding)
 
+        val text = new JsonSlurper().parseText(Json.stringify(fr.event))
+
         binding.setVariable("jsonParser", new JsonSlurper())
-        binding.setVariable("event", new JsonSlurper().parseText(Json.stringify(fr.event)))
+        binding.setVariable("event", text)
+        binding.setVariable("json", new JsonBuilder(text))
 
         binding.setVariable("func", (term: String) => {
           "result"
         })
 
         var result = try {
-          var value = String.valueOf(shell.evaluate(code))
-          Json.parse(value)
+          var value = shell.evaluate(code)
+          Json.parse(value match {
+            case x: JsonBuilder => x.toPrettyString
+            case x: String => x
+          })
+
         }
         catch {
           case x: Throwable => fr.event.set(__ \ 'error -> JsString("Groovy instruction failed: " + x.getMessage))
