@@ -15,3 +15,6 @@ dist
 /.settings
 
     
+*.db
+projectFilesBackup/
+data/
