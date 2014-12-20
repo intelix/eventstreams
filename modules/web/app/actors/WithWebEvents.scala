@@ -1,0 +1,5 @@
+package actors
+
+object WithWebEvents {
+
+}
