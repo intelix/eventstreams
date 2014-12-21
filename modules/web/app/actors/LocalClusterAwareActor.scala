@@ -18,7 +18,7 @@ package actors
 
 import akka.actor.{ActorRefFactory, Address, Props}
 import akka.cluster.Cluster
-import common.actors.{ActorObj, ActorWithComposableBehavior}
+import eventstreams.core.actors.{ActorObj, ActorWithComposableBehavior}
 
 object LocalClusterAwareActor extends ActorObj {
   override def id: String = "cluster"

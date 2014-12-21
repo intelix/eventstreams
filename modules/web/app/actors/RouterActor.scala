@@ -17,7 +17,7 @@
 package actors
 
 import akka.actor.{ActorRefFactory, Props, ActorRef}
-import common.actors.{ActorWithComposableBehavior, ActorObj}
+import eventstreams.core.actors.{ActorWithComposableBehavior, ActorObj}
 
 object RouterActor extends ActorObj {
   override def id: String = "router"

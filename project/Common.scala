@@ -55,7 +55,7 @@ object Common {
     "com.typesafe.akka" %% "akka-stream-experimental" % "0.11",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
     "ch.qos.logback" % "logback-classic" % "1.1.2",
-    "org.scalatest" %% "scalatest" % "2.1.3" % "test",
+    "org.scalatest" %% "scalatest" % "2.2.1" % "test",
     "joda-time" % "joda-time" % "2.3",
     "org.codehaus.groovy" % "groovy-all" % "2.3.6",
     "org.joda" % "joda-convert" % "1.6",
@@ -76,7 +76,8 @@ object Common {
     "org.ocpsoft.prettytime" % "prettytime" % "3.2.5.Final",
     "nl.grons" %% "metrics-scala" % "3.3.0_a2.3",
     "com.eaio.uuid" % "uuid" % "3.2",
-    "fr.janalyse" %% "janalyse-jmx" % "0.7.1" % "compile"
+    "fr.janalyse" %% "janalyse-jmx" % "0.7.1" % "compile",
+    "com.typesafe.akka" %% "akka-multi-node-testkit" % "2.3.6"
 
 
   )

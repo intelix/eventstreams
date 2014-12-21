@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package agent
+package eventstreams.core.agent
 
 trait Cursor {
 }

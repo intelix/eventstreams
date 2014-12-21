@@ -18,22 +18,38 @@ package actors
 
 import akka.actor.{Actor, ActorRef, Props}
 import com.diogoduailibe.lzstring4j.LZString
-import common.actors.{ActorWithComposableBehavior, ActorWithTicks}
+import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks}
+import core.events.EventOps.{symbolToEventOps, symbolToEventField}
+import core.events.ref.ComponentWithBaseEvents
+import eventstreams.core.messages._
 import hq._
 import play.api.libs.json.{JsValue, Json}
 
-import scala.collection.mutable
+import scala.collection._
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 
 
+trait WebsocketActorEvents
+  extends ComponentWithBaseEvents
+  with WithWebEvents {
+  val AcceptedConnection = 'AcceptedConnection.info
+  val ClosedConnection = 'ClosedConnection.info
+
+  override def id: String = "WebsocketActor"
+}
+
 object WebsocketActor {
+
   def props(out: ActorRef) = Props(new WebsocketActor(out))
+
+
 }
 
 
 class WebsocketActor(out: ActorRef)
   extends ActorWithComposableBehavior
-  with ActorWithTicks {
+  with ActorWithTicks
+  with WebsocketActorEvents {
 
   val opSplitChar: Char = 1.toChar
   val msgSplitChar: Char = 2.toChar
@@ -52,7 +68,9 @@ class WebsocketActor(out: ActorRef)
 
   override def preStart(): Unit = {
     super.preStart()
-    logger.info(s"Accepted WebSocket connection, proxy actor: $out this actor: $self")
+
+    AcceptedConnection >>('ProxyActor --> out, 'ThisActor --> self)
+
     LocalClusterAwareActor.path ! InfoRequest()
   }
 
@@ -60,7 +78,7 @@ class WebsocketActor(out: ActorRef)
   @throws[Exception](classOf[Exception])
   override def postStop(): Unit = {
     super.postStop()
-    logger.info(s"Closing WebSocket connection, proxy actor: $out this actor: $self")
+    ClosedConnection >>('ProxyActor --> out, 'ThisActor --> self)
   }
 
   override def commonBehavior: Actor.Receive = messageHandler orElse super.commonBehavior
