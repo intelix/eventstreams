@@ -18,11 +18,10 @@ package actors
 
 import akka.actor.{Actor, ActorRef, Props}
 import com.diogoduailibe.lzstring4j.LZString
-import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks}
-import core.events.EventOps.{symbolToEventOps, symbolToEventField}
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
 import core.events.ref.ComponentWithBaseEvents
+import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks}
 import eventstreams.core.messages._
-import hq._
 import play.api.libs.json.{JsValue, Json}
 
 import scala.collection._

@@ -42,16 +42,16 @@ object Common {
 
   val commonDependencies = Seq(
     ws,
-    "com.typesafe.play" %% "play-cache" % "2.3.6",
+    "com.typesafe.play" %% "play-cache" % "2.3.7",
     "com.googlecode.scalascriptengine" %% "scalascriptengine" % "1.3.10",
     "org.scala-lang" % "scala-compiler" % "2.11.1",
-    "org.codehaus.groovy" % "groovy-all" % "2.3.6",
-    "com.typesafe.akka" %% "akka-actor" % "2.3.6",
-    "com.typesafe.akka" %% "akka-agent" % "2.3.6",
-    "com.typesafe.akka" %% "akka-slf4j" % "2.3.6",
-    "com.typesafe.akka" %% "akka-remote" % "2.3.6",
-    "com.typesafe.akka" %% "akka-cluster" % "2.3.6",
-    "com.typesafe.akka" %% "akka-persistence-experimental" % "2.3.6",
+    "org.codehaus.groovy" % "groovy-all" % "2.3.8",
+    "com.typesafe.akka" %% "akka-actor" % "2.3.8",
+    "com.typesafe.akka" %% "akka-agent" % "2.3.8",
+    "com.typesafe.akka" %% "akka-slf4j" % "2.3.8",
+    "com.typesafe.akka" %% "akka-remote" % "2.3.8",
+    "com.typesafe.akka" %% "akka-cluster" % "2.3.8",
+    "com.typesafe.akka" %% "akka-persistence-experimental" % "2.3.8",
     "com.typesafe.akka" %% "akka-stream-experimental" % "0.11",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0",
     "ch.qos.logback" % "logback-classic" % "1.1.2",
@@ -77,7 +77,7 @@ object Common {
     "nl.grons" %% "metrics-scala" % "3.3.0_a2.3",
     "com.eaio.uuid" % "uuid" % "3.2",
     "fr.janalyse" %% "janalyse-jmx" % "0.7.1" % "compile",
-    "com.typesafe.akka" %% "akka-multi-node-testkit" % "2.3.6"
+    "com.typesafe.akka" %% "akka-multi-node-testkit" % "2.3.8"
 
 
   )
