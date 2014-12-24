@@ -44,6 +44,68 @@ lazy val eventStreamsEngines = Project(
 )
 
 
+lazy val eventStreamsPluginDSFile = Project(
+  id = "eventstreams-plugin-ds-file",
+  base = file("eventstreams-plugin-ds-file"),
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore % "compile;test->test"
+  )
+)
+
+lazy val eventStreamsPluginDSJMX = Project(
+  id = "eventstreams-plugin-ds-jmx",
+  base = file("eventstreams-plugin-ds-jmx"),
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore % "compile;test->test"
+  )
+)
+
+lazy val eventStreamsPluginDSStatsd = Project(
+  id = "eventstreams-plugin-ds-statsd",
+  base = file("eventstreams-plugin-ds-statsd"),
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore % "compile;test->test"
+  )
+)
+
+lazy val eventStreamsPluginDSUDP = Project(
+  id = "eventstreams-plugin-ds-udp",
+  base = file("eventstreams-plugin-ds-udp"),
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore % "compile;test->test"
+  )
+)
+
+lazy val eventStreamsPluginDSTCP = Project(
+  id = "eventstreams-plugin-ds-tcp",
+  base = file("eventstreams-plugin-ds-tcp"),
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore % "compile;test->test"
+  )
+)
+
+lazy val eventStreamsAgent = Project(
+  id = "eventstreams-agent",
+  base = file("eventstreams-agent"),
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore % "compile;test->test",
+    eventStreamsPluginDSFile,
+    eventStreamsPluginDSJMX,
+    eventStreamsPluginDSStatsd,
+    eventStreamsPluginDSUDP,
+    eventStreamsPluginDSTCP
+  )
+)
+
+
+
+
 //
 //
 //

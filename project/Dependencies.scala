@@ -163,9 +163,15 @@ object Dependencies {
   )
 
   val eventStreamsPluginDSEssentials = eventStreamsCommon ++: Seq(
-
   )
 
-  
+  val eventStreamsPluginDSJMX = eventStreamsCommon ++: Seq(
+    janalyseJmx
+  )
+
+  val eventStreamsAgent = eventStreamsCommon ++: Seq(
+    Test.akkaTestKit
+  )
+
 }
 
