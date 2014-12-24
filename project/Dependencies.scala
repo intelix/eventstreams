@@ -10,7 +10,7 @@ object Dependencies {
     val scalaTestVersion = "2.2.1"
 
     val playCacheVersion = "2.2.1"
-    val playJsonVersion = "2.4.0-M2"
+    val playJsonVersion = "2.3.7"
 
     val playJsonZipperVersion = "1.2"
 
@@ -162,6 +162,9 @@ object Dependencies {
     asyncHttpClient
   )
 
+  val eventStreamsPluginDSEssentials = eventStreamsCommon ++: Seq(
+
+  )
 
   
 }

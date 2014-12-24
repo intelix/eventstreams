@@ -36,6 +36,7 @@ object EventStreamsBuild {
     pomIncludeRepository := (_ => false)
   ) ++ Seq(
     resolvers += "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
+    resolvers += "Typesafe Repo" at "http://repo.typesafe.com/typesafe/releases/",
     resolvers += "mandubian maven bintray" at "http://dl.bintray.com/mandubian/maven"
   )
 
