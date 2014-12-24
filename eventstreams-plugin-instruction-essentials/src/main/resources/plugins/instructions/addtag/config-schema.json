@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "title": "Transform: Add tag",
+  "properties": {
+    "class": {
+      "propertyOrder": 10,
+      "title": "Type",
+      "type": "string",
+      "template": "addtag"
+    },
+    "name": {
+      "propertyOrder": 20,
+      "title": "Name",
+      "type": "string"
+    },
+    "tagName": {
+      "propertyOrder": 30,
+      "title": "Tag name",
+      "type": "string"
+    },
+    "simpleCondition": {
+      "propertyOrder": 110,
+      "$ref": "#/definitions/simpleCondition"
+    }
+  },
+  "required": ["class"]
+}

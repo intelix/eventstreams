@@ -1,0 +1,37 @@
+{
+  "type": "object",
+  "title": "Transform: Replace",
+  "properties": {
+    "class": {
+      "propertyOrder": 10,
+      "title": "Type",
+      "type": "string",
+      "template": "replace"
+    },
+    "name": {
+      "propertyOrder": 20,
+      "title": "Name",
+      "type": "string"
+    },
+    "fieldName": {
+      "propertyOrder": 30,
+      "title": "Field name",
+      "type": "string"
+    },
+    "pattern": {
+      "propertyOrder": 31,
+      "title": "Pattern",
+      "type": "string"
+    },
+    "replacementValue": {
+      "propertyOrder": 40,
+      "title": "Replacement value",
+      "type": "string"
+    },
+    "simpleCondition": {
+      "propertyOrder": 110,
+      "$ref": "#/definitions/simpleCondition"
+    }
+  },
+  "required": ["class", "fieldName","pattern"]
+}
