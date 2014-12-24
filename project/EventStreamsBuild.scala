@@ -35,7 +35,8 @@ object EventStreamsBuild {
   } ++ Seq(
     pomIncludeRepository := (_ => false)
   ) ++ Seq(
-    resolvers += "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
+    resolvers += "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
+    resolvers += "mandubian maven bintray" at "http://dl.bintray.com/mandubian/maven"
   )
 
   lazy val compilerSettings = Seq(
