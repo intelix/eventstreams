@@ -104,21 +104,10 @@ lazy val eventStreamsAgent = Project(
 )
 
 
+lazy val eventStreamsHQ = Project(
+  id = "eventstreams-hq",
+  base = file("eventstreams-hq"),
+  dependencies = Seq(coreEvents, eventStreamsCore)
+).enablePlugins(PlayScala,SbtWeb)
 
 
-//
-//
-//
-//lazy val eventStreamsHQWeb = Project(
-//  id = "eventstreams-hq-web",
-//  base = file("eventstreams-hq/modules/web"),
-//  dependencies = Seq(coreEvents, eventStreamsCore)
-//).enablePlugins(PlayScala,SbtWeb)
-//
-//
-//lazy val eventStreamsHQ = Project(
-//  id = "eventstreams-hq",
-//  base = file("eventstreams-hq"),
-//  dependencies = Seq(coreEvents, eventStreamsCore)
-//).enablePlugins(PlayScala,SbtWeb)
-//

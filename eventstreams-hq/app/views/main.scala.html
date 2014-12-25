@@ -1,0 +1,17 @@
+@(title: String, styles: Html = Html("/public"), scripts: Html = Html("/public"), modals: Html = Html("/public"))(content: Html)
+
+@import controllers.routes
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>@title</title>
+	</head>
+	<body>
+		<div class="container">
+			@content
+		</div>
+		@modals
+		@scripts
+	</body>
+</html>

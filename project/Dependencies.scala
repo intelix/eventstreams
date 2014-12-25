@@ -173,5 +173,17 @@ object Dependencies {
     Test.akkaTestKit
   )
 
+  val eventStreamsHQ = eventStreamsCommon ++: Seq(
+    Test.akkaTestKit,
+    webjarsBootstrap,
+    webjarsBWYeti,
+    webjarsJquery,
+    webjarsPlay,
+    webjarsReactJs,
+    webjarsReqjs,
+    webjarsReqjsTxt,
+    webjarsToastr
+  )
+
 }
 

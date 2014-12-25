@@ -8,6 +8,9 @@ import eventstreams.core.components.routing.MessageRouterActor
 import play.api._
 import play.api.mvc._
 import play.libs.Akka
+import play.api.mvc.Results._
+
+import scala.concurrent.Future
 
 object Global extends GlobalSettings with scalalogging.StrictLogging {
 
@@ -44,30 +47,26 @@ object Global extends GlobalSettings with scalalogging.StrictLogging {
     super.onStop(app)
   }
 
-  override def onRouteRequest(request: RequestHeader) = getSubdomain(request) match {
-//    case "admin" => admin.Routes.routes.lift(request)
-    case _ => web.Routes.routes.lift(request)
-  }
 
   // 404 - page not found error
-  override def onHandlerNotFound(request: RequestHeader) = getSubdomain(request) match {
-//    case "admin" => GlobalAdmin.onHandlerNotFound(request)
-    case _ => GlobalWeb.onHandlerNotFound(request)
-  }
+  override def onHandlerNotFound(request: RequestHeader) = Future.successful(
+    NotFound(views.html.errors.onHandlerNotFound(request))
+  )
 
   // 500 - internal server error
-  override def onError(request: RequestHeader, throwable: Throwable) = getSubdomain(request) match {
-//    case "admin" => GlobalAdmin.onError(request, throwable)
-    case _ => GlobalWeb.onError(request, throwable)
-  }
+  override def onError(request: RequestHeader, throwable: Throwable) = Future.successful(
+    InternalServerError(views.html.errors.onError(throwable))
+  )
 
   // called when a route is found, but it was not possible to bind the request parameters
-  override def onBadRequest(request: RequestHeader, error: String) = getSubdomain(request) match {
-//    case "admin" => GlobalAdmin.onBadRequest(request, error)
-    case _ => GlobalWeb.onBadRequest(request, error)
-  }
+  override def onBadRequest(request: RequestHeader, error: String) = Future.successful(
+    BadRequest("Bad Request: " + error)
+  )
+  
+//  override def onRouteRequest(request: RequestHeader) = {
+//    Routes.routes.lift(request)
+//  }
 
-  private def getSubdomain(request: RequestHeader) = request.domain.replaceFirst("[\\.]?[^\\.]+[\\.][^\\.]+$", "")
 
 
 }
