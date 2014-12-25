@@ -16,45 +16,63 @@
 
 package eventstreams.plugins.essentials
 
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.WithEvents
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.SimpleInstructionType
 import eventstreams.core._
-import eventstreams.core.instructions.SimpleInstructionBuilder
+import eventstreams.core.instructions.{InstructionConstants, SimpleInstructionBuilder}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
 import scalaz.Scalaz._
 import scalaz._
 
-class DropFieldInstruction extends SimpleInstructionBuilder {
+
+trait DropFieldInstructionEvents
+  extends ComponentWithBaseEvents
+  with WithEvents {
+
+  val Built = 'Built.trace
+  val FieldDropped = 'FieldDropped.trace
+
+  override def id: String = "Instruction.DropField"
+}
+
+trait DropFieldInstructionConstants extends InstructionConstants with DropFieldInstructionEvents {
+  val CfgFFieldToDrop = "fieldToDrop"
+}
+
+class DropFieldInstruction extends SimpleInstructionBuilder with DropFieldInstructionConstants {
   val configId = "dropfield"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      fieldName <- props ~> 'fieldName \/> Fail(s"Invalid dropfield instruction. Missing 'fieldName' value. Contents: ${Json.stringify(props)}")
+      fieldName <- props ~> CfgFFieldToDrop \/> Fail(s"Invalid $configId instruction. Missing '$CfgFFieldToDrop' value. Contents: ${Json.stringify(props)}")
     ) yield {
 
-      frame: JsonFrame => {
+      val uuid = Utils.generateShortUUID
 
-        logger.debug(s"Original frame: $frame")
+      Built >>('Config --> Json.stringify(props), 'ID --> uuid)
+
+      frame: JsonFrame => {
 
         val field = macroReplacement(frame, fieldName)
 
         val value = if (field.startsWith("?")) {
           val actualFieldName = field.substring(1).toLowerCase
           frame.event.updateAll { case (p, js) if JsPathExtension.hasKey(p).map(_.toLowerCase == actualFieldName) | false =>
-            logger.debug(s"Dropping: $actualFieldName  at $p")
+            FieldDropped >>('Field --> actualFieldName, 'Path --> p.toString(), 'ID --> uuid)
             JsNull
           }
         } else {
           val path = toPath(macroReplacement(frame, JsString(field)).asOpt[String].getOrElse(""))
-          logger.debug(s"Dropping: $fieldName  at $path")
+          FieldDropped >>('Field --> fieldName, 'Path --> path, 'ID --> uuid)
           frame.event.getOpt(path).map { _ =>
             frame.event.set(path -> JsNull)
           } | frame.event
         }
-
-        logger.debug("New frame: {}", value)
 
         List(JsonFrame(value, frame.ctx))
 

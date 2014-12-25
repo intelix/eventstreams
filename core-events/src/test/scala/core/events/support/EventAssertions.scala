@@ -42,4 +42,16 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
     }
   }
 
+  def expectAnyEvent(count: Int, event: Event, values: EventFieldWithValue*) = {
+    eventually {
+      events should contain key event
+
+      if (values.length > 0) {
+        events.get(event).get should haveAllValues(count, values)
+
+      }
+
+    }
+  }
+
 }

@@ -13,7 +13,7 @@
       "title": "Name",
       "type": "string"
     },
-    "fieldName": {
+    "fieldToDrop": {
       "propertyOrder": 30,
       "title": "Field name",
       "type": "string"
