@@ -28,7 +28,7 @@
         </layout>
     </appender>
 
-    <logger name="events" level="WARN" additivity="false">
+    <logger name="events" level="DEBUG" additivity="false">
         <appender-ref ref="EVENTS" />
     </logger>
 

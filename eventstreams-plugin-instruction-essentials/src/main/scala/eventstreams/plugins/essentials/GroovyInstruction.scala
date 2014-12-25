@@ -16,10 +16,13 @@
 
 package eventstreams.plugins.essentials
 
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.WithEvents
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.Types.SimpleInstructionType
-import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.core.{Fail, JsonFrame}
+import eventstreams.core.instructions.{InstructionConstants, SimpleInstructionBuilder}
+import eventstreams.core.{Fail, JsonFrame, Utils}
 import groovy.json.{JsonBuilder, JsonSlurper}
 import groovy.lang.{Binding, GroovyShell}
 import play.api.libs.json._
@@ -28,40 +31,63 @@ import play.api.libs.json.extensions._
 import scalaz.Scalaz._
 import scalaz._
 
-class GroovyInstruction extends SimpleInstructionBuilder {
+trait GroovyInstructionEvents
+  extends ComponentWithBaseEvents
+  with WithEvents {
+
+  val Built = 'Built.trace
+  val GroovyExecOk = 'GroovyExecOk.trace
+  val GroovyExecResult = 'GroovyExecResult.trace
+  val GroovyExecFailed = 'GroovyExecFailed.error
+
+  override def id: String = "Instruction.Groovy"
+}
+
+trait GroovyInstructionConstants extends InstructionConstants with GroovyInstructionEvents {
+  val CfgFCode = "code"
+
+  val CtxJsonBuilder = "json"
+}
+
+object GroovyInstructionConstants extends GroovyInstructionConstants
+
+class GroovyInstruction extends SimpleInstructionBuilder with GroovyInstructionConstants {
   val configId = "groovy"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      code <- props ~> 'code \/> Fail(s"Invalid groovy instruction. Missing 'code' value. Contents: ${Json.stringify(props)}")
+      code <- props ~> CfgFCode \/> Fail(s"Invalid $configId instruction. Missing '$CfgFCode' value. Contents: ${Json.stringify(props)}")
     ) yield {
+
+      val uuid = Utils.generateShortUUID
+
+      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
 
       fr: JsonFrame =>
 
         var binding = new Binding()
-        binding.setVariable("foo", new Integer(2))
         var shell = new GroovyShell(binding)
 
         val text = new JsonSlurper().parseText(Json.stringify(fr.event))
 
-        binding.setVariable("jsonParser", new JsonSlurper())
-        binding.setVariable("event", text)
-        binding.setVariable("json", new JsonBuilder(text))
+        binding.setVariable(CtxJsonBuilder, new JsonBuilder(text))
 
-        binding.setVariable("func", (term: String) => {
-          "result"
-        })
+        val eventId = fr.event ~> 'eventId | "n/a"
 
         var result = try {
-          var value = shell.evaluate(code)
-          Json.parse(value match {
+          var value = shell.evaluate(code) match {
             case x: JsonBuilder => x.toPrettyString
             case x: String => x
-          })
+          }
 
-        }
-        catch {
-          case x: Throwable => fr.event.set(__ \ 'error -> JsString("Groovy instruction failed: " + x.getMessage))
+          GroovyExecOk >>('EventId --> eventId, 'InstructionInstanceId --> uuid)
+          GroovyExecResult >>('Result --> value, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+
+          Json.parse(value)
+        } catch {
+          case x: Throwable =>
+            GroovyExecFailed >>('Error --> x.getMessage, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+            fr.event.set(__ \ 'error -> JsString("Groovy instruction failed: " + x.getMessage))
         }
 
         List(fr.copy(event = result))

@@ -16,69 +16,100 @@
 
 package eventstreams.plugins.essentials
 
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.WithEvents
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.SimpleInstructionType
 import eventstreams.core._
-import eventstreams.core.instructions.SimpleInstructionBuilder
+import eventstreams.core.instructions.{InstructionConstants, SimpleInstructionBuilder}
 import play.api.libs.json.{JsString, JsValue, Json}
 
 import scala.util.matching.Regex
 import scalaz.Scalaz._
 import scalaz._
 
-class GrokInstruction extends SimpleInstructionBuilder {
+
+trait GrokInstructionEvents
+  extends ComponentWithBaseEvents
+  with WithEvents {
+
+  val Built = 'Built.trace
+  val Grokked = 'Grokked.trace
+
+  override def id: String = "Instruction.Grok"
+}
+
+trait GrokInstructionConstants extends InstructionConstants with GrokInstructionEvents {
+  val CfgFPattern = "pattern"
+  val CfgFSource = "source"
+  val CfgFFields = "fields"
+  val CfgFTypes = "types"
+  val CfgFGroups = "groups"
+  val CfgFValues = "values"
+}
+
+object GrokInstructionConstants extends  GrokInstructionConstants
+
+class GrokInstruction extends SimpleInstructionBuilder with GrokInstructionConstants {
   val configId = "grok"
 
-  def nextField(frame: JsonFrame, fvt: ((String, String), String)): JsonFrame =
+  def nextField(eventId: String, uuid: String)(frame: JsonFrame, fvt: ((String, String), String)): JsonFrame =
     fvt match {
       case ((f, v), t) =>
-        logger.debug(s"next field: $f = $v of $t")
-        JsonFrame(setValue(t, macroReplacement(frame, JsString(v)), toPath(macroReplacement(frame, JsString(f))), frame.event), frame.ctx)
+        val field = toPath(macroReplacement(frame, JsString(f)))
+        val value = macroReplacement(frame, JsString(v))
+        Grokked >>('Field --> field, 'Value --> value, 'Type --> t, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+        JsonFrame(setValue(t, value, field, frame.event), frame.ctx)
     }
 
   def populateContext(frame: JsonFrame, gv: (String, String)): JsonFrame =
     gv match {
       case (g, v) =>
-        logger.debug(s"adding to context: $g = $v")
         JsonFrame(frame.event, frame.ctx + (g -> JsString(v)))
     }
 
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      pattern <- props ~> 'pattern \/> Fail(s"Invalid grok instruction. Missing 'pattern' value. Contents: ${Json.stringify(props)}");
+      pattern <- props ~> CfgFPattern \/> Fail(s"Invalid $configId instruction. Missing '$CfgFPattern' value. Contents: ${Json.stringify(props)}");
       regex = new Regex(pattern);
 
-      source <- props ~> 'source \/> Fail(s"Invalid grok instruction. Missing 'source' value. Contents: ${Json.stringify(props)}");
+      source <- props ~> CfgFSource \/> Fail(s"Invalid $configId instruction. Missing '$CfgFSource' value. Contents: ${Json.stringify(props)}");
 
-      fieldsList <- props ~> 'fields \/> Fail(s"Invalid grok instruction. Missing 'fields' value. Contents: ${Json.stringify(props)}");
+      fieldsList <- props ~> CfgFFields \/> Fail(s"Invalid $configId instruction. Missing '$CfgFFields' value. Contents: ${Json.stringify(props)}");
       fields = fieldsList.split(',').map(_.trim);
 
-      typesList <- props ~> 'types \/> Fail(s"Invalid grok instruction. Missing 'types' value. Contents: ${Json.stringify(props)}");
+      typesList <- props ~> CfgFTypes \/> Fail(s"Invalid $configId instruction. Missing '$CfgFTypes' value. Contents: ${Json.stringify(props)}");
       types = typesList.split(',').map(_.trim);
 
-      groupsList <- props ~> 'groups \/> Fail(s"Invalid grok instruction. Missing 'groups' value. Contents: ${Json.stringify(props)}");
+      groupsList <- props ~> CfgFGroups \/> Fail(s"Invalid $configId instruction. Missing '$CfgFGroups' value. Contents: ${Json.stringify(props)}");
       groups = groupsList.split(',').map(_.trim);
 
-      valuesList <- props ~> 'values \/> Fail(s"Invalid grok instruction. Missing 'values' value. Contents: ${Json.stringify(props)}");
+      valuesList <- props ~> CfgFValues \/> Fail(s"Invalid $configId instruction. Missing '$CfgFValues' value. Contents: ${Json.stringify(props)}");
       values = valuesList.split(',').map(_.trim)
     ) yield {
+
+      val uuid = Utils.generateShortUUID
 
       def contextToFrame(frame: JsonFrame, rmatch: Regex.Match): JsonFrame =
         (groups zip rmatch.subgroups).foldLeft(frame)(populateContext)
 
 
-      def matcherToFrame(frame: JsonFrame, rmatch: Regex.Match): JsonFrame =
+      def matcherToFrame(eventId: String)(frame: JsonFrame, rmatch: Regex.Match): JsonFrame =
         (fields zip values zip types)
-          .foldLeft(contextToFrame(frame, rmatch))(nextField)
+          .foldLeft(contextToFrame(frame, rmatch))(nextField(eventId, uuid))
+
+      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
 
       fr: JsonFrame =>
 
         val sourceValue = locateFieldValue(fr, macroReplacement(fr, JsString(source)))
+        val eventId = fr.event ~> 'eventId | "n/a"
 
         List(regex.findAllMatchIn(sourceValue)
           .toSeq
-          .foldLeft(fr)(matcherToFrame))
+          .foldLeft(fr)(matcherToFrame(eventId)))
     }
 
 
