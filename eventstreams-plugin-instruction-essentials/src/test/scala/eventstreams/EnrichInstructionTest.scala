@@ -186,7 +186,6 @@ class EnrichInstructionTest extends TestHelpers {
     }
   }
 
-
   it should "enrich with macros and convert from strings and support doubles" in new WithNumericEnrich {
     expectOne(Json.obj("abc1" -> "1.1")) { result =>
       result +&> 'abc should be(Some(1.1))
@@ -210,6 +209,26 @@ class EnrichInstructionTest extends TestHelpers {
       result +> 'abc should be(Some(0))
     }
   }
+  
+  trait WithStringEnrich extends WithSimpleInstructionBuilder with EnrichInstructionConstants {
+    override def builder: SimpleInstructionBuilder = new EnrichInstruction()
+
+    override def config: JsValue = Json.obj(
+      CfgFClass -> "enrich",
+      CfgFFieldToEnrich -> "abc",
+      CfgFTargetValueTemplate -> "${abc1}",
+      CfgFTargetType -> "s")
+  }
+
+  it should "override existing branch" in new WithStringEnrich {
+    expectOne(Json.obj("abc1" -> "", "abc" -> Json.obj("x" -> "xyz"))) { result =>
+      result ~*> 'abc should be(Some(""))
+      result #> 'abc ~> 'x should be(None)
+    }
+  }
+
+
+
 
 
 }
