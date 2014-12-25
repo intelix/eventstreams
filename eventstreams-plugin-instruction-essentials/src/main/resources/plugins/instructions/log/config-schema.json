@@ -24,9 +24,9 @@
         "ERROR"
       ]
     },
-    "logger": {
+    "event": {
       "propertyOrder": 20,
-      "title": "Logger",
+      "title": "Event",
       "type": "string"
     },
     "simpleCondition": {

@@ -17,36 +17,69 @@
 package eventstreams.plugins.essentials
 
 import com.typesafe.scalalogging.Logger
+import core.events.EventOps.{stringToEventOps, symbolToEventField, symbolToEventOps}
+import core.events.ref.ComponentWithBaseEvents
+import core.events.{EventFieldWithValue, WithEvents}
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.Types.SimpleInstructionType
-import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.core.{Fail, JsonFrame, Types}
+import eventstreams.core.instructions.{InstructionConstants, SimpleInstructionBuilder}
+import eventstreams.core.{Fail, JsonFrame, Utils}
 import org.slf4j.LoggerFactory
-import play.api.libs.json.JsValue
+import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
 import scalaz._
 
-class LogInstruction extends SimpleInstructionBuilder {
+trait LogInstructionEvents
+  extends ComponentWithBaseEvents
+  with WithEvents {
+
+  val Built = 'Built.trace
+
+  override def id: String = "Instruction.Log"
+}
+
+trait LogInstructionConstants extends InstructionConstants with LogInstructionEvents {
+  val CfgFLevel = "level"
+  val CfgFEvent = "event"
+
+}
+
+object LogInstructionConstants extends LogInstructionConstants
+
+class LogInstruction extends SimpleInstructionBuilder with LogInstructionConstants {
   val configId = "log"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] = {
 
-    val level = props ~> 'level | "INFO"
-    val loggerName = props ~> 'logger | "default"
+    val level = props ~> CfgFLevel | "INFO"
+    props ~> CfgFEvent match {
+      case None => -\/(Fail(s"Invalid $configId instruction. Missing '$CfgFEvent' value. Contents: ${Json.stringify(props)}"))
+      case Some(loggerName) if "^\\w[\\w\\d]*$".r.findFirstMatchIn(loggerName).isEmpty  => -\/(Fail(s"Invalid $configId instruction. $CfgFEvent must start with a character and contain only characters and numbers. Contents: ${Json.stringify(props)}"))
+      case Some(loggerName) =>
+        val baseLogger = Logger(LoggerFactory getLogger loggerName)
+        val loggerForLevel = level.toUpperCase match {
+          case "DEBUG" => loggerName.trace >> (_: EventFieldWithValue)
+          case "INFO" => loggerName.info >> (_: EventFieldWithValue)
+          case "WARN" => loggerName.warn >> (_: EventFieldWithValue)
+          case "ERROR" => loggerName.error >> (_: EventFieldWithValue)
+        }
 
-    val baseLogger = Logger(LoggerFactory getLogger loggerName)
-    val loggerForLevel = level.toUpperCase match {
-      case "DEBUG" => baseLogger.debug(_: String)
-      case "INFO" => baseLogger.info(_: String)
-      case "WARN" => baseLogger.warn(_: String)
-      case "ERROR" => baseLogger.error(_: String)
+
+        \/- {
+
+          val uuid = Utils.generateShortUUID
+
+          Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+
+          frame: JsonFrame =>
+            loggerForLevel('Frame --> frame.toString)
+            List(frame)
+        }
     }
 
-    \/- { frame: JsonFrame =>
-      loggerForLevel(frame.toString)
-      List(frame)
-    }
+    
+
 
   }
 }
