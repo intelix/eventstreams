@@ -16,15 +16,49 @@
 
 package eventstreams.plugins.essentials
 
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.WithEvents
+import core.events.ref.ComponentWithBaseEvents
+import eventstreams.core.Tools.configHelper
 import eventstreams.core.Types.SimpleInstructionType
-import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.core.{Fail, JsonFrame, Types}
-import play.api.libs.json.JsValue
+import eventstreams.core.instructions.{InstructionConstants, SimpleInstructionBuilder}
+import eventstreams.core.{Fail, JsonFrame, Utils}
+import play.api.libs.json.{JsValue, Json}
+
+import scalaz._
+import Scalaz._
 
 import scalaz._
 
-class DropInstruction extends SimpleInstructionBuilder {
+trait DropInstructionEvents
+  extends ComponentWithBaseEvents
+  with WithEvents {
+
+  val Built = 'Built.trace
+  val Dropped = 'DateParsed.trace
+
+  override def id: String = "Instruction.Drop"
+}
+
+trait DropInstructionConstants extends InstructionConstants with DropInstructionEvents {
+}
+
+
+class DropInstruction extends SimpleInstructionBuilder with DropInstructionConstants {
   val configId = "drop"
-  override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] = \/- { frame: JsonFrame => List() }
+
+  override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] = \/- {
+
+    val uuid = Utils.generateShortUUID
+
+    Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+
+    frame: JsonFrame => {
+      val eventId = frame.event ~> 'eventId | "n/a"
+
+      Dropped >>('EventId --> eventId, 'InstructionInstanceId --> uuid)
+      List()
+    }
+  }
 }
 
