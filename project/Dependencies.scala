@@ -47,7 +47,7 @@ object Dependencies {
 
     val webjarsJqueryVersion = "2.1.3"
     val webjarsPlayVersion = "2.3.0-2"
-    val webjarsBWYetiVersion = "3.3.1+2"
+    val webjarsBootswatchVersion = "3.3.1+2"
     val webjarsBootstrapVersion = "3.3.1"
     val webjarsReqjsVersion = "2.1.14-3"
     val webjarsReqjsTxtVersion = "2.0.10-1"
@@ -87,7 +87,7 @@ object Dependencies {
 
     val webjarsPlay     = "org.webjars"                 %% "webjars-play"                   % webjarsPlayVersion
     val webjarsJquery   = "org.webjars"                 %  "jquery"                         % webjarsJqueryVersion
-    val webjarsBWYeti   = "org.webjars"                 %  "bootswatch-yeti"                % webjarsBWYetiVersion
+    val webjarsBootswatch = "org.webjars"               %  "bootswatch-cosmo"               % webjarsBootswatchVersion
     val webjarsBootstrap= "org.webjars"                 %  "bootstrap"                      % webjarsBootstrapVersion
     val webjarsReqjs    = "org.webjars"                 %  "requirejs"                      % webjarsReqjsVersion
     val webjarsReqjsTxt = "org.webjars"                 %  "requirejs-text"                 % webjarsReqjsTxtVersion
@@ -176,7 +176,6 @@ object Dependencies {
   val eventStreamsHQ = eventStreamsCommon ++: Seq(
     Test.akkaTestKit,
     webjarsBootstrap,
-    webjarsBWYeti,
     webjarsJquery,
     webjarsPlay,
     webjarsReactJs,
