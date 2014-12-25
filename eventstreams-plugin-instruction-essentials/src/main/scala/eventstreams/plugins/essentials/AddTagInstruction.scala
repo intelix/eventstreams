@@ -53,7 +53,7 @@ class AddTagInstruction extends SimpleInstructionBuilder with AddTagInstructionC
 
       val uuid = Utils.generateShortUUID
 
-      Built >> ('Tag -->  tagName, 'ID --> uuid)
+      Built >> ('Tag -->  tagName, 'InstructionInstanceId --> uuid)
 
       frame: JsonFrame => {
 
@@ -66,7 +66,9 @@ class AddTagInstruction extends SimpleInstructionBuilder with AddTagInstructionC
 
         val value: JsValue = setValue(fieldType, replacement, keyPath, frame.event)
 
-        TagAdded >>('Tag --> tagName, 'ID --> uuid)
+        val eventId = value ~> 'eventId | "n/a"
+        
+        TagAdded >>('Tag --> tagName, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
 
         List(JsonFrame(value, frame.ctx))
 

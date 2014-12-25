@@ -71,7 +71,7 @@ class CherrypickInstruction extends SimpleInstructionBuilder with CherrypickInst
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('Config --> Json.stringify(props), 'ID --> uuid)
+      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
 
       frame: JsonFrame => {
 
@@ -85,7 +85,10 @@ class CherrypickInstruction extends SimpleInstructionBuilder with CherrypickInst
             var newValue = Json.obj().set(
               targetPath -> v
             )
-            newValue = setValue("s", JsString(macroReplacement(frame, eventIdTemplate)), __ \ 'eventId, newValue)
+
+            val newEventId = macroReplacement(frame, eventIdTemplate)
+
+            newValue = setValue("s", JsString(newEventId), __ \ 'eventId, newValue)
             newValue = setValue("n", JsString(macroReplacement(frame, eventSeqTemplate)), __ \ 'eventSeq, newValue)
             newValue = setValue("s", JsString(macroReplacement(frame, index)), __ \ 'index, newValue)
             newValue = setValue("s", JsString(macroReplacement(frame, table)), __ \ 'table, newValue)
@@ -97,7 +100,15 @@ class CherrypickInstruction extends SimpleInstructionBuilder with CherrypickInst
 
             val newFrame = frame.copy(event = newValue)
 
-            Cherrypicked >>('From --> sourcePath, 'Result --> Json.stringify(newValue), 'KeepOriginal --> keepOriginalEvent, 'ID --> uuid)
+            val eventId = frame.event ~> 'eventId | "n/a"
+
+            Cherrypicked >>(
+              'From --> sourcePath, 
+              'Result --> Json.stringify(newValue), 
+              'KeepOriginal --> keepOriginalEvent, 
+              'EventId --> eventId, 
+              'NewEventId --> newEventId, 
+              'InstructionInstanceId --> uuid)
 
             result :+ newFrame
           case None => result

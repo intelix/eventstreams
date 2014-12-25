@@ -55,7 +55,7 @@ class DropTagInstruction extends SimpleInstructionBuilder with DropTagInstructio
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('Config --> Json.stringify(props), 'ID --> uuid)
+      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
 
       frame: JsonFrame => {
 
@@ -71,7 +71,9 @@ class DropTagInstruction extends SimpleInstructionBuilder with DropTagInstructio
 
           val value: JsValue = frame.event.set(toPath(fieldName) -> newValue)
 
-          TagDropped >>('Tag --> name, 'ID --> uuid)
+          val eventId = frame.event ~> 'eventId | "n/a"
+
+          TagDropped >>('Tag --> name, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
 
           List(JsonFrame(value, frame.ctx))
         } else List(frame)

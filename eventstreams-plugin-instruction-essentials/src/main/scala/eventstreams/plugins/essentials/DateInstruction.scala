@@ -127,7 +127,7 @@ class DateInstruction extends SimpleInstructionBuilder with DateInstructionConst
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('Config --> Json.stringify(props), 'ID --> uuid)
+      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
           
       fr: JsonFrame => {
 
@@ -146,14 +146,16 @@ class DateInstruction extends SimpleInstructionBuilder with DateInstructionConst
         }.map { case (s,dt) =>
 
           val fmt = dt.toString(targetPattern)
-          
-          DateParsed >> ('SourceValue --> s, 'SourceDate --> dt, 'ResultFmt --> fmt, 'Ts --> dt.getMillis, 'ID --> uuid)
+
+          val eventId = fr.event ~> 'eventId | "n/a"
+
+          DateParsed >> ('SourceValue --> s, 'SourceDate --> dt, 'ResultFmt --> fmt, 'Ts --> dt.getMillis, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
           List(JsonFrame(
             setValue("n", JsNumber(dt.getMillis), toPath(targetTsField),
               setValue("s", JsString(fmt), toPath(targetFmtField), fr.event)), fr.ctx))
         }.recover {
           case x => 
-            UnableToParseDate >> ('Source --> fr.event, 'ID --> uuid)
+            UnableToParseDate >> ('Source --> fr.event, 'InstructionInstanceId --> uuid)
             List(fr)
         }.get
 

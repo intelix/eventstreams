@@ -54,21 +54,23 @@ class DropFieldInstruction extends SimpleInstructionBuilder with DropFieldInstru
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('Config --> Json.stringify(props), 'ID --> uuid)
+      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
 
       frame: JsonFrame => {
 
         val field = macroReplacement(frame, fieldName)
 
+        val eventId = frame.event ~> 'eventId | "n/a"
+
         val value = if (field.startsWith("?")) {
           val actualFieldName = field.substring(1).toLowerCase
           frame.event.updateAll { case (p, js) if JsPathExtension.hasKey(p).map(_.toLowerCase == actualFieldName) | false =>
-            FieldDropped >>('Field --> actualFieldName, 'Path --> p.toString(), 'ID --> uuid)
+            FieldDropped >>('Field --> actualFieldName, 'Path --> p.toString(), 'EventId --> eventId, 'InstructionInstanceId --> uuid)
             JsNull
           }
         } else {
           val path = toPath(macroReplacement(frame, JsString(field)).asOpt[String].getOrElse(""))
-          FieldDropped >>('Field --> fieldName, 'Path --> path, 'ID --> uuid)
+          FieldDropped >>('Field --> fieldName, 'Path --> path, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
           frame.event.getOpt(path).map { _ =>
             frame.event.set(path -> JsNull)
           } | frame.event

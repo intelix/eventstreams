@@ -56,7 +56,9 @@ class EnrichInstruction extends SimpleInstructionBuilder with EnrichInstructionC
       val fieldValue = props #> CfgFTargetValueTemplate | JsString("")
       val fieldType = props ~> CfgFTargetType | "s"
 
-      Built >> ('Field --> fieldName, 'Value --> fieldValue, 'Type --> fieldType)
+      val uuid = Utils.generateShortUUID
+
+      Built >> ('Field --> fieldName, 'Value --> fieldValue, 'Type --> fieldType, 'InstructionInstanceId --> uuid)
 
       frame: JsonFrame => {
 
@@ -66,7 +68,9 @@ class EnrichInstruction extends SimpleInstructionBuilder with EnrichInstructionC
 
         val value: JsValue = setValue(fieldType, replacement, keyPath, frame.event)
 
-        Enriched >>('Path --> keyPath, 'Replacement --> replacement, 'NewValue --> value)
+        val eventId = frame.event ~> 'eventId | "n/a"
+
+        Enriched >>('Path --> keyPath, 'Replacement --> replacement, 'NewValue --> value, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
 
         List(JsonFrame(value, frame.ctx))
 
