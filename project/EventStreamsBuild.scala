@@ -41,7 +41,7 @@ object EventStreamsBuild {
   )
 
   lazy val compilerSettings = Seq(
-    scalacOptions in Compile ++= Seq("-encoding", "UTF-8", "-target:jvm-1.7", "-deprecation", "-feature", "-unchecked", "-Xlog-reflective-calls", "-Xlint"),
+    scalacOptions in Compile ++= Seq("-encoding", "UTF-8", "-target:jvm-1.7", "-deprecation", "-feature", "-unchecked", "-Xlog-reflective-calls"),
     javacOptions in compile ++= Seq("-encoding", "UTF-8", "-source", "1.7", "-target", "1.7", "-Xlint:unchecked", "-Xlint:deprecation"),
     javacOptions in doc ++= Seq("-encoding", "UTF-8", "-source", "1.7"),
     incOptions := incOptions.value.withNameHashing(nameHashing = true)
