@@ -186,6 +186,14 @@ class EnrichInstructionTest extends TestHelpers {
     }
   }
 
+  it should "override existing string value, consistently" in new WithNumericEnrich {
+    (1 to 10000) foreach { i =>
+      expectOne(Json.obj("abc1" -> i.toString, "abc" -> "hey")) { result =>
+        result +> 'abc should be(Some(i))
+      }
+    }
+  }
+
   it should "enrich with macros and convert from strings and support doubles" in new WithNumericEnrich {
     expectOne(Json.obj("abc1" -> "1.1")) { result =>
       result +&> 'abc should be(Some(1.1))

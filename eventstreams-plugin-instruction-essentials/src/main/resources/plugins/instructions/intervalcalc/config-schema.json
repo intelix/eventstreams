@@ -18,6 +18,18 @@
       "title": "Field name",
       "type": "string"
     },
+    "timestampField": {
+      "propertyOrder": 31,
+      "title": "Timestamp source field",
+      "type": "string",
+      "default": "date_ts"
+    },
+    "streamIdTemplate": {
+      "propertyOrder": 32,
+      "title": "Stream Id template",
+      "type": "string",
+      "default": "${streamdId}"
+    },
    "simpleCondition": {
       "propertyOrder": 110,
       "$ref": "#/definitions/simpleCondition"

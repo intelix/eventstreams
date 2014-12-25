@@ -7,17 +7,18 @@ import org.scalatest.{SuiteMixin, FlatSpec, BeforeAndAfterEach, Matchers}
 
 trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEach {
   self: org.scalatest.Suite =>
-  
-  def clean() = {
-    EventPublisherRef.ref = new TestEventPublisher()
-    CtxSystemRef.ref = EvtSystem("test")
-  }
 
-  clean()
+  EventPublisherRef.ref = new TestEventPublisher()
+  CtxSystemRef.ref = EvtSystem("test")
+
+  def clearEvents() =
+    EventPublisherRef.ref.asInstanceOf[TestEventPublisher].clear()
+
+
 
 
   override protected def afterEach(): Unit = {
-    clean()
+    clearEvents()
     super.afterEach()
   }
 

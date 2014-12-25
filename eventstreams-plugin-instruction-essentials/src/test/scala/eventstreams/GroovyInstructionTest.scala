@@ -19,7 +19,7 @@ package eventstreams
 import _root_.core.events.EventOps.symbolToEventField
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.plugins.essentials.{GroovyInstruction, GroovyInstructionConstants, GrokInstruction, GrokInstructionConstants}
+import eventstreams.plugins.essentials.{GrokInstructionConstants, GroovyInstruction, GroovyInstructionConstants}
 import eventstreams.support.TestHelpers
 import play.api.libs.json._
 
@@ -69,8 +69,25 @@ class GroovyInstructionTest extends TestHelpers {
   }
   it should "produce correct json" in new WithMinimalConfig {
     expectOne(input) { result =>
-      result #> 'gc +> 'calculated should be (Some(1000000-100000))
-      result #> 'gc +> 'calculated2 should be (Some(3))
+      result #> 'gc +> 'calculated should be(Some(1000000 - 100000))
+      result #> 'gc +> 'calculated2 should be(Some(3))
+    }
+  }
+  it should "produce correct json, consistently" in new WithMinimalConfig {
+
+    (1 to 1000) foreach { i =>
+      val input = Json.obj("gc" -> Json.obj(
+        "totalafter" -> (1000000 + i),
+        "newafter" -> 100000,
+        "real" -> 3.1,
+        "sys" -> 0.1,
+        "user" -> 9.2
+      ))
+      expectOne(input) { result =>
+        result #> 'gc +> 'calculated should be(Some(1000000 + i - 100000))
+        result #> 'gc +> 'calculated2 should be(Some(3))
+      }
+
     }
   }
 
@@ -91,7 +108,7 @@ class GroovyInstructionTest extends TestHelpers {
   }
   it should "not modify original json" in new WithInvalidConfig {
     expectOne(input) { result =>
-      result #> 'gc +&> 'user should be (Some(9.2))
+      result #> 'gc +&> 'user should be(Some(9.2))
     }
   }
 
@@ -118,10 +135,9 @@ class GroovyInstructionTest extends TestHelpers {
   }
   it should "not modify original json" in new WithDangerousConfig {
     expectOne(inputWithPoison) { result =>
-      result #> 'gc +&> 'user should be (Some(9.2))
+      result #> 'gc +&> 'user should be(Some(9.2))
     }
   }
-
 
 
 }

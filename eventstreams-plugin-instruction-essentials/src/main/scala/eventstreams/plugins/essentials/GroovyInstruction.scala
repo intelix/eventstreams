@@ -63,10 +63,10 @@ class GroovyInstruction extends SimpleInstructionBuilder with GroovyInstructionC
 
       Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
 
-      fr: JsonFrame =>
+      var binding = new Binding()
+      var shell = new GroovyShell(binding)
 
-        var binding = new Binding()
-        var shell = new GroovyShell(binding)
+      fr: JsonFrame =>
 
         val text = new JsonSlurper().parseText(Json.stringify(fr.event))
 

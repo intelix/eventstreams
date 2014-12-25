@@ -17,15 +17,22 @@ trait TestHelpers extends FlatSpec with Matchers with EventAssertions with Befor
     def builder: SimpleInstructionBuilder
 
     def config: JsValue
+    
+    var instruction: Option[SimpleInstructionType] = None
 
     def shouldNotBuild(f: Fail => Unit = _ => ()) = builder.simpleInstruction(config) match {
       case \/-(inst) => fail("Successfuly built, but expected to fail: " + inst)
       case -\/(x) => f(x)
     }
 
-    def shouldBuild(f: SimpleInstructionType => Unit = _ => ()) = builder.simpleInstruction(config) match {
-      case \/-(inst) => f(inst)
-      case -\/(x) => fail("Failed with: " + x)
+    def shouldBuild(f: SimpleInstructionType => Unit = _ => ()) = instruction match {
+      case Some(inst) => f(inst)
+      case None => builder.simpleInstruction(config) match {
+        case \/-(inst) => 
+          instruction = Some(inst)
+          f(inst)
+        case -\/(x) => fail("Failed with: " + x)
+      }
     }
 
     def expectAny(json: JsValue)(f: Seq[JsValue] => Unit) =
@@ -52,14 +59,18 @@ trait TestHelpers extends FlatSpec with Matchers with EventAssertions with Befor
         result should have size 0
       }
 
-    def expectEvent(json: JsValue)(event: Event, values: EventFieldWithValue*) =
+    def expectEvent(json: JsValue)(event: Event, values: EventFieldWithValue*) = {
+      clearEvents()
       expectAny(json) { _ =>
         expectAnyEvent(event, values: _*)
       }
-    def expectNEvents(json: JsValue)(count: Int, event: Event, values: EventFieldWithValue*) =
+    }
+    def expectNEvents(json: JsValue)(count: Int, event: Event, values: EventFieldWithValue*) = {
+      clearEvents()
       expectAny(json) { _ =>
         expectAnyEvent(count, event, values: _*)
       }
+    }
   }
 
 
