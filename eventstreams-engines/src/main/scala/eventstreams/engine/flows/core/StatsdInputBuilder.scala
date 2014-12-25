@@ -27,7 +27,7 @@ import eventstreams.core.Tools.configHelper
 import eventstreams.core._
 import eventstreams.core.actors._
 import Types.TapActorPropsType
-import eventstreams.plugins.essentials.DateDefaults
+import eventstreams.plugins.essentials.DateInstructionConstants
 import nl.grons.metrics.scala.MetricName
 import org.joda.time.DateTime
 import play.api.libs.json.{JsNumber, JsString, JsValue, Json}
@@ -159,8 +159,8 @@ private class StatsdActor(id: String, config: JsValue)
     Some(JsonFrame(Json.obj(
       "tags" -> Json.arr("source"),
       "id" -> id,
-      DateDefaults.default_targetFmtField -> DateTime.now().toString(DateDefaults.default),
-      DateDefaults.default_targetTsField -> DateTime.now().getMillis,
+      DateInstructionConstants.default_targetFmtField -> DateTime.now().toString(DateInstructionConstants.default),
+      DateInstructionConstants.default_targetTsField -> DateTime.now().getMillis,
       "value" -> data,
       "statsd" -> (if (!parsePayload) Json.obj() else parseStatsdMessage(data)),
       "source" -> Json.obj()),

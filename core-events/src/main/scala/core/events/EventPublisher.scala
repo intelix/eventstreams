@@ -24,7 +24,7 @@ trait LoggerEventPublisher {
     case JsString(s) => s
     case JsNumber(n) => n.toString()
     case JsBoolean(b) => b.toString
-    case JsObject(b) => b.toString()
+    case b @ JsObject(_) => Json.stringify(b)
     case JsArray(arr) => arr.seq.mkString(",")
     case JsNull => ""
     case JsUndefined() => ""
@@ -34,6 +34,7 @@ trait LoggerEventPublisher {
     case n: Int => n
     case n: Double => n
     case b: Boolean => b
+    case b: JsValue => Json.stringify(b)
     case other => String.valueOf(other)
 
   }

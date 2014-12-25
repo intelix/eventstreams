@@ -22,7 +22,7 @@ import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors.{ActorWithTicks, SubscribingPublisherActor}
 import eventstreams.core._
 import Types._
-import eventstreams.plugins.essentials.DateDefaults
+import eventstreams.plugins.essentials.DateInstructionConstants
 import play.api.libs.json._
 
 import scalaz.Scalaz._
@@ -62,7 +62,7 @@ private class TransactionInstructionActor(correlationIdTemplate: String, props: 
   val maxDurationMs = props +> 'maxDurationMs
 
   val maxOpenTransactions = props +> 'maxOpenTransactions | 100000
-  val timestampSource = props ~> 'timestampSource | DateDefaults.default_targetTsField
+  val timestampSource = props ~> 'timestampSource | DateInstructionConstants.default_targetTsField
 
   /*
   demarcationLogic match {

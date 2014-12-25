@@ -38,7 +38,7 @@ class CherrypickInstructionTest extends TestHelpers with CherrypickInstructionCo
   }
 
   s"CherrypickInstruction with simple config" should s"not build without $CfgFFieldName" in new WithSimpleInstructionBuilder {
-    override def builder: SimpleInstructionBuilder = new EnrichInstruction()
+    override def builder: SimpleInstructionBuilder = new CherrypickInstruction()
 
     override def config: JsValue = Json.obj(CfgFClass -> "cherrypick", CfgFFieldValuePath -> "source/branch")
 
@@ -131,6 +131,8 @@ class CherrypickInstructionTest extends TestHelpers with CherrypickInstructionCo
       (result ~> '_ttl ) should be(Some("1d"))
     }
   }
+
+
 
 
 }

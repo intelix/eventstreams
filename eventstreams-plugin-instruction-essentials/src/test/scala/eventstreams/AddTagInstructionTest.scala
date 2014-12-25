@@ -35,7 +35,7 @@ class AddTagInstructionTest extends TestHelpers {
   }
 
   s"AddTagInstruction with simple config" should s"not build without tagToAdd" in new WithSimpleInstructionBuilder {
-    override def builder: SimpleInstructionBuilder = new EnrichInstruction()
+    override def builder: SimpleInstructionBuilder = new AddTagInstruction()
 
     override def config: JsValue = Json.obj("class" -> "addtag")
 

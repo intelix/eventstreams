@@ -24,7 +24,7 @@ import eventstreams.core._
 import eventstreams.core.actors.{ActorWithTicks, SubscribingPublisherActor}
 import eventstreams.engine.gates.WithOccurrenceAccounting
 import eventstreams.engine.signals.{Signal, SignalLevel}
-import eventstreams.plugins.essentials.DateDefaults
+import eventstreams.plugins.essentials.DateInstructionConstants
 import org.joda.time.DateTime
 import play.api.libs.json.{JsString, JsValue, Json}
 
@@ -152,8 +152,8 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
   def signalToEvent(s: Signal): JsonFrame = JsonFrame(Json.obj(
     "eventId" -> s.signalId,
     "eventSeq" -> s.sequenceId,
-    DateDefaults.default_targetFmtField -> DateTime.now().toString(DateDefaults.default),
-    DateDefaults.default_targetTsField -> DateTime.now().getMillis,
+    DateInstructionConstants.default_targetFmtField -> DateTime.now().toString(DateInstructionConstants.default),
+    DateInstructionConstants.default_targetTsField -> DateTime.now().getMillis,
     "transaction" -> (transactionDemarcation.map { demarc =>
       Json.obj(
         "demarcation" -> demarc,
@@ -172,7 +172,7 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
       "expiryTs" -> s.expiryTs,
       "level" -> s.level.code,
       "time" -> s.ts,
-      "time_fmt" -> new DateTime(s.ts).toString(DateDefaults.default)
+      "time_fmt" -> new DateTime(s.ts).toString(DateInstructionConstants.default)
     )
   ), Map())
 
