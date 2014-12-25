@@ -195,7 +195,6 @@ Mozilla | [MPL 2.0](http://www.mozilla.org/MPL/2.0) | com.h2database # h2 # 1.3.
 Mozilla | [Mozilla Public License version 2.0](http://www.mozilla.org/MPL/2.0/) | net.sourceforge.htmlunit # htmlunit-core-js # 2.13 | <notextile></notextile>
 Public Domain | [CC0](http://creativecommons.org/publicdomain/zero/1.0/) | org.reactivestreams # reactive-streams # 0.4.0.M2 | <notextile></notextile>
 none specified | [???](http://www.json.org/license.html) | org.json # json # 20080701 | <notextile></notextile>
-
 MIT | [MIT-style](http://www.opensource.org/licenses/mit-license.php) | [JSON Editor](https://github.com/jdorn/json-editor) | <notextile></notextile>
 BSD | [BSD-style](http://www.opensource.org/licenses/bsd-license.php) | [ReactJS](https://github.com/facebook/react) | <notextile></notextile>
 MIT | [MIT-style](http://www.opensource.org/licenses/mit-license.php) | [Bootstrap 3.0](http://getbootstrap.com/) | <notextile></notextile>
