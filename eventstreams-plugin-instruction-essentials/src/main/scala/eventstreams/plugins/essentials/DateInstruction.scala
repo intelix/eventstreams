@@ -126,8 +126,8 @@ class DateInstruction extends SimpleInstructionBuilder with DateInstructionConst
       val targetTsField = props ~> CfgFTargetTsField | DateInstructionConstants.default_targetTsField
 
       val uuid = Utils.generateShortUUID
-            
-      Built >> ('Config -->  Json.stringify(props), 'ID --> uuid)
+
+      Built >>('Config --> Json.stringify(props), 'ID --> uuid)
           
       fr: JsonFrame => {
 

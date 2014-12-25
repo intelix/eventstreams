@@ -51,7 +51,9 @@ class AddTagInstruction extends SimpleInstructionBuilder with AddTagInstructionC
       tagName <- props ~> CfgFTagToAdd \/> Fail(s"Invalid $configId instruction. Missing '$CfgFTagToAdd' value. Contents: ${Json.stringify(props)}")
     ) yield {
 
-      Built >> ('Tag -->  tagName)
+      val uuid = Utils.generateShortUUID
+
+      Built >> ('Tag -->  tagName, 'ID --> uuid)
 
       frame: JsonFrame => {
 
@@ -64,7 +66,7 @@ class AddTagInstruction extends SimpleInstructionBuilder with AddTagInstructionC
 
         val value: JsValue = setValue(fieldType, replacement, keyPath, frame.event)
 
-        TagAdded >>('Tag --> tagName)
+        TagAdded >>('Tag --> tagName, 'ID --> uuid)
 
         List(JsonFrame(value, frame.ctx))
 

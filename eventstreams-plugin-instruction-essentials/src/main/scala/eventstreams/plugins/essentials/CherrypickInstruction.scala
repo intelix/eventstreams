@@ -69,8 +69,10 @@ class CherrypickInstruction extends SimpleInstructionBuilder with CherrypickInst
       val table = props ~> CfgFTable | "${table}"
       val ttl = props ~> CfgFTTL | "${_ttl}"
 
-      Built >> ('Config --> Json.stringify(props))
-          
+      val uuid = Utils.generateShortUUID
+
+      Built >>('Config --> Json.stringify(props), 'ID --> uuid)
+
       frame: JsonFrame => {
 
         val sourcePath = toPath(macroReplacement(frame, valuePath))
@@ -95,8 +97,8 @@ class CherrypickInstruction extends SimpleInstructionBuilder with CherrypickInst
 
             val newFrame = frame.copy(event = newValue)
 
-            Cherrypicked >> ('From --> sourcePath, 'Result --> Json.stringify(newValue), 'KeepOriginal --> keepOriginalEvent)
-            
+            Cherrypicked >>('From --> sourcePath, 'Result --> Json.stringify(newValue), 'KeepOriginal --> keepOriginalEvent, 'ID --> uuid)
+
             result :+ newFrame
           case None => result
         }

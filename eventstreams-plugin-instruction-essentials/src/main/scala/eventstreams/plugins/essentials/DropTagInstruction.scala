@@ -16,42 +16,65 @@
 
 package eventstreams.plugins.essentials
 
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.WithEvents
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.SimpleInstructionType
 import eventstreams.core._
-import eventstreams.core.instructions.SimpleInstructionBuilder
+import eventstreams.core.instructions.{InstructionConstants, SimpleInstructionBuilder}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
 import scalaz.Scalaz._
 import scalaz._
 
-class DropTagInstruction extends SimpleInstructionBuilder {
+
+trait DropTagInstructionEvents
+  extends ComponentWithBaseEvents
+  with WithEvents {
+
+  val Built = 'Built.trace
+  val TagDropped = 'TagDropped.trace
+
+  override def id: String = "Instruction.DropTag"
+}
+
+trait DropTagInstructionConstants extends InstructionConstants with DropTagInstructionEvents {
+  val CfgFTagToDrop = "tagToDrop"
+}
+
+
+class DropTagInstruction extends SimpleInstructionBuilder with DropTagInstructionConstants {
   val configId = "droptag"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      tagName <- props ~> 'tagName \/> Fail(s"Invalid droptag instruction. Missing 'tagName' value. Contents: ${Json.stringify(props)}")
+      tagName <- props ~> CfgFTagToDrop \/> Fail(s"Invalid $configId instruction. Missing '$CfgFTagToDrop' value. Contents: ${Json.stringify(props)}")
     ) yield {
+
+      val uuid = Utils.generateShortUUID
+
+      Built >>('Config --> Json.stringify(props), 'ID --> uuid)
 
       frame: JsonFrame => {
 
         val fieldName = "tags"
         val fieldType = "as"
 
-        logger.debug(s"Original frame: $frame")
-
         val name = macroReplacement(frame, JsString(tagName)).asOpt[String].getOrElse("")
 
         val originalValue = locateFieldValue(frame, fieldName).asOpt[JsArray].getOrElse(Json.arr()).value
 
-        val newValue = Json.toJson( originalValue.filter(_.asOpt[String].getOrElse("") != name).toArray )
+        if (originalValue.exists(_.asOpt[String].contains(name))) {
+          val newValue = Json.toJson(originalValue.filter(_.asOpt[String].getOrElse("") != name).toArray)
 
-        val value: JsValue = frame.event.set(toPath(fieldName) -> newValue)
+          val value: JsValue = frame.event.set(toPath(fieldName) -> newValue)
 
-        logger.debug("New frame: {}", value)
+          TagDropped >>('Tag --> name, 'ID --> uuid)
 
-        List(JsonFrame(value, frame.ctx))
+          List(JsonFrame(value, frame.ctx))
+        } else List(frame)
 
       }
     }
