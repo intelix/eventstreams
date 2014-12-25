@@ -85,7 +85,7 @@ trait DateInstructionConstants extends InstructionConstants with DateInstruction
   val CfgFTargetZone = "targetZone"
   val CfgFTargetPattern = "targetPattern"
   val CfgFTargetFmtField = "targetFmtField"
-  val CfgFTargetTsField = "targetTSField"
+  val CfgFTargetTsField = "targetTsField"
 
   val default = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ")
   val default_targetFmtField = "date_fmt"

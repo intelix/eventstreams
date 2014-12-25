@@ -44,7 +44,7 @@
       "title": "Target formatted date field (default: date_fmt)",
       "type": "string"
     },
-    "targetTSField": {
+    "targetTsField": {
       "propertyOrder": 90,
       "title": "Target timestamp field (default: date_ts)",
       "type": "string"

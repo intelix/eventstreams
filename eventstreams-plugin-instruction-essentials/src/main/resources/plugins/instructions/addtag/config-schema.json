@@ -13,7 +13,7 @@
       "title": "Name",
       "type": "string"
     },
-    "tagName": {
+    "tagToAdd": {
       "propertyOrder": 30,
       "title": "Tag name",
       "type": "string"
