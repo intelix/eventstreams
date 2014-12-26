@@ -16,25 +16,57 @@
 
 package eventstreams.plugins.essentials
 
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.WithEvents
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.SimpleInstructionType
 import eventstreams.core._
-import eventstreams.core.instructions.SimpleInstructionBuilder
+import eventstreams.core.instructions.{InstructionConstants, SimpleInstructionBuilder}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
 import scala.annotation.tailrec
+import scala.util.Try
 import scala.util.matching.Regex
 import scalaz.Scalaz._
 import scalaz._
 
-class SplitInstruction extends SimpleInstructionBuilder with NowProvider {
+
+trait SplitInstructionEvents
+  extends ComponentWithBaseEvents
+  with WithEvents {
+
+  val Built = 'Built.trace
+  val Split = 'Split.trace
+
+  override def id: String = "Instruction.Split"
+}
+
+trait SplitInstructionConstants extends InstructionConstants with SplitInstructionEvents {
+  val CfgFSource = "source"
+  val CfgFPattern = "pattern"
+  val CfgFKeepOriginal = "keepOriginalEvent"
+  val CfgFAdditionalTags = "additionalTags"
+  val CfgFIndex = "index"
+  val CfgFTable = "table"
+  val CfgFTTL = "ttl"
+
+}
+
+object SplitInstructionConstants extends SplitInstructionConstants
+
+class SplitInstruction extends SimpleInstructionBuilder with NowProvider with SplitInstructionConstants {
   val configId = "split"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      source <- props ~> 'source \/> Fail(s"Invalid split instruction. Missing 'source' value. Contents: ${Json.stringify(props)}");
-      pattern <- (props ~> 'pattern).map(new Regex(_)) \/> Fail(s"Invalid split instruction. Missing 'pattern' value. Contents: ${Json.stringify(props)}")
+      source <- props ~> CfgFSource \/>
+        Fail(s"Invalid $configId instruction. Missing '$CfgFSource' value. Contents: ${Json.stringify(props)}");
+      patternString <- (props ~> CfgFPattern) \/>
+        Fail(s"Invalid $configId instruction. Missing '$CfgFPattern' value. Contents: ${Json.stringify(props)}");
+      pattern <- Try(new Regex(patternString)).toOption \/>
+        Fail(s"Invalid $configId instruction. Invalid '$CfgFPattern' value. Contents: ${Json.stringify(props)}")
     ) yield {
 
       var sequence: Long = 0
@@ -47,6 +79,11 @@ class SplitInstruction extends SimpleInstructionBuilder with NowProvider {
           case Some(m) => ext(list :+ m.group(1), Some(m.group(2)))
         }
 
+
+      val uuid = Utils.generateShortUUID
+
+      Built >>('Config -->  Json.stringify(props), 'InstructionInstanceId --> uuid)
+
       fr: JsonFrame => {
 
         val sourceId = fr.event ~> 'eventId | "!" + Utils.generateShortUUID
@@ -54,12 +91,12 @@ class SplitInstruction extends SimpleInstructionBuilder with NowProvider {
 
         val baseEventSeq = eventSeq << 16
 
-        val keepOriginalEvent = props ?> 'keepOriginalEvent | false
-        val additionalTags = (props ~> 'additionalTags | "").split(",").map(_.trim)
+        val keepOriginalEvent = props ?> CfgFKeepOriginal | false
+        val additionalTags = (props ~> CfgFAdditionalTags | "").split(",").map(_.trim)
 
-        val index = props ~> 'index | "${index}"
-        val table = props ~> 'table | "${table}"
-        val ttl = props ~> 'ttl | "${_ttl}"
+        val index = props ~> CfgFIndex | "${index}"
+        val table = props ~> CfgFTable | "${table}"
+        val ttl = props ~> CfgFTTL | "${_ttl}"
 
 
         val sourceField = macroReplacement(fr, JsString(source))
@@ -69,16 +106,27 @@ class SplitInstruction extends SimpleInstructionBuilder with NowProvider {
 
         val str = Some(remainder.getOrElse("") + locateFieldValue(fr, sourceField).asOpt[String].getOrElse(""))
 
-        logger.debug(s"Before split $sequence, remainder: $remainder and complete string: $str")
-
         val (resultList, newRemainder) = ext(List(), str)
 
         remainder = newRemainder
 
-        logger.debug(s"After split $sequence, events: ${resultList.size}, remainder: $newRemainder")
+        val remainderLength = remainder match {
+          case None => 0
+          case Some(v) => v
+        }
 
         var counter = 0
 
+        val originalEventId = fr.event ~> 'eventId | "n/a"
+
+        Split >>(
+          'Sequence --> sequence,
+          'Events -->  resultList.size,
+          'Remainder --> remainderLength,
+          'KeepOriginal --> keepOriginalEvent,
+          'EventId --> originalEventId,
+          'InstructionInstanceId --> uuid
+          )
 
         val result = resultList.map(_.trim).filter(!_.isEmpty).map { value =>
           var event = setValue("s", JsString(value), toPath(sourceField), fr.event).set(
