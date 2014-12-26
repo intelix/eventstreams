@@ -59,5 +59,33 @@ class LogInstructionTest extends TestHelpers {
     expectEvent(Json.obj("eventId" -> "id", "abc1" -> "bla", "tags" -> Json.arr("abc")))('eventname.info)
   }
 
+  trait WithWarnConfig extends WithSimpleInstructionBuilder with LogInstructionConstants {
+    override def builder: SimpleInstructionBuilder = new LogInstruction()
+
+    override def config: JsValue = Json.obj(
+      CfgFClass -> "log",
+      CfgFEvent -> "eventname",
+      CfgFLevel -> "WARN"
+    )
+  }
+
+  it should "raise warn event" in new WithWarnConfig {
+    expectEvent(Json.obj("eventId" -> "id", "abc1" -> "bla", "tags" -> Json.arr("abc")))('eventname.warn)
+  }
+
+  trait WithErrorConfig extends WithSimpleInstructionBuilder with LogInstructionConstants {
+    override def builder: SimpleInstructionBuilder = new LogInstruction()
+
+    override def config: JsValue = Json.obj(
+      CfgFClass -> "log",
+      CfgFEvent -> "eventname",
+      CfgFLevel -> "ERROR"
+    )
+  }
+
+  it should "raise error event" in new WithErrorConfig {
+    expectEvent(Json.obj("eventId" -> "id", "abc1" -> "bla", "tags" -> Json.arr("abc")))('eventname.error)
+  }
+
 
 }
