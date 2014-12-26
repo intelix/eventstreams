@@ -17,7 +17,7 @@
 package eventstreams.plugins.essentials
 
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
-import core.events.WithEvents
+import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.SimpleInstructionType
@@ -33,14 +33,12 @@ import scalaz.Scalaz._
 import scalaz._
 
 
-trait SplitInstructionEvents
-  extends ComponentWithBaseEvents
-  with WithEvents {
+trait SplitInstructionEvents extends ComponentWithBaseEvents {
 
   val Built = 'Built.trace
   val Split = 'Split.trace
 
-  override def id: String = "Instruction.Split"
+  override def componentId: String = "Instruction.Split"
 }
 
 trait SplitInstructionConstants extends InstructionConstants with SplitInstructionEvents {
@@ -56,7 +54,7 @@ trait SplitInstructionConstants extends InstructionConstants with SplitInstructi
 
 object SplitInstructionConstants extends SplitInstructionConstants
 
-class SplitInstruction extends SimpleInstructionBuilder with NowProvider with SplitInstructionConstants {
+class SplitInstruction extends SimpleInstructionBuilder with NowProvider with SplitInstructionConstants with WithEventPublisher {
   val configId = "split"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
@@ -82,7 +80,7 @@ class SplitInstruction extends SimpleInstructionBuilder with NowProvider with Sp
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('Config -->  Json.stringify(props), 'InstructionInstanceId --> uuid)
+      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
 
       fr: JsonFrame => {
 
@@ -121,7 +119,7 @@ class SplitInstruction extends SimpleInstructionBuilder with NowProvider with Sp
 
         Split >>(
           'Sequence --> sequence,
-          'Events -->  resultList.size,
+          'Events --> resultList.size,
           'Remainder --> remainderLength,
           'KeepOriginal --> keepOriginalEvent,
           'EventId --> originalEventId,

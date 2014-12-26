@@ -17,7 +17,7 @@
 package eventstreams.plugins.essentials
 
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
-import core.events.WithEvents
+import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.SimpleInstructionType
@@ -29,15 +29,12 @@ import scalaz.Scalaz._
 import scalaz._
 
 
-
-trait EnrichInstructionEvents
-  extends ComponentWithBaseEvents
-  with WithEvents {
+trait EnrichInstructionEvents extends ComponentWithBaseEvents {
 
   val Built = 'Built.trace
   val Enriched = 'Enriched.trace
 
-  override def id: String = "Instruction.Enrich"
+  override def componentId: String = "Instruction.Enrich"
 }
 
 trait EnrichInstructionConstants extends InstructionConstants with EnrichInstructionEvents {
@@ -46,7 +43,7 @@ trait EnrichInstructionConstants extends InstructionConstants with EnrichInstruc
   val CfgFTargetType = "targetType"
 }
 
-class EnrichInstruction extends SimpleInstructionBuilder with EnrichInstructionConstants {
+class EnrichInstruction extends SimpleInstructionBuilder with EnrichInstructionConstants with WithEventPublisher {
   val configId = "enrich"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
@@ -58,7 +55,7 @@ class EnrichInstruction extends SimpleInstructionBuilder with EnrichInstructionC
 
       val uuid = Utils.generateShortUUID
 
-      Built >> ('Field --> fieldName, 'Value --> fieldValue, 'Type --> fieldType, 'InstructionInstanceId --> uuid)
+      Built >>('Field --> fieldName, 'Value --> fieldValue, 'Type --> fieldType, 'InstructionInstanceId --> uuid)
 
       frame: JsonFrame => {
 

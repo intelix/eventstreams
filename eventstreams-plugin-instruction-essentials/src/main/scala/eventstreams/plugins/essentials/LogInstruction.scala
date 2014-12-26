@@ -19,7 +19,7 @@ package eventstreams.plugins.essentials
 import com.typesafe.scalalogging.Logger
 import core.events.EventOps.{stringToEventOps, symbolToEventField, symbolToEventOps}
 import core.events.ref.ComponentWithBaseEvents
-import core.events.{EventFieldWithValue, WithEvents}
+import core.events.{EventFieldWithValue, WithEventPublisher}
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.Types.SimpleInstructionType
 import eventstreams.core.instructions.{InstructionConstants, SimpleInstructionBuilder}
@@ -30,13 +30,11 @@ import play.api.libs.json.{JsValue, Json}
 import scalaz.Scalaz._
 import scalaz._
 
-trait LogInstructionEvents
-  extends ComponentWithBaseEvents
-  with WithEvents {
+trait LogInstructionEvents extends ComponentWithBaseEvents {
 
   val Built = 'Built.trace
 
-  override def id: String = "Instruction.Log"
+  override def componentId: String = "Instruction.Log"
 }
 
 trait LogInstructionConstants extends InstructionConstants with LogInstructionEvents {
@@ -47,7 +45,7 @@ trait LogInstructionConstants extends InstructionConstants with LogInstructionEv
 
 object LogInstructionConstants extends LogInstructionConstants
 
-class LogInstruction extends SimpleInstructionBuilder with LogInstructionConstants {
+class LogInstruction extends SimpleInstructionBuilder with LogInstructionConstants with WithEventPublisher {
   val configId = "log"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] = {
@@ -55,7 +53,7 @@ class LogInstruction extends SimpleInstructionBuilder with LogInstructionConstan
     val level = props ~> CfgFLevel | "INFO"
     props ~> CfgFEvent match {
       case None => -\/(Fail(s"Invalid $configId instruction. Missing '$CfgFEvent' value. Contents: ${Json.stringify(props)}"))
-      case Some(loggerName) if "^\\w[\\w\\d]*$".r.findFirstMatchIn(loggerName).isEmpty  => -\/(Fail(s"Invalid $configId instruction. $CfgFEvent must start with a character and contain only characters and numbers. Contents: ${Json.stringify(props)}"))
+      case Some(loggerName) if "^\\w[\\w\\d]*$".r.findFirstMatchIn(loggerName).isEmpty => -\/(Fail(s"Invalid $configId instruction. $CfgFEvent must start with a character and contain only characters and numbers. Contents: ${Json.stringify(props)}"))
       case Some(loggerName) =>
         val baseLogger = Logger(LoggerFactory getLogger loggerName)
         val loggerForLevel = level.toUpperCase match {
@@ -77,8 +75,6 @@ class LogInstruction extends SimpleInstructionBuilder with LogInstructionConstan
             List(frame)
         }
     }
-
-    
 
 
   }

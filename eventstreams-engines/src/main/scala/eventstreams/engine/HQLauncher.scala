@@ -36,7 +36,7 @@ object HQLauncher extends App {
   implicit val config = ConfigFactory.load(java.lang.System.getProperty("config", "hq.conf"))
 
   EventPublisherRef.ref = LoggerEventPublisher
-  CtxSystemRef.ref = EvtSystem("EventStreams.HQ")
+  CtxSystemRef.ref = EvtSystem("EventStreams.Engine")
 
   implicit val system = ActorSystem("ehub", config)
 

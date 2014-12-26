@@ -4,11 +4,6 @@ trait CtxComponent {
 
   implicit val component = this
 
-  def id: String
+  // TODO REMOVE DEFAULT VALUE!!!!!
+  def componentId: String = getClass.getName.substring(getClass.getName.lastIndexOf('.')+1)
 }
-
-object MyComponents {
-  val Component1 = SimpleComponent("Component1")
-}
-
-case class SimpleComponent(id: String) extends CtxComponent

@@ -18,66 +18,103 @@ package eventstreams.plugins.essentials
 
 import akka.actor.{ActorRef, Props}
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
+import core.events.{WithEventPublisher, EventFieldWithValue}
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.Types._
 import eventstreams.core._
 import eventstreams.core.actors._
+import eventstreams.core.instructions.InstructionConstants
 import play.api.libs.json.{JsValue, Json}
 
-import scalaz.Scalaz._
-import scalaz.\/
+import scalaz._
+import Scalaz._
 
-class GateInstruction extends BuilderFromConfig[InstructionType] {
+
+trait GateInstructionEvents extends ComponentWithBaseEvents {
+
+  val Built = 'Built.trace
+  val GateInstance = 'GateInstance.info
+
+  val ConnectedToGate = 'ConnectedToGate.info
+  val DisconnectedFromGate = 'DisconnectedFromGate.warn
+
+  val FullAcknowledgement = 'FullAcknowledgement.trace
+  val ConditionNotMet = 'ConditionNotMet.trace
+
+  override def componentId: String = "Instruction.Gate"
+}
+
+trait GateInstructionConstants extends InstructionConstants with GateInstructionEvents {
+  val CfgFAddress = "address"
+  val CfgFBuffer = "buffer"
+  val CfgFBlockingDelivery = "blockingDelivery"
+  val CfgFCondition = "simpleCondition"
+
+}
+
+object GateInstructionConstants extends GateInstructionConstants
+
+
+class GateInstruction extends BuilderFromConfig[InstructionType] with GateInstructionConstants with WithEventPublisher {
   val configId = "gate"
 
   override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
-      address <- props ~> 'address \/> Fail(s"Invalid gate instruction configuration. Missing 'address' value. Contents: ${Json.stringify(props)}")
-    ) yield GateInstructionActor.props(address, props)
+      address <- props ~> CfgFAddress \/> Fail(s"Invalid $configId instruction configuration. Missing '$CfgFAddress' value. Contents: ${Json.stringify(props)}")
+    ) yield {
+      val uuid = Utils.generateShortUUID
+      Built >>('Address --> address, 'Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+      GateInstructionActor.props(uuid, address, props)
+    }
 
 }
 
 private object GateInstructionActor {
-  def props(address: String, config: JsValue) = Props(new GateInstructionActor(address, config))
+  def props(uuid: String, address: String, config: JsValue) = Props(new GateInstructionActor(uuid, address, config))
 }
 
-private class GateInstructionActor(address: String, config: JsValue)
+private class GateInstructionActor(uuid: String, address: String, config: JsValue)
   extends SubscribingPublisherActor
   with ReconnectingActor
   with AtLeastOnceDeliveryActor[JsonFrame]
-  with ActorWithGateStateMonitoring {
+  with ActorWithGateStateMonitoring
+  with GateInstructionConstants {
 
-  val maxInFlight = config +> 'buffer | 1000;
-  val blockingDelivery = config ?> 'blockingDelivery | true;
-  private val condition = SimpleCondition.conditionOrAlwaysTrue(config ~> 'simpleCondition)
+  val maxInFlight = config +> CfgFBuffer | 1000
+  val blockingDelivery = config ?> CfgFBlockingDelivery | true
+  private val condition = SimpleCondition.conditionOrAlwaysTrue(config ~> CfgFCondition)
+
+
+  override def commonFields: Seq[EventFieldWithValue] = super.commonFields ++ Seq('Address --> address, 'InstructionInstanceId --> uuid)
 
   override def connectionEndpoint: String = address
 
 
   override def preStart(): Unit = {
     super.preStart()
+    GateInstance >> ('Buffer --> maxInFlight, 'Condition --> (config ~> CfgFCondition | "none"))
   }
 
   override def onConnectedToEndpoint(): Unit = {
+    ConnectedToGate >>()
     super.onConnectedToEndpoint()
-    logger.info("In connected state")
     startGateStateMonitoring()
   }
 
   override def onDisconnectedFromEndpoint(): Unit = {
+    DisconnectedFromGate >>()
     super.onDisconnectedFromEndpoint()
-    logger.info("In disconnected state")
     stopGateStateMonitoring()
     if (isPipelineActive) initiateReconnect()
   }
 
   override def becomeActive(): Unit = {
-    logger.info(s"Sink becoming active")
     initiateReconnect()
   }
 
   override def becomePassive(): Unit = {
-    logger.info(s"Sink becoming passive")
     stopGateStateMonitoring()
     disconnect()
   }
@@ -87,17 +124,16 @@ private class GateInstructionActor(address: String, config: JsValue)
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
   override def fullyAcknowledged(correlationId: Long, msg: JsonFrame): Unit = {
-    logger.info(s"Fully acknowledged $correlationId")
-    //    context.parent ! Acknowledged(correlationId, msg)
+    FullAcknowledgement >> ('CorrelationId --> correlationId)
     if (blockingDelivery) forwardToNext(msg)
   }
 
   override def execute(value: JsonFrame): Option[Seq[JsonFrame]] = {
-    // TODO log failed condition
     if (!condition.isDefined || condition.get.metFor(value).isRight) {
       deliverMessage(value)
       if (blockingDelivery) None else Some(List(value))
     } else {
+      ConditionNotMet >> ('EventId --> value.eventIdOrNA)
       Some(List(value))
     }
   }

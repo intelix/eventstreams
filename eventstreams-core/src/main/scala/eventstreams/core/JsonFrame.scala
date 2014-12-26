@@ -16,6 +16,14 @@
 
 package eventstreams.core
 
+import eventstreams.core.Tools.configHelper
 import play.api.libs.json.JsValue
 
-case class JsonFrame(event: JsValue, ctx: Map[String, JsValue])
+import scalaz.Scalaz._
+import scalaz._
+
+case class JsonFrame(event: JsValue, ctx: Map[String, JsValue]) {
+  val naValue = "n/a"
+  def eventIdOr(missing: => String) = event ~> 'eventId | missing
+  def eventIdOrNA = eventIdOr(naValue)
+}

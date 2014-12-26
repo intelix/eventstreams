@@ -16,9 +16,9 @@
 
 package actors
 
-import core.events.{LoggerEventPublisher, WithEvents}
+import core.events.{LoggerEventPublisher, WithEventPublisher}
 
-trait WithWebEvents extends WithEvents {
+trait WithWebEvents extends WithEventPublisher {
 
 //  override implicit val publisher: LoggerEventPublisher.type = webEvtPublisher
 //  implicit val evtSystem = webEvtSystem

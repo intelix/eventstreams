@@ -18,14 +18,51 @@ package eventstreams.core.actors
 
 import akka.actor.{ActorRef, Terminated}
 import com.typesafe.scalalogging.StrictLogging
+import core.events.EventOps.{stringToEventOps, symbolToEventField, symbolToEventOps}
+import core.events.WithEventPublisher
+import core.events.ref.ComponentWithBaseEvents
 
-trait ActorWithComposableBehavior extends ActorUtils with StrictLogging {
+trait BaseActorEvents extends ComponentWithBaseEvents {
+  val WatchedActorTerminated = 'WatchedActorTerminated.info
+  val BehaviorSwitch = 'BehaviorSwitch.info
+  val PostStop = "Lifecycle.PostStop".info
+  val PreStart = "Lifecycle.PreStart".info
+  val PreRestart = "Lifecycle.PreRestart".info
+  val PostRestart = "Lifecycle.PostRestart".info
+}
+
+
+trait ActorWithComposableBehavior extends ActorUtils with StrictLogging with BaseActorEvents with WithEventPublisher {
 
   def onTerminated(ref:ActorRef) = {
-    logger.debug(s"Watched actor terminated $ref")
+    WatchedActorTerminated >> ('Actor --> ref)
   }
 
 
+  @throws[Exception](classOf[Exception])
+  override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
+    PreRestart >> ('Reason --> reason.getMessage, 'Message --> message)
+    super.preRestart(reason, message)
+  }
+
+
+  @throws[Exception](classOf[Exception])
+  override def postRestart(reason: Throwable): Unit = {
+    super.postRestart(reason)
+    PostRestart >> ('Reason --> reason.getMessage)
+  }
+
+  @throws[Exception](classOf[Exception])
+  override def preStart(): Unit = {
+    PreStart >> ()
+    super.preStart()
+  }
+
+  @throws[Exception](classOf[Exception])
+  override def postStop(): Unit = {
+    super.postStop()
+    PostStop >> ()
+  }
 
   def commonBehavior: Receive = {
     case Terminated(ref) => onTerminated(ref)
@@ -33,12 +70,12 @@ trait ActorWithComposableBehavior extends ActorUtils with StrictLogging {
   }
 
   final def switchToCustomBehavior(customBehavior: Receive, bid: Option[String] = None) = {
-    logger.debug(s"Switched to custom behavior, id=$bid")
+    BehaviorSwitch >> ('BehaviorId --> bid)
     context.become(customBehavior orElse commonBehavior)
   }
 
   final def switchToCommonBehavior() = {
-    logger.debug("Switched to common behavior")
+    BehaviorSwitch >> ('BehaviorId --> "common")
     context.become(commonBehavior)
   }
 

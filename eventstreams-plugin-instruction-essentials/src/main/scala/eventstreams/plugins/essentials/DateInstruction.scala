@@ -17,7 +17,7 @@
 package eventstreams.plugins.essentials
 
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
-import core.events.WithEvents
+import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.SimpleInstructionType
@@ -67,15 +67,13 @@ import scalaz._
  *
  */
 
-trait DateInstructionEvents
-  extends ComponentWithBaseEvents
-  with WithEvents {
+trait DateInstructionEvents extends ComponentWithBaseEvents {
 
   val Built = 'Built.trace
   val DateParsed = 'DateParsed.trace
   val UnableToParseDate = 'UnableToParse.info
 
-  override def id: String = "Instruction.Date"
+  override def componentId: String = "Instruction.Date"
 }
 
 trait DateInstructionConstants extends InstructionConstants with DateInstructionEvents {
@@ -95,7 +93,7 @@ trait DateInstructionConstants extends InstructionConstants with DateInstruction
 object DateInstructionConstants extends DateInstructionConstants
 
 
-class DateInstruction extends SimpleInstructionBuilder with DateInstructionConstants {
+class DateInstruction extends SimpleInstructionBuilder with DateInstructionConstants with WithEventPublisher {
   val configId = "date"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
@@ -113,7 +111,7 @@ class DateInstruction extends SimpleInstructionBuilder with DateInstructionConst
       val targetZone = props ~> CfgFTargetZone
       var targetPattern = Try((props ~> CfgFTargetPattern).map(DateTimeFormat.forPattern)).getOrElse(Some(DateInstructionConstants.default)) | DateInstructionConstants.default
       val sourcePattern = pattern.map { p =>
-         zone match {
+        zone match {
           case Some(l) if !l.isEmpty => p.withZone(DateTimeZone.forID(l))
           case None => p
         }
@@ -128,13 +126,13 @@ class DateInstruction extends SimpleInstructionBuilder with DateInstructionConst
       val uuid = Utils.generateShortUUID
 
       Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
-          
+
       fr: JsonFrame => {
 
         val sourceField = macroReplacement(fr, JsString(source))
 
 
-        Try{
+        Try {
           sourcePattern match {
             case Some(p) =>
               val sourceValue = locateFieldValue(fr, sourceField).asOpt[String].getOrElse("")
@@ -143,19 +141,19 @@ class DateInstruction extends SimpleInstructionBuilder with DateInstructionConst
               val sourceValue = locateFieldValue(fr, sourceField).asOpt[Long].getOrElse(0)
               (sourceValue, new DateTime(sourceValue))
           }
-        }.map { case (s,dt) =>
+        }.map { case (s, dt) =>
 
           val fmt = dt.toString(targetPattern)
 
           val eventId = fr.event ~> 'eventId | "n/a"
 
-          DateParsed >> ('SourceValue --> s, 'SourceDate --> dt, 'ResultFmt --> fmt, 'Ts --> dt.getMillis, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+          DateParsed >>('SourceValue --> s, 'SourceDate --> dt, 'ResultFmt --> fmt, 'Ts --> dt.getMillis, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
           List(JsonFrame(
             setValue("n", JsNumber(dt.getMillis), toPath(targetTsField),
               setValue("s", JsString(fmt), toPath(targetFmtField), fr.event)), fr.ctx))
         }.recover {
-          case x => 
-            UnableToParseDate >> ('Source --> fr.event, 'InstructionInstanceId --> uuid)
+          case x =>
+            UnableToParseDate >>('Source --> fr.event, 'InstructionInstanceId --> uuid)
             List(fr)
         }.get
 

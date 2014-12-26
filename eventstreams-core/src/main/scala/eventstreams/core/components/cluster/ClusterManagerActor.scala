@@ -20,7 +20,7 @@ import akka.actor._
 import akka.cluster.Cluster
 import com.typesafe.config.Config
 import core.events.EventOps.symbolToEventOps
-import core.events.WithEvents
+import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools._
 import eventstreams.core.actors._
@@ -32,11 +32,11 @@ import scalaz.Scalaz._
 
 trait ClusterManagerActorEvents
   extends ComponentWithBaseEvents
-  with WithEvents {
+  with WithEventPublisher {
 
   val ClusterStateChanged = 'ClusterStateChanged.info
 
-  override def id: String = "Instruction.Enrich"
+  override def componentId: String = "Actor.ClusterManager"
 }
 
 object ClusterManagerActor extends ActorObjWithCluster {

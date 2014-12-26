@@ -18,7 +18,7 @@ package eventstreams.engine.flows
 
 import _root_.core.events.EventOps.{symbolToEventField, symbolToEventOps}
 import _root_.core.events.ref.ComponentWithBaseEvents
-import _root_.core.events.{EventFieldWithValue, WithEvents}
+import _root_.core.events.{EventFieldWithValue, WithEventPublisher}
 import akka.actor._
 import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
@@ -39,11 +39,11 @@ import scalaz.{-\/, \/-}
 
 trait FlowActorEvents
   extends ComponentWithBaseEvents
-  with WithEvents {
+  with WithEventPublisher {
 
   val FlowStarted = 'FlowStarted.trace
 
-  override def id: String = "Actor.Flow"
+  override def componentId: String = "Actor.Flow"
 }
 object FlowActorEvents extends FlowActorEvents
 

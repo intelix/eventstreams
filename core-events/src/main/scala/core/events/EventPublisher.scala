@@ -4,7 +4,7 @@ import org.slf4j._
 import play.api.libs.json._
 
 trait EventPublisher {
-  def publish(event: Event, values: => Seq[EventFieldWithValue])(implicit runtimeCtx: WithEvents, system: CtxSystem)
+  def publish(event: Event, values: => Seq[EventFieldWithValue])(implicit runtimeCtx: WithEventPublisher, system: CtxSystem)
 }
 
 trait LoggerEventPublisher {
@@ -54,7 +54,7 @@ trait LoggerEventPublisher {
   }
 
 
-  private def process(event: Event, runtimeCtx: WithEvents, system: CtxSystem, values: Seq[EventFieldWithValue], f: String => Unit) = {
+  private def process(event: Event, runtimeCtx: WithEventPublisher, system: CtxSystem, values: Seq[EventFieldWithValue], f: String => Unit) = {
 
     val allValues = runtimeCtx.commonFields match {
       case x if x.isEmpty => values
@@ -64,7 +64,7 @@ trait LoggerEventPublisher {
     log(event, system, allValues, f)
   }
 
-  def publish(event: Event, values: => Seq[EventFieldWithValue])(implicit runtimeCtx: WithEvents, system: CtxSystem) = {
+  def publish(event: Event, values: => Seq[EventFieldWithValue])(implicit runtimeCtx: WithEventPublisher, system: CtxSystem) = {
     val logger = loggerFor("events."+system.id + "." + event.componentId + "." + event.id)
     event match {
       case x: TraceEvent if logger.isDebugEnabled => process(event, runtimeCtx, system, values, s => logger.debug(s))

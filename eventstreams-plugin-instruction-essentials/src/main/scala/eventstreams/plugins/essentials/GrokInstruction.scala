@@ -17,7 +17,7 @@
 package eventstreams.plugins.essentials
 
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
-import core.events.WithEvents
+import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.SimpleInstructionType
@@ -30,14 +30,12 @@ import scalaz.Scalaz._
 import scalaz._
 
 
-trait GrokInstructionEvents
-  extends ComponentWithBaseEvents
-  with WithEvents {
+trait GrokInstructionEvents extends ComponentWithBaseEvents {
 
   val Built = 'Built.trace
   val Grokked = 'Grokked.trace
 
-  override def id: String = "Instruction.Grok"
+  override def componentId: String = "Instruction.Grok"
 }
 
 trait GrokInstructionConstants extends InstructionConstants with GrokInstructionEvents {
@@ -49,9 +47,9 @@ trait GrokInstructionConstants extends InstructionConstants with GrokInstruction
   val CfgFValues = "values"
 }
 
-object GrokInstructionConstants extends  GrokInstructionConstants
+object GrokInstructionConstants extends GrokInstructionConstants
 
-class GrokInstruction extends SimpleInstructionBuilder with GrokInstructionConstants {
+class GrokInstruction extends SimpleInstructionBuilder with GrokInstructionConstants with WithEventPublisher {
   val configId = "grok"
 
   def nextField(eventId: String, uuid: String)(frame: JsonFrame, fvt: ((String, String), String)): JsonFrame =

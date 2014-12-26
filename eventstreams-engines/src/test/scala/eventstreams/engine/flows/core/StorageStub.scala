@@ -2,7 +2,7 @@ package eventstreams.engine.flows.core
 
 import com.typesafe.config.Config
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
-import core.events.WithEvents
+import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.storage.Storage
 import play.api.libs.json.Json
@@ -10,10 +10,10 @@ import play.api.libs.json.Json
 
 trait StorageStubEvents
   extends ComponentWithBaseEvents
-  with WithEvents {
+  with WithEventPublisher {
   val Retrieve = 'Retrieve.info
 
-  override def id: String = "StorageStub"
+  override def componentId: String = "StorageStub"
 }
 
 

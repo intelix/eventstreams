@@ -17,7 +17,7 @@
 package eventstreams.plugins.essentials
 
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
-import core.events.WithEvents
+import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.SimpleInstructionType
@@ -30,21 +30,19 @@ import scalaz.Scalaz._
 import scalaz._
 
 
-trait DropFieldInstructionEvents
-  extends ComponentWithBaseEvents
-  with WithEvents {
+trait DropFieldInstructionEvents extends ComponentWithBaseEvents {
 
   val Built = 'Built.trace
   val FieldDropped = 'FieldDropped.trace
 
-  override def id: String = "Instruction.DropField"
+  override def componentId: String = "Instruction.DropField"
 }
 
 trait DropFieldInstructionConstants extends InstructionConstants with DropFieldInstructionEvents {
   val CfgFFieldToDrop = "fieldToDrop"
 }
 
-class DropFieldInstruction extends SimpleInstructionBuilder with DropFieldInstructionConstants {
+class DropFieldInstruction extends SimpleInstructionBuilder with DropFieldInstructionConstants with WithEventPublisher {
   val configId = "dropfield"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =

@@ -19,17 +19,30 @@ package eventstreams.core.actors
 import akka.stream.actor.ActorPublisherMessage.{Cancel, Request}
 import akka.stream.actor.ActorSubscriberMessage.{OnComplete, OnError, OnNext}
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
-import eventstreams.core.{Stop, JsonFrame}
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.ref.ComponentWithBaseEvents
+import eventstreams.core.{JsonFrame, Stop}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
+import scalaz.Scalaz._
+
+
+trait SubscribingPublisherEvents extends ComponentWithBaseEvents {
+  val MessageArrived = 'MessageArrived.info
+  val MessagePublished = 'MessagePublished.info
+  val NewDemand = 'NewDemand.info
+  val ClosingStream = 'ClosingStream.info
+}
+
 
 trait SubscribingPublisherActor
   extends ActorWithComposableBehavior
   with PipelineWithStatesActor
   with ActorSubscriber
   with ActorPublisher[JsonFrame]
-  with ActorWithTicks {
+  with ActorWithTicks
+  with SubscribingPublisherEvents {
 
   private val queue = mutable.Queue[JsonFrame]()
 
@@ -42,20 +55,14 @@ trait SubscribingPublisherActor
     if (isActive && totalDemand > 0) take() match {
       case None => ()
       case Some(x) =>
-        logger.debug(s"!>> firing onNext - " + x)
         onNext(x)
+        MessagePublished >>('EventId --> x.eventIdOrNA, 'RemainingDemand --> totalDemand, 'PublisherQueueDepth --> pendingToDownstreamCount)
         sendIfPossible()
     }
 
   def forwardToNext(value: JsonFrame) = {
     offer(value)
     sendIfPossible()
-  }
-
-  @throws[Exception](classOf[Exception])
-  override def postStop(): Unit = {
-    super.postStop()
-    logger.debug("!>>>> post stop!")
   }
 
   def execute(value: JsonFrame): Option[Seq[JsonFrame]]
@@ -65,7 +72,7 @@ trait SubscribingPublisherActor
   private def take() = if (queue.size > 0) Some(queue.dequeue()) else None
 
   private def stop(reason: Option[String]) = {
-    logger.info(s"Shutting down subscribing publisher, reason given: $reason")
+    ClosingStream >> ('Reason --> (reason | "none given"), 'PublisherQueueDepth --> pendingToDownstreamCount)
     onComplete()
     context.stop(self)
   }
@@ -77,10 +84,10 @@ trait SubscribingPublisherActor
     case Stop(reason) => stop(reason)
 
     case OnNext(el: JsonFrame) =>
-      logger.debug(s"!>> OnNext - $isActive :  $el")
+      MessageArrived >> ('EventId --> el.eventIdOrNA, 'PublisherQueueDepth --> pendingToDownstreamCount, 'StreamActive --> isActive)
       if (isActive) execute(el) foreach (_.foreach(forwardToNext))
     case Request(n) =>
-      logger.debug(s"!>>> Request $n")
+      NewDemand >> ('Requested --> n, 'Total --> totalDemand)
       sendIfPossible()
 
   }

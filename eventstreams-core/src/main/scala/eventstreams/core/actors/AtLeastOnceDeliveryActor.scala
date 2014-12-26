@@ -17,6 +17,9 @@
 package eventstreams.core.actors
 
 import akka.actor.ActorRef
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.WithEventPublisher
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.NowProvider
 import eventstreams.core.agent.core.{AcknowledgeAsProcessed, AcknowledgeAsReceived, Acknowledgeable}
 
@@ -25,10 +28,19 @@ import scala.util.Random
 
 case class Acknowledged[T](correlationId: Long, msg: T)
 
+trait AtLeastOnceDeliveryActorEvents extends ComponentWithBaseEvents {
+  val ScheduledForDelivery = 'ScheduledForDelivery.info
+  val DeliveryConfirmed = 'DeliveryConfirmed.info
+  val ProcessingConfirmed = 'ProcessingConfirmed.info
+  val DeliveryAttempt = 'DeliveryAttempt.trace
+  val DeliveringToActor = 'DeliveringToActor.trace
+}
 
 trait AtLeastOnceDeliveryActor[T]
   extends ActorWithTicks
-  with NowProvider {
+  with NowProvider
+  with AtLeastOnceDeliveryActorEvents
+  with WithEventPublisher {
 
   private var list = Vector[InFlight[T]]()
   private var counter = new Random().nextLong() // TODO replace counter with uuid + seq
@@ -41,14 +53,14 @@ trait AtLeastOnceDeliveryActor[T]
 
   def canDeliverDownstreamRightNow: Boolean
 
-  def getSetOfActiveEndpoints : Set[ActorRef]
+  def getSetOfActiveEndpoints: Set[ActorRef]
 
   def fullyAcknowledged(correlationId: Long, msg: T)
 
   def deliverMessage(msg: T) = {
     val nextCorrelationId = generateCorrelationId(msg)
     list = list :+ InFlight[T](0, msg, nextCorrelationId, getSetOfActiveEndpoints, Set(), Set(), 0)
-    logger.debug(s"Message $nextCorrelationId queued. In-flight: ${list.size}")
+    ScheduledForDelivery >>('CorrelationId --> nextCorrelationId, 'DeliveryQueueDepth --> list.size)
     deliverIfPossible()
     nextCorrelationId
   }
@@ -56,7 +68,7 @@ trait AtLeastOnceDeliveryActor[T]
 
   private def filter() =
     list = list.filter {
-      case m : InFlight[_] if m.endpoints.isEmpty && m.processedAck.nonEmpty =>
+      case m: InFlight[_] if m.endpoints.isEmpty && m.processedAck.nonEmpty =>
         fullyAcknowledged(m.correlationId, m.msg)
         false
       case _ => true
@@ -64,10 +76,10 @@ trait AtLeastOnceDeliveryActor[T]
 
 
   private def acknowledgeProcessed(correlationId: Long, ackedByRef: ActorRef) = {
-    logger.info(s"Processed Ack: $correlationId from $ackedByRef")
+    ProcessingConfirmed >>('CorrelationId --> correlationId, 'ConfirmedBy --> ackedByRef)
 
     list = list.map {
-      case m : InFlight[_] if m.correlationId == correlationId =>
+      case m: InFlight[_] if m.correlationId == correlationId =>
         m.copy[T](
           endpoints = m.endpoints.filter(_ != ackedByRef),
           processedAck = m.processedAck + ackedByRef,
@@ -81,10 +93,10 @@ trait AtLeastOnceDeliveryActor[T]
   }
 
   private def acknowledgeReceived(correlationId: Long, ackedByRef: ActorRef) = {
-    logger.info(s"Received Ack: $correlationId from $ackedByRef")
+    DeliveryConfirmed >>('CorrelationId --> correlationId, 'ConfirmedBy --> ackedByRef)
 
     list = list.map {
-      case m : InFlight[_] if m.correlationId == correlationId =>
+      case m: InFlight[_] if m.correlationId == correlationId =>
         m.copy[T](
           receivedAck = m.receivedAck + ackedByRef
         )
@@ -111,7 +123,7 @@ trait AtLeastOnceDeliveryActor[T]
 
   private def deliverIfPossible(forceResend: Boolean = false) =
     if (canDeliverDownstreamRightNow && list.nonEmpty) {
-      list.find { m => m.endpoints.isEmpty || m.endpoints.exists(!m.receivedAck.contains(_)) } foreach { toDeliver =>
+      list.find { m => m.endpoints.isEmpty || m.endpoints.exists(!m.receivedAck.contains(_))} foreach { toDeliver =>
         val newInflight = resend(toDeliver, forceResend)
         list = list.map {
           case m if m.correlationId == newInflight.correlationId => newInflight
@@ -125,7 +137,7 @@ trait AtLeastOnceDeliveryActor[T]
   private def resend(m: InFlight[T], forceResend: Boolean = false): InFlight[T] =
     if (canDeliverDownstreamRightNow && (forceResend || now - m.sentTime > configUnacknowledgedMessagesResendInterval.toMillis)) {
       val inflight = send(m)
-      logger.debug(s"Sent (attempt ${m.sendAttempts} $inflight")
+      DeliveryAttempt >>('CorrelationId --> inflight.correlationId, 'Attempt --> m.sendAttempts, 'Forced --> forceResend)
       inflight
     } else m
 
@@ -139,7 +151,7 @@ trait AtLeastOnceDeliveryActor[T]
       if (remainingEndpoints.isEmpty && m.processedAck.isEmpty) remainingEndpoints = activeEndpoints
 
       remainingEndpoints.filter(!m.receivedAck.contains(_)).foreach { actor =>
-        logger.debug(s"Sending ${m.correlationId} -> $actor")
+        DeliveringToActor >>('CorrelationId --> m.correlationId, 'Target --> actor)
         actor ! Acknowledgeable(m.msg, m.correlationId)
       }
 

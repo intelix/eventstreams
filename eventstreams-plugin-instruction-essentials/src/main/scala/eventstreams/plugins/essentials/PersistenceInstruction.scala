@@ -17,7 +17,7 @@
 package eventstreams.plugins.essentials
 
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
-import core.events.WithEvents
+import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.SimpleInstructionType
@@ -29,14 +29,12 @@ import play.api.libs.json.extensions._
 import scalaz.Scalaz._
 import scalaz._
 
-trait PersistenceInstructionEvents
-  extends ComponentWithBaseEvents
-  with WithEvents {
+trait PersistenceInstructionEvents extends ComponentWithBaseEvents {
 
   val Built = 'Built.trace
   val Configured = 'Configured.trace
 
-  override def id: String = "Instruction.PersistenceParams"
+  override def componentId: String = "Instruction.PersistenceParams"
 }
 
 trait PersistenceInstructionConstants extends InstructionConstants with PersistenceInstructionEvents {
@@ -47,7 +45,7 @@ trait PersistenceInstructionConstants extends InstructionConstants with Persiste
 
 object PersistenceInstructionConstants extends PersistenceInstructionConstants
 
-class PersistenceInstruction extends SimpleInstructionBuilder with PersistenceInstructionConstants {
+class PersistenceInstruction extends SimpleInstructionBuilder with PersistenceInstructionConstants with WithEventPublisher {
   val configId = "persistence"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =

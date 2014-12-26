@@ -5,7 +5,7 @@ import scala.language.implicitConversions
 sealed trait Event {
   def id: String
   def componentId: String
-  def >>(f1: (EventFieldWithValue)*)(implicit ctx: WithEvents, publisher: EventPublisher, system: CtxSystem) = publisher.publish(this, f1)
+  def >>(f1: (EventFieldWithValue)*)(implicit ctx: WithEventPublisher, publisher: EventPublisher, system: CtxSystem) = publisher.publish(this, f1)
 }
 
 object EventOps {
@@ -23,10 +23,10 @@ object EventOps {
 }
 
 class EventOps(id: String, component: CtxComponent) {
-  def trace : Event = TraceEvent(id, component.id)
-  def info : Event = InfoEvent(id, component.id)
-  def warn : Event = WarnEvent(id, component.id)
-  def error : Event = ErrorEvent(id, component.id)
+  def trace : Event = TraceEvent(id, component.componentId)
+  def info : Event = InfoEvent(id, component.componentId)
+  def warn : Event = WarnEvent(id, component.componentId)
+  def error : Event = ErrorEvent(id, component.componentId)
 
 }
 

@@ -17,7 +17,7 @@
 package eventstreams.plugins.essentials
 
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
-import core.events.WithEvents
+import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.SimpleInstructionType
@@ -31,14 +31,12 @@ import scalaz.Scalaz._
 import scalaz._
 
 
-trait ReplaceInstructionEvents
-  extends ComponentWithBaseEvents
-  with WithEvents {
+trait ReplaceInstructionEvents extends ComponentWithBaseEvents {
 
   val Built = 'Built.trace
   val Replaced = 'Replaced.trace
 
-  override def id: String = "Instruction.Replace"
+  override def componentId: String = "Instruction.Replace"
 }
 
 trait ReplaceInstructionConstants extends InstructionConstants with ReplaceInstructionEvents {
@@ -50,14 +48,14 @@ trait ReplaceInstructionConstants extends InstructionConstants with ReplaceInstr
 object ReplaceInstructionConstants extends ReplaceInstructionConstants
 
 
-class ReplaceInstruction extends SimpleInstructionBuilder with ReplaceInstructionConstants {
+class ReplaceInstruction extends SimpleInstructionBuilder with ReplaceInstructionConstants with WithEventPublisher {
   val configId = "replace"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
       fieldName <- props ~> CfgFFieldName \/> Fail(s"Invalid replace instruction. Missing '$CfgFFieldName' value. Contents: ${Json.stringify(props)}");
       pattern <- props ~> CfgFPattern \/> Fail(s"Invalid replace instruction. Missing '$CfgFPattern' value. Contents: ${Json.stringify(props)}");
-      _ <- Try(new Regex(pattern)).toOption \/>  Fail(s"Invalid replace instruction. Invalid '$CfgFPattern' value. Contents: ${Json.stringify(props)}")
+      _ <- Try(new Regex(pattern)).toOption \/> Fail(s"Invalid replace instruction. Invalid '$CfgFPattern' value. Contents: ${Json.stringify(props)}")
     ) yield {
       val replacementValue = props #> CfgFReplacementValue | JsString("")
 

@@ -19,7 +19,7 @@ package eventstreams.plugins.essentials
 import java.util
 
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
-import core.events.WithEvents
+import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.Types.SimpleInstructionType
@@ -27,25 +27,22 @@ import eventstreams.core.instructions.{InstructionConstants, SimpleInstructionBu
 import eventstreams.core.{Fail, JsonFrame, Utils}
 import groovy.json.{JsonBuilder, JsonSlurper}
 import groovy.lang.{Binding, GroovyShell}
-import org.joda.time.DateTimeZone
 import play.api.libs.json._
 import play.api.libs.json.extensions._
+
 import scala.collection.JavaConverters._
 import scala.util.Try
-
 import scalaz.Scalaz._
 import scalaz._
 
-trait GroovyInstructionEvents
-  extends ComponentWithBaseEvents
-  with WithEvents {
+trait GroovyInstructionEvents extends ComponentWithBaseEvents {
 
   val Built = 'Built.trace
   val GroovyExecOk = 'GroovyExecOk.trace
   val GroovyExecResult = 'GroovyExecResult.trace
   val GroovyExecFailed = 'GroovyExecFailed.error
 
-  override def id: String = "Instruction.Groovy"
+  override def componentId: String = "Instruction.Groovy"
 }
 
 trait GroovyInstructionConstants extends InstructionConstants with GroovyInstructionEvents {
@@ -59,13 +56,13 @@ trait GroovyInstructionConstants extends InstructionConstants with GroovyInstruc
 
 object GroovyInstructionConstants extends GroovyInstructionConstants
 
-class GroovyInstruction extends SimpleInstructionBuilder with GroovyInstructionConstants {
+class GroovyInstruction extends SimpleInstructionBuilder with GroovyInstructionConstants with WithEventPublisher {
   val configId = "groovy"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
       code <- props ~> CfgFCode \/> Fail(s"Invalid $configId instruction. Missing '$CfgFCode' value. Contents: ${Json.stringify(props)}");
-      script <- Try{
+      script <- Try {
         new GroovyShell().parse(code).right
       }.recover {
         case t => -\/(Fail(s"Invalid $configId instruction. Invalid '$CfgFCode'. Contents: $props"))
@@ -74,7 +71,7 @@ class GroovyInstruction extends SimpleInstructionBuilder with GroovyInstructionC
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('InstructionInstanceId --> uuid)
+      Built >> ('InstructionInstanceId --> uuid)
 
       var binding = new Binding()
       var shell = new GroovyShell(binding)
@@ -87,7 +84,7 @@ class GroovyInstruction extends SimpleInstructionBuilder with GroovyInstructionC
       binding.setVariable(CtxCopyEvent, copyJ _)
 
       binding.setVariable(CtxNewEvent, newJ _)
-          
+
       script.setBinding(binding)
 
       fr: JsonFrame =>
@@ -99,13 +96,13 @@ class GroovyInstruction extends SimpleInstructionBuilder with GroovyInstructionC
         val eventId = fr.event ~> 'eventId | "n/a"
 
         try {
-          
+
           var value = script.run() match {
             case x: JsonBuilder => List(x.toPrettyString)
             case x: JsonSlurper => List(new JsonBuilder(x).toPrettyString)
             case x: String => List(x)
-            case b : Array[JsonBuilder] => b.map(_.toPrettyString).toList
-            case b : util.List[_] => b.asInstanceOf[util.List[JsonBuilder]].asScala.map(_.toPrettyString).toList
+            case b: Array[JsonBuilder] => b.map(_.toPrettyString).toList
+            case b: util.List[_] => b.asInstanceOf[util.List[JsonBuilder]].asScala.map(_.toPrettyString).toList
 
           }
 

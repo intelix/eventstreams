@@ -17,7 +17,7 @@
 package eventstreams.plugins.essentials
 
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
-import core.events.WithEvents
+import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.SimpleInstructionType
@@ -30,20 +30,19 @@ import scalaz._
 
 
 trait AddTagInstructionEvents
-  extends ComponentWithBaseEvents
-  with WithEvents {
+  extends ComponentWithBaseEvents {
 
   val Built = 'Built.trace
   val TagAdded = 'TagAdded.trace
 
-  override def id: String = "Instruction.AddTag"
+  override def componentId: String = "Instruction.AddTag"
 }
 
-trait AddTagInstructionConstants extends InstructionConstants with AddTagInstructionEvents {
+trait AddTagInstructionConstants extends InstructionConstants with AddTagInstructionEvents  {
   val CfgFTagToAdd = "tagToAdd"
 }
 
-class AddTagInstruction extends SimpleInstructionBuilder with AddTagInstructionConstants {
+class AddTagInstruction extends SimpleInstructionBuilder with AddTagInstructionConstants with WithEventPublisher {
   val configId = "addtag"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =

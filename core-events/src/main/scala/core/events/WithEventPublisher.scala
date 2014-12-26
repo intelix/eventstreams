@@ -3,10 +3,10 @@ package core.events
 import scala.language.implicitConversions
 
 
-trait WithEvents  {
+trait WithEventPublisher  {
 
-  implicit lazy val sys = CtxSystemRef.ref
-  implicit lazy val pub = EventPublisherRef.ref
+  implicit lazy val evtSystem = CtxSystemRef.ref
+  implicit lazy val evtPublisher = EventPublisherRef.ref
 
   implicit lazy val evtCtx = this
 

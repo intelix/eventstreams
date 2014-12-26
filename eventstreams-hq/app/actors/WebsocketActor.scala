@@ -34,7 +34,7 @@ trait WebsocketActorEvents
   val AcceptedConnection = 'AcceptedConnection.info
   val ClosedConnection = 'ClosedConnection.info
 
-  override def id: String = "WebsocketActor"
+  override def componentId: String = "WebsocketActor"
 }
 
 object WebsocketActor {

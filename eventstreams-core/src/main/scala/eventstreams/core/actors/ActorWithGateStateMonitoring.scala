@@ -16,15 +16,27 @@
 
 package eventstreams.core.actors
 
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.{CtxComponent, WithEventPublisher}
 import eventstreams.core.NowProvider
-import eventstreams.core.agent.core.{GateStateUpdate, GateOpen, GateState, GateStateCheck}
+import eventstreams.core.agent.core.{GateOpen, GateState, GateStateCheck, GateStateUpdate}
 
 import scala.concurrent.duration.DurationDouble
+
+trait GateMonitorEvents extends CtxComponent {
+  val GateStateMonitorStarted = 'GateStateMonitorStarted.info
+  val GateStateMonitorStopped = 'GateStateMonitorStopped.info
+  val GateStateMonitorCheckSent = 'GateStateMonitorCheckSent.trace
+  val MonitoredGateStateNoChange = 'MonitoredGateStateNoChange.trace
+  val MonitoredGateStateChanged = 'MonitoredGateStateChanged.info
+}
+
 
 trait ActorWithGateStateMonitoring
   extends ActorWithTicks
   with WithRemoteActorRef
-  with NowProvider {
+  with NowProvider
+  with GateMonitorEvents with WithEventPublisher {
 
 
   override def commonBehavior: Receive = mHandler orElse super.commonBehavior
@@ -43,10 +55,12 @@ trait ActorWithGateStateMonitoring
   def isGateClosed = !isGateOpen
 
   def startGateStateMonitoring() = {
+    if (!checkStateOn) GateStateMonitorStarted >>()
     checkStateOn = true
   }
 
   def stopGateStateMonitoring() = {
+    if (checkStateOn) GateStateMonitorStopped >>()
     checkStateOn = false
   }
 
@@ -66,7 +80,7 @@ trait ActorWithGateStateMonitoring
           lastCheck = Some(now)
           remoteActorRef match {
             case Some(ref) =>
-              logger.info(s"State check -> $ref")
+              GateStateMonitorCheckSent >> ('Target --> ref)
               ref ! GateStateCheck(self)
             case None => // disconnected, nothing to do
           }
@@ -76,15 +90,15 @@ trait ActorWithGateStateMonitoring
 
   def onGateStateChanged(state: GateState): Unit = {}
 
-  private def mHandler : Receive = {
+  private def mHandler: Receive = {
     case GateStateUpdate(state) =>
       lastKnownState match {
         case Some(lastState) if lastState == state =>
-          logger.info(s"Received state update, no change, still $state")
-          // no state change, do nothing..
+          MonitoredGateStateNoChange >> ('State --> state)
+        // no state change, do nothing..
         case _ =>
           lastKnownState = Some(state)
-          logger.debug(s"Gate $remoteActorRef state changed to $state")
+          MonitoredGateStateChanged >> ('NewState --> state)
           onGateStateChanged(state)
       }
   }

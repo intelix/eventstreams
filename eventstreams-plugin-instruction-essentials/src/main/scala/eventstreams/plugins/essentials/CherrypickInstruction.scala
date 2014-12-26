@@ -17,7 +17,7 @@
 package eventstreams.plugins.essentials
 
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
-import core.events.WithEvents
+import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.SimpleInstructionType
@@ -29,14 +29,12 @@ import play.api.libs.json.extensions._
 import scalaz.Scalaz._
 import scalaz._
 
-trait CherrypickInstructionEvents
-  extends ComponentWithBaseEvents
-  with WithEvents {
+trait CherrypickInstructionEvents extends ComponentWithBaseEvents {
 
   val Built = 'Built.trace
   val Cherrypicked = 'Cherrypicked.trace
 
-  override def id: String = "Instruction.Cherrypick"
+  override def componentId: String = "Instruction.Cherrypick"
 }
 
 trait CherrypickInstructionConstants extends InstructionConstants with CherrypickInstructionEvents {
@@ -51,7 +49,7 @@ trait CherrypickInstructionConstants extends InstructionConstants with Cherrypic
   val CfgFTTL = "ttl"
 }
 
-class CherrypickInstruction extends SimpleInstructionBuilder with CherrypickInstructionConstants {
+class CherrypickInstruction extends SimpleInstructionBuilder with CherrypickInstructionConstants with WithEventPublisher {
   val configId = "cherrypick"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
@@ -103,11 +101,11 @@ class CherrypickInstruction extends SimpleInstructionBuilder with CherrypickInst
             val eventId = frame.event ~> 'eventId | "n/a"
 
             Cherrypicked >>(
-              'From --> sourcePath, 
-              'Result --> Json.stringify(newValue), 
-              'KeepOriginal --> keepOriginalEvent, 
-              'EventId --> eventId, 
-              'NewEventId --> newEventId, 
+              'From --> sourcePath,
+              'Result --> Json.stringify(newValue),
+              'KeepOriginal --> keepOriginalEvent,
+              'EventId --> eventId,
+              'NewEventId --> newEventId,
               'InstructionInstanceId --> uuid)
 
             result :+ newFrame

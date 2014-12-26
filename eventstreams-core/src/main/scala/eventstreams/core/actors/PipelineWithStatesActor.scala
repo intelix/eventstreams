@@ -17,13 +17,21 @@
 package eventstreams.core.actors
 
 import akka.actor.Actor
+import core.events.EventOps.symbolToEventOps
+import core.events.{CtxComponent, WithEventPublisher}
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.{BecomePassive, BecomeActive, NowProvider}
 
 import scalaz.Scalaz._
 import scalaz._
 
 
-trait PipelineWithStatesActor extends ActorWithComposableBehavior with NowProvider {
+trait StateChangeEvents extends ComponentWithBaseEvents {
+  val Starting = 'Starting.info
+  val Stopping = 'Stopping.info
+}
+
+trait PipelineWithStatesActor extends ActorWithComposableBehavior with NowProvider with StateChangeEvents with WithEventPublisher {
 
   private var requestedState: Option[RequestedState] = None
   private var date: Option[Long] = None
@@ -52,12 +60,12 @@ trait PipelineWithStatesActor extends ActorWithComposableBehavior with NowProvid
 
   private def handlePipelineStateChanges: Actor.Receive = {
     case BecomeActive() =>
-      logger.debug("Becoming active")
+      Starting >>()
       requestedState = Some(Active())
       date = Some(now)
       becomeActive()
     case BecomePassive() =>
-      logger.debug("Becoming passive")
+      Stopping >>()
       requestedState = Some(Passive())
       date = Some(now)
       becomePassive()

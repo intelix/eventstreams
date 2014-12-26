@@ -18,17 +18,30 @@ package eventstreams.core.actors
 
 import akka.actor.ActorRef
 import akka.remote.DisassociatedEvent
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.ref.ComponentWithBaseEvents
 
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.util.{Failure, Success}
 
+trait ReconnectingActorEvents extends ComponentWithBaseEvents {
+  val AssociationAttempt = 'AssociationAttempt.info
+  val AssociatedWithRemoteActor = 'AssociatedWithRemoteActor.info
+  val RemoteActorTerminated = 'RemoteActorTerminated.info
+  val RemoteActorDisassociated = 'RemoteActorDisassociated.info
+}
+
+
 trait ReconnectingActor
   extends ActorWithComposableBehavior
   with WithRemoteActorRef
-  with ActorWithDisassociationMonitor {
+  with ActorWithDisassociationMonitor
+  with ReconnectingActorEvents {
 
   implicit private val ec = context.dispatcher
   private var peer: Option[ActorRef] = None
+  
+  private var reconnectAttemptCounter = 0 
 
   override final def remoteActorRef: Option[ActorRef] = peer
 
@@ -62,7 +75,8 @@ trait ReconnectingActor
   def initiateReconnect(): Unit = {
     disconnect()
     val addr = actorSelection
-    logger.info(s"Trying to connect to $addr")
+    reconnectAttemptCounter += 1
+    AssociationAttempt >>('Target --> addr, 'AttemptCount --> reconnectAttemptCounter)
     addr.resolveOne(remoteAssociationTimeout).onComplete {
       case Failure(x) => self ! AssociationFailed(x)
       case Success(ref) => self ! Connected(ref)
@@ -72,7 +86,7 @@ trait ReconnectingActor
 
   override def onTerminated(ref: ActorRef): Unit = {
     if (peer.contains(ref)) {
-      logger.info("Disconnected... ")
+      RemoteActorTerminated >>('Target --> ref)
       disconnect()
     }
     super.onTerminated(ref)
@@ -80,14 +94,15 @@ trait ReconnectingActor
 
   def handleReconnectMessages: Receive = {
     case Connected(ref) =>
-      logger.info(s"Connected to $ref")
+      AssociatedWithRemoteActor >>('Target --> ref, 'AttemptCount --> reconnectAttemptCounter)
+      reconnectAttemptCounter = 0
       peer = Some(ref)
       if (monitorConnectionWithDeathWatch) context.watch(ref)
       onConnectedToEndpoint()
     case Associate() =>
       initiateReconnect()
     case DisassociatedEvent(local, remote, inbound) =>
-      logger.info("Disconnected... ")
+      RemoteActorDisassociated >>('Target --> remote)
       peer match {
         case Some(ref) if ref.path.address == remote => disconnect()
         case _ => ()
