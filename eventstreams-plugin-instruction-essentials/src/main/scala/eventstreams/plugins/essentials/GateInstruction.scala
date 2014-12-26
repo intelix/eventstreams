@@ -18,18 +18,19 @@ package eventstreams.plugins.essentials
 
 import akka.actor.{ActorRef, Props}
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
-import core.events.{WithEventPublisher, EventFieldWithValue}
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
 import core.events.ref.ComponentWithBaseEvents
+import core.events.{EventFieldWithValue, WithEventPublisher}
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.Types._
 import eventstreams.core._
 import eventstreams.core.actors._
+import eventstreams.core.agent.core.GateState
 import eventstreams.core.instructions.InstructionConstants
 import play.api.libs.json.{JsValue, Json}
 
+import scalaz.Scalaz._
 import scalaz._
-import Scalaz._
 
 
 trait GateInstructionEvents extends ComponentWithBaseEvents {
@@ -46,7 +47,11 @@ trait GateInstructionEvents extends ComponentWithBaseEvents {
   override def componentId: String = "Instruction.Gate"
 }
 
-trait GateInstructionConstants extends InstructionConstants with GateInstructionEvents {
+trait GateInstructionConstants
+  extends InstructionConstants
+  with GateInstructionEvents
+  with SubscribingPublisherEvents
+  with GateMonitorEvents {
   val CfgFAddress = "address"
   val CfgFBuffer = "buffer"
   val CfgFBlockingDelivery = "blockingDelivery"
@@ -94,7 +99,7 @@ private class GateInstructionActor(uuid: String, address: String, config: JsValu
 
   override def preStart(): Unit = {
     super.preStart()
-    GateInstance >> ('Buffer --> maxInFlight, 'Condition --> (config ~> CfgFCondition | "none"))
+    GateInstance >>('Buffer --> maxInFlight, 'Condition --> (config ~> CfgFCondition | "none"))
   }
 
   override def onConnectedToEndpoint(): Unit = {
@@ -117,6 +122,12 @@ private class GateInstructionActor(uuid: String, address: String, config: JsValu
   override def becomePassive(): Unit = {
     stopGateStateMonitoring()
     disconnect()
+  }
+
+
+  override def onGateStateChanged(state: GateState): Unit = {
+    deliverIfPossible()
+    super.onGateStateChanged(state)
   }
 
   override def canDeliverDownstreamRightNow = isActive && isPipelineActive && connected && isGateOpen

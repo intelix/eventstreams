@@ -56,11 +56,14 @@ trait ActorWithGateStateMonitoring
 
   def startGateStateMonitoring() = {
     if (!checkStateOn) GateStateMonitorStarted >>()
+    lastCheck = None
     checkStateOn = true
+    sendCheck()
   }
 
   def stopGateStateMonitoring() = {
     if (checkStateOn) GateStateMonitorStopped >>()
+    lastCheck = None
     checkStateOn = false
   }
 

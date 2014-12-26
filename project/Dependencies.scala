@@ -156,6 +156,7 @@ object Dependencies {
   )
   
   val eventStreamsPluginInstructionsEssentials = eventStreamsCommon ++: Seq(
+    Test.akkaTestKit,
     groovy
   )
   val eventStreamsPluginInfluxDB = eventStreamsCommon ++: Seq(

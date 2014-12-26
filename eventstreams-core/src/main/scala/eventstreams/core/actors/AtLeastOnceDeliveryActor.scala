@@ -121,7 +121,7 @@ trait AtLeastOnceDeliveryActor[T]
     counter
   }
 
-  private def deliverIfPossible(forceResend: Boolean = false) =
+  def deliverIfPossible(forceResend: Boolean = false) =
     if (canDeliverDownstreamRightNow && list.nonEmpty) {
       list.find { m => m.endpoints.isEmpty || m.endpoints.exists(!m.receivedAck.contains(_))} foreach { toDeliver =>
         val newInflight = resend(toDeliver, forceResend)
@@ -132,6 +132,7 @@ trait AtLeastOnceDeliveryActor[T]
       }
       filter()
     }
+
 
 
   private def resend(m: InFlight[T], forceResend: Boolean = false): InFlight[T] =
