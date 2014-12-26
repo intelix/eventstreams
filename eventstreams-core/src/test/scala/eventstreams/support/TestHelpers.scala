@@ -43,7 +43,6 @@ trait TestHelpers extends FlatSpec with Matchers with EventAssertions with Befor
 
     def expectN(json: JsValue)(f: Seq[JsValue] => Unit) =
       expectAny(json) { result =>
-        result should not be empty
         f(result)
       }
 
@@ -56,7 +55,7 @@ trait TestHelpers extends FlatSpec with Matchers with EventAssertions with Befor
 
     def expectNone(json: JsValue) =
       expectN(json) { result =>
-        result should have size 0
+        result should be (empty)
       }
 
     def expectEvent(json: JsValue)(event: Event, values: EventFieldWithValue*) = {

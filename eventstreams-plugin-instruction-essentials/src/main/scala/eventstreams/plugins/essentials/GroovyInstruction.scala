@@ -16,6 +16,8 @@
 
 package eventstreams.plugins.essentials
 
+import java.util
+
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
 import core.events.WithEvents
 import core.events.ref.ComponentWithBaseEvents
@@ -25,8 +27,11 @@ import eventstreams.core.instructions.{InstructionConstants, SimpleInstructionBu
 import eventstreams.core.{Fail, JsonFrame, Utils}
 import groovy.json.{JsonBuilder, JsonSlurper}
 import groovy.lang.{Binding, GroovyShell}
+import org.joda.time.DateTimeZone
 import play.api.libs.json._
 import play.api.libs.json.extensions._
+import scala.collection.JavaConverters._
+import scala.util.Try
 
 import scalaz.Scalaz._
 import scalaz._
@@ -47,6 +52,9 @@ trait GroovyInstructionConstants extends InstructionConstants with GroovyInstruc
   val CfgFCode = "code"
 
   val CtxJsonBuilder = "json"
+  val CtxContext = "ctx"
+  val CtxCopyEvent = "copyJson"
+  val CtxNewEvent = "newJson"
 }
 
 object GroovyInstructionConstants extends GroovyInstructionConstants
@@ -56,15 +64,31 @@ class GroovyInstruction extends SimpleInstructionBuilder with GroovyInstructionC
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      code <- props ~> CfgFCode \/> Fail(s"Invalid $configId instruction. Missing '$CfgFCode' value. Contents: ${Json.stringify(props)}")
+      code <- props ~> CfgFCode \/> Fail(s"Invalid $configId instruction. Missing '$CfgFCode' value. Contents: ${Json.stringify(props)}");
+      script <- Try{
+        new GroovyShell().parse(code).right
+      }.recover {
+        case t => -\/(Fail(s"Invalid $configId instruction. Invalid '$CfgFCode'. Contents: $props"))
+      }.get
     ) yield {
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+      Built >>('InstructionInstanceId --> uuid)
 
       var binding = new Binding()
       var shell = new GroovyShell(binding)
+      var ctx = new util.HashMap()
+      binding.setVariable(CtxContext, ctx)
+
+      def copyJ() = new JsonBuilder(new JsonSlurper().parseText(binding.getVariable(CtxJsonBuilder).asInstanceOf[JsonBuilder].toPrettyString))
+      def newJ() = new JsonBuilder(new JsonSlurper().parseText("{}"))
+
+      binding.setVariable(CtxCopyEvent, copyJ _)
+
+      binding.setVariable(CtxNewEvent, newJ _)
+          
+      script.setBinding(binding)
 
       fr: JsonFrame =>
 
@@ -74,23 +98,38 @@ class GroovyInstruction extends SimpleInstructionBuilder with GroovyInstructionC
 
         val eventId = fr.event ~> 'eventId | "n/a"
 
-        var result = try {
-          var value = shell.evaluate(code) match {
-            case x: JsonBuilder => x.toPrettyString
-            case x: String => x
+        try {
+          
+          var value = script.run() match {
+            case x: JsonBuilder => List(x.toPrettyString)
+            case x: JsonSlurper => List(new JsonBuilder(x).toPrettyString)
+            case x: String => List(x)
+            case b : Array[JsonBuilder] => b.map(_.toPrettyString).toList
+            case b : util.List[_] => b.asInstanceOf[util.List[JsonBuilder]].asScala.map(_.toPrettyString).toList
+
           }
 
           GroovyExecOk >>('EventId --> eventId, 'InstructionInstanceId --> uuid)
-          GroovyExecResult >>('Result --> value, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
 
-          Json.parse(value)
+          val parentId = fr.event ~> 'eventId | Utils.generateShortUUID
+          var counter = 0
+          value.map { next =>
+            counter = counter + 1
+            val j = Json.parse(next)
+            val enriched = j ~> 'eventId match {
+              case Some(x) => j
+              case None =>
+                j.set(__ \ 'eventId -> JsString(parentId + ":" + counter))
+            }
+            GroovyExecResult >>('Result --> value, 'EventId --> (enriched ~> 'eventId), 'InstructionInstanceId --> uuid)
+            fr.copy(event = enriched)
+          }
         } catch {
           case x: Throwable =>
             GroovyExecFailed >>('Error --> x.getMessage, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
-            fr.event.set(__ \ 'error -> JsString("Groovy instruction failed: " + x.getMessage))
+            List(fr.copy(event = fr.event.set(__ \ 'error -> JsString("Groovy instruction failed: " + x.getMessage))))
         }
 
-        List(fr.copy(event = result))
     }
 
 
