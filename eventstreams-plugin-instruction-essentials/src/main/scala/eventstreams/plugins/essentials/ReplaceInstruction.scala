@@ -16,36 +16,60 @@
 
 package eventstreams.plugins.essentials
 
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.WithEvents
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.SimpleInstructionType
 import eventstreams.core._
-import eventstreams.core.instructions.SimpleInstructionBuilder
+import eventstreams.core.instructions.{InstructionConstants, SimpleInstructionBuilder}
 import play.api.libs.json.{JsString, JsValue, Json}
 
+import scala.util.Try
+import scala.util.matching.Regex
 import scalaz.Scalaz._
 import scalaz._
 
-class ReplaceInstruction extends SimpleInstructionBuilder {
+
+trait ReplaceInstructionEvents
+  extends ComponentWithBaseEvents
+  with WithEvents {
+
+  val Built = 'Built.trace
+  val Replaced = 'Replaced.trace
+
+  override def id: String = "Instruction.Replace"
+}
+
+trait ReplaceInstructionConstants extends InstructionConstants with ReplaceInstructionEvents {
+  val CfgFFieldName = "fieldName"
+  val CfgFPattern = "pattern"
+  val CfgFReplacementValue = "replacementValue"
+}
+
+object ReplaceInstructionConstants extends ReplaceInstructionConstants
+
+
+class ReplaceInstruction extends SimpleInstructionBuilder with ReplaceInstructionConstants {
   val configId = "replace"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      fieldName <- props ~> 'fieldName \/> Fail(s"Invalid replace instruction. Missing 'fieldName' value. Contents: ${Json.stringify(props)}");
-      pattern <- props ~> 'pattern \/> Fail(s"Invalid replace instruction. Missing 'pattern' value. Contents: ${Json.stringify(props)}")
+      fieldName <- props ~> CfgFFieldName \/> Fail(s"Invalid replace instruction. Missing '$CfgFFieldName' value. Contents: ${Json.stringify(props)}");
+      pattern <- props ~> CfgFPattern \/> Fail(s"Invalid replace instruction. Missing '$CfgFPattern' value. Contents: ${Json.stringify(props)}");
+      _ <- Try(new Regex(pattern)).toOption \/>  Fail(s"Invalid replace instruction. Invalid '$CfgFPattern' value. Contents: ${Json.stringify(props)}")
     ) yield {
-      val replacementValue = props #> 'replacementValue | JsString("")
+      val replacementValue = props #> CfgFReplacementValue | JsString("")
+
+      val uuid = Utils.generateShortUUID
+
+      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
 
       frame: JsonFrame => {
 
-        logger.debug(s"Original frame: $frame")
-
         val keyPath = toPath(macroReplacement(frame, JsString(fieldName)).as[String])
 
-        logger.debug("Key path: {}", keyPath)
-
         val replacement = macroReplacement(frame, replacementValue).asOpt[String].getOrElse("")
-
-        logger.debug(s"Replacement: $replacement" )
 
         val originalValue = locateFieldValue(frame, fieldName).asOpt[String].getOrElse("")
 
@@ -53,7 +77,9 @@ class ReplaceInstruction extends SimpleInstructionBuilder {
 
         val value: JsValue = setValue("s", JsString(newValue), keyPath, frame.event)
 
-        logger.debug("New frame: {}", value)
+        val eventId = frame.event ~> 'eventId | "n/a"
+
+        Replaced >>('Path --> keyPath, 'NewValue --> newValue, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
 
         List(JsonFrame(value, frame.ctx))
 
