@@ -50,7 +50,9 @@ trait GateInstructionEvents extends ComponentWithBaseEvents {
 trait GateInstructionConstants
   extends InstructionConstants
   with GateInstructionEvents
+  with StateChangeEvents
   with SubscribingPublisherEvents
+  with AtLeastOnceDeliveryActorEvents
   with GateMonitorEvents {
   val CfgFAddress = "address"
   val CfgFBuffer = "buffer"
@@ -80,7 +82,7 @@ private object GateInstructionActor {
   def props(uuid: String, address: String, config: JsValue) = Props(new GateInstructionActor(uuid, address, config))
 }
 
-private class GateInstructionActor(uuid: String, address: String, config: JsValue)
+private class GateInstructionActor(instructionId: String, address: String, config: JsValue)
   extends SubscribingPublisherActor
   with ReconnectingActor
   with AtLeastOnceDeliveryActor[JsonFrame]
@@ -92,7 +94,7 @@ private class GateInstructionActor(uuid: String, address: String, config: JsValu
   private val condition = SimpleCondition.conditionOrAlwaysTrue(config ~> CfgFCondition)
 
 
-  override def commonFields: Seq[EventFieldWithValue] = super.commonFields ++ Seq('Address --> address, 'InstructionInstanceId --> uuid)
+  override def commonFields: Seq[EventFieldWithValue] = super.commonFields ++ Seq('Address --> address, 'InstructionInstanceId --> instructionId)
 
   override def connectionEndpoint: String = address
 

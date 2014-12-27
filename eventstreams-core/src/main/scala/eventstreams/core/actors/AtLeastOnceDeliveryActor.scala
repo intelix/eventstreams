@@ -60,7 +60,8 @@ trait AtLeastOnceDeliveryActor[T]
   def deliverMessage(msg: T) = {
     val nextCorrelationId = generateCorrelationId(msg)
     list = list :+ InFlight[T](0, msg, nextCorrelationId, getSetOfActiveEndpoints, Set(), Set(), 0)
-    ScheduledForDelivery >>('CorrelationId --> nextCorrelationId, 'DeliveryQueueDepth --> list.size)
+    val depth = list.size
+    ScheduledForDelivery >>('CorrelationId --> nextCorrelationId, 'DeliveryQueueDepth --> depth)
     deliverIfPossible()
     nextCorrelationId
   }

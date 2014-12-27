@@ -7,7 +7,7 @@ trait EventMatchers {
 
   class ContainsAllFields(count: Option[Int], values: Seq[EventFieldWithValue]) extends Matcher[List[Seq[EventFieldWithValue]]] {
     def apply(left: List[Seq[EventFieldWithValue]]) = {
-      val found = left.count(next =>
+      val found = if (values.isEmpty) left.size else left.count(next =>
         !values.exists { k =>
           !next.exists { v =>
             v.fieldName == k.fieldName && v.value == k.value

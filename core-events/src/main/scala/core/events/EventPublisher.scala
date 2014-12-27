@@ -7,8 +7,23 @@ trait EventPublisher {
   def publish(event: Event, values: => Seq[EventFieldWithValue])(implicit runtimeCtx: WithEventPublisher, system: CtxSystem)
 }
 
-trait LoggerEventPublisher {
+object LoggerEventPublisherHelper {
   val logFormat = "%10s : %35s - %-25s : %s"
+  def log(event: Event, system: CtxSystem, values: Seq[EventFieldWithValue], f: String => Unit) = {
+
+    def formatNextField(f: EventFieldWithValue) = f.fieldName+"="+f.value
+
+    val fields = values.foldLeft("") {
+      (aggr, next) => aggr + formatNextField(next)+"  "
+    }
+
+    val string = logFormat.format(system.id, event.componentId, event.id, fields)
+
+    f(string)
+  }
+}
+
+trait LoggerEventPublisher {
 
   var loggers: Map[String, Logger] = Map()
 
@@ -40,19 +55,6 @@ trait LoggerEventPublisher {
   }
 
 
-  def log(event: Event, system: CtxSystem, values: Seq[EventFieldWithValue], f: String => Unit) = {
-
-    def formatNextField(f: EventFieldWithValue) = f.fieldName+"="+f.value
-
-    val fields = values.foldLeft("") {
-      (aggr, next) => aggr + formatNextField(next)+"  "
-    }
-
-    val string = logFormat.format(system.id, event.componentId, event.id, fields)
-
-    f(string)
-  }
-
 
   private def process(event: Event, runtimeCtx: WithEventPublisher, system: CtxSystem, values: Seq[EventFieldWithValue], f: String => Unit) = {
 
@@ -60,8 +62,8 @@ trait LoggerEventPublisher {
       case x if x.isEmpty => values
       case x => values ++ x
     }
-    
-    log(event, system, allValues, f)
+
+    LoggerEventPublisherHelper.log(event, system, allValues, f)
   }
 
   def publish(event: Event, values: => Seq[EventFieldWithValue])(implicit runtimeCtx: WithEventPublisher, system: CtxSystem) = {

@@ -56,7 +56,8 @@ trait SubscribingPublisherActor
       case None => ()
       case Some(x) =>
         onNext(x)
-        MessagePublished >>('EventId --> x.eventIdOrNA, 'RemainingDemand --> totalDemand, 'PublisherQueueDepth --> pendingToDownstreamCount)
+        val currentDepth = queue.size
+        MessagePublished >>('EventId --> x.eventIdOrNA, 'RemainingDemand --> totalDemand, 'PublisherQueueDepth --> currentDepth)
         sendIfPossible()
     }
 

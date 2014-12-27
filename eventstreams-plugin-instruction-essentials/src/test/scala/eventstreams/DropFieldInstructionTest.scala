@@ -117,7 +117,7 @@ class DropFieldInstructionTest extends TestHelpers {
       result +> 'abc should be(None)
       result #> 'branch ~> 'abc should be(None)
       result #> 'branch #> 'b2 #> 'abc ~> 'x should be(None)
-      expectAnyEvent(3, FieldDropped, 'Field --> "abc")
+      expectSomeEvents(3, FieldDropped, 'Field --> "abc")
     }
   }
 

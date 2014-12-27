@@ -87,13 +87,13 @@ class MySpec(_system: ActorSystem) extends TestKit(_system) with ImplicitSender
 
       object EnrichInstructionEvents extends EnrichInstructionEvents
 
-      expectAnyEvent(EnrichInstructionEvents.Built, 'Field --> "abc", 'Type --> "s")
+      expectSomeEvents(EnrichInstructionEvents.Built, 'Field --> "abc", 'Type --> "s")
 
       EventPublisherRef.ref.asInstanceOf[TestEventPublisher].clear()
 
       flowActor ! BecomeActive()
 
-      expectAnyEvent(FlowActorEvents.FlowStarted, 'ID --> "id1")
+      expectSomeEvents(FlowActorEvents.FlowStarted, 'ID --> "id1")
 
 
     }
