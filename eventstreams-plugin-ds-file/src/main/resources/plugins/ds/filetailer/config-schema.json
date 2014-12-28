@@ -36,7 +36,7 @@
       "title": "Current filename pattern",
       "type": "string"
     },
-    "rollingPattern": {
+    "rolledPattern": {
       "propertyOrder": 40,
       "title": "Rolled filename pattern",
       "type": "string"
