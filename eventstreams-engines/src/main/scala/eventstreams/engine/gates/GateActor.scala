@@ -107,7 +107,7 @@ class GateActor(id: String)
 
     GateSensorManagerActor.start(id)
 
-    if (isPipelineActive)
+    if (isComponentActive)
       openGate()
     else
       closeGate()
@@ -267,7 +267,7 @@ class GateActor(id: String)
       ) yield result
   }
 
-  override def canDeliverDownstreamRightNow: Boolean = isPipelineActive
+  override def canDeliverDownstreamRightNow: Boolean = isComponentActive
 
   override def fullyAcknowledged(correlationId: Long, msg: JsonFrame): Unit = {
     logger.info(s"Delivered to all active sinks $correlationId ")
@@ -454,8 +454,8 @@ class GateActor(id: String)
   private def messageHandler: Receive = {
     case RetainedCount(count) => retainedDataCount = Some(count)
     case GateStateCheck(ref) =>
-      logger.debug(s"Received state check from $ref, our state: $isPipelineActive")
-      if (isPipelineActive) {
+      logger.debug(s"Received state check from $ref, our state: $isComponentActive")
+      if (isComponentActive) {
         forwarderActor.foreach(_ ! RouteTo(ref, GateStateUpdate(GateOpen())))
       } else {
         forwarderActor.foreach(_ ! RouteTo(ref, GateStateUpdate(GateClosed())))

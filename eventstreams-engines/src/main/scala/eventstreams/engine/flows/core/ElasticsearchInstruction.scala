@@ -22,7 +22,7 @@ import com.sksamuel.elastic4s.ElasticClient
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.source.StringDocumentSource
 import eventstreams.core.Tools.configHelper
-import eventstreams.core.actors.{ActorWithTicks, SubscribingPublisherActor}
+import eventstreams.core.actors.{ActorWithTicks, StoppableSubscribingPublisherActor}
 import eventstreams.core._
 import Tools._
 import Types._
@@ -53,7 +53,7 @@ private object ElasticsearchInstructionActor {
 }
 
 private class ElasticsearchInstructionActor(idx: String, config: JsValue)
-  extends SubscribingPublisherActor
+  extends StoppableSubscribingPublisherActor
   with ActorWithTicks {
 
   implicit val ec = context.dispatcher
@@ -110,7 +110,7 @@ private class ElasticsearchInstructionActor(idx: String, config: JsValue)
 
   @tailrec
   private def deliverIfPossible() : Unit =
-    if (isPipelineActive && isActive && queue.size > 0 && deliveringNow.isEmpty && client.isDefined) {
+    if (isComponentActive && isActive && queue.size > 0 && deliveringNow.isEmpty && client.isDefined) {
       client.foreach { c =>
         val next = queue.head
 
@@ -147,7 +147,7 @@ private class ElasticsearchInstructionActor(idx: String, config: JsValue)
   private def handler: Receive = {
     case DeliverySuccessful() =>
       logger.debug("Successful delivery to elastic")
-      deliveringNow.foreach(forwardToNext)
+      deliveringNow.foreach(forwardToFlow)
       deliveringNow = None
       queue.dequeue()
       deliverIfPossible()

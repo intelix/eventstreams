@@ -30,7 +30,7 @@ object AutoPersistenceActor {
 
 
 class AutoPersistenceActor(id: String)
-  extends SubscribingPublisherActor
+  extends StoppableSubscribingPublisherActor
   with AtLeastOnceDeliveryActor[ScheduleStorage]
   with ActorWithResolver {
 
@@ -57,7 +57,7 @@ class AutoPersistenceActor(id: String)
     logger.info(s"AutoPersistenceActor becoming passive")
   }
 
-  override def canDeliverDownstreamRightNow = isActive && isPipelineActive && !retentionManagerActor.isEmpty
+  override def canDeliverDownstreamRightNow = isActive && isComponentActive && !retentionManagerActor.isEmpty
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = retentionManagerActor
 

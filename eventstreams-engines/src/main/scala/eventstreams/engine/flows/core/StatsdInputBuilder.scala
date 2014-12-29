@@ -52,10 +52,9 @@ private object StatsdActor {
 }
 
 private class StatsdActor(id: String, config: JsValue)
-  extends ShutdownablePublisherActor[JsonFrame]
+  extends StoppablePublisherActor[JsonFrame]
   with ActorWithComposableBehavior
   with PipelineWithStatesActor
-  with ActorWithTicks
   with NowProvider
   with WithMetrics {
 
@@ -70,7 +69,6 @@ private class StatsdActor(id: String, config: JsValue)
   val host = config ~> 'host | "localhost"
   val port = config +> 'port | 12345
   val parsePayload = config ?> 'parsePayload | true
-  val queue = mutable.Queue[String]()
   var openSocket: Option[ActorRef] = None
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
@@ -105,13 +103,8 @@ private class StatsdActor(id: String, config: JsValue)
       logger.debug(s"Unbound!")
       context.stop(self)
       openSocket = None
-    case Request(n) => logger.debug(s"Downstream requested $n messages")
   }
 
-  override def processTick(): Unit = {
-    deliverIfPossible()
-    super.processTick()
-  }
 
   private def openPort() =
     IO(Udp) ! Udp.Bind(self, new InetSocketAddress(host, port))
@@ -167,27 +160,15 @@ private class StatsdActor(id: String, config: JsValue)
       ctx = Map[String, JsValue]("source.gate" -> JsString(id))))
   }
 
-  @tailrec
-  private def deliverIfPossible(): Unit = {
-    if (isActive && isPipelineActive && totalDemand > 0 && queue.size > 0) {
-      _rate.mark()
-      parse(queue.dequeue()) foreach { v =>
-        onNext(v)
-      }
-      deliverIfPossible()
-    }
-  }
-
   private def enqueue(data: ByteString) = {
-    if (isPipelineActive) {
+    if (isComponentActive) {
       logger.info(s"Statsd input $id received: $data")
       val elements = data.utf8String.split('\n')
-      elements foreach (queue.enqueue(_))
+      elements foreach (parse(_) foreach forwardToFlow)
 
       // TODO at the moment we are using unbounded queue and UDP are not back-pressured, so it is possible to hit OOM
       // to fix this we need a combination of aggregation/dropping in place
 
-      deliverIfPossible()
     } else {
       logger.info(s"Statsd input $id is not active, message dropped: $data")
     }

@@ -20,7 +20,7 @@ import akka.actor.{ActorRefFactory, Props}
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import eventstreams.core.JsonFrame
 import eventstreams.core.Types._
-import eventstreams.core.actors.{ActorWithTicks, SubscribingPublisherActor}
+import eventstreams.core.actors.{ActorWithTicks, StoppableSubscribingPublisherActor}
 
 object SimpleInstructionWrappingActor {
 
@@ -33,7 +33,7 @@ object SimpleInstructionWrappingActor {
 
 
 class SimpleInstructionWrappingActor(instruction: SimpleInstructionTypeWithGenerator, maxInFlight: Int)
-  extends SubscribingPublisherActor
+  extends StoppableSubscribingPublisherActor
   with ActorWithTicks {
 
   val (onEvent, onTick) = instruction
@@ -42,7 +42,7 @@ class SimpleInstructionWrappingActor(instruction: SimpleInstructionTypeWithGener
 
   override def internalProcessTick(): Unit = {
     super.internalProcessTick()
-    if (isActive && isPipelineActive) onTick foreach { onTickFunc => onTickFunc(millisTimeSinceStateChange) foreach forwardToNext}
+    if (isActive && isComponentActive) onTick foreach { onTickFunc => onTickFunc(millisTimeSinceStateChange) foreach forwardToFlow}
   }
 
   override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(maxInFlight) {

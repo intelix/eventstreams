@@ -21,7 +21,7 @@ import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import eventstreams.core.Tools._
 import eventstreams.core.Types._
 import eventstreams.core._
-import eventstreams.core.actors.{ActorWithTicks, SubscribingPublisherActor}
+import eventstreams.core.actors.{ActorWithTicks, StoppableSubscribingPublisherActor}
 import eventstreams.engine.gates.WithOccurrenceAccounting
 import eventstreams.engine.signals.{Signal, SignalLevel}
 import eventstreams.plugins.essentials.DateInstructionConstants
@@ -48,7 +48,7 @@ private object SignalSensorInstructionActor {
 }
 
 private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
-  extends SubscribingPublisherActor
+  extends StoppableSubscribingPublisherActor
   with ActorWithTicks
   with WithOccurrenceAccounting
   with NowProvider {
@@ -202,12 +202,12 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
     super.internalProcessTick()
     if (occurrenceCount == 0
       && isActive
-      && isPipelineActive
+      && isComponentActive
       && millisTimeSinceStateChange > occurrenceWatchPeriodSec * 1000
       && countSignals(correlationIdTemplate.map { s => Tools.macroReplacement(JsonFrame(Json.obj(), Map()), s)}) == 0) {
       if (throttlingAllowed()) {
         mark(now)
-        forwardToNext(signalToEvent(eventToSignal(JsonFrame(Json.obj("eventId" -> Utils.generateShortUUID, "ts" -> now), Map()))))
+        forwardToFlow(signalToEvent(eventToSignal(JsonFrame(Json.obj("eventId" -> Utils.generateShortUUID, "ts" -> now), Map()))))
       }
     }
   }

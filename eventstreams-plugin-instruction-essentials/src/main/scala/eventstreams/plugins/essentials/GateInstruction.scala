@@ -51,7 +51,7 @@ trait GateInstructionConstants
   extends InstructionConstants
   with GateInstructionEvents
   with StateChangeEvents
-  with SubscribingPublisherEvents
+  with SubscribingPublisherActorEvents
   with AtLeastOnceDeliveryActorEvents
   with GateMonitorEvents {
   val CfgFAddress = "address"
@@ -83,7 +83,7 @@ private object GateInstructionActor {
 }
 
 private class GateInstructionActor(instructionId: String, address: String, config: JsValue)
-  extends SubscribingPublisherActor
+  extends StoppableSubscribingPublisherActor
   with ReconnectingActor
   with AtLeastOnceDeliveryActor[JsonFrame]
   with ActorWithGateStateMonitoring
@@ -114,7 +114,7 @@ private class GateInstructionActor(instructionId: String, address: String, confi
     DisconnectedFromGate >>()
     super.onDisconnectedFromEndpoint()
     stopGateStateMonitoring()
-    if (isPipelineActive) initiateReconnect()
+    if (isComponentActive) initiateReconnect()
   }
 
   override def becomeActive(): Unit = {
@@ -132,13 +132,13 @@ private class GateInstructionActor(instructionId: String, address: String, confi
     super.onGateStateChanged(state)
   }
 
-  override def canDeliverDownstreamRightNow = isActive && isPipelineActive && connected && isGateOpen
+  override def canDeliverDownstreamRightNow = isActive && isComponentActive && connected && isGateOpen
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
   override def fullyAcknowledged(correlationId: Long, msg: JsonFrame): Unit = {
     FullAcknowledgement >> ('CorrelationId --> correlationId)
-    if (blockingDelivery) forwardToNext(msg)
+    if (blockingDelivery) forwardToFlow(msg)
   }
 
   override def execute(value: JsonFrame): Option[Seq[JsonFrame]] = {

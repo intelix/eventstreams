@@ -47,7 +47,7 @@ private object GateInputActor {
 
 private class GateInputActor(id: String, address: String)
   extends ActorWithComposableBehavior
-  with ShutdownablePublisherActor[JsonFrame]
+  with StoppablePublisherActor[JsonFrame]
   with ReconnectingActor
   with PipelineWithStatesActor
   with ActorWithDupTracking
@@ -99,7 +99,7 @@ private class GateInputActor(id: String, address: String)
           sender() ! AcknowledgeAsReceived(i)
           logger.debug(s"New message at gate tap (demand $totalDemand) [$address]: ${m.id} - produced and acknowledged")
           _rate.mark()
-          onNext(f)
+          forwardToFlow(f)
           sender() ! AcknowledgeAsProcessed(i)
         } else {
           logger.debug(s"Duplicate message at gate tap (demand $totalDemand) [$address]: ${m.id}  - produced and acknowledged")
@@ -109,14 +109,12 @@ private class GateInputActor(id: String, address: String)
         logger.debug(s"New message at gate tap (demand $totalDemand) [$address]: ${m.id} - ignored, no demand")
       }
     case m: Acknowledgeable[_] => logger.warn(s"Unexpected message at tap [$address]: ${m.id} - ignored")
-    case Request(n) => logger.debug(s"Downstream requested $n messages")
   }
 
   def handlerWhenPassive: Receive = {
     case m @ Acknowledgeable(f:JsonFrame,i) =>
       logger.debug(s"Not active, message ignored")
     case m: Acknowledgeable[_] => logger.warn(s"Unexpected message at tap [$address]: ${m.id} - ignored")
-    case Request(n) => logger.debug(s"Downstream requested $n messages")
   }
 
   override def connectionEndpoint: String = address

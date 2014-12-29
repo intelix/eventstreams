@@ -184,7 +184,7 @@ class SignalSubscriptionActor(id: String)
 
   override def afterApplyConfig(): Unit = {
 
-    if (isPipelineActive)
+    if (isComponentActive)
       goActive()
     else
       goPassive()
@@ -207,7 +207,7 @@ class SignalSubscriptionActor(id: String)
 
   def forward(value: JsValue) = {
     val expiry = value ++> 'expiryTs | 0
-    if (isPipelineActive && expiry < 1 || expiry >= now)
+    if (isComponentActive && expiry < 1 || expiry >= now)
       T_SIGNAL !! Some(value)
   }
 
@@ -228,7 +228,7 @@ class SignalSubscriptionActor(id: String)
   }
 
   private def handler: Receive = {
-    case f: JsonFrame if isPipelineActive => processSignal(f.event)
+    case f: JsonFrame if isComponentActive => processSignal(f.event)
   }
 
   private def terminateSubscription(reason: Option[String]) = {

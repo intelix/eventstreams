@@ -24,6 +24,7 @@ import scalaz._
 
 case class JsonFrame(event: JsValue, ctx: Map[String, JsValue]) {
   val naValue = "n/a"
-  def eventIdOr(missing: => String) = event ~> 'eventId | missing
+  def eventIdOr(missing: => String) = eventId | missing
   def eventIdOrNA = eventIdOr(naValue)
+  def eventId = event ~> 'eventId
 }

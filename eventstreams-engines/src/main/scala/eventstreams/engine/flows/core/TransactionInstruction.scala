@@ -19,7 +19,7 @@ package eventstreams.engine.flows.core
 import akka.actor.Props
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import eventstreams.core.Tools.configHelper
-import eventstreams.core.actors.{ActorWithTicks, SubscribingPublisherActor}
+import eventstreams.core.actors.{ActorWithTicks, StoppableSubscribingPublisherActor}
 import eventstreams.core._
 import Types._
 import eventstreams.plugins.essentials.DateInstructionConstants
@@ -43,7 +43,7 @@ private object TransactionInstructionActor {
 }
 
 private class TransactionInstructionActor(correlationIdTemplate: String, props: JsValue)
-  extends SubscribingPublisherActor
+  extends StoppableSubscribingPublisherActor
   with ActorWithTicks
   with NowProvider {
 

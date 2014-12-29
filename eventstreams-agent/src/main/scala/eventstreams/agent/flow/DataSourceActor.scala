@@ -198,7 +198,7 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
 
       flow = Some(FlowInstance(materializedFlow, publisherActor, sinkActor))
 
-      if (isPipelineActive)
+      if (isComponentActive)
         startFlow()
       else
         stopFlow()

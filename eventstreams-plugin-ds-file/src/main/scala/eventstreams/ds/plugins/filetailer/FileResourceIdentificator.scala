@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
-package eventstreams.ds.plugins.file
+package eventstreams.ds.plugins.filetailer
 
-case class IndexedEntity(idx: ResourceIndex, id: FileResourceIdentificator)
+case class FileResourceIdentificator(dir: String, name: String, createdTimestamp: Long, sizeNow: Long)  {
+  def same(that: FileResourceIdentificator): Boolean = that match {
+    case FileResourceIdentificator(thatDir, thatName, thatCreatedTs, thatSize) =>
+      thatDir == dir && thatName == name && thatCreatedTs == createdTimestamp && thatSize >= sizeNow
+    case _ => false
+  }
+}

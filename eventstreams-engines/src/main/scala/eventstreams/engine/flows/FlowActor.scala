@@ -283,7 +283,7 @@ class FlowActor(id: String, instructions: List[Config])
     sinkActor = Some(sinkA)
     flowActors = Some(pipelineActors)
 
-    if (isPipelineActive) openFlow()
+    if (isComponentActive) openFlow()
   }
 
 

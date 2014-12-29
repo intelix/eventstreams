@@ -19,7 +19,7 @@ package eventstreams.agent.flow
 import akka.actor.{Actor, Props}
 import akka.stream.actor.ActorSubscriberMessage.OnNext
 import akka.stream.actor.{RequestStrategy, WatermarkRequestStrategy, ZeroRequestStrategy}
-import eventstreams.core.actors.{Acknowledged, ActorWithComposableBehavior, PipelineWithStatesActor, ShutdownableSubscriberActor}
+import eventstreams.core.actors.{Acknowledged, ActorWithComposableBehavior, PipelineWithStatesActor, StoppableSubscriberActor}
 
 object BlackholeAutoAckSinkActor {
   def props = Props(new BlackholeAutoAckSinkActor())
@@ -27,7 +27,7 @@ object BlackholeAutoAckSinkActor {
 
 class BlackholeAutoAckSinkActor
   extends ActorWithComposableBehavior
-  with ShutdownableSubscriberActor with PipelineWithStatesActor {
+  with StoppableSubscriberActor with PipelineWithStatesActor {
 
 
   var disableFlow = ZeroRequestStrategy

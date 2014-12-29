@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-package eventstreams.ds.plugins.file
+package eventstreams.ds.plugins.filetailer
 
 case class ResourceIndex(seed: Long, resourceId: Long)

@@ -10,7 +10,7 @@ import akka.testkit.{TestKit, TestProbe}
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
-import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor, ShutdownablePublisherActor, ShutdownableSubscriberActor}
+import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor, StoppablePublisherActor, StoppableSubscriberActor}
 import eventstreams.core.{BecomeActive, BecomePassive, JsonFrame, Stop}
 import play.api.libs.json.JsValue
 
@@ -115,7 +115,7 @@ object PublisherStubActor extends PublisherStubActorEvents {
 
 class PublisherStubActor
   extends ActorWithComposableBehavior
-  with ShutdownablePublisherActor[JsonFrame]
+  with StoppablePublisherActor[JsonFrame]
   with PipelineWithStatesActor
   with PublisherStubActorEvents
   with WithEventPublisher {
@@ -151,7 +151,7 @@ object SinkStubActor extends SinkStubActorEvents {
 
 class SinkStubActor
   extends ActorWithComposableBehavior
-  with ShutdownableSubscriberActor with PipelineWithStatesActor
+  with StoppableSubscriberActor with PipelineWithStatesActor
   with SinkStubActorEvents
   with WithEventPublisher {
 

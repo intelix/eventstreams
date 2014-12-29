@@ -40,6 +40,12 @@
       "propertyOrder": 40,
       "title": "Rolled filename pattern",
       "type": "string"
+    },
+    "charset": {
+      "propertyOrder": 50,
+      "title": "Charset",
+      "type": "string",
+      "default": "UTF-8"
     }
   },
   "additionalProperties": false

@@ -19,7 +19,7 @@ package eventstreams.ds.plugins.jmx
 import akka.actor.Props
 import akka.stream.actor.ActorPublisherMessage.Request
 import eventstreams.core.Tools.configHelper
-import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, PipelineWithStatesActor, ShutdownablePublisherActor}
+import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, PipelineWithStatesActor, StoppablePublisherActor}
 import eventstreams.core.agent.core.ProducedMessage
 import fr.janalyse.jmx._
 import play.api.libs.json._
@@ -39,7 +39,7 @@ class JMXPublisher(val props: JsValue)
   extends ActorWithComposableBehavior
   with PipelineWithStatesActor
   with ActorWithTicks
-  with ShutdownablePublisherActor[ProducedMessage] {
+  with StoppablePublisherActor[ProducedMessage] {
 
   implicit val sys = context.system
 
@@ -48,7 +48,6 @@ class JMXPublisher(val props: JsValue)
   val port = props +> 'port | 12345
   val intervalSec = props +> 'intervalSec | 15
   val searchPatterns = props ~> 'searchPatterns | ".*"
-  val queue = mutable.Queue[JsValue]()
 
   val options = JMXOptions(host, port)
   val masks = searchPatterns.split(",").map { s =>
@@ -57,7 +56,7 @@ class JMXPublisher(val props: JsValue)
 
   var lastQuery: Option[Long] = None
 
-  override def commonBehavior: Receive = handler orElse super.commonBehavior
+  override def commonBehavior: Receive = super.commonBehavior
 
   override def preStart(): Unit = {
     super.preStart()
@@ -65,9 +64,6 @@ class JMXPublisher(val props: JsValue)
   }
 
 
-  override def postStop(): Unit = {
-    super.postStop()
-  }
 
   override def becomeActive(): Unit = {
     logger.info(s"JMX Becoming active ")
@@ -80,11 +76,6 @@ class JMXPublisher(val props: JsValue)
     super.becomePassive()
   }
 
-  def handler: Receive = {
-    case Request(n) =>
-      logger.debug(s"Downstream requested $n messages")
-      deliverIfPossible()
-  }
 
   override def processTick(): Unit = {
     super.processTick()
@@ -94,24 +85,12 @@ class JMXPublisher(val props: JsValue)
         load()
         Some(now)
     }
-    deliverIfPossible()
   }
 
-
-  @tailrec
-  private def deliverIfPossible(): Unit = {
-
-    logger.debug(s"!>>>>> jmx publisher - ${isActive} && ${isPipelineActive} && ${totalDemand}  && ${queue.size}")
-
-    if (isActive && isPipelineActive && totalDemand > 0 && queue.size > 0) {
-      onNext(ProducedMessage(queue.dequeue(), None))
-      deliverIfPossible()
-    }
-  }
 
 
   private def load() = {
-    if (isActive && isPipelineActive) {
+    if (isActive && isComponentActive) {
       logger.debug(s"Loading...")
       JMX.once(options) { jmx =>
         for {
@@ -129,7 +108,7 @@ class JMXPublisher(val props: JsValue)
             if (attr.name != "ObjectName")
               attr match {
                 case n: RichDoubleAttribute => mbean.getDouble(n).map { d =>
-                  queue.enqueue(Json.obj(
+                  forwardToFlow(ProducedMessage(Json.obj(
                     "jmx" -> Json.obj(
                       "mbean" -> mbean.name,
                       "ts" -> now,
@@ -140,10 +119,10 @@ class JMXPublisher(val props: JsValue)
                       "series" -> "value",
                       "value_num" -> d
                     )
-                  ))
+                  ), None))
                 }
                 case n: RichFloatAttribute => mbean.getDouble(n).map { d =>
-                  queue.enqueue(Json.obj(
+                  forwardToFlow(ProducedMessage(Json.obj(
                     "jmx" -> Json.obj(
                       "mbean" -> mbean.name,
                       "ts" -> now,
@@ -154,10 +133,10 @@ class JMXPublisher(val props: JsValue)
                       "series" -> "value",
                       "value_num" -> d
                     )
-                  ))
+                  ), None))
                 }
                 case n: RichNumberAttribute => mbean.getString(n).map { s =>
-                  queue.enqueue(Json.obj(
+                  forwardToFlow(ProducedMessage(Json.obj(
                     "jmx" -> Json.obj(
                       "mbean" -> mbean.name,
                       "ts" -> now,
@@ -168,10 +147,10 @@ class JMXPublisher(val props: JsValue)
                       "series" -> "value",
                       "value_num" -> BigDecimal(s)
                     )
-                  ))
+                  ), None))
                 }
                 case n: RichBooleanAttribute => mbean.getString(n).map { s =>
-                  queue.enqueue(Json.obj(
+                  forwardToFlow(ProducedMessage(Json.obj(
                     "jmx" -> Json.obj(
                       "mbean" -> mbean.name,
                       "ts" -> now,
@@ -180,7 +159,7 @@ class JMXPublisher(val props: JsValue)
                       "attr" -> attr.name,
                       "value_bool" -> s.toBoolean
                     )
-                  ))
+                  ), None))
                 }
                 case n: RichCompositeDataAttribute => mbean.getComposite(n).map { s =>
 
@@ -210,7 +189,7 @@ class JMXPublisher(val props: JsValue)
 
                   val keys = list.map("jmx.values_num." + _._1)
 
-                  queue.enqueue(Json.obj(
+                  forwardToFlow(ProducedMessage(Json.obj(
                     "jmx" -> Json.obj(
                       "ts" -> now,
                       "mbean" -> mbean.name,
@@ -221,10 +200,10 @@ class JMXPublisher(val props: JsValue)
                       "values_num" -> numJson,
                       "values_str" -> strJson
                     )
-                  ))
+                  ), None))
                 }
                 case n => mbean.getString(n).map { s =>
-                  queue.enqueue(Json.obj(
+                  forwardToFlow(ProducedMessage(Json.obj(
                     "jmx" -> Json.obj(
                       "ts" -> now,
                       "mbean" -> mbean.name,
@@ -234,7 +213,7 @@ class JMXPublisher(val props: JsValue)
                       "attr" -> attr.name,
                       "value_str" -> s
                     )
-                  ))
+                  ), None))
                 }
               }
 

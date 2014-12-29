@@ -257,7 +257,7 @@ class GateSensorActor(id: String)
 
   override def afterApplyConfig(): Unit = {
 
-    if (isPipelineActive)
+    if (isComponentActive)
       startSensor()
     else
       stopSensor()

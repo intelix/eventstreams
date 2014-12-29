@@ -32,7 +32,7 @@ object SubscriberBoundaryInitiatingActor {
 
 class SubscriberBoundaryInitiatingActor(endpoint: String)
   extends PipelineWithStatesActor
-  with ShutdownableSubscriberActor
+  with StoppableSubscriberActor
   with ReconnectingActor
   with AtLeastOnceDeliveryActor[JsonFrame]
   with ActorWithGateStateMonitoring {
@@ -53,7 +53,7 @@ class SubscriberBoundaryInitiatingActor(endpoint: String)
     super.onDisconnectedFromEndpoint()
     logger.info("In disconnected state")
     stopGateStateMonitoring()
-    if (isPipelineActive) initiateReconnect()
+    if (isComponentActive) initiateReconnect()
   }
 
   override def becomeActive(): Unit = {
@@ -67,7 +67,7 @@ class SubscriberBoundaryInitiatingActor(endpoint: String)
     disconnect()
   }
 
-  override def canDeliverDownstreamRightNow = isPipelineActive && connected && isGateOpen
+  override def canDeliverDownstreamRightNow = isComponentActive && connected && isGateOpen
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
@@ -76,7 +76,7 @@ class SubscriberBoundaryInitiatingActor(endpoint: String)
     context.parent ! Acknowledged(correlationId, correlationToCursor.get(correlationId))
     correlationToCursor -= correlationId
 
-    logger.debug(s"!>>>>> boundary - ${isPipelineActive} && ${connected}  && ${isGateOpen} && ${inFlightCount}")
+    logger.debug(s"!>>>>> boundary - ${isComponentActive} && ${connected}  && ${isGateOpen} && ${inFlightCount}")
 
 
   }

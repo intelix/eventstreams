@@ -24,7 +24,7 @@ import akka.io.{IO, Udp}
 import akka.stream.actor.ActorPublisherMessage.Request
 import akka.util.ByteString
 import eventstreams.core.Tools.configHelper
-import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, PipelineWithStatesActor, ShutdownablePublisherActor}
+import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, PipelineWithStatesActor, StoppablePublisherActor}
 import eventstreams.core.agent.core.ProducedMessage
 import play.api.libs.json.{JsNumber, JsString, JsValue, Json}
 
@@ -42,8 +42,7 @@ object StatsdPublisher {
 class StatsdPublisher(val props: JsValue)
   extends ActorWithComposableBehavior
   with PipelineWithStatesActor
-  with ActorWithTicks
-  with ShutdownablePublisherActor[ProducedMessage] {
+  with StoppablePublisherActor[ProducedMessage] {
 
   implicit val sys = context.system
 
@@ -52,7 +51,6 @@ class StatsdPublisher(val props: JsValue)
   val host = props ~> 'host | "localhost"
   val port = props +> 'port | 12345
   val parsePayload = props ?> 'parsePayload | true
-  val queue = mutable.Queue[String]()
   var openSocket: Option[ActorRef] = None
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
@@ -87,14 +85,6 @@ class StatsdPublisher(val props: JsValue)
       logger.debug(s"Unbound!")
       context.stop(self)
       openSocket = None
-    case Request(n) =>
-      logger.debug(s"Downstream requested $n messages")
-      deliverIfPossible()
-  }
-
-  override def processTick(): Unit = {
-    deliverIfPossible()
-    super.processTick()
   }
 
   private def openPort() =
@@ -139,30 +129,21 @@ class StatsdPublisher(val props: JsValue)
   }
 
   private def parse(data: String) = {
-    Some(Json.obj(
-      "statsd" -> (if (!parsePayload) JsString(data) else parseStatsdMessage(data))))
+    ProducedMessage(
+    Json.obj(
+      "statsd" -> (if (!parsePayload) JsString(data) else parseStatsdMessage(data))), None)
   }
 
-  @tailrec
-  private def deliverIfPossible(): Unit = {
-    if (isActive && isPipelineActive && totalDemand > 0 && queue.size > 0) {
-      parse(queue.dequeue()) foreach { v =>
-        onNext(ProducedMessage(v, None))
-      }
-      deliverIfPossible()
-    }
-  }
 
   private def enqueue(data: ByteString) = {
-    if (isPipelineActive) {
+    if (isComponentActive) {
       logger.info(s"Statsd input $id received: $data")
       val elements = data.utf8String.split('\n')
-      elements foreach (queue.enqueue(_))
+      elements foreach { v => forwardToFlow(parse(v)) }
 
       // TODO at the moment we are using unbounded queue and UDP are not back-pressured, so it is possible to hit OOM
       // to fix this we need a combination of aggregation/dropping in place
 
-      deliverIfPossible()
     } else {
       logger.info(s"Statsd input $id is not active, message dropped: $data")
     }

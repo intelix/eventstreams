@@ -21,7 +21,7 @@ import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import eventstreams.core.Tools.{configHelper, _}
 import eventstreams.core.Types.InstructionType
 import eventstreams.core._
-import eventstreams.core.actors.{ActorWithTicks, SubscribingPublisherActor}
+import eventstreams.core.actors.{ActorWithTicks, StoppableSubscribingPublisherActor}
 import org.influxdb.Client
 import play.api.libs.json._
 
@@ -45,7 +45,7 @@ private object InfluxInstructionActor {
 }
 
 private class InfluxInstructionActor(series: String, config: JsValue)
-  extends SubscribingPublisherActor
+  extends StoppableSubscribingPublisherActor
   with ActorWithTicks
   with NowProvider {
 
@@ -127,7 +127,7 @@ private class InfluxInstructionActor(series: String, config: JsValue)
 
   @tailrec
   private def deliverIfPossible(): Unit =
-    if (isPipelineActive && isActive && queue.size > 0 && deliveringNow.isEmpty && client.isDefined && aggregatorCriteriaMet) {
+    if (isComponentActive && isActive && queue.size > 0 && deliveringNow.isEmpty && client.isDefined && aggregatorCriteriaMet) {
       client.foreach { c =>
 
         val pairs = queue.map { entry => (macroReplacement(entry, JsString(series)).asOpt[String], entry)}
@@ -155,7 +155,7 @@ private class InfluxInstructionActor(series: String, config: JsValue)
             logger.error(s"Delivery failed with error: $err")
           case None =>
             deliveringNow.foreach { count =>
-              queue.take(count).foreach(forwardToNext)
+              queue.take(count).foreach(forwardToFlow)
               queue = queue.drop(count)
             }
             lastSent = Some(now)

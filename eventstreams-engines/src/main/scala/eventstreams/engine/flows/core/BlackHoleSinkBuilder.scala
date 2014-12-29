@@ -19,7 +19,7 @@ package eventstreams.engine.flows.core
 import akka.actor.{Actor, Props}
 import akka.stream.actor.ActorSubscriberMessage.OnNext
 import akka.stream.actor.{RequestStrategy, WatermarkRequestStrategy, ZeroRequestStrategy}
-import eventstreams.core.actors.{Acknowledged, ActorWithComposableBehavior, PipelineWithStatesActor, ShutdownableSubscriberActor}
+import eventstreams.core.actors.{Acknowledged, ActorWithComposableBehavior, PipelineWithStatesActor, StoppableSubscriberActor}
 import eventstreams.core.agent.core.ProducedMessage
 import eventstreams.core._
 import Types.SinkActorPropsType
@@ -43,7 +43,7 @@ private object BlackholeAutoAckSinkActor {
 
 private class BlackholeAutoAckSinkActor(maybeId: Option[String])
   extends ActorWithComposableBehavior
-  with ShutdownableSubscriberActor
+  with StoppableSubscriberActor
   with PipelineWithStatesActor
   with WithMetrics {
 

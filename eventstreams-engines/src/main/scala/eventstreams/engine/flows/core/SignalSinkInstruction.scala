@@ -42,7 +42,7 @@ private object SignalSinkInstructionActor {
 }
 
 private class SignalSinkInstructionActor(address: String, config: JsValue)
-  extends SubscribingPublisherActor
+  extends StoppableSubscribingPublisherActor
   with ReconnectingActor
   with AtLeastOnceDeliveryActor[JsonFrame] {
 
@@ -64,7 +64,7 @@ private class SignalSinkInstructionActor(address: String, config: JsValue)
   override def onDisconnectedFromEndpoint(): Unit = {
     super.onDisconnectedFromEndpoint()
     logger.info("In disconnected state")
-    if (isPipelineActive) initiateReconnect()
+    if (isComponentActive) initiateReconnect()
   }
 
   override def becomeActive(): Unit = {
@@ -77,7 +77,7 @@ private class SignalSinkInstructionActor(address: String, config: JsValue)
     disconnect()
   }
 
-  override def canDeliverDownstreamRightNow = isActive && isPipelineActive && connected
+  override def canDeliverDownstreamRightNow = isActive && isComponentActive && connected
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 

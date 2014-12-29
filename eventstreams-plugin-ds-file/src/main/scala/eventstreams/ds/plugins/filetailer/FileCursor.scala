@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package eventstreams.ds.plugins.file
+package eventstreams.ds.plugins.filetailer
 
 import eventstreams.core.agent.core.Cursor
 import play.api.libs.json.{JsValue, Json}

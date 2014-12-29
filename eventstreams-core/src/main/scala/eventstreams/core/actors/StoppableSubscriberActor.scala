@@ -18,28 +18,23 @@ package eventstreams.core.actors
 
 import akka.stream.actor.ActorSubscriber
 import akka.stream.actor.ActorSubscriberMessage.{OnComplete, OnError}
+import core.events.EventOps.symbolToEventOps
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Stop
 
-trait ShutdownableSubscriberActor extends ActorSubscriber with ActorWithComposableBehavior {
+trait StandardSubscriberEvents extends ComponentWithBaseEvents {
+  val MessageArrived = 'MessageArrived.info
+}
 
-  override def commonBehavior: Receive = handleSubscriberShutdown orElse super.commonBehavior
+trait StoppableSubscriberActor
+  extends ActorSubscriber with ActorWithComposableBehavior with Stoppable
+  with StandardSubscriberEvents {
 
-  private def stop(reason: Option[String]) = {
-    logger.info(s"Shutting down subscriber, reason given: $reason")
-    context.stop(self)
-  }
+  override def commonBehavior: Receive = handler orElse super.commonBehavior
 
-
-  @throws[Exception](classOf[Exception])
-  override def postStop(): Unit = {
-    super.postStop()
-    logger.debug("!>>>> post stop!")
-  }
-
-  private def handleSubscriberShutdown : Receive = {
+  private def handler: Receive = {
     case OnComplete => stop(Some("OnComplete"))
     case OnError(cause) => stop(Some("Error: " + cause.getMessage))
-    case Stop(reason) => stop(reason)
   }
 
 }

@@ -38,12 +38,12 @@ trait PipelineWithStatesActor extends ActorWithComposableBehavior with NowProvid
 
   def lastRequestedState = requestedState
 
-  def isPipelineActive = requestedState match {
+  def isComponentActive = requestedState match {
     case Some(Active()) => true
     case _ => false
   }
 
-  def isPipelinePassive = !isPipelineActive
+  def isComponentPassive = !isComponentActive
 
   def becomeActive(): Unit = {}
 
