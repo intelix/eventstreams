@@ -142,6 +142,7 @@ object Dependencies {
   )
   
   val eventStreamsCore = eventStreamsCommon ++: Seq(
+    Test.akkaTestKit,
     commonsCodec,
     metricsScala,
     slick,

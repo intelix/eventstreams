@@ -7,7 +7,7 @@ import scalaz.Scalaz._
 
 trait InMemoryResourceCatalogComponent extends ResourceCatalogComponent {
   this: FileSystemComponent with MonitoringTarget =>
-  override def resourceCatalog: ResourceCatalog = new InMemoryResourceCatalog()
+  override val resourceCatalog: ResourceCatalog = new InMemoryResourceCatalog()
 }
 
 trait ResourceCatalogComponent extends FileTailerConstants with StrictLogging {
@@ -18,22 +18,33 @@ trait ResourceCatalogComponent extends FileTailerConstants with StrictLogging {
   var currentSeed = java.lang.System.currentTimeMillis()
 
   def locateLastResource(): Option[ResourceIndex] = {
-    updateCatalog()
+    checkForFolderContentsChanges()
     resourceCatalog.last()
   }
 
   def locateFirstResource(): Option[ResourceIndex] = {
-    updateCatalog()
+    checkForFolderContentsChanges()
     resourceCatalog.head()
   }
 
   def locateNextResource(index: ResourceIndex): Option[ResourceIndex] = {
-    updateCatalog()
+    checkForFolderContentsChanges()
+    resourceCatalog.nextAfter(index)
+  }
+
+  def resourceIsCurrent(index: ResourceIndex, id: FileResourceIdentificator) = resourceCatalog.resourceIdByIdx(index) match {
+    case Some(IndexedEntity(idx, otherId)) if otherId == id =>
+      true
+    case _ => false
+  }
+
+  def locateResource(index: ResourceIndex): Option[ResourceIndex] = {
+    checkForFolderContentsChanges()
     resourceCatalog.nextAfter(index)
   }
 
   private def listOfAllFiles(pattern: Regex): List[FileResourceIdentificator] = {
-    val minAcceptableFileSize = 16
+    val minAcceptableFileSize = 1
     fileSystem.listFiles(directory, pattern)
       .filter(f => f.isFile && !f.name.startsWith(".") && f.length > minAcceptableFileSize)
       .sortWith({
@@ -50,14 +61,10 @@ trait ResourceCatalogComponent extends FileTailerConstants with StrictLogging {
     }.toList
   }
 
-  private def listOfFiles() = {
-    val list = (rolledFilePatternR.map(listOfAllFiles) | List()) ::: listOfAllFiles(mainLogPatternR)
-    logger.debug(s"List of files: $list")
-    list
+  private def listOfFiles() =
+    (rolledFilePatternR.map(listOfAllFiles) | List()) ::: listOfAllFiles(mainLogPatternR)
 
-  }
-
-  def updateCatalog(): Unit =
+  def checkForFolderContentsChanges(): Boolean =
     resourceCatalog.update(listOfFiles() match {
       case Nil => List[IndexedEntity]()
       case head :: Nil => resourceCatalog.indexByResourceId(head) match {

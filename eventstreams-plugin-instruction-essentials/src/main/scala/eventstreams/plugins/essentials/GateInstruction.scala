@@ -36,7 +36,7 @@ import scalaz._
 trait GateInstructionEvents extends ComponentWithBaseEvents {
 
   val Built = 'Built.trace
-  val GateInstance = 'GateInstance.info
+  val GateInstructionInstance = 'GateInstructionInstance.info
 
   val ConnectedToGate = 'ConnectedToGate.info
   val DisconnectedFromGate = 'DisconnectedFromGate.warn
@@ -101,7 +101,7 @@ private class GateInstructionActor(instructionId: String, address: String, confi
 
   override def preStart(): Unit = {
     super.preStart()
-    GateInstance >>('Buffer --> maxInFlight, 'Condition --> (config ~> CfgFCondition | "none"))
+    GateInstructionInstance >>('Buffer --> maxInFlight, 'Condition --> (config ~> CfgFCondition | "none"))
   }
 
   override def onConnectedToEndpoint(): Unit = {

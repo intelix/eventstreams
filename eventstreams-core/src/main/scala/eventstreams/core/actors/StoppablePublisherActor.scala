@@ -58,15 +58,18 @@ trait StoppablePublisherActor[T]
 
   @tailrec
   final def sendIfPossible(): Unit =
-    if (isActive && totalDemand > 0 && isComponentActive) take() match {
-      case None => ()
-      case Some(x) =>
-        onNext(x)
-        val currentDepth = queue.size
-        MessagePublished >>('EventId --> (eventId(x) | "n/a"), 'RemainingDemand --> totalDemand, 'PublisherQueueDepth --> currentDepth)
-        if (queue.size < totalDemand) produceMore(totalDemand - queue.size) foreach { seq => seq.foreach(offer)}
-        sendIfPossible()
+    if (isActive && totalDemand > 0 && isComponentActive) {
+      if (queue.size < totalDemand) produceAndOfferMore(totalDemand - queue.size)
+      take() match {
+        case None => ()
+        case Some(x) =>
+          onNext(x)
+          val currentDepth = queue.size
+          MessagePublished >>('EventId --> (eventId(x) | "n/a"), 'RemainingDemand --> totalDemand, 'PublisherQueueDepth --> currentDepth)
+          sendIfPossible()
+      }
     }
+
 
   def forwardToFlow(value: T) = {
     offer(value)
@@ -79,6 +82,8 @@ trait StoppablePublisherActor[T]
 
   def produceMore(count: Long): Option[Seq[T]] = None
 
+  private def produceAndOfferMore(count: Long) = produceMore(count) foreach { seq => seq.foreach(offer)}
+
   override def stop(reason: Option[String]) = {
     ClosingStream >>('Reason --> (reason | "none given"), 'PublisherQueueDepth --> pendingToDownstreamCount)
     onComplete()
@@ -89,8 +94,14 @@ trait StoppablePublisherActor[T]
     case Cancel => stop(Some("Cancelled"))
     case Request(n) =>
       NewDemand >>('Requested --> n, 'Total --> totalDemand)
-      produceMore(n) foreach { seq => seq.foreach(offer)}
+      produceAndOfferMore(n)
       sendIfPossible()
+  }
+
+
+  override def becomeActive(): Unit = {
+    super.becomeActive()
+    sendIfPossible()
   }
 
   override def internalProcessTick(): Unit = {

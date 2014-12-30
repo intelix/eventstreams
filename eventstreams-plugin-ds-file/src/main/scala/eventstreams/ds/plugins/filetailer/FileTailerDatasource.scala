@@ -22,6 +22,7 @@ import akka.actor.Props
 import core.events.EventOps.symbolToEventField
 import core.events.WithEventPublisher
 import eventstreams.core.Tools.configHelper
+import eventstreams.core.actors.{StandardPublisherEvents, StateChangeEvents}
 import eventstreams.core.{BuilderFromConfig, Fail}
 import play.api.libs.json.{JsValue, Json}
 
@@ -44,7 +45,10 @@ case class OrderByLastModifiedAndName() extends FileOrdering
 case class OrderByNameOnly() extends FileOrdering
 
 
-trait FileTailerConstants extends FailTailerEvents {
+trait FileTailerConstants
+  extends FileTailerEvents
+  with StateChangeEvents
+  with StandardPublisherEvents {
   val CfgID = "file"
   val CfgFDirectory = "directory"
   val CfgFMainPattern = "mainPattern"
@@ -55,11 +59,13 @@ trait FileTailerConstants extends FailTailerEvents {
 
 }
 
-class FileTailerDatasource extends BuilderFromConfig[Props] with FailTailerEvents with FileTailerConstants with WithEventPublisher {
+object FileTailerConstants extends FileTailerConstants
+
+class FileTailerDatasource extends BuilderFromConfig[Props] with FileTailerEvents with FileTailerConstants with WithEventPublisher {
   override def configId: String = CfgID
 
   def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, Props] = {
-    implicit val charset = Charset.forName("UTF-8")
+    implicit val fileSystem = new DiskFileSystem()
     for (
       _ <- props ~> CfgFDirectory \/> Fail(s"Invalid $configId datasource. Missing '$CfgFDirectory' value. Contents: ${Json.stringify(props)}");
       mainPattern <- props ~> CfgFMainPattern \/> Fail(s"Invalid $configId datasource. Missing '$CfgFMainPattern' value. Contents: ${Json.stringify(props)}");

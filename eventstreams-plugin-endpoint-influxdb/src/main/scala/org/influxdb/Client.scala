@@ -78,7 +78,7 @@ class Client(host: String = "localhost:8086", var username: String = "root", var
 
       val fr = httpClient.preparePost(url).addHeader("Content-Type", "application/json").setBody(data).execute()
 
-      println(s"!>>>> BODY: $data")
+//      println(s"!>>>> BODY: $data")
 
       responseToError(getResponse(fr))
     } catch {

@@ -1,16 +1,15 @@
 package eventstreams.support
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{ActorRef, Props}
 import akka.stream.FlowMaterializer
 import akka.stream.actor.ActorPublisherMessage.Request
-import akka.stream.actor.ActorSubscriberMessage.OnNext
 import akka.stream.actor._
 import akka.stream.scaladsl.{PublisherSource, SubscriberSink}
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.{TestProbe, TestKit}
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
-import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor, StoppablePublisherActor, StoppableSubscriberActor}
+import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor, StoppablePublisherActor}
 import eventstreams.core.{BecomeActive, BecomePassive, JsonFrame, Stop}
 import play.api.libs.json.JsValue
 
@@ -71,7 +70,7 @@ trait FlowComponentTestContext {
         sinkActorProbe expectTerminated sinkActor
         componentActorProbe expectTerminated componentActor
       }
-      
+
     }
 
 
@@ -80,6 +79,7 @@ trait FlowComponentTestContext {
   def withFlow(component: Props)(f: TestFlowFunc) = withCustomFlow(PublisherStubActor.props, component, SinkStubActor.props)(f)
 
   def activateComponent()(implicit ctx: TestFlowCtx) = ctx.comp ! BecomeActive()
+
   def activateSink()(implicit ctx: TestFlowCtx) = ctx.sink ! BecomeActive()
 
   def activateFlow()(implicit ctx: TestFlowCtx): Unit = {
@@ -88,6 +88,7 @@ trait FlowComponentTestContext {
   }
 
   def deactivateComponent()(implicit ctx: TestFlowCtx) = ctx.comp ! BecomePassive()
+
   def deactivateSink()(implicit ctx: TestFlowCtx) = ctx.sink ! BecomePassive()
 
   def deactivateFlow()(implicit ctx: TestFlowCtx): Unit = {
@@ -137,37 +138,3 @@ class PublisherStubActor
   }
 
 }
-
-trait SinkStubActorEvents extends ComponentWithBaseEvents {
-
-  val ReceivedMessageAtSink = 'ReceivedMessageAtSink.info
-
-  override def componentId: String = "Test.SinkStubActor"
-}
-
-object SinkStubActor extends SinkStubActorEvents {
-  def props = Props(new SinkStubActor())
-}
-
-class SinkStubActor
-  extends ActorWithComposableBehavior
-  with StoppableSubscriberActor with PipelineWithStatesActor
-  with SinkStubActorEvents
-  with WithEventPublisher {
-
-
-  var disableFlow = ZeroRequestStrategy
-  var enableFlow = WatermarkRequestStrategy(1024, 96)
-
-  override def commonBehavior: Actor.Receive = super.commonBehavior orElse {
-    case OnNext(msg) =>
-      ReceivedMessageAtSink >>()
-  }
-
-  override protected def requestStrategy: RequestStrategy = lastRequestedState match {
-    case Some(Active()) => enableFlow
-    case _ => disableFlow
-  }
-
-}
-

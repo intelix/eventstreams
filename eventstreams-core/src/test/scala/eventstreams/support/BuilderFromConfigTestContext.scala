@@ -1,14 +1,14 @@
 package eventstreams.support
 
-import eventstreams.core.Types._
+import akka.actor.Props
 import eventstreams.core.{BuilderFromConfig, Fail}
 import org.scalatest.Matchers
 import play.api.libs.json.JsValue
 
 import scalaz.{-\/, \/-}
 
-trait InstructionBuilderTestContext extends Matchers {
-  def builder: BuilderFromConfig[InstructionType]
+trait BuilderFromConfigTestContext extends Matchers {
+  def builder: BuilderFromConfig[Props]
 
   def config: JsValue
 
@@ -16,14 +16,14 @@ trait InstructionBuilderTestContext extends Matchers {
 
   def id: Option[String] = None
 
-  var instruction: Option[InstructionType] = None
+  var instruction: Option[Props] = None
 
   def shouldNotBuild(f: Fail => Unit = _ => ()) = builder.build(config, state, id) match {
-    case \/-(inst) => fail("Successfuly built, but expected to fail: " + inst)
+    case \/-(inst) => fail("Successfully built, but expected to fail: " + inst)
     case -\/(x) => f(x)
   }
 
-  def shouldBuild(f: InstructionType => Unit = _ => ()) = instruction match {
+  def shouldBuild(f: Props => Unit = _ => ()) = instruction match {
     case Some(inst) => f(inst)
     case None => builder.build(config, state, id) match {
       case \/-(inst) =>

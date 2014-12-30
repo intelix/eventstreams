@@ -3,21 +3,27 @@ package eventstreams.ds.plugins.filetailer
 import java.nio.CharBuffer
 
 import akka.util.ByteString
-import com.typesafe.scalalogging.LazyLogging
+import core.events.EventOps.symbolToEventField
+import core.events.{EventFieldWithValue, WithEventPublisher}
 import play.api.libs.json.{JsValue, Json}
 
 
-class OpenFileResource(idx: ResourceIndex,
-                       id: FileResourceIdentificator,
-                       handle: FileHandle) extends LazyLogging {
+class OpenFileResource(val idx: ResourceIndex,
+                       val id: FileResourceIdentificator,
+                       val handle: FileHandle)
+  extends FileTailerEvents with WithEventPublisher {
 
   private val ab = CharBuffer.allocate(1024 * 16).array()
   private var position: Long = 0
   private var atTail: Boolean = false
 
+
+  override def commonFields: Seq[EventFieldWithValue] = super.commonFields ++ Seq('ResourceId --> idx, 'Name --> handle.name)
+
   def advanceTo(cursor: FileCursor): OpenFileResource = {
     val diff = cursor.positionWithinItem - position
     if (diff > 0) {
+      SkippedTo >> ('Position --> cursor.positionWithinItem, 'Skipped --> diff)
       skip(diff)
     }
     this
@@ -27,16 +33,18 @@ class OpenFileResource(idx: ResourceIndex,
     try {
       handle.reader.read(ab) match {
         case i if i < 1 =>
+          NoData >> ('Position --> position)
           atTail = true
           None
         case i =>
           atTail = i < ab.length
+          NewDataBlock >> ('BlockSize --> i, 'Position --> position, 'AtTail --> atTail)
           position = position + i
           Some(ByteString(new String(ab, 0, i)))
       }
     } catch {
       case e: Exception =>
-        logger.warn(s"Unable to read, id $id, idx $idx", e)
+        Error >> ('Message --> "Unable to read", 'Error --> e.getMessage, 'Position --> position, 'AtTail --> atTail)
         None
     }
   }
@@ -53,9 +61,12 @@ class OpenFileResource(idx: ResourceIndex,
     handle.close()
   }
 
-  def canAdvanceTo(cursor: FileCursor): Boolean = {
-    cursor.positionWithinItem >= position && cursor.idx == idx && exists_? && not_truncated_?
-  }
+  def canAdvanceTo(cursor: FileCursor): Boolean =
+    cursor.positionWithinItem >= position &&
+      ((cursor.idx.resourceId == idx.resourceId && idx.resourceId==0) || cursor.idx == idx) &&
+      exists_? &&
+      not_truncated_?
+
 
   def getDetails(): Option[JsValue] = Some(Json.obj("datasource" -> Json.obj(
     "type" -> "file",
@@ -70,7 +81,7 @@ class OpenFileResource(idx: ResourceIndex,
       handle.reader.skip(entries)
     } catch {
       case e: Exception =>
-        logger.warn(s"Unable to skip, id $id, idx $idx", e)
+        Error >> ('Message --> "Unable to skip", 'Error --> e.getMessage, 'Position --> position, 'AtTail --> atTail)
         0
     }
     if (skipped < entries) {
@@ -82,4 +93,6 @@ class OpenFileResource(idx: ResourceIndex,
   private def exists_? : Boolean = handle.exists && handle.isFile
 
   private def not_truncated_? : Boolean = handle.length >= Math.max(id.sizeNow, position)
+
+  override def toString: String = s"Resource $idx / $id position $position"
 }

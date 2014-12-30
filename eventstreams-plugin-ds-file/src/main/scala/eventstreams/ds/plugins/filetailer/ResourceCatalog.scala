@@ -1,6 +1,7 @@
 package eventstreams.ds.plugins.filetailer
 
-import com.typesafe.scalalogging.LazyLogging
+import core.events.EventOps.symbolToEventField
+import core.events.WithEventPublisher
 
 trait ResourceCatalog {
   def update(entities: List[IndexedEntity]): Boolean
@@ -19,18 +20,21 @@ trait ResourceCatalog {
 }
 
 
-class InMemoryResourceCatalog extends ResourceCatalog with LazyLogging {
+class InMemoryResourceCatalog extends ResourceCatalog with FileTailerEvents with WithEventPublisher {
   var memory = List[IndexedEntity]()
 
+  def format(entities: List[IndexedEntity]): String = entities.map { e =>
+    e.id.name + "/" + e.id.createdTimestamp + "/" + e.idx
+  }.mkString("(",",",")")
+
+
+
   override def update(entities: List[IndexedEntity]): Boolean = {
-    logger.debug(s"Catalog state: $entities")
-    if (memory == entities)
-      false
-    else {
+    if (memory == entities) false else {
+      ResourceCatalogUpdate >> ('EntriesCount --> entities.size)
       memory = entities
       true
     }
-
   }
 
   override def indexByResourceId(identificator: FileResourceIdentificator): Option[IndexedEntity] = {
@@ -44,26 +48,19 @@ class InMemoryResourceCatalog extends ResourceCatalog with LazyLogging {
       .find(_.idx == index) orElse memory.headOption
   }
 
-  override def last(): Option[ResourceIndex] = {
-    val result = memory.lastOption.map(_.idx)
-    logger.debug(s"last resource = $result")
-    result
-  }
+  override def last(): Option[ResourceIndex] =
+    memory.lastOption.map(_.idx)
 
-  override def head(): Option[ResourceIndex] = {
-    val result = memory.headOption.map(_.idx)
-    logger.debug(s"first resource = $result")
-    result
-  }
 
-  override def nextAfter(index: ResourceIndex): Option[ResourceIndex] = {
-    val result = memory.dropWhile(_.idx != index) match {
+
+  override def head(): Option[ResourceIndex] =
+    memory.headOption.map(_.idx)
+
+  override def nextAfter(index: ResourceIndex): Option[ResourceIndex] =
+    memory.dropWhile(_.idx != index) match {
       case current :: next :: _ => Some(next.idx)
       case _ => None
     }
-    logger.debug(s"next after $index = $result")
-    result
-  }
 
   override def close(): Unit = {}
 }

@@ -34,9 +34,8 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
   implicit val patienceConfig =
     PatienceConfig(timeout = scaled(Span(5, Seconds)), interval = scaled(Span(15, Millis)))
 
-  
-  
-  def waitWithTimeout(millis: Long) (f: () => Unit) = {
+
+  def waitWithTimeout(millis: Long)(f: () => Unit) = {
     val startedAt = System.currentTimeMillis()
     var success = false
     while (!success && System.currentTimeMillis() - startedAt < millis) {
@@ -52,17 +51,17 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
     } catch {
       case x: Throwable =>
         val log = LoggerFactory.getLogger("events")
-        log.error("*"*200 +  "\nTest failed", x)
+        log.error("*" * 120 + "\nTest failed", x)
         log.error("Raised events:")
         val events = EventPublisherRef.ref.asInstanceOf[TestEventPublisher].eventsInOrder
         events.foreach { next =>
           LoggerEventPublisherHelper.log(next.event, CtxSystemRef.ref, next.values, s => log.error(s))
         }
-        log.error("*"*200+"\n\n", x)
+        log.error("*" * 120 + "\n\n", x)
         throw x
-    } 
+    }
   }
-  
+
   def expectSomeEvents(event: Event, values: EventFieldWithValue*) = {
     waitWithTimeout(5000) { () =>
       events should contain key event
@@ -71,7 +70,7 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
   }
 
   def waitAndCheck(f: () => Unit) = duringPeriodInMillis(500)(f)
-    
+
   def duringPeriodInMillis(millis: Long)(f: () => Unit) = {
     val startedAt = System.currentTimeMillis()
     while (System.currentTimeMillis() - startedAt < millis) {
@@ -82,13 +81,13 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
   }
 
   def expectNoEvents(event: Event, values: EventFieldWithValue*) =
-      events.get(event).foreach(_ shouldNot haveAllValues(values))
+    events.get(event).foreach(_ shouldNot haveAllValues(values))
 
 
   def expectSomeEvents(count: Int, event: Event, values: EventFieldWithValue*) = {
     waitWithTimeout(5000) { () =>
       events should contain key event
-        events.get(event).get should haveAllValues(count, values)
+      events.get(event).get should haveAllValues(count, values)
     }
   }
 

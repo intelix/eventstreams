@@ -14,7 +14,7 @@ class ActorTestContext(_system: ActorSystem)
 
 
   override protected def beforeEach(): Unit = {
-    LoggerFactory.getLogger("testseparator").debug("\n" * 3 + "-" * 200)
+    LoggerFactory.getLogger("testseparator").debug("\n" * 3 + "-" * 120)
     super.beforeEach()
   }
 

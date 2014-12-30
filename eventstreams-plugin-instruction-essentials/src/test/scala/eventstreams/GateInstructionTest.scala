@@ -34,7 +34,7 @@ class GateInstructionTest(_system: ActorSystem)
   def this() = this(ActorSystem("TestSystem"))
 
 
-  trait WithGateInstructionContext extends InstructionBuilderTestContext {
+  trait WithGateInstructionContext extends BuilderFromConfigTestContext {
     def withGateInstructionFlow(f: TestFlowFunc) = {
       shouldBuild { instr =>
         withFlow(instr) { ctx => f(ctx)}
@@ -63,7 +63,7 @@ class GateInstructionTest(_system: ActorSystem)
 
     "have a new instance when added to the flow" in new WithBasicConfig {
       withGateInstructionFlow { implicit ctx =>
-        expectSomeEvents(GateInstructionConstants.GateInstance)
+        expectSomeEvents(GateInstructionConstants.GateInstructionInstance)
       }
     }
 

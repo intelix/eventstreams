@@ -26,6 +26,8 @@ trait FileHandle {
 
   def name: String
 
+  def fullPath: String
+
   def isFile: Boolean
 
   def length: Long
@@ -47,15 +49,28 @@ trait FileSystemEvents extends ComponentWithBaseEvents {
 
 class DiskFileSystem extends FileSystem with FileSystemEvents with WithEventPublisher {
   override def listFiles(directory: String, namePattern: Regex): Seq[FileMeta] = {
-    val dir = new File(directory)
-    if (dir.exists() && dir.isDirectory) {
-      dir.listFiles(new FilenameFilter {
-        override def accept(dir: File, name: String): Boolean = namePattern.findFirstIn(name).isDefined
-      }).map { f =>
-        val attributes = Files.readAttributes(f.toPath, classOf[BasicFileAttributes])
-        FileMeta(dir.getAbsolutePath, f.getName, f.isFile, f.length(), f.lastModified(), attributes.creationTime().toMillis)
+
+    def list(attempt: Int): Seq[FileMeta] =
+      try {
+        val dir = new File(directory)
+        if (dir.exists() && dir.isDirectory) {
+          dir.listFiles(new FilenameFilter {
+            override def accept(dir: File, name: String): Boolean = namePattern.findFirstIn(name).isDefined
+          }).map { f =>
+            val attributes = Files.readAttributes(f.toPath, classOf[BasicFileAttributes])
+            FileMeta(dir.getAbsolutePath, f.getName, f.isFile, f.length(), f.lastModified(), attributes.creationTime().toMillis)
+          }
+        } else Seq()
+      } catch {
+        case e: Throwable if attempt < 10 =>
+          Error >>('Message --> s"Unable to get a file listing from $directory", 'Error --> e.getMessage, 'Attempt --> attempt)
+          Thread.sleep(100)
+          list(attempt + 1)
+        case e: Throwable  =>
+          Error >>('Message --> s"Unable to get a file listing from $directory", 'Error --> e.getMessage, 'Attempt --> attempt)
+          Seq()
       }
-    } else Seq()
+    list(1)
   }
 
   override def open(idx: ResourceIndex, id: FileResourceIdentificator, charset: Charset): Option[FileHandle] = {
@@ -82,7 +97,9 @@ class DiskFileSystem extends FileSystem with FileSystemEvents with WithEventPubl
     Some(new FileHandle {
       override def isFile: Boolean = file.isFile
 
-      override def folder: String = file.getAbsolutePath
+      override def folder: String = file.getParentFile.getAbsolutePath
+
+      override def fullPath: String = file.getAbsolutePath
 
       override def reader: BufferedReader = r
 

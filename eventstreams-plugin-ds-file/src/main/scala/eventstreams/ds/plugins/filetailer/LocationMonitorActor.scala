@@ -4,6 +4,8 @@ import java.nio.charset.Charset
 
 import akka.actor.Props
 import akka.util.ByteString
+import core.events.EventOps.symbolToEventField
+import core.events.WithEventPublisher
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, PipelineWithStatesActor, StoppablePublisherActor}
 import eventstreams.core.agent.core.ProducedMessage
@@ -13,10 +15,10 @@ import scala.util.matching.Regex
 import scalaz.Scalaz._
 
 object LocationMonitorActor {
-  def props(props: JsValue) = Props(new LocationMonitorActor(props))
+  def props(props: JsValue)(implicit fileSystem: FileSystem) = Props(new LocationMonitorActor(props))
 }
 
-class LocationMonitorActor(props: JsValue)
+class LocationMonitorActor(props: JsValue)(implicit val fileSystem: FileSystem)
   extends ActorWithComposableBehavior
   with PipelineWithStatesActor
   with ActorWithTicks
@@ -25,10 +27,22 @@ class LocationMonitorActor(props: JsValue)
   with FileHandler
   with MonitoringTarget
   with InMemoryResourceCatalogComponent
-  with FileSystemComponent {
+  with FileSystemComponent
+  with WithEventPublisher {
 
 
   override def commonBehavior: Receive = super.commonBehavior
+
+
+  override def preStart(): Unit = {
+    DatasourceInstance >>(
+      'Directory --> directory,
+      'MainLogPattern --> props ~> CfgFMainPattern,
+      'RolledLogPattern --> props ~> CfgFRolledPattern,
+      'Ordering --> props ~> CfgFFileOrdering,
+      'InitialPosition --> props ~> CfgFStartWith)
+    super.preStart()
+  }
 
   private def convertPayload(b: ByteString, meta: Option[JsValue]) = Json.obj(
     "value" -> JsString(b.utf8String),
@@ -38,10 +52,8 @@ class LocationMonitorActor(props: JsValue)
   override def produceMore(count: Long): Option[Seq[ProducedMessage]] = for (
     chunk <- pullNextChunk();
     data <- chunk.data
-  ) yield {
-    currentCursor = Some(chunk.cursor)
-    List(ProducedMessage(convertPayload(data, chunk.meta), FileCursorTools.toJson(chunk.cursor)))
-  }
+  ) yield List(ProducedMessage(convertPayload(data, chunk.meta), FileCursorTools.toJson(chunk.cursor)))
+
 
 
   override val initialPosition: InitialPosition = (props ~> CfgFStartWith).map(_.toLowerCase) match {
@@ -62,5 +74,4 @@ class LocationMonitorActor(props: JsValue)
     case _ => OrderByLastModifiedAndName()
   }
 
-  override lazy val fileSystem: FileSystem = new DiskFileSystem()
 }

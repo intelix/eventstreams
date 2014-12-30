@@ -1,13 +1,12 @@
 package eventstreams.support
 
 import akka.actor.{Actor, ActorRef, Props}
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.{TestProbe, TestKit}
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor}
 import eventstreams.core.agent.core._
-import eventstreams.plugins.essentials.GateInstructionConstants._
 import play.api.libs.json.Json
 
 import scala.util.Try
@@ -36,7 +35,6 @@ trait GateStub {
   def autoAckAsProcessedAtGate(f: ActorRef) = f ! DoAcknowledgeAsProcessed()
 
   def withGateStub(f: ActorRef => Unit) = {
-    val cfg = Json.obj(CfgFAddress -> "/user/testGate")
     val mockGate = system.actorOf(GateStubActor.props, "testGate")
     val probe = TestProbe()
     probe watch mockGate
