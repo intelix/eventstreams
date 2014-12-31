@@ -70,7 +70,7 @@ class GateInstructionTest(_system: ActorSystem)
     "initially be stopped" in new WithBasicConfig {
       withGateInstructionFlow { implicit ctx =>
         withGateStub { gate =>
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(GateStateMonitorStarted)
             expectNoEvents(GateInstructionConstants.Starting)
             expectNoEvents(GateInstructionConstants.ConnectedToGate)
@@ -133,7 +133,7 @@ class GateInstructionTest(_system: ActorSystem)
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery)
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveringToActor)
           }
         }
@@ -141,7 +141,7 @@ class GateInstructionTest(_system: ActorSystem)
       "not deliver to the gate" in new LocalCtx {
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveringToActor)
           }
         }
@@ -149,7 +149,7 @@ class GateInstructionTest(_system: ActorSystem)
       "not deliver to the sink" in new LocalCtx {
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(SinkStubActor.ReceivedMessageAtSink)
           }
         }
@@ -174,7 +174,7 @@ class GateInstructionTest(_system: ActorSystem)
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
           publishMsg(Json.obj("value" -> "2"))
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveringToActor)
           }
         }
@@ -183,7 +183,7 @@ class GateInstructionTest(_system: ActorSystem)
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
           publishMsg(Json.obj("value" -> "2"))
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(SinkStubActor.ReceivedMessageAtSink)
           }
         }
@@ -196,7 +196,7 @@ class GateInstructionTest(_system: ActorSystem)
           clearEvents()
           publishMsg(Json.obj("value" -> "3"))
           expectSomeEvents(PublisherStubActor.NoDemandAtPublisher)
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(GateInstructionConstants.MessageArrived)
           }
         }
@@ -269,7 +269,7 @@ class GateInstructionTest(_system: ActorSystem)
       "not deliver to the sink" in new LocalCtx {
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(SinkStubActor.ReceivedMessageAtSink)
           }
         }
@@ -310,7 +310,7 @@ class GateInstructionTest(_system: ActorSystem)
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
           publishMsg(Json.obj("value" -> "2"))
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(SinkStubActor.ReceivedMessageAtSink)
           }
         }
@@ -331,7 +331,7 @@ class GateInstructionTest(_system: ActorSystem)
           clearEvents()
           publishMsg(Json.obj("value" -> "3"))
           expectSomeEvents(PublisherStubActor.NoDemandAtPublisher)
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(GateInstructionConstants.MessageArrived)
           }
         }
@@ -407,7 +407,7 @@ class GateInstructionTest(_system: ActorSystem)
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt --> 1)
           }
         }
@@ -421,7 +421,7 @@ class GateInstructionTest(_system: ActorSystem)
       "not confirm processing" in new LocalCtx {
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(GateInstructionConstants.ProcessingConfirmed)
           }
         }
@@ -429,7 +429,7 @@ class GateInstructionTest(_system: ActorSystem)
       "not deliver to the sink" in new LocalCtx {
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(SinkStubActor.ReceivedMessageAtSink)
           }
         }
@@ -477,7 +477,7 @@ class GateInstructionTest(_system: ActorSystem)
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
           publishMsg(Json.obj("value" -> "2"))
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(GateInstructionConstants.ProcessingConfirmed)
           }
         }
@@ -486,7 +486,7 @@ class GateInstructionTest(_system: ActorSystem)
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
           publishMsg(Json.obj("value" -> "2"))
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(SinkStubActor.ReceivedMessageAtSink)
           }
         }
@@ -507,7 +507,7 @@ class GateInstructionTest(_system: ActorSystem)
           clearEvents()
           publishMsg(Json.obj("value" -> "3"))
           expectSomeEvents(PublisherStubActor.NoDemandAtPublisher)
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(GateInstructionConstants.MessageArrived)
           }
         }
@@ -582,7 +582,7 @@ class GateInstructionTest(_system: ActorSystem)
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt --> 1)
           }
         }
@@ -689,7 +689,7 @@ class GateInstructionTest(_system: ActorSystem)
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
           publishMsg(Json.obj("value" -> "2"))
-          waitAndCheck { () =>
+          waitAndCheck {
             expectSomeEvents(2, SinkStubActor.ReceivedMessageAtSink)
           }
           
@@ -777,7 +777,7 @@ class GateInstructionTest(_system: ActorSystem)
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt --> 1)
           }
         }
@@ -785,7 +785,7 @@ class GateInstructionTest(_system: ActorSystem)
       "not confirm delivery" in new LocalCtx {
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveryConfirmed)
           }
         }
@@ -850,7 +850,7 @@ class GateInstructionTest(_system: ActorSystem)
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
           publishMsg(Json.obj("value" -> "2"))
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveryConfirmed)
           }
         }
@@ -888,7 +888,7 @@ class GateInstructionTest(_system: ActorSystem)
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
           publishMsg(Json.obj("value" -> "2"))
-          waitAndCheck { () =>
+          waitAndCheck {
             expectSomeEvents(2, SinkStubActor.ReceivedMessageAtSink)
           }
 
@@ -936,7 +936,7 @@ class GateInstructionTest(_system: ActorSystem)
 
       "not deliver to sink" in new LocalCtx {
         run { implicit ctx =>
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(SinkStubActor.ReceivedMessageAtSink)
           }
         }
@@ -944,7 +944,7 @@ class GateInstructionTest(_system: ActorSystem)
 
       "not attempt delivery to gate" in new LocalCtx {
         run { implicit ctx =>
-          waitAndCheck { () =>
+          waitAndCheck {
             expectNoEvents(DeliveringToActor)
           }
         }

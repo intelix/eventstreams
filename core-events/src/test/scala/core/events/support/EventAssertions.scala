@@ -35,19 +35,19 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
     PatienceConfig(timeout = scaled(Span(5, Seconds)), interval = scaled(Span(15, Millis)))
 
 
-  def waitWithTimeout(millis: Long)(f: () => Unit) = {
+  def waitWithTimeout(millis: Long)(f: => Unit) = {
     val startedAt = System.currentTimeMillis()
     var success = false
     while (!success && System.currentTimeMillis() - startedAt < millis) {
       try {
-        f()
+        f
         success = true
       } catch {
         case x: Throwable => Thread.sleep(15)
       }
     }
     try {
-      f()
+      f
     } catch {
       case x: Throwable =>
         val log = LoggerFactory.getLogger("events")
@@ -63,18 +63,18 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
   }
 
   def expectSomeEvents(event: Event, values: EventFieldWithValue*) = {
-    waitWithTimeout(5000) { () =>
+    waitWithTimeout(5000) {
       events should contain key event
       events.get(event).get should haveAllValues(values)
     }
   }
 
-  def waitAndCheck(f: () => Unit) = duringPeriodInMillis(500)(f)
+  def waitAndCheck(f: => Unit) = duringPeriodInMillis(500)(f)
 
-  def duringPeriodInMillis(millis: Long)(f: () => Unit) = {
+  def duringPeriodInMillis(millis: Long)(f: => Unit) = {
     val startedAt = System.currentTimeMillis()
     while (System.currentTimeMillis() - startedAt < millis) {
-      f()
+      f
       Thread.sleep(50)
     }
 
@@ -85,7 +85,7 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
 
 
   def expectSomeEvents(count: Int, event: Event, values: EventFieldWithValue*) = {
-    waitWithTimeout(5000) { () =>
+    waitWithTimeout(5000) {
       events should contain key event
       events.get(event).get should haveAllValues(count, values)
     }

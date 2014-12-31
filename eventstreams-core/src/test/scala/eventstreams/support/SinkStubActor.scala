@@ -6,8 +6,11 @@ import akka.stream.actor.{RequestStrategy, WatermarkRequestStrategy, ZeroRequest
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
+import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor, StoppableSubscriberActor}
+import eventstreams.core.agent.core.ProducedMessage
 
+import scalaz.Scalaz._
 
 trait SinkStubActorEvents extends ComponentWithBaseEvents {
 
@@ -31,8 +34,11 @@ class SinkStubActor
   var enableFlow = WatermarkRequestStrategy(1024, 96)
 
   override def commonBehavior: Actor.Receive = super.commonBehavior orElse {
-    case OnNext(msg) =>
-      ReceivedMessageAtSink >>('Contents --> msg)
+    case OnNext(msg) => msg match {
+      case ProducedMessage(value, cursor) => ReceivedMessageAtSink >>('Contents --> msg, 'Value --> (value ~> 'value | ""))
+      case _ => ReceivedMessageAtSink >> ('Contents --> msg)
+    }
+
   }
 
   override protected def requestStrategy: RequestStrategy = lastRequestedState match {

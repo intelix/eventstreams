@@ -1,11 +1,13 @@
 package eventstreams
 
+import _root_.core.events.EventOps.symbolToEventField
 import akka.actor.{ActorSystem, Props}
 import eventstreams.core.BuilderFromConfig
 import eventstreams.ds.plugins.filetailer.FileTailerConstants._
 import eventstreams.ds.plugins.filetailer.{FileTailerConstants, FileTailerDatasource}
-import eventstreams.support.{ActorTestContext, BuilderFromConfigTestContext, FlowPublisherTestContext}
+import eventstreams.support.{SinkStubActor, ActorTestContext, BuilderFromConfigTestContext, FlowPublisherTestContext}
 import play.api.libs.json.{JsValue, Json}
+import SinkStubActor._
 
 class FileTailerDatasourceTest(_system: ActorSystem)
   extends ActorTestContext(_system)
@@ -66,7 +68,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
 
     "initially be stopped" in new WithBasicConfig {
       withDatasourceFlow { implicit ctx =>
-        waitAndCheck { () =>
+        waitAndCheck {
           expectNoEvents(FileTailerConstants.Starting)
         }
       }
@@ -79,7 +81,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
       }
     }
 
-    "when built but stopped" must {
+    "when built and ready to be started" must {
 
       "activate on request" in new WithBasicConfig {
         withDatasourceFlow { implicit ctx =>
@@ -87,6 +89,53 @@ class FileTailerDatasourceTest(_system: ActorSystem)
           expectSomeEvents(FileTailerConstants.Starting)
         }
       }
+
+      "not produce any messages if activated and directory is empty" in new WithBasicConfig {
+        withDatasourceFlow { implicit ctx =>
+          activateFlow()
+          waitAndCheck {
+            expectNoEvents(FileTailerConstants.MessagePublished)
+          }
+        }
+      }
+
+      "when started in directory with a single empty log file" must {
+        
+        trait EmptyDir extends WithBasicConfig {
+          def run(f: OpenFile => Unit) = withDatasourceFlow { implicit ctx =>
+            withNewFile("current.log") { file =>
+              activateFlow()
+              expectSomeEvents(FileTailerConstants.Starting)
+              clearEvents()
+              f(file)
+            }
+          }
+        }
+
+        "not produce message initially" in new EmptyDir {
+          run { f =>
+            waitAndCheck {
+              expectNoEvents(FileTailerConstants.MessagePublished)
+            }
+          }
+        }
+
+        "produce message when first file gets some data" in new EmptyDir {
+          run { f =>
+            f.write("line1")
+            expectSomeEvents(ReceivedMessageAtSink, 'Value --> "line1")
+          }
+        }
+
+        "produce a single message regardless of how many lines are in the file" in new EmptyDir {
+          run { f =>
+            f.write("line1\nline2\nline3")
+            expectSomeEvents(ReceivedMessageAtSink, 'Value --> "line1\nline2\nline3")
+          }
+        }
+
+      }
+
 
       "produce a message" in new WithBasicConfig {
         withDatasourceFlow { implicit ctx =>
@@ -118,7 +167,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
 
             clearEvents()
 
-            (1 to 10) foreach { i =>
+            (1 to 2) foreach { i =>
               f.write(s"line5-${i+2}\n")
               f.rollGz(s"current-${i+2}.gz")
               f.write(s"line6-${i+2}\nline7-${i+2}\n")
