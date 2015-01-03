@@ -606,8 +606,10 @@ class FileTailerDatasourceTest(_system: ActorSystem)
             expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
             clearEvents()
             f.rollGz("current-Z.gz")
+            Thread.sleep(2000)
             f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
             f.rollGz("current-Y.gz")
+            Thread.sleep(2000)
             f.write("G" * testBlockSize + "H" * testBlockSize + "III")
             flowCtx.foreach(sinkProduceDemand(1, _))
             expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
@@ -1109,7 +1111,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
 
         "consume all rolled content and all new content, with rolling gz files (activated on 5th file), consistently" in new EmptyDirWithDemandDeactivatedStartWithFirst {
           run { f =>
-            (1 to 50) foreach { i =>
+            (1 to 250) foreach { i =>
               f.rollGz("current-" + i + ".gz")
               f.write("A" * testBlockSize + "B" * testBlockSize + "CCC" + i.toString)
               if (i == 5) {
@@ -1119,16 +1121,16 @@ class FileTailerDatasourceTest(_system: ActorSystem)
               if (i == 15) {
                 Thread.sleep(1000)
               }
-              if (i == 25) {
+              if (i % 25 == 0 && i > 0) {
                 Thread.sleep(1000)
               }
             }
             Thread.sleep(5000)
-            (1 to 50) foreach { i =>
+            (1 to 250) foreach { i =>
               expectSomeEvents(1, ReceivedMessageAtSink, 'Value --> ("CCC" + i.toString))
             }
-            expectSomeEventsWithTimeout(10000, 50, ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
-            expectSomeEvents(50, ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
+            expectSomeEventsWithTimeout(10000, 250, ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
+            expectSomeEvents(250, ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
           }
         }
 
