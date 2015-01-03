@@ -61,22 +61,30 @@ trait FlowPublisherTestContext {
 
   }
 
-  def withFlow(pub: Props)(f: TestFlowFunc) = withCustomFlow(pub, SinkStubActor.props)(f)
+  def withFlow(pub: Props, sinkRequestStrategy: RequestStrategy)(f: TestFlowFunc) = withCustomFlow(pub, SinkStubActor.props(sinkRequestStrategy))(f)
 
-  def activatePublisher()(implicit ctx: TestFlowCtx) = ctx.pub ! BecomeActive()
-  def activateSink()(implicit ctx: TestFlowCtx) = ctx.sink ! BecomeActive()
+  def activatePublisher(ctx: TestFlowCtx) = ctx.pub ! BecomeActive()
+  def activateSink(ctx: TestFlowCtx) = ctx.sink ! BecomeActive()
 
-  def activateFlow()(implicit ctx: TestFlowCtx): Unit = {
-    activatePublisher()
-    activateSink()
+  def activateFlow(ctx: TestFlowCtx): Unit = {
+    activatePublisher(ctx)
+    activateSink(ctx)
   }
 
-  def deactivatePublisher()(implicit ctx: TestFlowCtx) = ctx.pub ! BecomePassive()
-  def deactivateSink()(implicit ctx: TestFlowCtx) = ctx.sink ! BecomePassive()
+  def setSinkRequestStrategyManual(ctx: TestFlowCtx): Unit = {
+    ctx.sink ! NewRequestStrategy(ZeroRequestStrategy)
+  }
 
-  def deactivateFlow()(implicit ctx: TestFlowCtx): Unit = {
-    deactivatePublisher()
-    deactivateSink()
+  def sinkProduceDemand(count: Int, ctx: TestFlowCtx): Unit = {
+    ctx.sink ! ProduceDemand(count)
+  }
+
+  def deactivatePublisher(ctx: TestFlowCtx) = ctx.pub ! BecomePassive()
+  def deactivateSink(ctx: TestFlowCtx) = ctx.sink ! BecomePassive()
+
+  def deactivateFlow(ctx: TestFlowCtx): Unit = {
+    deactivatePublisher(ctx)
+    deactivateSink(ctx)
   }
 
   def publishMsg(j: JsValue)(implicit ctx: TestFlowCtx): Unit = ctx.pub ! j

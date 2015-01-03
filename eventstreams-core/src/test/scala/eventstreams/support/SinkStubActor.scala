@@ -19,31 +19,37 @@ trait SinkStubActorEvents extends ComponentWithBaseEvents {
   override def componentId: String = "Test.SinkStubActor"
 }
 
+case class NewRequestStrategy(rs: RequestStrategy)
+case class ProduceDemand(i: Int)
+
 object SinkStubActor extends SinkStubActorEvents {
-  def props = Props(new SinkStubActor())
+  def props(requestStrategy: RequestStrategy = WatermarkRequestStrategy(1024, 96)) = Props(new SinkStubActor(requestStrategy))
 }
 
-class SinkStubActor
+class SinkStubActor(initialStrategyWhenEnabled: RequestStrategy)
   extends ActorWithComposableBehavior
   with StoppableSubscriberActor with PipelineWithStatesActor
   with SinkStubActorEvents
   with WithEventPublisher {
 
 
-  var disableFlow = ZeroRequestStrategy
-  var enableFlow = WatermarkRequestStrategy(1024, 96)
+  var rsWhenDisabled = ZeroRequestStrategy
+  var rsWhenEnabled = initialStrategyWhenEnabled
 
   override def commonBehavior: Actor.Receive = super.commonBehavior orElse {
     case OnNext(msg) => msg match {
-      case ProducedMessage(value, cursor) => ReceivedMessageAtSink >>('Contents --> msg, 'Value --> (value ~> 'value | ""))
+      case ProducedMessage(value, Some(cursor)) => ReceivedMessageAtSink >>('Contents --> msg, 'Value --> (value ~> 'value | ""), 'Cursor --> cursor)
+      case ProducedMessage(value, _) => ReceivedMessageAtSink >>('Contents --> msg, 'Value --> (value ~> 'value | ""), 'Cursor --> "")
       case _ => ReceivedMessageAtSink >> ('Contents --> msg)
     }
+    case NewRequestStrategy(rs) => rsWhenEnabled = rs
+    case ProduceDemand(i) => request(i)
 
   }
 
   override protected def requestStrategy: RequestStrategy = lastRequestedState match {
-    case Some(Active()) => enableFlow
-    case _ => disableFlow
+    case Some(Active()) => rsWhenEnabled
+    case _ => rsWhenDisabled
   }
 
 }

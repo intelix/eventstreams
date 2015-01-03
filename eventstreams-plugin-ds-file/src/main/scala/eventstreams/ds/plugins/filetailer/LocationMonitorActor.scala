@@ -15,10 +15,10 @@ import scala.util.matching.Regex
 import scalaz.Scalaz._
 
 object LocationMonitorActor {
-  def props(props: JsValue)(implicit fileSystem: FileSystem) = Props(new LocationMonitorActor(props))
+  def props(datasourceId: String, props: JsValue, cursor: Option[JsValue])(implicit fileSystem: FileSystem) = Props(new LocationMonitorActor(datasourceId, props, cursor))
 }
 
-class LocationMonitorActor(props: JsValue)(implicit val fileSystem: FileSystem)
+class LocationMonitorActor(val datasourceId: String, props: JsValue, cursor: Option[JsValue])(implicit val fileSystem: FileSystem)
   extends ActorWithComposableBehavior
   with PipelineWithStatesActor
   with ActorWithTicks
@@ -30,9 +30,9 @@ class LocationMonitorActor(props: JsValue)(implicit val fileSystem: FileSystem)
   with FileSystemComponent
   with WithEventPublisher {
 
+  currentCursor = FileCursorTools.fromJson(cursor)
 
   override def commonBehavior: Receive = super.commonBehavior
-
 
   override def preStart(): Unit = {
     DatasourceInstance >>(
@@ -55,7 +55,6 @@ class LocationMonitorActor(props: JsValue)(implicit val fileSystem: FileSystem)
   ) yield List(ProducedMessage(convertPayload(data, chunk.meta), FileCursorTools.toJson(chunk.cursor)))
 
 
-
   override val initialPosition: InitialPosition = (props ~> CfgFStartWith).map(_.toLowerCase) match {
     case Some("first") => StartWithFirst()
     case _ => StartWithLast()
@@ -74,4 +73,7 @@ class LocationMonitorActor(props: JsValue)(implicit val fileSystem: FileSystem)
     case _ => OrderByLastModifiedAndName()
   }
 
+  override val blockSize: Int = props +> CfgFBlockSize | 16 * 1024
+
+  override def inactivityThresholdMs: Int = props +> CfgFInactivityThresholdMs | 60 * 1000
 }

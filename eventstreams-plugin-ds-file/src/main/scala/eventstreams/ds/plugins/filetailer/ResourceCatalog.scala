@@ -17,25 +17,27 @@ trait ResourceCatalog {
   def nextAfter(index: ResourceIndex): Option[ResourceIndex]
 
   def close(): Unit
+
+  def all: List[IndexedEntity]
 }
 
 
 class InMemoryResourceCatalog extends ResourceCatalog with FileTailerEvents with WithEventPublisher {
   var memory = List[IndexedEntity]()
 
-  def format(entities: List[IndexedEntity]): String = entities.map { e =>
-    e.id.name + "/" + e.id.createdTimestamp + "/" + e.idx
-  }.mkString("(",",",")")
 
+  private def contentsForComparison(entities: List[IndexedEntity]) = entities.map(_.idx)
 
-
-  override def update(entities: List[IndexedEntity]): Boolean = {
-    if (memory == entities) false else {
+  override def update(entities: List[IndexedEntity]): Boolean =
+    if (contentsForComparison(memory) == contentsForComparison(entities)) {
+      memory = entities
+      false
+    } else {
       ResourceCatalogUpdate >> ('EntriesCount --> entities.size)
       memory = entities
       true
     }
-  }
+
 
   override def indexByResourceId(identificator: FileResourceIdentificator): Option[IndexedEntity] = {
     memory
@@ -63,4 +65,6 @@ class InMemoryResourceCatalog extends ResourceCatalog with FileTailerEvents with
     }
 
   override def close(): Unit = {}
+
+  override def all: List[IndexedEntity] = memory
 }

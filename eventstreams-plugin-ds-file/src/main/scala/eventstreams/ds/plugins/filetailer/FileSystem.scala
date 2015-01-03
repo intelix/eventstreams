@@ -4,7 +4,7 @@ import java.io._
 import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes
-import java.util.zip.{GZIPInputStream, ZipInputStream}
+import java.util.zip.GZIPInputStream
 
 import core.events.EventOps.symbolToEventField
 import core.events.WithEventPublisher
@@ -42,12 +42,7 @@ trait FileSystem {
 }
 
 
-trait FileSystemEvents extends ComponentWithBaseEvents {
-  override def componentId: String = "FileSystem.Disk"
-}
-
-
-class DiskFileSystem extends FileSystem with FileSystemEvents with WithEventPublisher {
+class DiskFileSystem extends FileSystem with FileTailerEvents with WithEventPublisher {
   override def listFiles(directory: String, namePattern: Regex): Seq[FileMeta] = {
 
     def list(attempt: Int): Seq[FileMeta] =
@@ -60,7 +55,10 @@ class DiskFileSystem extends FileSystem with FileSystemEvents with WithEventPubl
             val attributes = Files.readAttributes(f.toPath, classOf[BasicFileAttributes])
             FileMeta(dir.getAbsolutePath, f.getName, f.isFile, f.length(), f.lastModified(), attributes.creationTime().toMillis)
           }
-        } else Seq()
+        } else {
+          Error >>('Message --> s"Unable to get a file listing from $directory  - folder does not exist", 'Attempt --> attempt)
+          Seq()
+        }
       } catch {
         case e: Throwable if attempt < 10 =>
           Error >>('Message --> s"Unable to get a file listing from $directory", 'Error --> e.getMessage, 'Attempt --> attempt)
@@ -120,8 +118,6 @@ class DiskFileSystem extends FileSystem with FileSystemEvents with WithEventPubl
     val rawStream = new FileInputStream(file)
     if (file.getName.endsWith("gz")) {
       new GZIPInputStream(rawStream)
-    } else if (file.getName.endsWith("zip")) {
-      new ZipInputStream(rawStream)
     } else {
       rawStream
     }

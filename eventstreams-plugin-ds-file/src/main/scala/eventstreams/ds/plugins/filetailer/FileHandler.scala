@@ -1,15 +1,15 @@
 package eventstreams.ds.plugins.filetailer
 
 import core.events.EventOps.symbolToEventField
-import core.events.{EventFieldWithValue, WithEventPublisher}
-import eventstreams.core.actors.{PipelineWithStatesActor, Stoppable}
+import core.events.WithEventPublisher
+import eventstreams.core.actors.{ActorWithTicks, PipelineWithStatesActor, Stoppable}
 import eventstreams.core.agent.core.{Cursor, NilCursor}
 
 import scalaz.Scalaz._
 
 
-trait FileHandler extends PipelineWithStatesActor with Stoppable with FileTailerEvents {
-  _: FileSystemComponent with ResourceCatalogComponent with MonitoringTarget with WithEventPublisher  =>
+trait FileHandler extends PipelineWithStatesActor with ActorWithTicks with Stoppable with FileTailerEvents {
+  _: FileSystemComponent with ResourceCatalogComponent with MonitoringTarget with WithEventPublisher =>
 
   private var openResource: Option[OpenFileResource] = None
 
@@ -34,6 +34,15 @@ trait FileHandler extends PipelineWithStatesActor with Stoppable with FileTailer
   } getOrElse NilCursor()
 
 
+  override def processTick(): Unit = {
+    openResource.foreach { r =>
+      inactivityThresholdMs match {
+        case x if x < r.idlePeriodMs => closeOpenedResource()
+        case _ => ()
+      }
+    }
+    super.processTick()
+  }
 
   def closeIfRequired(): Unit = {
     openResource.foreach { r =>
@@ -46,8 +55,6 @@ trait FileHandler extends PipelineWithStatesActor with Stoppable with FileTailer
     closeOpenedResource()
     super.becomePassive()
   }
-
-
 
 
   def advanceCursor(resource: OpenFileResource): Cursor = {
@@ -80,17 +87,16 @@ trait FileHandler extends PipelineWithStatesActor with Stoppable with FileTailer
       r <- resourceCatalog.resourceIdByIdx(fc.idx);
       handle <- fileSystem.open(r.idx, r.id, charset);
       opened <-
-        checkForFolderContentsChanges() match {
-          case true =>
-            handle.close()
-            None
-          case false =>
-            Some(new OpenFileResource(r.idx, r.id, handle))
-        }
-    ) yield {
-      if (opened.canAdvanceTo(fc)) {
-        opened.advanceTo(fc)
+      checkForFolderContentsChanges() match {
+        case true =>
+          handle.close()
+          None
+        case false =>
+          Some(new OpenFileResource(r.idx, r.id, handle, blockSize))
       }
+    ) yield {
+      if (opened.canAdvanceTo(fc)) opened.advanceTo(fc)
+
       Opened >>('Name --> r.id.name, 'ResourceId --> r.idx, 'Position --> opened.cursor.positionWithinItem)
       opened
     }
@@ -100,11 +106,11 @@ trait FileHandler extends PipelineWithStatesActor with Stoppable with FileTailer
     for (
       fc <- fileCursor;
       resource <-
-        openResource match {
-          case Some(r) if r.atTheTail_? && checkForFolderContentsChanges() => reopen()
-          case Some(r) if r.canAdvanceTo(fc) => Some(r.advanceTo(fc))
-          case _ => reopen()
-        }
+      openResource match {
+        case Some(r) if r.atTheTail_? || checkForFolderContentsChanges() => reopen()
+        case None => reopen()
+        case Some(r) => Some(r)
+      }
 
     ) yield {
       openResource = Some(resource)
@@ -119,6 +125,7 @@ trait FileHandler extends PipelineWithStatesActor with Stoppable with FileTailer
       val chunk = r.nextChunk()
       val cursor = advanceCursor(r)
       currentCursor = Some(cursor)
+      val fileCursor = cursorToFileCursor(cursor)
       closeIfRequired()
       DataChunk(chunk, r.getDetails(), cursor, !r.atTheTail_?)
     }
@@ -127,7 +134,7 @@ trait FileHandler extends PipelineWithStatesActor with Stoppable with FileTailer
   private def closeOpenedResource() {
     openResource.foreach { r =>
       r.close()
-      Closed >> ('Name --> r.handle.fullPath, 'ResourceId --> r.cursor.idx, 'AtTail --> r.atTheTail_?)
+      Closed >>('Name --> r.handle.fullPath, 'ResourceId --> r.cursor.idx, 'AtTail --> r.atTheTail_?)
     }
     openResource = None
   }

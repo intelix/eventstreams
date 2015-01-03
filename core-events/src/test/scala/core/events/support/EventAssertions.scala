@@ -53,9 +53,10 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
         val log = LoggerFactory.getLogger("events")
         log.error("*" * 120 + "\nTest failed", x)
         log.error("Raised events:")
-        val events = EventPublisherRef.ref.asInstanceOf[TestEventPublisher].eventsInOrder
-        events.foreach { next =>
-          LoggerEventPublisherHelper.log(next.event, CtxSystemRef.ref, next.values, s => log.error(s))
+        EventPublisherRef.ref.asInstanceOf[TestEventPublisher].withOrderedEvents { events =>
+          events.foreach { next =>
+            LoggerEventPublisherHelper.log(next.event, CtxSystemRef.ref, next.values, s => log.error(s))
+          }
         }
         log.error("*" * 120 + "\n\n", x)
         throw x
@@ -67,6 +68,26 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
       events should contain key event
       events.get(event).get should haveAllValues(values)
     }
+  }
+
+  def locateAllEvents(event: Event) = events.get(event)
+  def locateLastEvent(event: Event) = locateAllEvents(event).map(_.head)
+  def locateFirstEvent(event: Event) = locateAllEvents(event).map(_.head)
+  def locateFirstEventFieldValue(event: Event, field: String) = {
+    val maybeValue = for (
+      all <- locateAllEvents(event);
+      first = all.head;
+      fieldWrapper <- first.find(_.fieldName == field)
+    ) yield fieldWrapper.value
+    maybeValue.get
+  }
+  def locateLastEventFieldValue(event: Event, field: String) = {
+    val maybeValue = for (
+      all <- locateAllEvents(event);
+      first = all.last;
+      fieldWrapper <- first.find(_.fieldName == field)
+    ) yield fieldWrapper.value
+    maybeValue.get
   }
 
   def waitAndCheck(f: => Unit) = duringPeriodInMillis(500)(f)

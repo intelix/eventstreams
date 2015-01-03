@@ -23,7 +23,7 @@ import core.events.EventOps.symbolToEventField
 import core.events.WithEventPublisher
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors.{StandardPublisherEvents, StateChangeEvents}
-import eventstreams.core.{BuilderFromConfig, Fail}
+import eventstreams.core.{BuilderFromConfig, Fail, OK}
 import play.api.libs.json.{JsValue, Json}
 
 import scala.util.Try
@@ -56,6 +56,8 @@ trait FileTailerConstants
   val CfgFStartWith = "startWith"
   val CfgFFileOrdering = "fileOrdering"
   val CfgFCharset = "charset"
+  val CfgFBlockSize = "blockSize"
+  val CfgFInactivityThresholdMs = "inactivityThresholdMs"
 
 }
 
@@ -67,20 +69,24 @@ class FileTailerDatasource extends BuilderFromConfig[Props] with FileTailerEvent
   def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, Props] = {
     implicit val fileSystem = new DiskFileSystem()
     for (
+      datasourceId <- id \/> Fail(s"datasourceId must be provided");
       _ <- props ~> CfgFDirectory \/> Fail(s"Invalid $configId datasource. Missing '$CfgFDirectory' value. Contents: ${Json.stringify(props)}");
       mainPattern <- props ~> CfgFMainPattern \/> Fail(s"Invalid $configId datasource. Missing '$CfgFMainPattern' value. Contents: ${Json.stringify(props)}");
       _ <- Try {
         new Regex(mainPattern)
-      }.toOption \/> Fail(s"Invalid $configId datasource. Invalid '$CfgFRolledPattern' value. Contents: ${Json.stringify(props)}");
+      }.toOption \/> Fail(s"Invalid $configId datasource. Invalid '$CfgFMainPattern' value. Contents: ${Json.stringify(props)}");
       _ <- Try {
         (props ~> CfgFRolledPattern).map(new Regex(_))
       }.toOption \/> Fail(s"Invalid $configId datasource. Invalid '$CfgFRolledPattern' value. Contents: ${Json.stringify(props)}");
       _ <- Try {
         Charset.forName(props ~> CfgFCharset | "UTF-8")
-      }.toOption \/> Fail(s"Invalid $configId datasource. Invalid '$CfgFCharset' value. Contents: ${Json.stringify(props)}")
+      }.toOption \/> Fail(s"Invalid $configId datasource. Invalid '$CfgFCharset' value. Contents: ${Json.stringify(props)}");
+      _ <- if ((props +> CfgFBlockSize | 16*1024) < 32)
+        Fail(s"Invalid $configId datasource. Invalid '$CfgFBlockSize' value. Must be more than 32. Contents: ${Json.stringify(props)}").left
+      else OK.right
     ) yield {
       Built >>('Config --> props, 'State --> maybeState)
-      LocationMonitorActor.props(props)
+      LocationMonitorActor.props(datasourceId, props, maybeState)
     }
   }
 }

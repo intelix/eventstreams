@@ -8,6 +8,8 @@ trait MonitoringTarget {
 
   def initialPosition: InitialPosition
 
+  def datasourceId: String
+
   def directory: String
 
   def rolledFilePatternR: Option[Regex]
@@ -17,5 +19,9 @@ trait MonitoringTarget {
   def fileOrdering: FileOrdering
 
   def charset: Charset
+  
+  def blockSize: Int
+
+  def inactivityThresholdMs: Int
 
 }

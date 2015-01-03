@@ -8,8 +8,12 @@ case class RaisedEvent(event: Event, values: Seq[EventFieldWithValue])
 class TestEventPublisher extends EventPublisher with LoggerEventPublisher {
 
   val events = mutable.Map[Event, List[Seq[EventFieldWithValue]]]()
-  var eventsInOrder = List[RaisedEvent]()
+  private var eventsInOrder = List[RaisedEvent]()
 
+  def withOrderedEvents(f: List[RaisedEvent] => Unit) = events.synchronized {
+    f(eventsInOrder)
+  }
+  
   def clear() = events.synchronized { 
     events.clear()
     eventsInOrder = List()

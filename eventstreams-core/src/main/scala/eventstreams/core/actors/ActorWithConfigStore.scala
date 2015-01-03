@@ -18,7 +18,7 @@ package eventstreams.core.actors
 
 import eventstreams.core.storage._
 import eventstreams.core.{Fail, OK}
-import play.api.libs.json.JsValue
+import play.api.libs.json.{Json, JsValue}
 
 import scalaz.Scalaz._
 import scalaz._
@@ -30,6 +30,7 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior {
   private val configStore = ConfigStorageActor.path
   var propsConfig: Option[JsValue] = None
   var stateConfig: Option[JsValue] = None
+  var initialConfigApplied = false
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
@@ -118,7 +119,10 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior {
         applyConfig(key, props, maybeState)
         afterApplyConfig()
         logger.info(s"Applied configuration with key $key, initial: $isInitialConfig")
-        if (isInitialConfig) onInitialConfigApplied()
+        if (isInitialConfig) {
+          initialConfigApplied = true
+          onInitialConfigApplied()
+        }
       }
     }
   }
@@ -136,9 +140,10 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior {
         applyConfig(e.key, e.config, e.state)
       })
       afterApplyConfig()
-    case StoredConfig(_, cfg) =>
+    case StoredConfig(k, cfg) =>
       logger.debug(s"Received stored config")
-      cfg.foreach { e => cacheAndApplyConfig(e.config, e.state)}
+      val config = cfg | EntryConfigSnapshot(k, Json.obj(), None)
+      cacheAndApplyConfig(config.config, config.state)
     case InitialConfig(c, s) => propsConfig match {
       case None =>
         logger.info(s"Received initial configuration: $c state: $s")

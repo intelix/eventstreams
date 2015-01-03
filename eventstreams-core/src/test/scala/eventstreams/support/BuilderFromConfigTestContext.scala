@@ -12,22 +12,30 @@ trait BuilderFromConfigTestContext extends Matchers {
 
   def config: JsValue
 
-  def state: Option[JsValue] = None
+  var state: Option[JsValue] = None
 
   def id: Option[String] = None
 
-  var instruction: Option[Props] = None
+  var instance: Option[Props] = None
 
+  def clearInstance() = instance = None
+  
   def shouldNotBuild(f: Fail => Unit = _ => ()) = builder.build(config, state, id) match {
     case \/-(inst) => fail("Successfully built, but expected to fail: " + inst)
     case -\/(x) => f(x)
   }
 
-  def shouldBuild(f: Props => Unit = _ => ()) = instruction match {
+  def shouldBuildNew(f: Props => Unit = _ => ()) = {
+    clearInstance()
+    shouldBuild(f)
+  } 
+
+
+  def shouldBuild(f: Props => Unit = _ => ()) = instance match {
     case Some(inst) => f(inst)
     case None => builder.build(config, state, id) match {
       case \/-(inst) =>
-        instruction = Some(inst)
+        instance = Some(inst)
         f(inst)
       case -\/(x) => fail("Failed with: " + x)
     }

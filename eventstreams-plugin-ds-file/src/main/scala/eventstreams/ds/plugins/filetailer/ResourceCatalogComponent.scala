@@ -1,6 +1,9 @@
 package eventstreams.ds.plugins.filetailer
 
 import com.typesafe.scalalogging.StrictLogging
+import eventstreams.core.Tools.configHelper
+import eventstreams.core.actors.{PipelineWithStatesActor, ActorWithConfigStore}
+import play.api.libs.json.{Json, JsValue}
 
 import scala.util.matching.Regex
 import scalaz.Scalaz._
@@ -10,12 +13,53 @@ trait InMemoryResourceCatalogComponent extends ResourceCatalogComponent {
   override val resourceCatalog: ResourceCatalog = new InMemoryResourceCatalog()
 }
 
-trait ResourceCatalogComponent extends FileTailerConstants with StrictLogging {
+trait ResourceCatalogComponent
+  extends FileTailerConstants
+  with ActorWithConfigStore
+  with StrictLogging {
   this: FileSystemComponent with MonitoringTarget =>
 
   def resourceCatalog: ResourceCatalog
 
   var currentSeed = java.lang.System.currentTimeMillis()
+
+  override def storageKey: Option[String] = Some(datasourceId + ":" + directory)
+
+  @throws[Exception](classOf[Exception]) override
+  def postStop(): Unit = {
+    checkForFolderContentsChanges()
+    updateAndApplyConfigProps(configToJson(resourceCatalog.all))
+    super.postStop()
+  }
+
+  private def configToJson(list: List[IndexedEntity]): JsValue =
+    Json.obj("list" ->
+      Json.toJson(list.map { ie =>
+        Json.obj(
+          "createdTimestamp" -> ie.id.createdTimestamp,
+          "dir" -> ie.id.dir,
+          "name" -> ie.id.name,
+          "sizeNow" -> ie.id.sizeNow,
+          "resourceId" -> ie.idx.resourceId,
+          "seed" -> ie.idx.seed
+        )
+      }.toArray)
+    )
+
+  private def jsonToConfig(props: JsValue): List[IndexedEntity] =
+    (props ##> 'list | Seq()).flatMap { v =>
+      for (
+        createdTimestamp <- v ++> 'createdTimestamp;
+        dir <- v ~> 'dir;
+        name <- v ~> 'name;
+        sizeNow <- v ++> 'sizeNow;
+        resourceId <- v ++> 'resourceId;
+        seed <- v ++> 'seed
+      ) yield IndexedEntity(ResourceIndex(seed, resourceId), FileResourceIdentificator(dir, name, createdTimestamp, sizeNow))
+    }.toList
+
+
+  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = resourceCatalog.update(jsonToConfig(props))
 
   def locateLastResource(): Option[ResourceIndex] = {
     checkForFolderContentsChanges()
@@ -38,15 +82,9 @@ trait ResourceCatalogComponent extends FileTailerConstants with StrictLogging {
     case _ => false
   }
 
-  def locateResource(index: ResourceIndex): Option[ResourceIndex] = {
-    checkForFolderContentsChanges()
-    resourceCatalog.nextAfter(index)
-  }
-
   private def listOfAllFiles(pattern: Regex): List[FileResourceIdentificator] = {
-    val minAcceptableFileSize = 1
     fileSystem.listFiles(directory, pattern)
-      .filter(f => f.isFile && !f.name.startsWith(".") && f.length > minAcceptableFileSize)
+      .filter(f => f.isFile && !f.name.startsWith("."))
       .sortWith({
       case (f1, f2) => fileOrdering match {
         case OrderByLastModifiedAndName() => if (f1.lastModified != f2.lastModified) {
@@ -65,7 +103,7 @@ trait ResourceCatalogComponent extends FileTailerConstants with StrictLogging {
     (rolledFilePatternR.map(listOfAllFiles) | List()) ::: listOfAllFiles(mainLogPatternR)
 
   def checkForFolderContentsChanges(): Boolean =
-    resourceCatalog.update(listOfFiles() match {
+    initialConfigApplied && resourceCatalog.update(listOfFiles() match {
       case Nil => List[IndexedEntity]()
       case head :: Nil => resourceCatalog.indexByResourceId(head) match {
         case Some(IndexedEntity(ResourceIndex(seed, 0), _)) => List(IndexedEntity(ResourceIndex(seed, 0), head))

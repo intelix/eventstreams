@@ -76,7 +76,7 @@ trait FlowComponentTestContext {
 
   }
 
-  def withFlow(component: Props)(f: TestFlowFunc) = withCustomFlow(PublisherStubActor.props, component, SinkStubActor.props)(f)
+  def withFlow(component: Props)(f: TestFlowFunc) = withCustomFlow(PublisherStubActor.props, component, SinkStubActor.props())(f)
 
   def activateComponent()(implicit ctx: TestFlowCtx) = ctx.comp ! BecomeActive()
 
