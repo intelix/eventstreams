@@ -68,6 +68,8 @@ trait TempFolder extends BeforeAndAfterEach with BeforeAndAfterAll with StrictLo
       gz.close()
       os.close()
       is.close()
+      Thread.sleep(5)
+
       writer.foreach(_.close())
       deleteFile(f) shouldBe true
 //      f.createNewFile() shouldBe true
@@ -90,6 +92,8 @@ trait TempFolder extends BeforeAndAfterEach with BeforeAndAfterAll with StrictLo
       } while (len > -1)
       os.close()
       is.close()
+      Thread.sleep(5)
+
       writer.foreach(_.close())
       deleteFile(f) shouldBe true
 //      f.createNewFile() shouldBe true

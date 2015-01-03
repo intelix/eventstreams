@@ -57,11 +57,17 @@ object EventStreamsBuild {
     testOptions in Test += Tests.Argument("-oDF"),
     testListeners in(Test, test) := Seq(TestLogger(streams.value.log, { _ => streams.value.log}, logBuffered.value)),
     testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a"),
-    parallelExecution in Test := false,
-    parallelExecution in ThisBuild := false
+    parallelExecution in Test := false
+  )
+  
+  lazy val concurrencySettings = Seq(
+    concurrentRestrictions in Global := Seq(
+      Tags.limit(Tags.Test, 1),
+      Tags.limitAll( 15 )
+    )
   )
 
-  lazy val defaultSettings = baseSettings ++ resolverSettings ++ mavenLocalResolverSettings ++ compilerSettings ++ sharedProjectSettings ++ testSettings
+  lazy val defaultSettings = baseSettings ++ resolverSettings ++ mavenLocalResolverSettings ++ compilerSettings ++ sharedProjectSettings ++ testSettings ++ concurrencySettings
 
   licenseOverrides := {
     case DepModuleInfo(_, "prettytime", _) => LicenseInfo(LicenseCategory.Apache, "Apache 2", "http://www.apache.org/licenses/LICENSE-2.0")
