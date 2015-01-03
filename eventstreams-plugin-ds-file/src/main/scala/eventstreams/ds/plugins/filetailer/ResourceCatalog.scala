@@ -33,7 +33,7 @@ class InMemoryResourceCatalog extends ResourceCatalog with FileTailerEvents with
       memory = entities
       false
     } else {
-      ResourceCatalogUpdate >> ('EntriesCount --> entities.size, 'Entries --> entities)
+      ResourceCatalogUpdate >> ('EntriesCount --> entities.size)
       memory = entities
       true
     }

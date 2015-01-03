@@ -118,6 +118,24 @@ lazy val eventStreamsHQ = Project(
 ).enablePlugins(PlayScala,SbtWeb)
 
 
+lazy val eventStreamsTests = Project(
+  id = "eventstreams-tests",
+  base = file("eventstreams-tests"),
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore % "compile;test->test",
+    eventStreamsPluginDSFile % "compile;test->test",
+    eventStreamsPluginDSJMX % "compile;test->test",
+    eventStreamsPluginDSStatsd % "compile;test->test",
+    eventStreamsPluginDSUDP % "compile;test->test",
+    eventStreamsPluginDSTCP % "compile;test->test",
+    eventStreamsHQ % "compile;test->test",
+    eventStreamsEngines % "compile;test->test",
+    eventStreamsInstructionsEssentials % "compile;test->test",
+    eventStreamsPluginEndpointInfluxDB % "compile;test->test"
+  )
+)
+
 
 
 
