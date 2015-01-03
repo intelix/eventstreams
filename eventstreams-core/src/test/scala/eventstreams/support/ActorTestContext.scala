@@ -18,8 +18,10 @@ class ActorTestContext(_system: ActorSystem)
     super.beforeEach()
   }
 
+
   override def afterAll() {
     TestKit.shutdownActorSystem(system)
+    super.afterAll()
   }
 
 }

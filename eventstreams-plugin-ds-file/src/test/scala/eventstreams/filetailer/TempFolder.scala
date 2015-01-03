@@ -27,6 +27,7 @@ trait TempFolder extends BeforeAndAfterEach with BeforeAndAfterAll with StrictLo
     def write(s: String) = writer.foreach { w =>
       w.write(s)
       w.flush()
+      Thread.sleep(5)
     }
 
 

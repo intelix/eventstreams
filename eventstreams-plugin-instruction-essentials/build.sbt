@@ -4,6 +4,7 @@ EventStreamsBuild.coreSettings("eventstreams-plugin-instruction-essentials")
 
 libraryDependencies ++= Dependencies.eventStreamsPluginInstructionsEssentials
 
+parallelExecution in Test := false
 
 
 

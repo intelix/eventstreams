@@ -4,10 +4,10 @@ import com.typesafe.scalalogging.StrictLogging
 import core.events._
 import org.scalatest.concurrent.Eventually._
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{BeforeAndAfterEach, Matchers}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Matchers}
 import org.slf4j.LoggerFactory
 
-trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEach with StrictLogging {
+trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEach with BeforeAndAfterAll with StrictLogging {
   self: org.scalatest.Suite =>
 
   EventPublisherRef.ref = new TestEventPublisher()
@@ -15,6 +15,17 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
 
   def clearEvents() =
     EventPublisherRef.ref.asInstanceOf[TestEventPublisher].clear()
+
+  override protected def beforeAll(): Unit = {
+    logger.warn("**** > Starting " + this.getClass)
+    super.beforeAll()
+  }
+
+  override def afterAll() {
+    super.afterAll()
+    logger.warn("**** > Finished " + this.getClass)
+  }
+
 
 
   override protected def afterEach(): Unit = {
