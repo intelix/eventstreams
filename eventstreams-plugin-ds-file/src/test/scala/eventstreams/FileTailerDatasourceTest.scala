@@ -1124,10 +1124,11 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                 Thread.sleep(1000)
               }
             }
+            Thread.sleep(5000)
             (1 to 50) foreach { i =>
               expectSomeEvents(1, ReceivedMessageAtSink, 'Value --> ("CCC" + i.toString))
             }
-            expectSomeEvents(50, ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
+            expectSomeEvents(10000, 50, ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
             expectSomeEvents(50, ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
           }
         }
@@ -1148,10 +1149,11 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                 Thread.sleep(1000)
               }
             }
+            Thread.sleep(5000)
             (1 to 50) foreach { i =>
               expectSomeEvents(1, ReceivedMessageAtSink, 'Value --> ("CCC" + i.toString))
             }
-            expectSomeEvents(50, ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
+            expectSomeEvents(10000, 50, ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
             expectSomeEvents(50, ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
           }
         }
@@ -1175,10 +1177,11 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                 Thread.sleep(1000)
               }
             }
+            Thread.sleep(5000)
             (1 to 50) foreach { i =>
               expectSomeEvents(1, ReceivedMessageAtSink, 'Value --> ("CCC" + i.toString))
             }
-            expectSomeEvents(50, ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
+            expectSomeEvents(10000, 50, ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
             expectSomeEvents(50, ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
           }
         }

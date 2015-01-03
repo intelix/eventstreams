@@ -3,7 +3,7 @@ package eventstreams
 import _root_.core.events.support.EventAssertions
 import akka.actor.Props
 import akka.stream.actor.{OneByOneRequestStrategy, RequestStrategy, ZeroRequestStrategy}
-import akka.testkit.TestKit
+import akka.testkit.{TestProbe, TestKit}
 import com.typesafe.config.ConfigFactory
 import eventstreams.core.BuilderFromConfig
 import eventstreams.core.storage.ConfigStorageActor
@@ -12,6 +12,8 @@ import eventstreams.ds.plugins.filetailer.{FileTailerConstants, FileTailerDataso
 import eventstreams.support.{StorageStub, BuilderFromConfigTestContext, FlowPublisherTestContext}
 import org.scalatest.{BeforeAndAfterEach, Suite}
 import play.api.libs.json.{JsValue, Json}
+
+import scala.util.Try
 
 trait FileTailerTestSupport
   extends FlowPublisherTestContext with EventAssertions with TempFolder with BeforeAndAfterEach {
@@ -33,12 +35,15 @@ trait FileTailerTestSupport
     ehub.storage.provider = "eventstreams.support.StorageStub"
                                            """)
       val actor = ConfigStorageActor.start(system, cfg)
+      val configMgrActorProbe = TestProbe()
 
       try {
         f
       } finally {
         system.stop(actor)
-
+        Try {
+          configMgrActorProbe expectTerminated actor
+        }
       }
 
     }

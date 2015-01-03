@@ -63,13 +63,6 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
     }
   }
 
-  def expectSomeEvents(event: Event, values: EventFieldWithValue*) = {
-    waitWithTimeout(5000) {
-      events should contain key event
-      events.get(event).get should haveAllValues(values)
-    }
-  }
-
   def locateAllEvents(event: Event) = events.get(event)
   def locateLastEvent(event: Event) = locateAllEvents(event).map(_.head)
   def locateFirstEvent(event: Event) = locateAllEvents(event).map(_.head)
@@ -101,11 +94,20 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
 
   }
 
-  def expectNoEvents(event: Event, values: EventFieldWithValue*) =
+  def expectNoEvents(event: Event, values: EventFieldWithValue*): Unit =
     events.get(event).foreach(_ shouldNot haveAllValues(values))
 
+  def expectSomeEvents(event: Event, values: EventFieldWithValue*): Unit = expectSomeEvents(5000, event, values:_*)
+  def expectSomeEvents(event: Event, count: Int, values: EventFieldWithValue*): Unit = expectSomeEvents(5000, count, event, values:_*)
 
-  def expectSomeEvents(count: Int, event: Event, values: EventFieldWithValue*) = {
+    def expectSomeEvents(timeout: Int, event: Event, values: EventFieldWithValue*): Unit = {
+    waitWithTimeout(5000) {
+      events should contain key event
+      events.get(event).get should haveAllValues(values)
+    }
+  }
+
+  def expectSomeEvents(timeout: Int, count: Int, event: Event, values: EventFieldWithValue*): Unit = {
     waitWithTimeout(5000) {
       events should contain key event
       events.get(event).get should haveAllValues(count, values)

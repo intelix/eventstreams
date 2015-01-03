@@ -32,7 +32,7 @@
         <appender-ref ref="EVENTS" />
     </logger>
 
-    <logger name="events" level="DEBUG" additivity="false">
+    <logger name="events" level="WARN" additivity="false">
         <appender-ref ref="EVENTS" />
     </logger>
 
