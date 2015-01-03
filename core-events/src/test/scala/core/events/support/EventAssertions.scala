@@ -2,13 +2,10 @@ package core.events.support
 
 import com.typesafe.scalalogging.StrictLogging
 import core.events._
-import org.scalatest.concurrent.AsyncAssertions.Waiter
 import org.scalatest.concurrent.Eventually._
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterEach, Matchers}
 import org.slf4j.LoggerFactory
-
-import scala.concurrent.duration.DurationDouble
 
 trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEach with StrictLogging {
   self: org.scalatest.Suite =>
@@ -64,8 +61,11 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
   }
 
   def locateAllEvents(event: Event) = events.get(event)
+
   def locateLastEvent(event: Event) = locateAllEvents(event).map(_.head)
+
   def locateFirstEvent(event: Event) = locateAllEvents(event).map(_.head)
+
   def locateFirstEventFieldValue(event: Event, field: String) = {
     val maybeValue = for (
       all <- locateAllEvents(event);
@@ -74,6 +74,7 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
     ) yield fieldWrapper.value
     maybeValue.get
   }
+
   def locateLastEventFieldValue(event: Event, field: String) = {
     val maybeValue = for (
       all <- locateAllEvents(event);
@@ -97,18 +98,19 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
   def expectNoEvents(event: Event, values: EventFieldWithValue*): Unit =
     events.get(event).foreach(_ shouldNot haveAllValues(values))
 
-  def expectSomeEvents(event: Event, values: EventFieldWithValue*): Unit = expectSomeEvents(5000, event, values:_*)
-  def expectSomeEvents(event: Event, count: Int, values: EventFieldWithValue*): Unit = expectSomeEvents(5000, count, event, values:_*)
+  def expectSomeEvents(event: Event, values: EventFieldWithValue*): Unit = expectSomeEventsWithTimeout(5000, event, values: _*)
 
-    def expectSomeEvents(timeout: Int, event: Event, values: EventFieldWithValue*): Unit = {
-    waitWithTimeout(5000) {
+  def expectSomeEvents(count: Int, event: Event, values: EventFieldWithValue*): Unit = expectSomeEventsWithTimeout(5000, count, event, values: _*)
+
+  def expectSomeEventsWithTimeout(timeout: Int, event: Event, values: EventFieldWithValue*): Unit = {
+    waitWithTimeout(timeout) {
       events should contain key event
       events.get(event).get should haveAllValues(values)
     }
   }
 
-  def expectSomeEvents(timeout: Int, count: Int, event: Event, values: EventFieldWithValue*): Unit = {
-    waitWithTimeout(5000) {
+  def expectSomeEventsWithTimeout(timeout: Int, count: Int, event: Event, values: EventFieldWithValue*): Unit = {
+    waitWithTimeout(timeout) {
       events should contain key event
       events.get(event).get should haveAllValues(count, values)
     }

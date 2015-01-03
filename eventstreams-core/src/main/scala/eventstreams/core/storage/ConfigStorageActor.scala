@@ -18,13 +18,16 @@ package eventstreams.core.storage
 
 import akka.actor.{Actor, Props}
 import com.typesafe.config.Config
-import eventstreams.core.actors.{ActorObjWithConfig, ActorWithComposableBehavior}
+import core.events.WithEventPublisher
+import core.events.ref.ComponentWithBaseEvents
+import eventstreams.core.actors.{BaseActorEvents, ActorObjWithConfig, ActorWithComposableBehavior}
 import play.api.libs.json.{JsValue, Json}
 
-/**
- * Created by maks on 22/09/2014.
- */
-object ConfigStorageActor extends ActorObjWithConfig {
+trait ConfigStorageActorEvents extends ComponentWithBaseEvents with BaseActorEvents {
+  override def componentId: String = "ConfigStorage"
+}
+
+object ConfigStorageActor extends ActorObjWithConfig with ConfigStorageActorEvents  {
   override val id = "cfgStorage"
 
   override def props(implicit config: Config) = Props(new ConfigStorageActor())
@@ -52,7 +55,7 @@ case class StoredConfig(key: String, config: Option[EntryConfigSnapshot])
 
 case class StoredConfigs(configs: List[StoredConfig])
 
-class ConfigStorageActor(implicit config: Config) extends ActorWithComposableBehavior {
+class ConfigStorageActor(implicit config: Config) extends ActorWithComposableBehavior with ConfigStorageActorEvents with WithEventPublisher {
 
   val storage = Storage(config)
 

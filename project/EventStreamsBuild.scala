@@ -57,7 +57,8 @@ object EventStreamsBuild {
     testOptions in Test += Tests.Argument("-oDF"),
     testListeners in(Test, test) := Seq(TestLogger(streams.value.log, { _ => streams.value.log}, logBuffered.value)),
     testOptions += Tests.Argument(TestFrameworks.JUnit, "-v", "-a"),
-    parallelExecution in Test := false
+    parallelExecution in Test := false,
+    parallelExecution in ThisBuild := false
   )
 
   lazy val defaultSettings = baseSettings ++ resolverSettings ++ mavenLocalResolverSettings ++ compilerSettings ++ sharedProjectSettings ++ testSettings

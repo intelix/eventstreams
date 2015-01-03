@@ -1,15 +1,12 @@
-package eventstreams
+package eventstreams.filetailer
 
 import java.io._
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
-import java.util.zip.{ZipEntry, ZipOutputStream, GZIPOutputStream}
+import java.util.zip.GZIPOutputStream
 
 import com.typesafe.scalalogging.StrictLogging
-import org.scalatest.matchers.Matcher
-import org.scalatest.{Matchers, BeforeAndAfterAll, BeforeAndAfterEach}
-
-import scala.util.Try
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Matchers}
 
 trait TempFolder extends BeforeAndAfterEach with BeforeAndAfterAll with StrictLogging with Matchers {
   this: org.scalatest.Suite =>

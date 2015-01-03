@@ -1,8 +1,7 @@
-package eventstreams
+package eventstreams.filetailer
 
 import _root_.core.events.EventOps.symbolToEventField
 import akka.actor.ActorSystem
-import eventstreams.core.agent.core.ProducedMessage
 import eventstreams.ds.plugins.filetailer.FileTailerConstants
 import eventstreams.ds.plugins.filetailer.FileTailerConstants._
 import eventstreams.support.ActorTestContext
@@ -1128,7 +1127,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
             (1 to 50) foreach { i =>
               expectSomeEvents(1, ReceivedMessageAtSink, 'Value --> ("CCC" + i.toString))
             }
-            expectSomeEvents(10000, 50, ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
+            expectSomeEventsWithTimeout(10000, 50, ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
             expectSomeEvents(50, ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
           }
         }
@@ -1153,7 +1152,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
             (1 to 50) foreach { i =>
               expectSomeEvents(1, ReceivedMessageAtSink, 'Value --> ("CCC" + i.toString))
             }
-            expectSomeEvents(10000, 50, ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
+            expectSomeEventsWithTimeout(10000, 50, ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
             expectSomeEvents(50, ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
           }
         }
@@ -1181,7 +1180,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
             (1 to 50) foreach { i =>
               expectSomeEvents(1, ReceivedMessageAtSink, 'Value --> ("CCC" + i.toString))
             }
-            expectSomeEvents(10000, 50, ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
+            expectSomeEventsWithTimeout(10000, 50, ReceivedMessageAtSink, 'Value --> ("A" * testBlockSize))
             expectSomeEvents(50, ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
           }
         }
