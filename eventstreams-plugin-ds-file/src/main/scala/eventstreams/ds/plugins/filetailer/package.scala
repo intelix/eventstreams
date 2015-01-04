@@ -11,7 +11,7 @@ package object filetailer {
   case class FileResourceIdentificator(dir: String, name: String, createdTimestamp: Long, sizeNow: Long)  {
     def same(that: FileResourceIdentificator): Boolean = that match {
       case FileResourceIdentificator(thatDir, thatName, thatCreatedTs, thatSize) =>
-        thatDir == dir && thatName == name && thatCreatedTs == createdTimestamp && thatSize >= sizeNow
+        thatDir == dir && thatName == name && thatSize >= sizeNow
       case _ => false
     }
   }
