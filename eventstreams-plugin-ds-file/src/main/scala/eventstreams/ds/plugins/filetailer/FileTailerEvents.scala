@@ -17,6 +17,8 @@ trait FileTailerEvents extends ComponentWithBaseEvents {
   val NewDataBlock = 'NewDataBlock.trace
 
   val ResourceCatalogUpdate = 'ResourceCatalogUpdate.trace
+  
+  val ResourceCatalogNewSeed = 'ResourceCatalogNewSeed.trace
 
   override def componentId: String = "Datasource.FileTailer"
 }

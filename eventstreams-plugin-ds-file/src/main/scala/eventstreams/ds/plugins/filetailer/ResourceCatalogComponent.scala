@@ -1,6 +1,8 @@
 package eventstreams.ds.plugins.filetailer
 
 import com.typesafe.scalalogging.StrictLogging
+import core.events.EventOps.symbolToEventField
+import core.events.WithEventPublisher
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors.{PipelineWithStatesActor, ActorWithConfigStore}
 import play.api.libs.json.{Json, JsValue}
@@ -16,8 +18,8 @@ trait InMemoryResourceCatalogComponent extends ResourceCatalogComponent {
 trait ResourceCatalogComponent
   extends FileTailerConstants
   with ActorWithConfigStore
-  with StrictLogging {
-  this: FileSystemComponent with MonitoringTarget =>
+  with FileTailerEvents {
+  this: FileSystemComponent with MonitoringTarget with WithEventPublisher =>
 
   def resourceCatalog: ResourceCatalog
 
@@ -107,11 +109,13 @@ trait ResourceCatalogComponent
       case Nil => List[IndexedEntity]()
       case head :: Nil => resourceCatalog.indexByResourceId(head) match {
         case Some(IndexedEntity(ResourceIndex(seed, 0), _)) => List(IndexedEntity(ResourceIndex(seed, 0), head))
-        case Some(IndexedEntity(ResourceIndex(seed, _), _)) =>
+        case x @ Some(IndexedEntity(ResourceIndex(seed, _), _)) =>
           currentSeed = java.lang.System.currentTimeMillis()
+          ResourceCatalogNewSeed >> ('Seed --> currentSeed, 'Reason --> "Matching entry recordId is not 0", 'Head --> head, 'Entry --> x)
           List(IndexedEntity(ResourceIndex(currentSeed, 0), head))
         case None =>
           currentSeed = java.lang.System.currentTimeMillis()
+          ResourceCatalogNewSeed >> ('Seed --> currentSeed, 'Reason --> "No entry matching current head", 'Head --> head, 'Entries --> resourceCatalog.all)
           List(IndexedEntity(ResourceIndex(currentSeed, 0), head))
       }
       case longList =>
