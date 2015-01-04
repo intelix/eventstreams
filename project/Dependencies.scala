@@ -110,7 +110,8 @@ object Dependencies {
 
     val scalaTest       = "org.scalatest"               %% "scalatest"                      % scalaTestVersion      % "test"
     val akkaMultiNode   = "com.typesafe.akka"           %% "akka-multi-node-testkit"        % akkaVersion           % "test"
-    val akkaTestKit   = "com.typesafe.akka"             %% "akka-testkit"                   % akkaVersion           % "test"
+    val akkaTestKit     = "com.typesafe.akka"           %% "akka-testkit"                   % akkaVersion           % "test"
+    val akkaMNTestkit   = "com.typesafe.akka"           %% "akka-multi-node-testkit"        % akkaVersion           % "test"
 
   }
 
@@ -186,5 +187,10 @@ object Dependencies {
     webjarsToastr
   )
 
+  val eventStreamsMultinodeTests = eventStreamsCommon ++: Seq(
+    Test.akkaTestKit,
+    Test.akkaMNTestkit
+  )
+  
 }
 

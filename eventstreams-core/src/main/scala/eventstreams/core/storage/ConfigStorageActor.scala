@@ -18,16 +18,25 @@ package eventstreams.core.storage
 
 import akka.actor.{Actor, Props}
 import com.typesafe.config.Config
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
-import eventstreams.core.actors.{BaseActorEvents, ActorObjWithConfig, ActorWithComposableBehavior}
+import eventstreams.core.actors.{ActorObjWithConfig, ActorWithComposableBehavior, BaseActorEvents}
 import play.api.libs.json.{JsValue, Json}
 
 trait ConfigStorageActorEvents extends ComponentWithBaseEvents with BaseActorEvents {
   override def componentId: String = "ConfigStorage"
+
+  val PropsAndStateStored = 'PropsAndStateStored.info
+  val StateStored = 'StateStored.info
+  val PropsStored = 'PropsStored.info
+  val RequestedSingleEntry = 'RequestedSingleEntry.info
+  val RequestedAllMatchingEntries = 'RequestedAllMatchingEntries.info
+  val RemovedEntry = 'RemovedEntry.info
+
 }
 
-object ConfigStorageActor extends ActorObjWithConfig with ConfigStorageActorEvents  {
+object ConfigStorageActor extends ActorObjWithConfig with ConfigStorageActorEvents {
   override val id = "cfgStorage"
 
   override def props(implicit config: Config) = Props(new ConfigStorageActor())
@@ -55,37 +64,44 @@ case class StoredConfig(key: String, config: Option[EntryConfigSnapshot])
 
 case class StoredConfigs(configs: List[StoredConfig])
 
-class ConfigStorageActor(implicit config: Config) extends ActorWithComposableBehavior with ConfigStorageActorEvents with WithEventPublisher {
+class ConfigStorageActor(implicit config: Config)
+  extends ActorWithComposableBehavior
+  with ConfigStorageActorEvents with WithEventPublisher {
 
   val storage = Storage(config)
 
   override def preStart(): Unit = {
     super.preStart()
-//    logger.info(s"Creating DB in ${config.getString("ehub.storage.directory")}, provider $storage")
   }
 
   override def commonBehavior: Actor.Receive = super.commonBehavior orElse {
     case StoreSnapshot(EntryConfigSnapshot(key, c, s)) =>
-      logger.debug(s"Persisted config and state for flow $key")
       storage.store(key, Json.stringify(c), s.map(Json.stringify))
+      PropsAndStateStored >> ('Key --> key)
+
     case StoreState(EntryStateConfig(key, s)) =>
-      logger.debug(s"Persisted state for flow $key")
       storage.storeState(key, s.map(Json.stringify))
+      StateStored >> ('Key --> key)
+
     case StoreProps(EntryPropsConfig(key, s)) =>
-      logger.debug(s"Persisted config for flow $key")
       storage.storeConfig(key, Json.stringify(s))
+      PropsStored >> ('Key --> key)
+
     case RetrieveConfigFor(key) =>
-      logger.debug(s"Retrieving config for $key")
+      RequestedSingleEntry >> ('Key --> key)
       sender() ! StoredConfig(key, storage.retrieve(key) map {
         case (c, s) => EntryConfigSnapshot(key, Json.parse(c), s.map(Json.parse))
       })
+      
     case RemoveConfigFor(key) =>
-      logger.debug(s"Removing config entry $key")
+      RemovedEntry >> ('Key --> key)
       storage.remove(key)
+      
     case RetrieveConfigForAllMatching(partialKey) =>
-      logger.debug(s"Retrieving config for all matching $partialKey")
+      RequestedAllMatchingEntries >> ('PartialKey --> partialKey)
       sender() ! StoredConfigs(storage.retrieveAllMatching(partialKey).map {
         case (fId, c, s) => StoredConfig(fId, Some(EntryConfigSnapshot(fId, Json.parse(c), s.map(Json.parse))))
       })
+      
   }
 }

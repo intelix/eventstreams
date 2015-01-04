@@ -16,7 +16,7 @@
 
 package eventstreams.core.actors
 
-import akka.actor.ActorRef
+import akka.actor.{ActorIdentity, Identify, ActorRef}
 import akka.remote.DisassociatedEvent
 import core.events.EventOps.{symbolToEventField, symbolToEventOps}
 import core.events.ref.ComponentWithBaseEvents
@@ -77,6 +77,7 @@ trait ReconnectingActor
     val addr = actorSelection
     reconnectAttemptCounter += 1
     AssociationAttempt >>('Target --> addr, 'AttemptCount --> reconnectAttemptCounter)
+    
     addr.resolveOne(remoteAssociationTimeout).onComplete {
       case Failure(x) => self ! AssociationFailed(x)
       case Success(ref) => self ! Connected(ref)

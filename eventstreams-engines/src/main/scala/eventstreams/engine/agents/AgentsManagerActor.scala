@@ -17,12 +17,25 @@
 package eventstreams.engine.agents
 
 import akka.actor._
-import eventstreams.core.actors.{ActorObjWithoutConfig, ActorWithComposableBehavior, ActorWithDisassociationMonitor, SingleComponentActor}
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.WithEventPublisher
+import core.events.ref.ComponentWithBaseEvents
+import eventstreams.core.actors._
 import eventstreams.core.agent.core.Handshake
 import eventstreams.core.messages.{ComponentKey, TopicKey}
 import play.api.libs.json.Json
 
-object AgentsManagerActor extends ActorObjWithoutConfig {
+trait AgentManagerActorEvents extends ComponentWithBaseEvents with BaseActorEvents {
+    override def componentId: String = "Actor.AgentsManager"
+
+  val AgentsManagerAvailable = 'AgentsManagerAvailable.info
+  val HandshakeReceived = 'HandshakeReceived.info
+  val AgentProxyTerminated = 'AgentProxyTerminated.info
+  val AgentProxyInstanceAvailable = 'AgentProxyInstanceAvailable.info
+  
+}
+
+object AgentsManagerActor extends ActorObjWithoutConfig with AgentManagerActorEvents {
   def id = "agents"
 
   def props = Props(new AgentsManagerActor())
@@ -34,7 +47,8 @@ case class AgentProxyAvailable(id: ComponentKey)
 class AgentsManagerActor
   extends ActorWithComposableBehavior
   with SingleComponentActor
-  with ActorWithDisassociationMonitor {
+  with ActorWithDisassociationMonitor
+  with AgentManagerActorEvents with WithEventPublisher {
 
   var agents: Map[ComponentKey, ActorRef] = Map()
 
@@ -42,12 +56,18 @@ class AgentsManagerActor
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
+
+  override def preStart(): Unit = {
+    super.preStart()
+    AgentsManagerAvailable >> ('Path --> self )
+  }
+
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
     case T_LIST => publishList()
   }
 
   override def onTerminated(ref: ActorRef): Unit = {
-    logger.info(s"Agent proxy terminated $ref")
+    AgentProxyTerminated >> ('Actor --> ref)
     agents = agents.filter {
       case (name, otherRef) => otherRef != ref
     }
@@ -60,10 +80,10 @@ class AgentsManagerActor
 
   private def handler: Receive = {
     case Handshake(ref, id) =>
-      logger.info(s"Received handshake from $id ref $ref")
+      HandshakeReceived >> ('AgentActor --> ref.path, 'AgentID --> id)
       context.watch(AgentProxyActor.start(key / id, ref))
     case AgentProxyAvailable(name) =>
-      logger.info(s"Agent proxy confirmed $name")
+      AgentProxyInstanceAvailable >> ('Name --> name, 'Actor --> sender())
       agents = agents + (name -> sender())
       publishList()
   }

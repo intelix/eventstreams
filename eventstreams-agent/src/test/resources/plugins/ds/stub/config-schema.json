@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "title": "Stub1",
+  "properties": {
+    "class": {
+      "propertyOrder": 10,
+      "title": "Type",
+      "type": "string",
+      "template": "stub"
+    }
+  },
+  "additionalProperties": false
+}

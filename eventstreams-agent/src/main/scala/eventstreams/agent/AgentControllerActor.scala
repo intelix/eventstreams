@@ -19,6 +19,9 @@ package eventstreams.agent
 import akka.actor.{ActorRef, Props}
 import akka.stream.FlowMaterializer
 import com.typesafe.config.Config
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.WithEventPublisher
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.agent.flow.DatasourceActor
 import eventstreams.core.actors._
 import eventstreams.core.agent.core.{CommunicationProxyRef, CreateDatasource, Handshake}
@@ -30,10 +33,26 @@ import net.ceedubs.ficus.Ficus._
 import play.api.libs.json.extensions._
 import play.api.libs.json.{JsValue, Json, _}
 
+import scala.concurrent.duration.FiniteDuration
+import scala.io
 import scalaz.Scalaz._
 import scalaz._
 
-object AgentControllerActor extends ActorObjWithConfig {
+trait AgentControllerEvents 
+  extends ComponentWithBaseEvents 
+  with BaseActorEvents 
+  with ReconnectingActorEvents {
+
+  val AvailableDatasources = 'AvailableDatasources.info
+  val AgentInstanceAvailable = 'AgentInstanceAvailable.info
+  val DatasourceInstanceAvailable = 'DatasourceInstanceAvailable.info
+  val DatasourceInstanceCreated = 'DatasourceInstanceCreated.info
+  val MessageToAgentProxy = 'MessageToAgentProxy.trace
+
+  override def componentId: String = "Actor.AgentController"
+}
+
+object AgentControllerActor extends ActorObjWithConfig with AgentControllerEvents {
   override def id: String = "controller"
 
   override def props(implicit config: Config) = Props(new AgentControllerActor())
@@ -45,14 +64,15 @@ class AgentControllerActor(implicit sysconfig: Config)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
   with ReconnectingActor
-  with NowProvider {
+  with NowProvider
+  with AgentControllerEvents with WithEventPublisher {
 
 
-  val datasourcesConfigsList = {
+  lazy val datasourcesConfigsList = {
     val list = sysconfig.getConfigList("ehub.datasources.sources")
     (0 until list.size()).map(list.get).toList.sortBy[String](_.getString("name"))
   }
-  val configSchema = {
+  lazy val configSchema = {
     var mainConfigSchema = Json.parse(
       io.Source.fromInputStream(
         getClass.getResourceAsStream(
@@ -93,12 +113,22 @@ class AgentControllerActor(implicit sysconfig: Config)
 
   override def connectionEndpoint: String = sysconfig.as[String]("ehub.agent.hq.endpoint")
 
+
+  override def reconnectAttemptInterval: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("ehub.agent.hq.reconnectAttemptInterval") | super.reconnectAttemptInterval
+  override def remoteAssociationTimeout: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("ehub.agent.hq.remoteAssociationTimeout") | super.remoteAssociationTimeout
+
+  
   override def preStart(): Unit = {
     initiateReconnect()
     super.preStart()
 
-    logger.debug(s"Datasource configs list: $datasourcesConfigsList")
-    logger.debug(s"Datasource config schema: $configSchema")
+    val list = datasourcesConfigsList.map { next =>
+      next.getString("name") + "@" + next.getString("class")
+    }.mkString(",")
+
+    AgentInstanceAvailable >> ('Id --> uuid)
+    AvailableDatasources >> ('List --> list)
+    
   }
 
   override def onConnectedToEndpoint(): Unit = {
@@ -120,7 +150,6 @@ class AgentControllerActor(implicit sysconfig: Config)
     for (
       data <- maybeData \/> Fail("Invalid payload")
     ) yield {
-      logger.debug(s"Original config for $key: $maybeData ")
       val datasourceKey = key | "ds/" + Utils.generateShortUUID
       var json = data
       if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
@@ -146,12 +175,12 @@ class AgentControllerActor(implicit sysconfig: Config)
       sendToHQAll()
     case CreateDatasource(cfg) => addDatasource(None, Some(cfg), None) match {
       case \/-((actor, name)) =>
-        logger.info(s"Datasource $name successfully created")
+        DatasourceInstanceCreated >> ('Name --> name, 'Actor --> actor, 'Config --> cfg)
       case -\/(error) =>
-        logger.error(s"Unable to create datasource: $error")
+        Error >> ('Message --> "Unable to create datasource instance", 'Error --> error, 'Config --> cfg)
     }
     case DatasourceAvailable(key) =>
-      logger.debug(s"Available datasource: $key")
+      DatasourceInstanceAvailable >> ('Key --> key, 'Actor --> sender())
       datasources = datasources + (key -> sender())
       sendToHQ(snapshot)
   }
@@ -164,7 +193,7 @@ class AgentControllerActor(implicit sysconfig: Config)
 
   private def sendToHQ(msg: Any) =
     commProxy foreach { actor =>
-      logger.debug(s"$msg -> $actor")
+      MessageToAgentProxy >> ('Message --> msg)
       actor ! msg
     }
 

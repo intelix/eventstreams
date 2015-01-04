@@ -1,4 +1,6 @@
 import au.com.eventstreams.EventStreamsBuild
+import com.typesafe.sbt.SbtMultiJvm
+import com.typesafe.sbt.SbtMultiJvm.MultiJvmKeys.MultiJvm
 
 EventStreamsBuild.coreSettings("eventstreams")
 
@@ -131,10 +133,11 @@ lazy val eventStreamsTests = Project(
     eventStreamsPluginDSTCP % "compile;test->test",
     eventStreamsHQ % "compile;test->test",
     eventStreamsEngines % "compile;test->test",
+    eventStreamsAgent % "compile;test->test",
     eventStreamsInstructionsEssentials % "compile;test->test",
     eventStreamsPluginEndpointInfluxDB % "compile;test->test"
   )
-)
+) configs (MultiJvm)
 
 
 

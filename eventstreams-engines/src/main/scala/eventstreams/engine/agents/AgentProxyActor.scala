@@ -18,6 +18,9 @@ package eventstreams.engine.agents
 
 import akka.actor._
 import akka.remote.DisassociatedEvent
+import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.{EventFieldWithValue, WithEventPublisher}
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors._
 import eventstreams.core.agent.core.{CommunicationProxyRef, CreateDatasource}
@@ -29,7 +32,22 @@ import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
 
-object AgentProxyActor {
+trait AgentProxyActorEvents extends ComponentWithBaseEvents with BaseActorEvents {
+  override def componentId: String = "Actor.AgentProxy"
+
+  val InfoUpdate = 'InfoUpdate.info
+  val AvailableDatasourcesUpdate = 'AvailableDatasourcesUpdate.info
+  val ActiveDatasourcesUpdate = 'ActiveDatasourcesUpdate.info
+
+  val TerminatingDatasourceProxy = 'TerminatingDatasourceProxy.info
+
+  val DatasourceProxyUp = 'DatasourceProxyUp.info
+
+  
+}
+
+
+object AgentProxyActor extends AgentProxyActorEvents {
   def start(key: ComponentKey, ref: ActorRef)(implicit f: ActorRefFactory) = f.actorOf(props(key, ref), key.toActorId)
 
   def props(key: ComponentKey, ref: ActorRef) = Props(new AgentProxyActor(key, ref))
@@ -41,7 +59,12 @@ case class DatasourceProxyAvailable(key: ComponentKey)
 class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
   extends PipelineWithStatesActor
   with ActorWithDisassociationMonitor
-  with SingleComponentActor {
+  with SingleComponentActor 
+  with AgentProxyActorEvents
+  with WithEventPublisher {
+
+
+  override def commonFields: Seq[EventFieldWithValue] = super.commonFields ++ Seq('Key --> key, 'RemoteActor --> ref)
 
   private var info: Option[JsValue] = None
   private var dsConfigs: Option[JsValue] = None
@@ -52,7 +75,6 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
   override def preStart(): Unit = {
     ref ! CommunicationProxyRef(self)
     context.parent ! AgentProxyAvailable(key)
-    logger.debug(s"Agent proxy $key started, pointing at $ref")
     super.preStart()
   }
 
@@ -86,7 +108,9 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
   private def commonMessageHandler: Receive = {
     case DatasourceProxyAvailable(x) =>
       datasources = datasources.map {
-        case b@DatasourceProxyMeta(_, _, k, false) if k == x => b.copy(confirmed = true)
+        case b@DatasourceProxyMeta(i, _, k, false) if k == x =>
+          DatasourceProxyUp >> ('DatasourceProxyId --> i, 'DatasourceProxyKey --> k)
+          b.copy(confirmed = true)
         case v => v
       }
       publishDatasources()
@@ -104,21 +128,21 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
 
   private def processInfo(json: JsValue) = {
     info = Some(json)
-    logger.debug(s"Received agent info update: $info")
+    InfoUpdate >> ('Data --> json)
     publishInfo()
   }
 
   private def processDatasourceConfigs(json: JsValue) = {
     dsConfigs = json #> 'datasourceConfigSchema
-    logger.debug(s"Received agent datasource config update: $info")
+    AvailableDatasourcesUpdate >> ('Data --> json)
     publishConfigs()
   }
 
   private def processListOfTaps(list: List[DatasourceRef]) = {
-    logger.debug(s"Received datasources update: $list")
+    ActiveDatasourcesUpdate >> ('List --> list)
 
     datasources.filterNot { d => list.exists(_.id == d.id)} foreach { dsToKill =>
-      logger.debug(s"Datasource $dsToKill is no longer active, terminating proxy")
+      TerminatingDatasourceProxy >> ('DatasourceProxyId --> dsToKill.id, 'DatasourceProxyKey --> dsToKill.key, 'Reason --> "No longer active")
       dsToKill.ref ! PoisonPill
     }
 

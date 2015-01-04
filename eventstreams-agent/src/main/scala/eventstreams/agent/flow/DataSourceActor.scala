@@ -23,6 +23,9 @@ import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
 import com.typesafe.config.Config
+import core.events.EventOps.{symbolToEventOps, symbolToEventField}
+import core.events.{EventFieldWithValue, WithEventPublisher}
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.agent.DatasourceAvailable
 import eventstreams.core.Tools.configHelper
 import eventstreams.core._
@@ -37,8 +40,22 @@ import play.api.libs.json.extensions._
 import scalaz.Scalaz._
 import scalaz._
 
+trait DatasourceActorEvents extends ComponentWithBaseEvents with BaseActorEvents {
+  override def componentId: String = "Actor.Datasource"
 
-object DatasourceActor {
+  val DatasourceReady = 'DatasourceReady.info
+
+  val CreatingFlow = 'CreatingFlow.trace
+  val CreatingProducer = 'CreatingProducer.trace
+  val CreatingProcessors = 'CreatingProcessors.trace
+  val CreatingSink = 'CreatingSink.trace
+
+  val MessageToDatasourceProxy = 'MessageToDatasourceProxy.trace
+  
+  
+}
+
+object DatasourceActor extends DatasourceActorEvents {
   def props(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer) = Props(new DatasourceActor(dsId, dsConfigs))
 
   def start(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer, f: ActorRefFactory) = f.actorOf(props(dsId, dsConfigs), ActorTools.actorFriendlyId(dsId))
@@ -62,15 +79,19 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
   extends ActorWithComposableBehavior
   with PipelineWithStatesActor
   with ActorWithConfigStore
-  with ActorWithPeriodicalBroadcasting {
+  with ActorWithPeriodicalBroadcasting 
+  with DatasourceActorEvents with WithEventPublisher {
 
   val allBuilders = dsConfigs.map { cfg =>
     Class.forName(cfg.getString("class")).newInstance().asInstanceOf[BuilderFromConfig[Props]]
   }
 
-
   val key = ComponentKey(dsId)
   var currentState: DatasourceState = DatasourceStateUnknown(Some("Initialising"))
+
+
+  override def commonFields: Seq[EventFieldWithValue] = super.commonFields ++ Seq('Key --> key, 'State --> stateAsString)
+
   private var endpointDetails = "N/A"
   private var commProxy: Option[ActorRef] = None
   private var flow: Option[FlowInstance] = None
@@ -120,9 +141,6 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
 
   override def applyConfig(key: String, config: JsValue, state: Option[JsValue]): Unit = {
 
-
-    logger.info(s"Creating flow $dsId, config $config, initial state $state")
-
     implicit val dispatcher = context.system.dispatcher
 
     implicit val mat = FlowMaterializer()
@@ -137,7 +155,7 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
 
     def buildProcessorFlow(props: JsValue): Flow[ProducedMessage, ProducedMessage] = {
 
-      logger.debug(s"Building processor flow from $props")
+      CreatingFlow >> ()      
 
       val setSource = Flow[ProducedMessage].map {
         case ProducedMessage(json, c) =>
@@ -157,7 +175,7 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
 
     def buildProducer(fId: String, config: JsValue): \/[Fail, Props] = {
 
-      logger.debug(s"Building producer from $config")
+      CreatingProducer >> ('Props --> config)
 
       for (
         instClass <- config ~> 'class \/> Fail("Invalid datasource config: missing 'class' value");
@@ -169,7 +187,9 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
     }
 
 
-    def buildSink(fId: String, props: JsValue): \/[Fail, Props] =
+    def buildSink(fId: String, props: JsValue): \/[Fail, Props] = {
+      CreatingSink >> ('Props --> config)
+
       for (
         endpoint <- props ~> 'targetGate \/> Fail("Invalid datasource config: missing 'targetGate' value");
         impl <- SubscriberBoundaryInitiatingActor.props(endpoint).right
@@ -177,6 +197,7 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
         endpointDetails = endpoint
         impl
       }
+    }
 
 
 
@@ -206,9 +227,10 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
 
     result match {
       case -\/(fail) =>
-        logger.warn(s"Unable to build datasource: $fail")
+        Warning >> ('Message --> "Unable to build datasource", 'Reason --> fail)
         currentState = DatasourceStateError(fail.message)
-      case _ => ()
+      case _ => 
+        DatasourceReady >> ()
     }
 
 
@@ -268,7 +290,7 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
 
   private def sendToHQ(msg: Any) = {
     commProxy foreach { actor =>
-      logger.debug(s"$msg -> $actor")
+      MessageToDatasourceProxy >> ('Message --> msg)
       actor ! msg
     }
   }

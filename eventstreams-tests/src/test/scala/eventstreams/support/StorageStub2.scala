@@ -2,26 +2,26 @@ package eventstreams.support
 
 import com.typesafe.config.Config
 import eventstreams.core.storage.Storage
-import eventstreams.support.StorageStub.{StoredEntry, storage}
+import eventstreams.support.StorageStub2.{StoredEntry, storage}
 
 import scala.collection.mutable
 
 
-object StorageStub {
+object StorageStub2 {
 
   case class StoredEntry(config: String, state: Option[String])
 
   private val map = mutable.Map[String, StoredEntry]()
 
   def storage = map
-  
+
   def clear() = storage.synchronized {
     storage.clear()
   }
-  
+
 }
 
-class StorageStub(implicit config: Config) extends Storage {
+class StorageStub2(implicit config: Config) extends Storage {
 
   override def store(key: String, config: String, state: Option[String]): Unit = storage.synchronized {
     storage += key -> StoredEntry(config, state)
