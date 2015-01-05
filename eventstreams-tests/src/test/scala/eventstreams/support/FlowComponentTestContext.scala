@@ -6,10 +6,10 @@ import akka.stream.actor.ActorPublisherMessage.Request
 import akka.stream.actor._
 import akka.stream.scaladsl.{PublisherSource, SubscriberSink}
 import akka.testkit.{TestKit, TestProbe}
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
-import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor, StoppablePublisherActor}
+import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor, StateChangeEvents, StoppablePublisherActor}
 import eventstreams.core.{BecomeActive, BecomePassive, JsonFrame, Stop}
 import play.api.libs.json.JsValue
 
@@ -101,7 +101,7 @@ trait FlowComponentTestContext {
 }
 
 
-trait PublisherStubActorEvents extends ComponentWithBaseEvents {
+trait PublisherStubActorEvents extends ComponentWithBaseEvents with StateChangeEvents {
 
   val PublishingMessage = 'PublishingMessage.trace
   val NoDemandAtPublisher = 'NoDemandAtPublisher.trace
@@ -125,7 +125,7 @@ class PublisherStubActor
 
   def process(m: JsonFrame) =
     if (totalDemand > 0) {
-      PublishingMessage >> ('EventId --> m.eventIdOrNA)
+      PublishingMessage >> ('EventId -> m.eventIdOrNA)
       onNext(m)
     } else {
       NoDemandAtPublisher >>()
@@ -134,7 +134,7 @@ class PublisherStubActor
   def handler: Receive = {
     case m: JsonFrame => process(m)
     case m: JsValue => process(JsonFrame(m, Map()))
-    case Request(n) => NewDemandAtPublisher >> ('Requested --> n)
+    case Request(n) => NewDemandAtPublisher >> ('Requested -> n)
   }
 
 }

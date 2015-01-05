@@ -16,9 +16,7 @@
 
 package eventstreams.core.actors
 
-import akka.stream.actor.ActorPublisherMessage.Request
 import akka.stream.actor.ActorSubscriberMessage.OnNext
-import core.events.EventOps.symbolToEventField
 import core.events.WithEventPublisher
 import eventstreams.core.JsonFrame
 
@@ -39,7 +37,7 @@ trait StoppableSubscribingPublisherActor
 
   private def handler: Receive = {
     case OnNext(el: JsonFrame) =>
-      MessageArrived >>('EventId --> el.eventIdOrNA, 'PublisherQueueDepth --> pendingToDownstreamCount, 'StreamActive --> isActive)
+      MessageArrived >>('EventId -> el.eventIdOrNA, 'PublisherQueueDepth -> pendingToDownstreamCount, 'StreamActive -> isActive)
       if (isActive) execute(el) foreach (_.foreach(forwardToFlow))
 
   }

@@ -17,13 +17,14 @@
 package eventstreams.core.actors
 
 import akka.stream.actor.ActorPublisher
-import akka.stream.actor.ActorPublisherMessage.{Request, Cancel}
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import akka.stream.actor.ActorPublisherMessage.{Cancel, Request}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
+import eventstreams.core.JsonFrame
 import eventstreams.core.Tools.configHelper
-import eventstreams.core.{JsonFrame, Stop}
 import play.api.libs.json.JsValue
+
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scalaz.Scalaz._
@@ -65,7 +66,7 @@ trait StoppablePublisherActor[T]
         case Some(x) =>
           onNext(x)
           val currentDepth = queue.size
-          MessagePublished >>('EventId --> (eventId(x) | "n/a"), 'RemainingDemand --> totalDemand, 'PublisherQueueDepth --> currentDepth)
+          MessagePublished >>('EventId -> (eventId(x) | "n/a"), 'RemainingDemand -> totalDemand, 'PublisherQueueDepth -> currentDepth)
           sendIfPossible()
       }
     }
@@ -85,7 +86,7 @@ trait StoppablePublisherActor[T]
   private def produceAndOfferMore(count: Long) = produceMore(count) foreach { seq => seq.foreach(offer)}
 
   override def stop(reason: Option[String]) = {
-    ClosingStream >>('Reason --> (reason | "none given"), 'PublisherQueueDepth --> pendingToDownstreamCount)
+    ClosingStream >>('Reason -> (reason | "none given"), 'PublisherQueueDepth -> pendingToDownstreamCount)
     onComplete()
     super.stop(reason)
   }
@@ -93,7 +94,7 @@ trait StoppablePublisherActor[T]
   private def handlePublisherShutdown: Receive = {
     case Cancel => stop(Some("Cancelled"))
     case Request(n) =>
-      NewDemand >>('Requested --> n, 'Total --> totalDemand)
+      NewDemand >>('Requested -> n, 'Total -> totalDemand)
       produceAndOfferMore(n)
       sendIfPossible()
   }

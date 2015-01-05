@@ -19,7 +19,6 @@ package eventstreams.ds.plugins.filetailer
 import java.nio.charset.Charset
 
 import akka.actor.Props
-import core.events.EventOps.symbolToEventField
 import core.events.WithEventPublisher
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors.{StandardPublisherEvents, StateChangeEvents}
@@ -85,7 +84,7 @@ class FileTailerDatasource extends BuilderFromConfig[Props] with FileTailerEvent
         Fail(s"Invalid $configId datasource. Invalid '$CfgFBlockSize' value. Must be more than 32. Contents: ${Json.stringify(props)}").left
       else OK.right
     ) yield {
-      Built >>('Config --> props, 'State --> maybeState)
+      Built >>('Config -> props, 'State -> maybeState)
       LocationMonitorActor.props(datasourceId, props, maybeState)
     }
   }

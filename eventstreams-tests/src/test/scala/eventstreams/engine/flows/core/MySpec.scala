@@ -19,14 +19,13 @@ package eventstreams.engine.flows.core
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActors, TestKit}
 import com.typesafe.config.ConfigFactory
-import core.events.EventOps.symbolToEventField
+import core.events.EventPublisherRef
 import core.events.support.{EventAssertions, TestEventPublisher}
-import core.events.{CtxSystemRef, EventPublisherRef, EvtSystem}
 import eventstreams.core.BecomeActive
 import eventstreams.core.storage.ConfigStorageActor
 import eventstreams.engine.flows.{FlowActor, FlowActorEvents}
 import eventstreams.plugins.essentials.EnrichInstructionEvents
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Matchers, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 object FlowActorTemplate {
 
@@ -87,13 +86,13 @@ class MySpec(_system: ActorSystem) extends TestKit(_system) with ImplicitSender
 
       object EnrichInstructionEvents extends EnrichInstructionEvents
 
-      expectSomeEvents(EnrichInstructionEvents.Built, 'Field --> "abc", 'Type --> "s")
+      expectSomeEvents(EnrichInstructionEvents.Built, 'Field -> "abc", 'Type -> "s")
 
       EventPublisherRef.ref.asInstanceOf[TestEventPublisher].clear()
 
       flowActor ! BecomeActive()
 
-      expectSomeEvents(FlowActorEvents.FlowStarted, 'ID --> "id1")
+      expectSomeEvents(FlowActorEvents.FlowStarted, 'ID -> "id1")
 
 
     }

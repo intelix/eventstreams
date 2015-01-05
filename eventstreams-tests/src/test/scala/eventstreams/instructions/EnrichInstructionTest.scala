@@ -16,7 +16,6 @@ package eventstreams.instructions
  * limitations under the License.
  */
 
-import _root_.core.events.EventOps.symbolToEventField
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials.{EnrichInstruction, EnrichInstructionConstants}
@@ -49,11 +48,11 @@ class EnrichInstructionTest extends TestHelpers {
   }
 
   it should "raise event when built" in new WithBasicConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(Built, 'Field --> "abc", 'Type --> "s")
+    expectEvent(Json.obj("abc1" -> "bla"))(Built, 'Field -> "abc", 'Type -> "s")
   }
 
   it should "raise event when enriched" in new WithBasicConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(Enriched, 'Replacement --> "bla")
+    expectEvent(Json.obj("abc1" -> "bla"))(Enriched, 'Replacement -> "bla")
   }
 
   it should "enrich with macros" in new WithBasicConfig {
@@ -108,11 +107,11 @@ class EnrichInstructionTest extends TestHelpers {
   }
 
   it should "raise event when built" in new WithComplexEnrich {
-    expectEvent(Json.obj("source" -> Json.obj("subsource1" -> "bla")))(Built, 'Field --> "abc.xyz", 'Type --> "s")
+    expectEvent(Json.obj("source" -> Json.obj("subsource1" -> "bla")))(Built, 'Field -> "abc.xyz", 'Type -> "s")
   }
 
   it should "raise event when enriched" in new WithComplexEnrich {
-    expectEvent(Json.obj("source" -> Json.obj("subsource1" -> "bla")))(Enriched, 'Replacement --> "bla_abc")
+    expectEvent(Json.obj("source" -> Json.obj("subsource1" -> "bla")))(Enriched, 'Replacement -> "bla_abc")
   }
 
   it should "enrich with macros" in new WithComplexEnrich {
@@ -155,11 +154,11 @@ class EnrichInstructionTest extends TestHelpers {
   }
 
   it should "raise event when built" in new WithNumericEnrich {
-    expectEvent(Json.obj("abc1" -> 1))(Built, 'Field --> "abc", 'Type --> "n")
+    expectEvent(Json.obj("abc1" -> 1))(Built, 'Field -> "abc", 'Type -> "n")
   }
 
   it should "raise event when enriched" in new WithNumericEnrich {
-    expectEvent(Json.obj("abc1" -> 1))(Enriched, 'Replacement --> "1")
+    expectEvent(Json.obj("abc1" -> 1))(Enriched, 'Replacement -> "1")
   }
 
   it should "enrich with macros" in new WithNumericEnrich {

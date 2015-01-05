@@ -17,9 +17,9 @@
 package eventstreams.plugins.essentials
 
 import com.typesafe.scalalogging.Logger
-import core.events.EventOps.{stringToEventOps, symbolToEventField, symbolToEventOps}
+import core.events.EventOps.{stringToEventOps, symbolToEventOps}
 import core.events.ref.ComponentWithBaseEvents
-import core.events.{EventFieldWithValue, WithEventPublisher}
+import core.events.{FieldAndValue, WithEventPublisher}
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.Types.SimpleInstructionType
 import eventstreams.core.instructions.{InstructionConstants, SimpleInstructionBuilder}
@@ -57,10 +57,10 @@ class LogInstruction extends SimpleInstructionBuilder with LogInstructionConstan
       case Some(loggerName) =>
         val baseLogger = Logger(LoggerFactory getLogger loggerName)
         val loggerForLevel = level.toUpperCase match {
-          case "DEBUG" => loggerName.trace >> (_: EventFieldWithValue)
-          case "INFO" => loggerName.info >> (_: EventFieldWithValue)
-          case "WARN" => loggerName.warn >> (_: EventFieldWithValue)
-          case "ERROR" => loggerName.error >> (_: EventFieldWithValue)
+          case "DEBUG" => loggerName.trace >> (_: FieldAndValue)
+          case "INFO" => loggerName.info >> (_: FieldAndValue)
+          case "WARN" => loggerName.warn >> (_: FieldAndValue)
+          case "ERROR" => loggerName.error >> (_: FieldAndValue)
         }
 
 
@@ -68,10 +68,10 @@ class LogInstruction extends SimpleInstructionBuilder with LogInstructionConstan
 
           val uuid = Utils.generateShortUUID
 
-          Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+          Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
           frame: JsonFrame =>
-            loggerForLevel('Frame --> frame.toString)
+            loggerForLevel('Frame -> frame.toString)
             List(frame)
         }
     }

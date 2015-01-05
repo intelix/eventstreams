@@ -16,7 +16,7 @@
 
 package eventstreams.plugins.essentials
 
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
@@ -69,7 +69,7 @@ class CherrypickInstruction extends SimpleInstructionBuilder with CherrypickInst
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+      Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
       frame: JsonFrame => {
 
@@ -100,13 +100,13 @@ class CherrypickInstruction extends SimpleInstructionBuilder with CherrypickInst
 
             val eventId = frame.event ~> 'eventId | "n/a"
 
-            Cherrypicked >>(
-              'From --> sourcePath,
-              'Result --> Json.stringify(newValue),
-              'KeepOriginal --> keepOriginalEvent,
-              'EventId --> eventId,
-              'NewEventId --> newEventId,
-              'InstructionInstanceId --> uuid)
+            Cherrypicked >>> Seq(
+              'From -> sourcePath,
+              'Result -> Json.stringify(newValue),
+              'KeepOriginal -> keepOriginalEvent,
+              'EventId -> eventId,
+              'NewEventId -> newEventId,
+              'InstructionInstanceId -> uuid)
 
             result :+ newFrame
           case None => result

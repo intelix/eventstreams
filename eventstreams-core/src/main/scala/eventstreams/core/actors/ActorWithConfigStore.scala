@@ -16,12 +16,12 @@
 
 package eventstreams.core.actors
 
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.storage._
 import eventstreams.core.{Fail, OK}
-import play.api.libs.json.{Json, JsValue}
+import play.api.libs.json.JsValue
 
 import scalaz.Scalaz._
 import scalaz._
@@ -128,14 +128,14 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithCon
   private def cacheAndApplyConfig(props: JsValue, maybeState: Option[JsValue]): Unit = {
     val isInitialConfig = propsConfig.isEmpty
     if (!isInitialConfig && propsConfig.get.equals(props) && stateConfig.equals(maybeState)) {
-      ConfigurationUpdateIgnored >> ('Reason -->  "Configuration and state have not changed")
+      ConfigurationUpdateIgnored >> ('Reason ->  "Configuration and state have not changed")
     } else {
       cacheConfig(props, maybeState)
       storageKey.foreach { key =>
         beforeApplyConfig()
         applyConfig(key, props, maybeState)
         afterApplyConfig()
-        ConfigurationApplied >> ('Key --> key, 'Initial --> isInitialConfig)
+        ConfigurationApplied >> ('Key -> key, 'Initial -> isInitialConfig)
         if (isInitialConfig) {
           initialConfigApplied = true
           onInitialConfigApplied()
@@ -153,20 +153,21 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithCon
     case StoredConfigs(list) =>
       beforeApplyConfig()
       list.foreach(_.config.foreach { e =>
-        ConfigurationSetReceived >> ('PartialKey --> partialStorageKey)
+        ConfigurationSetReceived >> ('PartialKey -> partialStorageKey)
         applyConfig(e.key, e.config, e.state)
       })
       afterApplyConfig()
     case StoredConfig(k, cfg) =>
-      ConfigurationReceived >> ()
-      val config = cfg | EntryConfigSnapshot(k, Json.obj(), None)
-      cacheAndApplyConfig(config.config, config.state)
+      cfg.foreach { config =>
+        ConfigurationReceived >> ()
+        cacheAndApplyConfig(config.config, config.state)
+      }
     case InitialConfig(c, s) => propsConfig match {
       case None =>
         updateAndApplyConfigSnapshot(c, s)
-        InitialConfigurationApplied >> ('Props --> c, 'State --> s)
+        InitialConfigurationApplied >> ('Props -> c, 'State -> s)
       case Some(_) =>
-        InitialConfigurationIgnored >> ('Reason --> "actor already initialised", 'Props --> c, 'State --> s)
+        InitialConfigurationIgnored >> ('Reason -> "actor already initialised", 'Props -> c, 'State -> s)
     }
   }
 

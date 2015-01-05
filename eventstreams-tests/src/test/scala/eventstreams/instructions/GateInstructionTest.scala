@@ -16,7 +16,6 @@
 
 package eventstreams.instructions
 
-import _root_.core.events.EventOps.symbolToEventField
 import akka.actor._
 import eventstreams.core.Types._
 import eventstreams.core._
@@ -72,7 +71,7 @@ class GateInstructionTest(_system: ActorSystem)
         withGateStub { gate =>
           waitAndCheck {
             expectNoEvents(GateStateMonitorStarted)
-            expectNoEvents(GateInstructionConstants.Starting)
+            expectNoEvents(GateInstructionConstants.BecomingActive)
             expectNoEvents(GateInstructionConstants.ConnectedToGate)
           }
         }
@@ -88,7 +87,7 @@ class GateInstructionTest(_system: ActorSystem)
     "activate on request" in new WithBasicConfig {
       withGateInstructionFlow { implicit ctx =>
         activateFlow()
-        expectSomeEvents(GateInstructionConstants.Starting)
+        expectSomeEvents(GateInstructionConstants.BecomingActive)
       }
     }
 
@@ -118,7 +117,7 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "react to closed gate signal" in new LocalCtx {
         run { implicit ctx =>
-          expectSomeEvents(GateInstructionConstants.MonitoredGateStateChanged, 'NewState --> "GateClosed()")
+          expectSomeEvents(GateInstructionConstants.MonitoredGateStateChanged, 'NewState -> "GateClosed()")
         }
 
       }
@@ -159,15 +158,15 @@ class GateInstructionTest(_system: ActorSystem)
           publishMsg(Json.obj("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
           publishMsg(Json.obj("value" -> "2"))
-          expectSomeEvents(2, GateInstructionConstants.MessageArrived, 'PublisherQueueDepth --> 0)
+          expectSomeEvents(2, GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
         }
       }
       "schedule second message" in new LocalCtx {
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
-          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth --> 1)
+          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 1)
           publishMsg(Json.obj("value" -> "2"))
-          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth --> 2)
+          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 2)
         }
       }
       "not deliver to the gate after second message scheduled" in new LocalCtx {
@@ -232,7 +231,7 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "react to open gate signal" in new LocalCtx {
         run { implicit ctx =>
-          expectSomeEvents(GateInstructionConstants.MonitoredGateStateChanged, 'NewState --> "GateOpen()")
+          expectSomeEvents(GateInstructionConstants.MonitoredGateStateChanged, 'NewState -> "GateOpen()")
         }
 
       }
@@ -261,9 +260,9 @@ class GateInstructionTest(_system: ActorSystem)
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
           expectSomeEvents(2,GateInstructionConstants.DeliveringToActor)
           expectSomeEvents(3,GateInstructionConstants.DeliveringToActor)
-          expectSomeEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt --> 0)
-          expectSomeEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt --> 1)
-          expectSomeEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt --> 2)
+          expectSomeEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt -> 0)
+          expectSomeEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt -> 1)
+          expectSomeEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt -> 2)
         }
       }
       "not deliver to the sink" in new LocalCtx {
@@ -287,16 +286,16 @@ class GateInstructionTest(_system: ActorSystem)
           expectSomeEvents(GateInstructionConstants.MessageArrived)
           clearEvents()
           publishMsg(Json.obj("value" -> "2"))
-          expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth --> 0)
+          expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
         }
       }
       "schedule second message" in new LocalCtx {
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
-          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth --> 1)
+          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 1)
           clearEvents()
           publishMsg(Json.obj("value" -> "2"))
-          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth --> 2)
+          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 2)
         }
       }
       "deliver second message to the gate" in new LocalCtx {
@@ -380,7 +379,7 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "react to open gate signal" in new LocalCtx {
         run { implicit ctx =>
-          expectSomeEvents(GateInstructionConstants.MonitoredGateStateChanged, 'NewState --> "GateOpen()")
+          expectSomeEvents(GateInstructionConstants.MonitoredGateStateChanged, 'NewState -> "GateOpen()")
         }
 
       }
@@ -408,7 +407,7 @@ class GateInstructionTest(_system: ActorSystem)
           publishMsg(Json.obj("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
           waitAndCheck {
-            expectNoEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt --> 1)
+            expectNoEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt -> 1)
           }
         }
       }
@@ -447,16 +446,16 @@ class GateInstructionTest(_system: ActorSystem)
           expectSomeEvents(GateInstructionConstants.MessageArrived)
           clearEvents()
           publishMsg(Json.obj("value" -> "2"))
-          expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth --> 0)
+          expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
         }
       }
       "schedule second message" in new LocalCtx {
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
-          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth --> 1)
+          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 1)
           clearEvents()
           publishMsg(Json.obj("value" -> "2"))
-          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth --> 2)
+          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 2)
         }
       }
       "deliver second message to the gate" in new LocalCtx {
@@ -555,7 +554,7 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "react to open gate signal" in new LocalCtx {
         run { implicit ctx =>
-          expectSomeEvents(GateInstructionConstants.MonitoredGateStateChanged, 'NewState --> "GateOpen()")
+          expectSomeEvents(GateInstructionConstants.MonitoredGateStateChanged, 'NewState -> "GateOpen()")
         }
 
       }
@@ -583,7 +582,7 @@ class GateInstructionTest(_system: ActorSystem)
           publishMsg(Json.obj("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
           waitAndCheck {
-            expectNoEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt --> 1)
+            expectNoEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt -> 1)
           }
         }
       }
@@ -630,13 +629,13 @@ class GateInstructionTest(_system: ActorSystem)
           expectSomeEvents(GateInstructionConstants.MessageArrived)
           clearEvents()
           publishMsg(Json.obj("value" -> "2"))
-          expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth --> 0)
+          expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
         }
       }
       "schedule second message" in new LocalCtx {
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
-          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth --> 1)
+          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 1)
           clearEvents()
           publishMsg(Json.obj("value" -> "2"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery)
@@ -714,8 +713,8 @@ class GateInstructionTest(_system: ActorSystem)
           expectSomeEvents(2, PublisherStubActor.NewDemandAtPublisher)
           clearEvents()
           publishMsg(Json.obj("value" -> "3"))
-          expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth --> 0)
-          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth --> 1)
+          expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
+          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 1)
         }
       }
     }
@@ -750,7 +749,7 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "react to open gate signal" in new LocalCtx {
         run { implicit ctx =>
-          expectSomeEvents(GateInstructionConstants.MonitoredGateStateChanged, 'NewState --> "GateOpen()")
+          expectSomeEvents(GateInstructionConstants.MonitoredGateStateChanged, 'NewState -> "GateOpen()")
         }
 
       }
@@ -778,7 +777,7 @@ class GateInstructionTest(_system: ActorSystem)
           publishMsg(Json.obj("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
           waitAndCheck {
-            expectNoEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt --> 1)
+            expectNoEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt -> 1)
           }
         }
       }
@@ -827,13 +826,13 @@ class GateInstructionTest(_system: ActorSystem)
           expectSomeEvents(GateInstructionConstants.MessageArrived)
           clearEvents()
           publishMsg(Json.obj("value" -> "2"))
-          expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth --> 0)
+          expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
         }
       }
       "schedule second message" in new LocalCtx {
         run { implicit ctx =>
           publishMsg(Json.obj("value" -> "1"))
-          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth --> 1)
+          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 1)
           clearEvents()
           publishMsg(Json.obj("value" -> "2"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery)
@@ -913,8 +912,8 @@ class GateInstructionTest(_system: ActorSystem)
           expectSomeEvents(2, PublisherStubActor.NewDemandAtPublisher)
           clearEvents()
           publishMsg(Json.obj("value" -> "3"))
-          expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth --> 0)
-          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth --> 1)
+          expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
+          expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 1)
         }
       }
     }
@@ -963,7 +962,7 @@ class GateInstructionTest(_system: ActorSystem)
         run { implicit ctx =>
           withGateStub { gate =>
             openGate(gate)
-            expectSomeEvents(1, DeliveryAttempt, 'Attempt --> 1)
+            expectSomeEvents(1, DeliveryAttempt, 'Attempt -> 1)
             autoAckAsProcessedAtGate(gate)
             expectSomeEvents(2, SinkStubActor.ReceivedMessageAtSink)
           }

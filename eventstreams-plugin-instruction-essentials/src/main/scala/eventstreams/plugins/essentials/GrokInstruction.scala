@@ -16,7 +16,7 @@
 
 package eventstreams.plugins.essentials
 
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
@@ -57,7 +57,7 @@ class GrokInstruction extends SimpleInstructionBuilder with GrokInstructionConst
       case ((f, v), t) =>
         val field = toPath(macroReplacement(frame, JsString(f)))
         val value = macroReplacement(frame, JsString(v))
-        Grokked >>('Field --> field, 'Value --> value, 'Type --> t, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+        Grokked >>('Field -> field, 'Value -> value, 'Type -> t, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
         JsonFrame(setValue(t, value, field, frame.event), frame.ctx)
     }
 
@@ -98,7 +98,7 @@ class GrokInstruction extends SimpleInstructionBuilder with GrokInstructionConst
         (fields zip values zip types)
           .foldLeft(contextToFrame(frame, rmatch))(nextField(eventId, uuid))
 
-      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+      Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
       fr: JsonFrame =>
 

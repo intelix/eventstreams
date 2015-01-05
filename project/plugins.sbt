@@ -6,6 +6,8 @@ resolvers += "Apache repo"   at "https://repository.apache.org/content/repositor
 
 resolvers += "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/"
 
+resolvers += Classpaths.sbtPluginReleases
+
 resolvers += Resolver.url(
   "bintray-sbt-plugin-releases",
   url("http://dl.bintray.com/content/sbt/sbt-plugin-releases"))(
@@ -36,3 +38,5 @@ addSbtPlugin("com.github.ddispaltro" % "sbt-reactjs" % "0.4.0")
 addSbtPlugin("com.typesafe.sbt" % "sbt-multi-jvm" % "0.3.8")
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-license-report" % "1.0.0")
+
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.0.1")

@@ -6,9 +6,7 @@ import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.zip.GZIPInputStream
 
-import core.events.EventOps.symbolToEventField
 import core.events.WithEventPublisher
-import core.events.ref.ComponentWithBaseEvents
 
 import scala.util.Try
 import scala.util.matching.Regex
@@ -56,16 +54,16 @@ class DiskFileSystem extends FileSystem with FileTailerEvents with WithEventPubl
             FileMeta(dir.getAbsolutePath, f.getName, f.isFile, f.length(), f.lastModified(), attributes.creationTime().toMillis)
           }
         } else {
-          Error >>('Message --> s"Unable to get a file listing from $directory  - folder does not exist", 'Attempt --> attempt)
+          Error >>('Message -> s"Unable to get a file listing from $directory  - folder does not exist", 'Attempt -> attempt)
           Seq()
         }
       } catch {
         case e: Throwable if attempt < 10 =>
-          Error >>('Message --> s"Unable to get a file listing from $directory", 'Error --> e.getMessage, 'Attempt --> attempt)
+          Error >>('Message -> s"Unable to get a file listing from $directory", 'Error -> e.getMessage, 'Attempt -> attempt)
           Thread.sleep(100)
           list(attempt + 1)
         case e: Throwable  =>
-          Error >>('Message --> s"Unable to get a file listing from $directory", 'Error --> e.getMessage, 'Attempt --> attempt)
+          Error >>('Message -> s"Unable to get a file listing from $directory", 'Error -> e.getMessage, 'Attempt -> attempt)
           Seq()
       }
     list(1)
@@ -79,7 +77,7 @@ class DiskFileSystem extends FileSystem with FileTailerEvents with WithEventPubl
       openStream(file)
     } catch {
       case e: Exception =>
-        Error >>('Message --> s"Unable to initialise stream from $id, idx $idx", 'Error --> e.getMessage)
+        Error >>('Message -> s"Unable to initialise stream from $id, idx $idx", 'Error -> e.getMessage)
         return None
     }
 
@@ -87,7 +85,7 @@ class DiskFileSystem extends FileSystem with FileTailerEvents with WithEventPubl
       new BufferedReader(new InputStreamReader(stream, charset))
     } catch {
       case e: Exception =>
-        Error >>('Message --> s"Unable to initialise stream reader from $id, idx $idx", 'Error --> e.getMessage)
+        Error >>('Message -> s"Unable to initialise stream reader from $id, idx $idx", 'Error -> e.getMessage)
         stream.close()
         return None
     }

@@ -42,7 +42,7 @@ case class SignalSubscriptionAvailable(id: ComponentKey)
 class SignalSubscriptionManagerActor(sysconfig: Config)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
-  with SingleComponentActor
+  with RouteeActor
   with NowProvider {
 
   val configSchema = Json.parse(

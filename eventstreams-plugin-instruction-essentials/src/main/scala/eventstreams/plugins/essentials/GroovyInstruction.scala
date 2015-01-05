@@ -18,7 +18,7 @@ package eventstreams.plugins.essentials
 
 import java.util
 
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.configHelper
@@ -71,7 +71,7 @@ class GroovyInstruction extends SimpleInstructionBuilder with GroovyInstructionC
 
       val uuid = Utils.generateShortUUID
 
-      Built >> ('InstructionInstanceId --> uuid)
+      Built >> ('InstructionInstanceId -> uuid)
 
       var binding = new Binding()
       var shell = new GroovyShell(binding)
@@ -106,7 +106,7 @@ class GroovyInstruction extends SimpleInstructionBuilder with GroovyInstructionC
 
           }
 
-          GroovyExecOk >>('EventId --> eventId, 'InstructionInstanceId --> uuid)
+          GroovyExecOk >>('EventId -> eventId, 'InstructionInstanceId -> uuid)
 
           val parentId = fr.event ~> 'eventId | Utils.generateShortUUID
           var counter = 0
@@ -118,12 +118,12 @@ class GroovyInstruction extends SimpleInstructionBuilder with GroovyInstructionC
               case None =>
                 j.set(__ \ 'eventId -> JsString(parentId + ":" + counter))
             }
-            GroovyExecResult >>('Result --> value, 'EventId --> (enriched ~> 'eventId), 'InstructionInstanceId --> uuid)
+            GroovyExecResult >>('Result -> value, 'EventId -> (enriched ~> 'eventId), 'InstructionInstanceId -> uuid)
             fr.copy(event = enriched)
           }
         } catch {
           case x: Throwable =>
-            GroovyExecFailed >>('Error --> x.getMessage, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+            GroovyExecFailed >>('Error -> x.getMessage, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
             List(fr.copy(event = fr.event.set(__ \ 'error -> JsString("Groovy instruction failed: " + x.getMessage))))
         }
 

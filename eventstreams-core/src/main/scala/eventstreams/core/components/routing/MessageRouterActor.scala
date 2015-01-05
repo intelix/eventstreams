@@ -19,6 +19,9 @@ package eventstreams.core.components.routing
 import akka.actor._
 import akka.cluster.Cluster
 import com.typesafe.config.Config
+import core.events.EventOps.symbolToEventOps
+import core.events.WithEventPublisher
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.actors._
 import eventstreams.core.messages._
 import play.api.libs.json.JsValue
@@ -26,8 +29,30 @@ import play.api.libs.json.JsValue
 import scala.collection.mutable
 import scala.concurrent.duration.DurationLong
 
+trait MessageRouterEvents extends ComponentWithBaseEvents with BaseActorEvents {
+  override def componentId: String = "Actor.MessageRouter"
 
-object MessageRouterActor extends ActorObjWithCluster {
+  val ForwardedToClient = 'ForwardedToClient.trace
+
+  val ForwardedToNode = 'ForwardedToNode.trace
+  val ForwardedToLocalProviders = 'ForwardedToLocalProviders.trace
+
+  val MessageDropped = 'MessageDropped.trace
+
+  val NewSubscription = 'NewSubscription.info
+
+  val RouteAdded = 'RouteAdded.info
+  val RouteRemoved = 'RouteRemoved.info
+
+  val AddedToCache = 'AddedToCache.trace
+  val RemovedFromCache = 'RemovedFromCache.trace
+  val RespondedWithCached = 'RespondedWithCached.trace
+
+  val PendingComponentRemoval = 'PendingComponentRemoval.info
+  
+}
+
+object MessageRouterActor extends ActorObjWithCluster with MessageRouterEvents {
   def id = "router"
 
   def props(implicit cluster: Cluster, config: Config) = Props(new MessageRouterActor())
@@ -41,7 +66,9 @@ case class RemoveIfInactive(ref: ActorRef)
 class MessageRouterActor(implicit val cluster: Cluster)
   extends ActorWithComposableBehavior
   with ActorWithRemoteSubscribers
-  with ActorWithClusterAwareness {
+  with ActorWithClusterAwareness
+  with MessageRouterEvents
+  with WithEventPublisher {
 
   val updatesCache: mutable.Map[RemoteSubj, Any] = new mutable.HashMap[RemoteSubj, Any]()
   implicit val ec = context.dispatcher
@@ -76,10 +103,10 @@ class MessageRouterActor(implicit val cluster: Cluster)
 
   def forwardDownstream(subj: RemoteSubj, msg: Any): Unit = {
     if (!myNodeIsTarget(subj)) {
-      logger.debug(s"$msg -> ${subj.address}")
+      ForwardedToNode >> ('Subject -> subj)
       forwardToClusterNode(subj.address, msg)
     } else {
-      logger.debug(s"$msg -> ${subj.localSubj}")
+      ForwardedToLocalProviders >> ('Subject -> subj.localSubj)
       forwardToLocalProviders(subj.localSubj, msg)
     }
   }
@@ -89,28 +116,29 @@ class MessageRouterActor(implicit val cluster: Cluster)
     staticRoutes.get(component) match {
       case Some(ProviderState(ref, true)) => ref ! msg
       case Some(ProviderState(ref, false)) =>
-        logger.debug(s"Route $component is inactive, message dropped")
-      case None => logger.warn(s"Unknown route $component, message dropped")
+        MessageDropped >> ('Reason -> "Inactive route", 'Target -> component)
+      case None =>
+        MessageDropped >> ('Reason -> "Unknown route", 'Target -> component)
     }
   }
 
   def register(ref: ActorRef, component: ComponentKey): Unit = {
     staticRoutes += component -> ProviderState(ref, active = true)
     context.watch(ref)
-    logger.info(s"Registered new static route $component -> $ref")
+    RouteAdded >> ('Route -> component.key, 'Ref -> ref)
     collectSubjects { subj => subj.localSubj.component == component && myNodeIsTarget(subj)}.foreach { subj =>
-      logger.info(s"Subscribing to $subj with downstream component")
+      NewSubscription >> ('Subject -> subj)
       forwardDownstream(subj, Subscribe(self, subj))
     }
   }
 
   def remember(subj: RemoteSubj, update: Any) = {
-    logger.debug(s"Caching update for $subj")
+    AddedToCache >> ('Subject -> subj)
     updatesCache += (subj -> update)
   }
 
   def clearCacheFor(subject: RemoteSubj) = {
-    logger.debug(s"Removing from cache update for $subject")
+    RemovedFromCache >> ('Subject -> subject)
     updatesCache.remove(subject)
   }
 
@@ -121,7 +149,7 @@ class MessageRouterActor(implicit val cluster: Cluster)
       subscribersFor(subj) foreach { setOfActors =>
         setOfActors.foreach { actor =>
           actor ! msg
-          logger.debug(s"s2c: $msg -> $actor")
+          ForwardedToClient >> ('Subject -> subj, 'Target -> actor)
         }
       }
     }
@@ -129,7 +157,7 @@ class MessageRouterActor(implicit val cluster: Cluster)
   def removeRoute(ref: ActorRef): Unit =
     staticRoutes = staticRoutes.filter {
       case (component, ProviderState(thatRef, false)) if ref == thatRef =>
-        logger.info(s"Removing route: $component")
+        RouteRemoved >> ('Route -> component.key)
         collectSubjects { subj =>
           subj.localSubj.component == component && myNodeIsTarget(subj)
         } foreach { subj =>
@@ -151,7 +179,7 @@ class MessageRouterActor(implicit val cluster: Cluster)
 
   override def processSubscribeRequest(ref: ActorRef, subject: RemoteSubj) = {
     updatesCache.get(subject) foreach (ref ! _)
-    logger.debug(s"Responded with cached update for $subject -> $ref")
+    RespondedWithCached >> ('Subject -> subject, 'Target -> ref)
   }
 
   override def processUnsubscribeRequest(ref: ActorRef, subject: RemoteSubj) =
@@ -188,7 +216,8 @@ class MessageRouterActor(implicit val cluster: Cluster)
   }
 
   private def scheduleRemoval(ref: ActorRef) {
-    logger.info(s"Actor $ref terminated, pending removal in 30 sec")
-    context.system.scheduler.scheduleOnce(30.seconds, self, RemoveIfInactive(ref))
+    val time = 30.seconds
+    PendingComponentRemoval >> ('Ref -> ref, 'Timeout -> time)
+    context.system.scheduler.scheduleOnce(time, self, RemoveIfInactive(ref))
   }
 }

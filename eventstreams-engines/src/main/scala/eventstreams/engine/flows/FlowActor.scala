@@ -16,9 +16,9 @@
 
 package eventstreams.engine.flows
 
-import _root_.core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import _root_.core.events.EventOps.symbolToEventOps
+import _root_.core.events.{FieldAndValue, WithEventPublisher}
 import _root_.core.events.ref.ComponentWithBaseEvents
-import _root_.core.events.{EventFieldWithValue, WithEventPublisher}
 import akka.actor._
 import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
@@ -71,7 +71,7 @@ class FlowActor(id: String, instructions: List[Config])
   extends PipelineWithStatesActor
   with FlowActorEvents
   with ActorWithConfigStore
-  with SingleComponentActor
+  with RouteeActor
   with ActorWithPeriodicalBroadcasting
   with WithMetrics {
 
@@ -97,7 +97,7 @@ class FlowActor(id: String, instructions: List[Config])
   var currentState: FlowState = FlowStateUnknown(Some("Initialising"))
 
 
-  override val commonFields: Seq[EventFieldWithValue] = Seq('ID -->  id, 'Handler --> self)
+  override val commonFields: Seq[FieldAndValue] = Seq('ID ->  id, 'Handler -> self)
 
   override def storageKey: Option[String] = Some(id)
 

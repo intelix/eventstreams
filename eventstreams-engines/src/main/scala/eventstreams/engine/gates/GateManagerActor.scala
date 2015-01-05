@@ -39,26 +39,26 @@ case class GateAvailable(id: ComponentKey)
 class GateManagerActor(sysconfig: Config)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
-  with SingleComponentActor
+  with RouteeActor
   with NowProvider {
 
   val configSchema = Json.parse(
-      Source.fromInputStream(
-        getClass.getResourceAsStream(
-          sysconfig.getString("ehub.gates.main-schema"))).mkString)
+    Source.fromInputStream(
+      getClass.getResourceAsStream(
+        sysconfig.getString("ehub.gates.main-schema"))).mkString)
 
   type GatesMap = Map[ComponentKey, ActorRef]
 
   override val key = ComponentKey("gates")
-  var gates: Monitored[GatesMap] = withMonitor[GatesMap](listUpdate)(Map())
+  var gates: GatesMap = Map()
 
   override def partialStorageKey: Option[String] = Some("gate/")
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  def listUpdate = topicUpdateEffect(T_LIST, list)
+  def listUpdate() = T_LIST !! list
 
-  def list = () => Some(Json.toJson(gates.get.keys.map { x => Json.obj("ckey" -> x.key)}.toArray))
+  def list = Some(Json.toJson(gates.keys.map { x => Json.obj("ckey" -> x.key)}.toArray))
 
 
   def publishConfigTpl(): Unit = T_CONFIGTPL !! Some(configSchema)
@@ -75,16 +75,17 @@ class GateManagerActor(sysconfig: Config)
 
 
   override def onTerminated(ref: ActorRef): Unit = {
-    gates = gates.map { list =>
-      list.filter {
-        case (route, otherRef) => otherRef != ref
-      }
+    gates = gates.filter {
+      case (route, otherRef) => otherRef != ref
     }
+    listUpdate()
     super.onTerminated(ref)
   }
 
   def handler: Receive = {
-    case GateAvailable(route) => gates = gates.map { list => list + (route -> sender())}
+    case GateAvailable(route) =>
+      gates = gates + (route -> sender())
+      listUpdate()
 
   }
 

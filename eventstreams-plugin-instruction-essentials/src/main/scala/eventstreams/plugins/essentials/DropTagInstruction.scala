@@ -16,7 +16,7 @@
 
 package eventstreams.plugins.essentials
 
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
@@ -53,7 +53,7 @@ class DropTagInstruction extends SimpleInstructionBuilder with DropTagInstructio
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+      Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
       frame: JsonFrame => {
 
@@ -71,7 +71,7 @@ class DropTagInstruction extends SimpleInstructionBuilder with DropTagInstructio
 
           val eventId = frame.event ~> 'eventId | "n/a"
 
-          TagDropped >>('Tag --> name, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+          TagDropped >>('Tag -> name, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
 
           List(JsonFrame(value, frame.ctx))
         } else List(frame)

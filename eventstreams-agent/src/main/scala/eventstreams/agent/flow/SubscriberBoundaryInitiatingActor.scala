@@ -19,6 +19,8 @@ package eventstreams.agent.flow
 import akka.actor.{Actor, ActorRef, Props}
 import akka.stream.actor.ActorSubscriberMessage.OnNext
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
+import core.events.EventOps.symbolToEventOps
+import core.events.WithEventPublisher
 import eventstreams.core.JsonFrame
 import eventstreams.core.actors._
 import eventstreams.core.agent.core.ProducedMessage
@@ -26,7 +28,14 @@ import play.api.libs.json.JsValue
 
 import scala.collection.mutable
 
-object SubscriberBoundaryInitiatingActor {
+trait DatasourceSinkEvents 
+  extends DatasourceActorEvents with BaseActorEvents with StateChangeEvents with ReconnectingActorEvents {
+  override def componentId: String = super.componentId + ".Sink"
+  
+  val MessageAcknowledged = 'MessageAcknowledged.trace
+}
+
+object SubscriberBoundaryInitiatingActor extends DatasourceSinkEvents {
   def props(endpoint: String) = Props(new SubscriberBoundaryInitiatingActor(endpoint))
 }
 
@@ -35,7 +44,8 @@ class SubscriberBoundaryInitiatingActor(endpoint: String)
   with StoppableSubscriberActor
   with ReconnectingActor
   with AtLeastOnceDeliveryActor[JsonFrame]
-  with ActorWithGateStateMonitoring {
+  with ActorWithGateStateMonitoring 
+  with DatasourceSinkEvents with WithEventPublisher {
 
   override def commonBehavior: Receive = handleOnNext orElse super.commonBehavior
 
@@ -45,24 +55,20 @@ class SubscriberBoundaryInitiatingActor(endpoint: String)
 
   override def onConnectedToEndpoint(): Unit = {
     super.onConnectedToEndpoint()
-    logger.info("In connected state")
     startGateStateMonitoring()
   }
 
   override def onDisconnectedFromEndpoint(): Unit = {
     super.onDisconnectedFromEndpoint()
-    logger.info("In disconnected state")
     stopGateStateMonitoring()
     if (isComponentActive) initiateReconnect()
   }
 
   override def becomeActive(): Unit = {
-    logger.info(s"Sink becoming active")
     initiateReconnect()
   }
 
   override def becomePassive(): Unit = {
-    logger.info(s"Sink becoming passive")
     stopGateStateMonitoring()
     disconnect()
   }
@@ -72,13 +78,9 @@ class SubscriberBoundaryInitiatingActor(endpoint: String)
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
   override def fullyAcknowledged(correlationId: Long, msg: JsonFrame): Unit = {
-    logger.info(s"Fully acknowledged $correlationId")
+    MessageAcknowledged >> ('CorrelationId -> correlationId)
     context.parent ! Acknowledged(correlationId, correlationToCursor.get(correlationId))
     correlationToCursor -= correlationId
-
-    logger.debug(s"!>>>>> boundary - ${isComponentActive} && ${connected}  && ${isGateOpen} && ${inFlightCount}")
-
-
   }
 
 
@@ -88,10 +90,9 @@ class SubscriberBoundaryInitiatingActor(endpoint: String)
 
   private def handleOnNext: Actor.Receive = {
     case OnNext(ProducedMessage(value, cursor)) =>
-      logger.info(s"Next: $value")
-      val correlationid = deliverMessage(JsonFrame(value,Map()))
-      cursor.foreach(correlationToCursor += correlationid -> _)
+      val correlationId = deliverMessage(JsonFrame(value,Map()))
+      cursor.foreach(correlationToCursor += correlationId -> _)
     case OnNext(x) =>
-      logger.info(s"Next - unsupported payload: $x")
+      Error >> ('Message -> "unsupported payload", 'Payload -> x)
   }
 }

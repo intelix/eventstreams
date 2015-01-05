@@ -16,7 +16,7 @@
 
 package eventstreams.core.actors
 
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.{CtxComponent, WithEventPublisher}
 import eventstreams.core.NowProvider
 import eventstreams.core.agent.core.{GateOpen, GateState, GateStateCheck, GateStateUpdate}
@@ -83,7 +83,7 @@ trait ActorWithGateStateMonitoring
           lastCheck = Some(now)
           remoteActorRef match {
             case Some(ref) =>
-              GateStateMonitorCheckSent >> ('Target --> ref)
+              GateStateMonitorCheckSent >> ('Target -> ref)
               ref ! GateStateCheck(self)
             case None => // disconnected, nothing to do
           }
@@ -97,11 +97,11 @@ trait ActorWithGateStateMonitoring
     case GateStateUpdate(state) =>
       lastKnownState match {
         case Some(lastState) if lastState == state =>
-          MonitoredGateStateNoChange >> ('State --> state)
+          MonitoredGateStateNoChange >> ('State -> state)
         // no state change, do nothing..
         case _ =>
           lastKnownState = Some(state)
-          MonitoredGateStateChanged >> ('NewState --> state)
+          MonitoredGateStateChanged >> ('NewState -> state)
           onGateStateChanged(state)
       }
   }

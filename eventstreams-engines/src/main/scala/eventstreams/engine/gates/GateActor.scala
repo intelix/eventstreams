@@ -61,7 +61,7 @@ class GateActor(id: String)
   extends PipelineWithStatesActor
   with AtLeastOnceDeliveryActor[JsonFrame]
   with ActorWithConfigStore
-  with SingleComponentActor
+  with RouteeActor
   with ActorWithDupTracking
   with ActorWithPeriodicalBroadcasting
   with ActorWithTicks

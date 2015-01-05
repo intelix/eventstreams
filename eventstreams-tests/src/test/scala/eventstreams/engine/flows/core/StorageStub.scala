@@ -1,7 +1,7 @@
 package eventstreams.engine.flows.core
 
 import com.typesafe.config.Config
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.storage.Storage
@@ -45,7 +45,7 @@ class StorageStub(implicit config: Config) extends Storage with StorageStubEvent
       )
     )
 
-    Retrieve >> ('Key --> key)
+    Retrieve >> ('Key -> key)
     Some(Json.stringify(json), None)
   }
 

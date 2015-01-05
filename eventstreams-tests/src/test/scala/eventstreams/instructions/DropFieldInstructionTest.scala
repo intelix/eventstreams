@@ -16,7 +16,6 @@ package eventstreams.instructions
  * limitations under the License.
  */
 
-import _root_.core.events.EventOps.symbolToEventField
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials.{DropFieldInstruction, DropFieldInstructionConstants}
@@ -51,7 +50,7 @@ class DropFieldInstructionTest extends TestHelpers {
   }
 
   it should "raise event when tag dropped" in new WithBasicConfig {
-    expectEvent(Json.obj("abc" -> "bla", "tags" -> Json.arr("abc")))(FieldDropped, 'Field --> "abc")
+    expectEvent(Json.obj("abc" -> "bla", "tags" -> Json.arr("abc")))(FieldDropped, 'Field -> "abc")
   }
 
   trait WithAdvancedConfig extends WithSimpleInstructionBuilder with DropFieldInstructionConstants {
@@ -117,7 +116,7 @@ class DropFieldInstructionTest extends TestHelpers {
       result +> 'abc should be(None)
       result #> 'branch ~> 'abc should be(None)
       result #> 'branch #> 'b2 #> 'abc ~> 'x should be(None)
-      expectSomeEvents(3, FieldDropped, 'Field --> "abc")
+      expectSomeEvents(3, FieldDropped, 'Field -> "abc")
     }
   }
 

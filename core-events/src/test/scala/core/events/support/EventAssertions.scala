@@ -81,8 +81,8 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
     val maybeValue = for (
       all <- locateAllEvents(event);
       first = all.head;
-      fieldWrapper <- first.find(_.fieldName == field)
-    ) yield fieldWrapper.value
+      (f,v) <- first.find { case (f,v) => f.name == field }
+    ) yield v
     maybeValue.get
   }
 
@@ -90,8 +90,8 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
     val maybeValue = for (
       all <- locateAllEvents(event);
       first = all.last;
-      fieldWrapper <- first.find(_.fieldName == field)
-    ) yield fieldWrapper.value
+      (f,v) <- first.find { case (f,v) => f.name == field }
+    ) yield v
     maybeValue.get
   }
 
@@ -106,21 +106,21 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
 
   }
 
-  def expectNoEvents(event: Event, values: EventFieldWithValue*): Unit =
+  def expectNoEvents(event: Event, values: FieldAndValue*): Unit =
     events.get(event).foreach(_ shouldNot haveAllValues(values))
 
-  def expectSomeEvents(event: Event, values: EventFieldWithValue*): Unit = expectSomeEventsWithTimeout(5000, event, values: _*)
+  def expectSomeEvents(event: Event, values: FieldAndValue*): Unit = expectSomeEventsWithTimeout(5000, event, values: _*)
 
-  def expectSomeEvents(count: Int, event: Event, values: EventFieldWithValue*): Unit = expectSomeEventsWithTimeout(5000, count, event, values: _*)
+  def expectSomeEvents(count: Int, event: Event, values: FieldAndValue*): Unit = expectSomeEventsWithTimeout(5000, count, event, values: _*)
 
-  def expectSomeEventsWithTimeout(timeout: Int, event: Event, values: EventFieldWithValue*): Unit = {
+  def expectSomeEventsWithTimeout(timeout: Int, event: Event, values: FieldAndValue*): Unit = {
     waitWithTimeout(timeout) {
       events should contain key event
       events.get(event).get should haveAllValues(values)
     }
   }
 
-  def expectSomeEventsWithTimeout(timeout: Int, count: Int, event: Event, values: EventFieldWithValue*): Unit = {
+  def expectSomeEventsWithTimeout(timeout: Int, count: Int, event: Event, values: FieldAndValue*): Unit = {
     waitWithTimeout(timeout) {
       events should contain key event
       events.get(event).get should haveAllValues(count, values)

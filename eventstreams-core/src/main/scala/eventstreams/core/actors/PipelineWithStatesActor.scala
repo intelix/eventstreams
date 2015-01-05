@@ -27,8 +27,8 @@ import scalaz._
 
 
 trait StateChangeEvents extends ComponentWithBaseEvents {
-  val Starting = 'Starting.info
-  val Stopping = 'Stopping.info
+  val BecomingActive = 'BecomingActive.info
+  val BecomingPassive = 'BecomingPassive.info
 }
 
 trait PipelineWithStatesActor extends ActorWithComposableBehavior with NowProvider with StateChangeEvents with WithEventPublisher {
@@ -60,12 +60,12 @@ trait PipelineWithStatesActor extends ActorWithComposableBehavior with NowProvid
 
   private def handlePipelineStateChanges: Actor.Receive = {
     case BecomeActive() =>
-      Starting >>()
+      BecomingActive >>()
       requestedState = Some(Active())
       date = Some(now)
       becomeActive()
     case BecomePassive() =>
-      Stopping >>()
+      BecomingPassive >>()
       requestedState = Some(Passive())
       date = Some(now)
       becomePassive()

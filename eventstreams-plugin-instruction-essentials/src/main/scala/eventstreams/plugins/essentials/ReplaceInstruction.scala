@@ -16,7 +16,7 @@
 
 package eventstreams.plugins.essentials
 
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
@@ -61,7 +61,7 @@ class ReplaceInstruction extends SimpleInstructionBuilder with ReplaceInstructio
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+      Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
       frame: JsonFrame => {
 
@@ -77,7 +77,7 @@ class ReplaceInstruction extends SimpleInstructionBuilder with ReplaceInstructio
 
         val eventId = frame.event ~> 'eventId | "n/a"
 
-        Replaced >>('Path --> keyPath, 'NewValue --> newValue, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+        Replaced >>('Path -> keyPath, 'NewValue -> newValue, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
 
         List(JsonFrame(value, frame.ctx))
 

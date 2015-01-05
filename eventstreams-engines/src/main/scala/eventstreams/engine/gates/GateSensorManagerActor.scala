@@ -39,7 +39,7 @@ case class GateSensorAvailable(id: ComponentKey)
 class GateSensorManagerActor(id: String)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
-  with SingleComponentActor
+  with RouteeActor
   with NowProvider {
 
   override val key = ComponentKey(id + "/sensors")

@@ -18,19 +18,28 @@ package eventstreams.engine.agents
 
 import akka.actor._
 import akka.remote.DisassociatedEvent
-import eventstreams.core.actors.{ActorWithDisassociationMonitor, PipelineWithStatesActor, SingleComponentActor}
-import eventstreams.core.ds.AgentMessagesV1
-import AgentMessagesV1.{DatasourceConfig, DatasourceInfo}
+import core.events.EventOps.symbolToEventOps
+import core.events.ref.ComponentWithBaseEvents
+import core.events.{FieldAndValue, WithEventPublisher}
+import eventstreams.core.actors.{ActorWithDisassociationMonitor, BaseActorEvents, PipelineWithStatesActor, RouteeActor}
 import eventstreams.core.agent.core.{CommunicationProxyRef, ReconfigureTap, RemoveTap, ResetTapState}
 import eventstreams.core.ds.AgentMessagesV1
+import eventstreams.core.ds.AgentMessagesV1.{DatasourceConfig, DatasourceInfo}
 import eventstreams.core.messages.{ComponentKey, TopicKey}
 import eventstreams.core.{BecomeActive, BecomePassive, OK}
 import play.api.libs.json.JsValue
 
 import scalaz.\/-
 
+trait DatasourceProxyEvents extends ComponentWithBaseEvents with BaseActorEvents {
+  override def componentId: String = "Actor.DatasourceProxy"
 
-object DatasourceProxyActor {
+  val InfoUpdate = 'InfoUpdate.info
+  val ConfigUpdate = 'ConfigUpdate.info
+
+}
+
+object DatasourceProxyActor extends DatasourceProxyEvents {
   def start(key: ComponentKey, ref: ActorRef)(implicit f: ActorRefFactory) = f.actorOf(props(key, ref), key.toActorId)
 
   def props(key: ComponentKey, ref: ActorRef) = Props(new DatasourceProxyActor(key, ref))
@@ -39,7 +48,9 @@ object DatasourceProxyActor {
 class DatasourceProxyActor(val key: ComponentKey, ref: ActorRef)
   extends PipelineWithStatesActor
   with ActorWithDisassociationMonitor
-  with SingleComponentActor {
+  with RouteeActor
+  with DatasourceProxyEvents
+  with WithEventPublisher {
 
 
   private var info: Option[JsValue] = None
@@ -47,10 +58,12 @@ class DatasourceProxyActor(val key: ComponentKey, ref: ActorRef)
 
   override def commonBehavior: Actor.Receive = commonMessageHandler orElse super.commonBehavior
 
+
+  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('Key -> key, 'RemoteActor -> ref)
+
   override def preStart(): Unit = {
     ref ! CommunicationProxyRef(self)
     context.parent ! DatasourceProxyAvailable(key)
-    logger.debug(s"Datasource proxy $key started, pointing at $ref")
     super.preStart()
   }
 
@@ -83,13 +96,13 @@ class DatasourceProxyActor(val key: ComponentKey, ref: ActorRef)
 
   private def processInfo(json: JsValue) = {
     info = Some(json)
-    logger.debug(s"Received agent info update: $info")
+    InfoUpdate >> ('Data -> json)
     publishInfo()
   }
 
   private def processConfig(json: JsValue) = {
     props = Some(json)
-    logger.debug(s"Received agent props update: $info")
+    ConfigUpdate >> ('Data -> json)
     publishProps()
   }
 

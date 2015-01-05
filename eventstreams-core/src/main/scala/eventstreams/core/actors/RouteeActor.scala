@@ -17,6 +17,8 @@
 package eventstreams.core.actors
 
 import akka.actor.ActorRef
+import core.events.EventOps.symbolToEventOps
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.components.routing.MessageRouterActor
 import eventstreams.core.messages.{ComponentKey, LocalSubj, RegisterComponent, TopicKey}
 import eventstreams.core.{Fail, OK}
@@ -26,11 +28,7 @@ import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 import scalaz.{-\/, \/, \/-}
 
-trait SingleComponentActor
-  extends ActorWithLocalSubscribers
-  with ActorWithScheduledThings
-  with WithMonitors {
-
+trait DefaultTopicKeys {
   val T_ADD = TopicKey("add")
   val T_EDIT = TopicKey("edit")
   val T_LIST = TopicKey("list")
@@ -44,25 +42,32 @@ trait SingleComponentActor
   val T_UPDATE_PROPS = TopicKey("update_props")
   val T_REPLAY = TopicKey("replay")
   val T_CONFIGTPL = TopicKey("configtpl")
+}
+
+trait RouteeEvents extends ComponentWithBaseEvents {
+  val UnsupportedPayload = 'UnsupportedPayload.warn
+}
+
+trait RouteeActor
+  extends ActorWithLocalSubscribers
+  with DefaultTopicKeys with RouteeEvents {
+
 
   def key: ComponentKey
 
   case class Publisher(key: TopicKey) {
     def !!(data: Any) = data match {
-      case d : Option[JsValue] => topicUpdate(key, d)
-      case d  => logger.info(s"Unsupported payload type $d")
+      case d: Option[_] => topicUpdate(key, d.asInstanceOf[Option[JsValue]])
+      case d => UnsupportedPayload >> ('Type -> d)
     }
   }
+
   implicit def toPublisher(key: TopicKey): Publisher = Publisher(key)
 
   override def preStart(): Unit = {
     MessageRouterActor.path ! RegisterComponent(key, self)
     super.preStart()
   }
-
-
-  @deprecated
-  def topicUpdateEffect[T](topic: TopicKey, f: () => Option[JsValue]) = () => scheduleHighP(() => topicUpdate(topic, f()), "U:" + topic.key)
 
   def topicUpdate(topic: TopicKey, data: Option[JsValue], singleTarget: Option[ActorRef] = None): Unit =
     singleTarget match {

@@ -17,7 +17,7 @@
 package eventstreams.core.actors
 
 import akka.actor.ActorRef
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.NowProvider
@@ -61,7 +61,7 @@ trait AtLeastOnceDeliveryActor[T]
     val nextCorrelationId = generateCorrelationId(msg)
     list = list :+ InFlight[T](0, msg, nextCorrelationId, getSetOfActiveEndpoints, Set(), Set(), 0)
     val depth = list.size
-    ScheduledForDelivery >>('CorrelationId --> nextCorrelationId, 'DeliveryQueueDepth --> depth)
+    ScheduledForDelivery >>('CorrelationId -> nextCorrelationId, 'DeliveryQueueDepth -> depth)
     deliverIfPossible()
     nextCorrelationId
   }
@@ -77,7 +77,7 @@ trait AtLeastOnceDeliveryActor[T]
 
 
   private def acknowledgeProcessed(correlationId: Long, ackedByRef: ActorRef) = {
-    ProcessingConfirmed >>('CorrelationId --> correlationId, 'ConfirmedBy --> ackedByRef)
+    ProcessingConfirmed >>('CorrelationId -> correlationId, 'ConfirmedBy -> ackedByRef)
 
     list = list.map {
       case m: InFlight[_] if m.correlationId == correlationId =>
@@ -94,7 +94,7 @@ trait AtLeastOnceDeliveryActor[T]
   }
 
   private def acknowledgeReceived(correlationId: Long, ackedByRef: ActorRef) = {
-    DeliveryConfirmed >>('CorrelationId --> correlationId, 'ConfirmedBy --> ackedByRef)
+    DeliveryConfirmed >>('CorrelationId -> correlationId, 'ConfirmedBy -> ackedByRef)
 
     list = list.map {
       case m: InFlight[_] if m.correlationId == correlationId =>
@@ -139,7 +139,7 @@ trait AtLeastOnceDeliveryActor[T]
   private def resend(m: InFlight[T], forceResend: Boolean = false): InFlight[T] =
     if (canDeliverDownstreamRightNow && (forceResend || now - m.sentTime > configUnacknowledgedMessagesResendInterval.toMillis)) {
       val inflight = send(m)
-      DeliveryAttempt >>('CorrelationId --> inflight.correlationId, 'Attempt --> m.sendAttempts, 'Forced --> forceResend)
+      DeliveryAttempt >>('CorrelationId -> inflight.correlationId, 'Attempt -> m.sendAttempts, 'Forced -> forceResend)
       inflight
     } else m
 
@@ -153,7 +153,7 @@ trait AtLeastOnceDeliveryActor[T]
       if (remainingEndpoints.isEmpty && m.processedAck.isEmpty) remainingEndpoints = activeEndpoints
 
       remainingEndpoints.filter(!m.receivedAck.contains(_)).foreach { actor =>
-        DeliveringToActor >>('CorrelationId --> m.correlationId, 'Target --> actor)
+        DeliveringToActor >>('CorrelationId -> m.correlationId, 'Target -> actor)
         actor ! Acknowledgeable(m.msg, m.correlationId)
       }
 

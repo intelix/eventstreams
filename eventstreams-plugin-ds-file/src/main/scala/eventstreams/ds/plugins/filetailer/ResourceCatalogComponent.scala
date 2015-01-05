@@ -1,11 +1,9 @@
 package eventstreams.ds.plugins.filetailer
 
-import com.typesafe.scalalogging.StrictLogging
-import core.events.EventOps.symbolToEventField
 import core.events.WithEventPublisher
 import eventstreams.core.Tools.configHelper
-import eventstreams.core.actors.{PipelineWithStatesActor, ActorWithConfigStore}
-import play.api.libs.json.{Json, JsValue}
+import eventstreams.core.actors.ActorWithDataStore
+import play.api.libs.json.{JsValue, Json}
 
 import scala.util.matching.Regex
 import scalaz.Scalaz._
@@ -17,20 +15,21 @@ trait InMemoryResourceCatalogComponent extends ResourceCatalogComponent {
 
 trait ResourceCatalogComponent
   extends FileTailerConstants
-  with ActorWithConfigStore
+  with ActorWithDataStore
   with FileTailerEvents {
   this: FileSystemComponent with MonitoringTarget with WithEventPublisher =>
 
   def resourceCatalog: ResourceCatalog
 
   var currentSeed = java.lang.System.currentTimeMillis()
+  var dataSnapshotReceived = false
 
   override def storageKey: Option[String] = Some(datasourceId + ":" + directory)
 
   @throws[Exception](classOf[Exception]) override
   def postStop(): Unit = {
     checkForFolderContentsChanges()
-    updateAndApplyConfigProps(configToJson(resourceCatalog.all))
+    storeData(configToJson(resourceCatalog.all))
     super.postStop()
   }
 
@@ -61,7 +60,10 @@ trait ResourceCatalogComponent
     }.toList
 
 
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = resourceCatalog.update(jsonToConfig(props))
+  override def applyData(key: String, data: JsValue): Unit = {
+    dataSnapshotReceived = true
+    resourceCatalog.update(jsonToConfig(data))
+  }
 
   def locateLastResource(): Option[ResourceIndex] = {
     checkForFolderContentsChanges()
@@ -105,17 +107,17 @@ trait ResourceCatalogComponent
     (rolledFilePatternR.map(listOfAllFiles) | List()) ::: listOfAllFiles(mainLogPatternR)
 
   def checkForFolderContentsChanges(): Boolean =
-    initialConfigApplied && resourceCatalog.update(listOfFiles() match {
+    dataSnapshotReceived && resourceCatalog.update(listOfFiles() match {
       case Nil => List[IndexedEntity]()
       case head :: Nil => resourceCatalog.indexByResourceId(head) match {
         case Some(IndexedEntity(ResourceIndex(seed, 0), _)) => List(IndexedEntity(ResourceIndex(seed, 0), head))
-        case x @ Some(IndexedEntity(ResourceIndex(seed, _), _)) =>
+        case x@Some(IndexedEntity(ResourceIndex(seed, _), _)) =>
           currentSeed = java.lang.System.currentTimeMillis()
-          ResourceCatalogNewSeed >> ('Seed --> currentSeed, 'Reason --> "Matching entry recordId is not 0", 'Head --> head, 'Entry --> x)
+          ResourceCatalogNewSeed >>('Seed -> currentSeed, 'Reason -> "Matching entry recordId is not 0", 'Head -> head, 'Entry -> x)
           List(IndexedEntity(ResourceIndex(currentSeed, 0), head))
         case None =>
           currentSeed = java.lang.System.currentTimeMillis()
-          ResourceCatalogNewSeed >> ('Seed --> currentSeed, 'Reason --> "No entry matching current head", 'Head --> head, 'Entries --> resourceCatalog.all)
+          ResourceCatalogNewSeed >>('Seed -> currentSeed, 'Reason -> "No entry matching current head", 'Head -> head, 'Entries -> resourceCatalog.all)
           List(IndexedEntity(ResourceIndex(currentSeed, 0), head))
       }
       case longList =>

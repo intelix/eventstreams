@@ -16,7 +16,7 @@
 
 package eventstreams.plugins.essentials
 
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
@@ -80,7 +80,7 @@ class SplitInstruction extends SimpleInstructionBuilder with NowProvider with Sp
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+      Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
       fr: JsonFrame => {
 
@@ -117,13 +117,13 @@ class SplitInstruction extends SimpleInstructionBuilder with NowProvider with Sp
 
         val originalEventId = fr.event ~> 'eventId | "n/a"
 
-        Split >>(
-          'Sequence --> sequence,
-          'Events --> resultList.size,
-          'Remainder --> remainderLength,
-          'KeepOriginal --> keepOriginalEvent,
-          'EventId --> originalEventId,
-          'InstructionInstanceId --> uuid
+        Split >>> Seq(
+          'Sequence -> sequence,
+          'Events -> resultList.size,
+          'Remainder -> remainderLength,
+          'KeepOriginal -> keepOriginalEvent,
+          'EventId -> originalEventId,
+          'InstructionInstanceId -> uuid
           )
 
         val result = resultList.map(_.trim).filter(!_.isEmpty).map { value =>

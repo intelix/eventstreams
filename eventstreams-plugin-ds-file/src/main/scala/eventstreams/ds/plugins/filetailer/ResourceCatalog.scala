@@ -1,6 +1,5 @@
 package eventstreams.ds.plugins.filetailer
 
-import core.events.EventOps.symbolToEventField
 import core.events.WithEventPublisher
 
 trait ResourceCatalog {
@@ -33,7 +32,7 @@ class InMemoryResourceCatalog extends ResourceCatalog with FileTailerEvents with
       memory = entities
       false
     } else {
-      ResourceCatalogUpdate >> ('EntriesCount --> entities.size)
+      ResourceCatalogUpdate >> ('EntriesCount -> entities.size)
       memory = entities
       true
     }

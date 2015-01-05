@@ -3,8 +3,7 @@ package eventstreams.ds.plugins.filetailer
 import java.nio.CharBuffer
 
 import akka.util.ByteString
-import core.events.EventOps.symbolToEventField
-import core.events.{EventFieldWithValue, WithEventPublisher}
+import core.events.{FieldAndValue, WithEventPublisher}
 import play.api.libs.json.{JsValue, Json}
 
 
@@ -20,12 +19,12 @@ class OpenFileResource(val idx: ResourceIndex,
   private var lastActivityTs = System.currentTimeMillis()
 
 
-  override def commonFields: Seq[EventFieldWithValue] = super.commonFields ++ Seq('ResourceId --> idx, 'Name --> handle.name)
+  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ResourceId -> idx, 'Name -> handle.name)
 
   def advanceTo(cursor: FileCursor): OpenFileResource = {
     val diff = cursor.positionWithinItem - position
     if (diff > 0) {
-      SkippedTo >>('Position --> cursor.positionWithinItem, 'Skipped --> diff)
+      SkippedTo >>('Position -> cursor.positionWithinItem, 'Skipped -> diff)
       skip(diff)
     }
     this
@@ -36,18 +35,18 @@ class OpenFileResource(val idx: ResourceIndex,
       lastActivityTs = System.currentTimeMillis()
       handle.reader.read(ab) match {
         case i if i < 1 =>
-          NoData >> ('Position --> position)
+          NoData >> ('Position -> position)
           atTail = true
           None
         case i =>
           atTail = i < ab.length
-          NewDataBlock >>('BlockSize --> i, 'Position --> position, 'AtTail --> atTail)
+          NewDataBlock >>('BlockSize -> i, 'Position -> position, 'AtTail -> atTail)
           position = position + i
           Some(ByteString(new String(ab, 0, i)))
       }
     } catch {
       case e: Exception =>
-        Error >>('Message --> "Unable to read", 'Error --> e.getMessage, 'Position --> position, 'AtTail --> atTail)
+        Error >>('Message -> "Unable to read", 'Error -> e.getMessage, 'Position -> position, 'AtTail -> atTail)
         None
     }
   }
@@ -86,7 +85,7 @@ class OpenFileResource(val idx: ResourceIndex,
       handle.reader.skip(entries)
     } catch {
       case e: Exception =>
-        Error >>('Message --> "Unable to skip", 'Error --> e.getMessage, 'Position --> position, 'AtTail --> atTail)
+        Error >>('Message -> "Unable to skip", 'Error -> e.getMessage, 'Position -> position, 'AtTail -> atTail)
         0
     }
     if (skipped < entries) {

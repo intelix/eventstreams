@@ -16,7 +16,7 @@
 
 package eventstreams.plugins.essentials
 
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
@@ -57,7 +57,7 @@ class PersistenceInstruction extends SimpleInstructionBuilder with PersistenceIn
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+      Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
       frame: JsonFrame => {
 
@@ -68,11 +68,11 @@ class PersistenceInstruction extends SimpleInstructionBuilder with PersistenceIn
         val ttlValue = macroReplacement(frame, ttl)
 
         Configured >>(
-          'Index --> indexValue,
-          'Table --> tableValue,
-          'TTL --> ttlValue,
-          'EventId --> eventId,
-          'InstructionInstanceId --> uuid)
+          'Index -> indexValue,
+          'Table -> tableValue,
+          'TTL -> ttlValue,
+          'EventId -> eventId,
+          'InstructionInstanceId -> uuid)
 
         List(JsonFrame(
           frame.event.set(

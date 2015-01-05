@@ -16,7 +16,7 @@
 
 package eventstreams.plugins.essentials
 
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
@@ -52,7 +52,7 @@ class DropFieldInstruction extends SimpleInstructionBuilder with DropFieldInstru
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+      Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
       frame: JsonFrame => {
 
@@ -63,12 +63,12 @@ class DropFieldInstruction extends SimpleInstructionBuilder with DropFieldInstru
         val value = if (field.startsWith("?")) {
           val actualFieldName = field.substring(1).toLowerCase
           frame.event.updateAll { case (p, js) if JsPathExtension.hasKey(p).map(_.toLowerCase == actualFieldName) | false =>
-            FieldDropped >>('Field --> actualFieldName, 'Path --> p.toString(), 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+            FieldDropped >>('Field -> actualFieldName, 'Path -> p.toString(), 'EventId -> eventId, 'InstructionInstanceId -> uuid)
             JsNull
           }
         } else {
           val path = toPath(macroReplacement(frame, JsString(field)).asOpt[String].getOrElse(""))
-          FieldDropped >>('Field --> fieldName, 'Path --> path, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+          FieldDropped >>('Field -> fieldName, 'Path -> path, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
           frame.event.getOpt(path).map { _ =>
             frame.event.set(path -> JsNull)
           } | frame.event

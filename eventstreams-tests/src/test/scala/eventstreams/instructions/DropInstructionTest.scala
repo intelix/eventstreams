@@ -16,7 +16,6 @@ package eventstreams.instructions
  * limitations under the License.
  */
 
-import _root_.core.events.EventOps.symbolToEventField
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials.{DropInstruction, DropInstructionConstants}
 import eventstreams.support.TestHelpers
@@ -41,7 +40,7 @@ class DropInstructionTest extends TestHelpers {
   }
 
   it should "raise event when dropped" in new WithBasicConfig {
-    expectEvent(Json.obj("eventId" -> "id", "abc1" -> "bla", "tags" -> Json.arr("abc")))(Dropped, 'EventId --> "id")
+    expectEvent(Json.obj("eventId" -> "id", "abc1" -> "bla", "tags" -> Json.arr("abc")))(Dropped, 'EventId -> "id")
   }
 
 

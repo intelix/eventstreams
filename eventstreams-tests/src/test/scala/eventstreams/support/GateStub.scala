@@ -2,7 +2,7 @@ package eventstreams.support
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit.{TestKit, TestProbe}
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor}
@@ -81,10 +81,10 @@ class GateStubActor
       GateStatusCheckReceived >>()
       ref ! GateStateUpdate(state)
     case Acknowledgeable(msg, id) =>
-      MessageReceivedAtGate >>('CorrelationId --> id)
+      MessageReceivedAtGate >>('CorrelationId -> id)
       if (ackFlags.contains(DoAcknowledgeAsReceived())) sender ! AcknowledgeAsReceived(id)
       if (ackFlags.contains(DoAcknowledgeAsProcessed())) sender ! AcknowledgeAsProcessed(id)
-    case x => UnrecognisedMessageAtGate >> ('Message --> x)
+    case x => UnrecognisedMessageAtGate >> ('Message -> x)
   }
 
 }

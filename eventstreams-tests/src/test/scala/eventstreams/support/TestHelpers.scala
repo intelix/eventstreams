@@ -58,13 +58,13 @@ trait TestHelpers extends FlatSpec with Matchers with EventAssertions with Befor
         result should be (empty)
       }
 
-    def expectEvent(json: JsValue)(event: Event, values: EventFieldWithValue*) = {
+    def expectEvent(json: JsValue)(event: Event, values: FieldAndValue*) = {
       clearEvents()
       expectAny(json) { _ =>
         expectSomeEvents(event, values: _*)
       }
     }
-    def expectNEvents(json: JsValue)(count: Int, event: Event, values: EventFieldWithValue*) = {
+    def expectNEvents(json: JsValue)(count: Int, event: Event, values: FieldAndValue*) = {
       clearEvents()
       expectAny(json) { _ =>
         expectSomeEvents(count, event, values: _*)

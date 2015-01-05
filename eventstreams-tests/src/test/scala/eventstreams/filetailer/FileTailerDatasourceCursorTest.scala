@@ -1,6 +1,5 @@
 package eventstreams.filetailer
 
-import _root_.core.events.EventOps.symbolToEventField
 import akka.actor.ActorSystem
 import eventstreams.ds.plugins.filetailer.FileTailerConstants._
 import eventstreams.support.ActorTestContext
@@ -32,7 +31,7 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(1, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
 
@@ -51,7 +50,7 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(1, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "CCC")
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
          }
        }
 
@@ -90,8 +89,8 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            }
 
            f.write("DDDDD")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "DDDDD")
-           expectNoEvents(ReceivedMessageAtSink, 'Value --> "CCC")
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "DDDDD")
+           expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
 
          }
        }
@@ -114,7 +113,7 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(1, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
 
@@ -135,9 +134,9 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(3, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "DDDDD")
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "DDDDD")
          }
        }
 
@@ -161,9 +160,9 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(2, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "DDDDD")
-           expectNoEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "DDDDD")
+           expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
 
@@ -187,12 +186,12 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(5, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "GGG")
-           expectNoEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
 
@@ -218,12 +217,12 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(5, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "GGG")
-           expectNoEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
 
@@ -249,12 +248,12 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(5, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "GGG")
-           expectNoEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
 
@@ -280,12 +279,12 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(5, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "GGG")
-           expectNoEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
 
@@ -311,12 +310,12 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(5, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "GGG")
-           expectNoEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
 
@@ -343,12 +342,12 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(5, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "GGG")
-           expectNoEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
 
@@ -375,11 +374,11 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(4, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "GGG")
-           expectNoEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
 
@@ -411,8 +410,8 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(1, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "GGG")
-           expectNoEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
 
@@ -444,11 +443,11 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(4, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "GGG")
-           expectNoEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
 
          override def config: JsValue = super.config.set(__ \ CfgFInactivityThresholdMs -> JsNumber(500))
@@ -483,8 +482,8 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            waitAndCheck {
              expectSomeEvents(1, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value --> "GGG")
-           expectNoEvents(ReceivedMessageAtSink, 'Value --> ("B" * testBlockSize))
+           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
 
          override def config: JsValue = super.config.set(__ \ CfgFInactivityThresholdMs -> JsNumber(500))

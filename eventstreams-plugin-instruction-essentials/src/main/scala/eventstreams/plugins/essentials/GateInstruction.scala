@@ -18,9 +18,9 @@ package eventstreams.plugins.essentials
 
 import akka.actor.{ActorRef, Props}
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
+import core.events.{FieldAndValue, WithEventPublisher}
 import core.events.ref.ComponentWithBaseEvents
-import core.events.{EventFieldWithValue, WithEventPublisher}
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.Types._
 import eventstreams.core._
@@ -72,7 +72,7 @@ class GateInstruction extends BuilderFromConfig[InstructionType] with GateInstru
       address <- props ~> CfgFAddress \/> Fail(s"Invalid $configId instruction configuration. Missing '$CfgFAddress' value. Contents: ${Json.stringify(props)}")
     ) yield {
       val uuid = Utils.generateShortUUID
-      Built >>('Address --> address, 'Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+      Built >>('Address -> address, 'Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
       GateInstructionActor.props(uuid, address, props)
     }
 
@@ -94,14 +94,14 @@ private class GateInstructionActor(instructionId: String, address: String, confi
   private val condition = SimpleCondition.conditionOrAlwaysTrue(config ~> CfgFCondition)
 
 
-  override def commonFields: Seq[EventFieldWithValue] = super.commonFields ++ Seq('Address --> address, 'InstructionInstanceId --> instructionId)
+  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('Address -> address, 'InstructionInstanceId -> instructionId)
 
   override def connectionEndpoint: String = address
 
 
   override def preStart(): Unit = {
     super.preStart()
-    GateInstructionInstance >>('Buffer --> maxInFlight, 'Condition --> (config ~> CfgFCondition | "none"))
+    GateInstructionInstance >>('Buffer -> maxInFlight, 'Condition -> (config ~> CfgFCondition | "none"))
   }
 
   override def onConnectedToEndpoint(): Unit = {
@@ -137,7 +137,7 @@ private class GateInstructionActor(instructionId: String, address: String, confi
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
   override def fullyAcknowledged(correlationId: Long, msg: JsonFrame): Unit = {
-    FullAcknowledgement >> ('CorrelationId --> correlationId)
+    FullAcknowledgement >> ('CorrelationId -> correlationId)
     if (blockingDelivery) forwardToFlow(msg)
   }
 
@@ -146,7 +146,7 @@ private class GateInstructionActor(instructionId: String, address: String, confi
       deliverMessage(value)
       if (blockingDelivery) None else Some(List(value))
     } else {
-      ConditionNotMet >> ('EventId --> value.eventIdOrNA)
+      ConditionNotMet >> ('EventId -> value.eventIdOrNA)
       Some(List(value))
     }
   }

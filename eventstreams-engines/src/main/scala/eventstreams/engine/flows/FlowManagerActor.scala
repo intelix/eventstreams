@@ -20,7 +20,7 @@ import akka.actor._
 import com.typesafe.config.Config
 import eventstreams.core.actors._
 import eventstreams.core.messages.{ComponentKey, TopicKey}
-import eventstreams.core.{Fail, OK, Utils}
+import eventstreams.core.{Fail, NowProvider, OK, Utils}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
@@ -40,7 +40,8 @@ case class FlowAvailable(id: ComponentKey)
 class FlowManagerActor(sysconfig: Config)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
-  with SingleComponentActor {
+  with RouteeActor
+  with NowProvider {
 
   val instructionsConfigsList = {
     val list = sysconfig.getConfigList("ehub.flows.instructions")
@@ -79,7 +80,8 @@ class FlowManagerActor(sysconfig: Config)
 
   type FlowMap = Map[ComponentKey, ActorRef]
   override val key = ComponentKey("flows")
-  var flows: Monitored[FlowMap] = withMonitor[FlowMap](listUpdate)(Map())
+
+  var flows: FlowMap = Map()
 
   def publishConfigTpl(): Unit = T_CONFIGTPL !! Some(configSchema)
 
@@ -89,9 +91,10 @@ class FlowManagerActor(sysconfig: Config)
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = startActor(Some(key), Some(props), maybeState)
 
-  def listUpdate = topicUpdateEffect(T_LIST, list)
 
-  def list = () => Some(Json.toJson(flows.get.keys.map { x => Json.obj("ckey" -> x.key)}.toArray))
+  def listUpdate() = T_LIST !! list
+
+  def list = Some(Json.toJson(flows.keys.map { x => Json.obj("ckey" -> x.key)}.toArray))
 
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
@@ -105,18 +108,17 @@ class FlowManagerActor(sysconfig: Config)
 
 
   override def onTerminated(ref: ActorRef): Unit = {
-    flows = flows.map { list =>
-      list.filter {
-        case (route, otherRef) => otherRef != ref
-      }
+    flows = flows.filter {
+      case (route, otherRef) => otherRef != ref
     }
-
+    listUpdate()
     super.onTerminated(ref)
   }
 
   def handler: Receive = {
     case FlowAvailable(route) =>
-      flows = flows.map { list => list + (route -> sender())}
+      flows = flows + (route -> sender())
+      listUpdate()
   }
 
   private def startActor(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]): \/[Fail, OK] =

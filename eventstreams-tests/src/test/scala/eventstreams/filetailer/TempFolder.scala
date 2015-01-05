@@ -5,8 +5,7 @@ import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.util.zip.GZIPOutputStream
 
-import com.typesafe.scalalogging.StrictLogging
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Matchers}
@@ -42,18 +41,18 @@ trait TempFolder extends BeforeAndAfterEach with BeforeAndAfterAll with Matchers
     def write(s: String) = writer.foreach { w =>
       w.write(s)
       w.flush()
-      NewInputIntoFile >> ('Contents --> s)
+      NewInputIntoFile >> ('Contents -> s)
       Thread.sleep(5)
     }
 
 
 
-    def delete(name: String) = deleteFile(new File(tempDirPath + "/" + name), false) shouldBe true
+    def delete(name: String) = deleteFile(new File(tempDirPath + "/" + name), truncateOnly = false) shouldBe true
 
     private def deleteFile(f: File, truncateOnly: Boolean = true) = {
       def tryDelete(attempt: Int): Boolean = f.delete() match {
         case false if attempt < 25 =>
-          FailedToDelete >> ('Message --> ("Failed to delete file " + f.getAbsolutePath +" after " + attempt + " attempt(s)"))
+          FailedToDelete >> ('Message -> ("Failed to delete file " + f.getAbsolutePath +" after " + attempt + " attempt(s)"))
           Thread.sleep(65)
           tryDelete(attempt + 1)
         case x => x
@@ -90,7 +89,7 @@ trait TempFolder extends BeforeAndAfterEach with BeforeAndAfterAll with Matchers
 //      f.createNewFile() shouldBe true
       openNew()
       write("")
-      Rolled >> ('Message --> s"$f rolled into ${tempDirPath + "/" + name}")
+      Rolled >> ('Message -> s"$f rolled into ${tempDirPath + "/" + name}")
 
     }
 
@@ -122,20 +121,20 @@ trait TempFolder extends BeforeAndAfterEach with BeforeAndAfterAll with Matchers
 
   override def afterEach(): Unit = {
     Option(tempDir.listFiles).map(_.toList).getOrElse(Nil).foreach(_.delete)
-    Cleaned >> ('Message --> s"Cleaned files under ${tempDir.getPath}")
+    Cleaned >> ('Message -> s"Cleaned files under ${tempDir.getPath}")
     super.afterEach()
   }
 
 
   override def afterAll(): Unit = {
-    delete
+    delete()
     super.afterAll()
   }
 
   lazy val tempDir = {
     val dir = java.io.File.createTempFile("test", "")
     dir.delete
-    CreatedDir >> ('Message --> s"Created $dir")
+    CreatedDir >> ('Message -> s"Created $dir")
     dir.mkdir
     dir
   }
@@ -163,15 +162,15 @@ trait TempFolder extends BeforeAndAfterEach with BeforeAndAfterAll with Matchers
 
   def createNewFile(name: String) = {
     val f = new java.io.File(tempDir.getPath+"/"+name)
-    CreatedFile >> ('Message --> s"Created ${tempDir.getPath+"/"+name}")
+    CreatedFile >> ('Message -> s"Created ${tempDir.getPath+"/"+name}")
     f.createNewFile
     f
   }
 
-  def delete = {
+  def delete() = {
     Option(tempDir.listFiles).map(_.toList).getOrElse(Nil).foreach(_.delete)
     tempDir.delete
-    Cleaned >> ('Message --> s"Cleaned files and directory ${tempDir.getPath}")
+    Cleaned >> ('Message -> s"Cleaned files and directory ${tempDir.getPath}")
 
   }
 

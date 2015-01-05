@@ -16,7 +16,7 @@
 
 package eventstreams.plugins.essentials
 
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.configHelper
@@ -47,12 +47,12 @@ class DropInstruction extends SimpleInstructionBuilder with DropInstructionConst
 
     val uuid = Utils.generateShortUUID
 
-    Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+    Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
     frame: JsonFrame => {
       val eventId = frame.event ~> 'eventId | "n/a"
 
-      Dropped >>('EventId --> eventId, 'InstructionInstanceId --> uuid)
+      Dropped >>('EventId -> eventId, 'InstructionInstanceId -> uuid)
       List()
     }
   }

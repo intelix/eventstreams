@@ -19,7 +19,7 @@ package eventstreams.agent
 import akka.actor.{ActorRef, Props}
 import akka.stream.FlowMaterializer
 import com.typesafe.config.Config
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.agent.flow.DatasourceActor
@@ -126,8 +126,8 @@ class AgentControllerActor(implicit sysconfig: Config)
       next.getString("name") + "@" + next.getString("class")
     }.mkString(",")
 
-    AgentInstanceAvailable >> ('Id --> uuid)
-    AvailableDatasources >> ('List --> list)
+    AgentInstanceAvailable >> ('Id -> uuid)
+    AvailableDatasources >> ('List -> list)
     
   }
 
@@ -175,12 +175,12 @@ class AgentControllerActor(implicit sysconfig: Config)
       sendToHQAll()
     case CreateDatasource(cfg) => addDatasource(None, Some(cfg), None) match {
       case \/-((actor, name)) =>
-        DatasourceInstanceCreated >> ('Name --> name, 'Actor --> actor, 'Config --> cfg)
+        DatasourceInstanceCreated >> ('Name -> name, 'Actor -> actor, 'Config -> cfg)
       case -\/(error) =>
-        Error >> ('Message --> "Unable to create datasource instance", 'Error --> error, 'Config --> cfg)
+        Error >> ('Message -> "Unable to create datasource instance", 'Error -> error, 'Config -> cfg)
     }
     case DatasourceAvailable(key) =>
-      DatasourceInstanceAvailable >> ('Key --> key, 'Actor --> sender())
+      DatasourceInstanceAvailable >> ('Key -> key, 'Actor -> sender())
       datasources = datasources + (key -> sender())
       sendToHQ(snapshot)
   }
@@ -193,7 +193,7 @@ class AgentControllerActor(implicit sysconfig: Config)
 
   private def sendToHQ(msg: Any) =
     commProxy foreach { actor =>
-      MessageToAgentProxy >> ('Message --> msg)
+      MessageToAgentProxy >> ('Message -> msg)
       actor ! msg
     }
 

@@ -4,7 +4,6 @@ import java.nio.charset.Charset
 
 import akka.actor.Props
 import akka.util.ByteString
-import core.events.EventOps.symbolToEventField
 import core.events.WithEventPublisher
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, PipelineWithStatesActor, StoppablePublisherActor}
@@ -36,11 +35,11 @@ class LocationMonitorActor(val datasourceId: String, props: JsValue, cursor: Opt
 
   override def preStart(): Unit = {
     DatasourceInstance >>(
-      'Directory --> directory,
-      'MainLogPattern --> props ~> CfgFMainPattern,
-      'RolledLogPattern --> props ~> CfgFRolledPattern,
-      'Ordering --> props ~> CfgFFileOrdering,
-      'InitialPosition --> props ~> CfgFStartWith)
+      'Directory -> directory,
+      'MainLogPattern -> props ~> CfgFMainPattern,
+      'RolledLogPattern -> props ~> CfgFRolledPattern,
+      'Ordering -> props ~> CfgFFileOrdering,
+      'InitialPosition -> props ~> CfgFStartWith)
     super.preStart()
   }
 

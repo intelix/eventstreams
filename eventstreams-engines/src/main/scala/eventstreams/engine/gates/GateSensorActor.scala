@@ -51,7 +51,7 @@ case class GateSensorStateError(details: Option[String] = None) extends GateSens
 class GateSensorActor(id: String)
   extends PipelineWithStatesActor
   with ActorWithConfigStore
-  with SingleComponentActor
+  with RouteeActor
   with WithSignalAccounting
   with ActorWithPeriodicalBroadcasting
   with NowProvider {

@@ -16,7 +16,7 @@
 
 package eventstreams.plugins.essentials
 
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
@@ -55,7 +55,7 @@ class EnrichInstruction extends SimpleInstructionBuilder with EnrichInstructionC
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('Field --> fieldName, 'Value --> fieldValue, 'Type --> fieldType, 'InstructionInstanceId --> uuid)
+      Built >>('Field -> fieldName, 'Value -> fieldValue, 'Type -> fieldType, 'InstructionInstanceId -> uuid)
 
       frame: JsonFrame => {
 
@@ -67,7 +67,7 @@ class EnrichInstruction extends SimpleInstructionBuilder with EnrichInstructionC
 
         val eventId = frame.event ~> 'eventId | "n/a"
 
-        Enriched >>('Path --> keyPath, 'Replacement --> replacement, 'NewValue --> value, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+        Enriched >>('Path -> keyPath, 'Replacement -> replacement, 'NewValue -> value, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
 
         List(JsonFrame(value, frame.ctx))
 

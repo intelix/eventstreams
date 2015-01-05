@@ -17,7 +17,7 @@
 package eventstreams.engine.agents
 
 import akka.actor._
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.actors._
@@ -46,7 +46,7 @@ case class AgentProxyAvailable(id: ComponentKey)
 
 class AgentsManagerActor
   extends ActorWithComposableBehavior
-  with SingleComponentActor
+  with RouteeActor
   with ActorWithDisassociationMonitor
   with AgentManagerActorEvents with WithEventPublisher {
 
@@ -59,7 +59,7 @@ class AgentsManagerActor
 
   override def preStart(): Unit = {
     super.preStart()
-    AgentsManagerAvailable >> ('Path --> self )
+    AgentsManagerAvailable >> ('Path -> self )
   }
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
@@ -67,7 +67,7 @@ class AgentsManagerActor
   }
 
   override def onTerminated(ref: ActorRef): Unit = {
-    AgentProxyTerminated >> ('Actor --> ref)
+    AgentProxyTerminated >> ('Actor -> ref)
     agents = agents.filter {
       case (name, otherRef) => otherRef != ref
     }
@@ -80,10 +80,10 @@ class AgentsManagerActor
 
   private def handler: Receive = {
     case Handshake(ref, id) =>
-      HandshakeReceived >> ('AgentActor --> ref.path, 'AgentID --> id)
+      HandshakeReceived >> ('AgentActor -> ref.path, 'AgentID -> id)
       context.watch(AgentProxyActor.start(key / id, ref))
     case AgentProxyAvailable(name) =>
-      AgentProxyInstanceAvailable >> ('Name --> name, 'Actor --> sender())
+      AgentProxyInstanceAvailable >> ('Name -> name, 'Actor -> sender())
       agents = agents + (name -> sender())
       publishList()
   }

@@ -49,7 +49,7 @@ class ClusterManagerActor(implicit val cluster: Cluster, config: Config)
   extends ActorWithComposableBehavior
   with ClusterManagerActorEvents
   with ActorWithClusterPeers
-  with SingleComponentActor {
+  with RouteeActor {
 
   val nodeName = config.getString("ehub.node.name")
 

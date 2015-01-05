@@ -4,17 +4,18 @@ import org.slf4j._
 import play.api.libs.json._
 
 trait EventPublisher {
-  def publish(event: Event, values: => Seq[EventFieldWithValue])(implicit runtimeCtx: WithEventPublisher, system: CtxSystem)
+  def publish(system: CtxSystem, event: Event, values: => Seq[FieldAndValue])
 }
 
 object LoggerEventPublisherHelper {
   val logFormat = "%10s : %35s - %-25s : %s"
-  def log(event: Event, system: CtxSystem, values: Seq[EventFieldWithValue], f: String => Unit) = {
 
-    def formatNextField(f: EventFieldWithValue) = f.fieldName+"="+f.value
+  def log(event: Event, system: CtxSystem, values: Seq[FieldAndValue], f: String => Unit) = {
+
+    def formatNextField(f: FieldAndValue) = f._1.name + "=" + f._2
 
     val fields = values.foldLeft("") {
-      (aggr, next) => aggr + formatNextField(next)+"  "
+      (aggr, next) => aggr + formatNextField(next) + "  "
     }
 
     val string = logFormat.format(system.id, event.componentId, event.id, fields)
@@ -39,7 +40,7 @@ trait LoggerEventPublisher {
     case JsString(s) => s
     case JsNumber(n) => n.toString()
     case JsBoolean(b) => b.toString
-    case b @ JsObject(_) => Json.stringify(b)
+    case b@JsObject(_) => Json.stringify(b)
     case JsArray(arr) => arr.seq.mkString(",")
     case JsNull => ""
     case JsUndefined() => ""
@@ -55,24 +56,17 @@ trait LoggerEventPublisher {
   }
 
 
-
-  private def process(event: Event, runtimeCtx: WithEventPublisher, system: CtxSystem, values: Seq[EventFieldWithValue], f: String => Unit) = {
-
-    val allValues = runtimeCtx.commonFields match {
-      case x if x.isEmpty => values
-      case x => values ++ x
-    }
-
-    LoggerEventPublisherHelper.log(event, system, allValues, f)
-  }
-
-  def publish(event: Event, values: => Seq[EventFieldWithValue])(implicit runtimeCtx: WithEventPublisher, system: CtxSystem) = {
-    val logger = loggerFor("events."+system.id + "." + event.componentId + "." + event.id)
+  def publish(system: CtxSystem, event: Event, values: => Seq[FieldAndValue]) = {
+    val logger = loggerFor("events." + system.id + "." + event.componentId + "." + event.id)
     event match {
-      case x: TraceEvent if logger.isDebugEnabled => process(event, runtimeCtx, system, values, s => logger.debug(s))
-      case x: InfoEvent if logger.isInfoEnabled => process(event, runtimeCtx, system, values, s => logger.info(s))
-      case x: WarnEvent if logger.isWarnEnabled => process(event, runtimeCtx, system, values, s => logger.warn(s))
-      case x: ErrorEvent if logger.isErrorEnabled => process(event, runtimeCtx, system, values, s => logger.error(s))
+      case x: TraceEvent if logger.isDebugEnabled =>
+        LoggerEventPublisherHelper.log(event, system, values, s => logger.debug(s))
+      case x: InfoEvent if logger.isInfoEnabled =>
+        LoggerEventPublisherHelper.log(event, system, values, s => logger.info(s))
+      case x: WarnEvent if logger.isWarnEnabled =>
+        LoggerEventPublisherHelper.log(event, system, values, s => logger.warn(s))
+      case x: ErrorEvent if logger.isErrorEnabled =>
+        LoggerEventPublisherHelper.log(event, system, values, s => logger.error(s))
       case _ => ()
     }
   }

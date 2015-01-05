@@ -1,11 +1,11 @@
 package eventstreams.agent.support
 
-import akka.actor.{ActorRef, Props, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import com.typesafe.config._
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
-import eventstreams.support.{StorageStub2, StorageStub1}
+import eventstreams.support.{StorageStub1, StorageStub2}
 import org.scalatest.{BeforeAndAfterEach, Suite}
 import org.slf4j.LoggerFactory
 
@@ -19,13 +19,15 @@ trait MultiActorSystemTestContextEvents extends ComponentWithBaseEvents {
 }
 
 trait ActorSystemWrapper {
+  def underlyingSystem: ActorSystem
+  def config: Config
   def start(props: Props, id: String): ActorRef
 }
 
 trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSystemTestContextEvents with WithEventPublisher {
   self: Suite =>
   
-  case class Wrapper(underlyingSystem: ActorSystem, id: String) extends ActorSystemWrapper {
+  case class Wrapper(config: Config, underlyingSystem: ActorSystem, id: String) extends ActorSystemWrapper {
     private var actors = List[ActorRef]()
     override def start(props: Props, id: String): ActorRef = {
       val newActor = underlyingSystem.actorOf(props, id)
@@ -37,7 +39,7 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
       actors.foreach(underlyingSystem.stop)
       underlyingSystem.shutdown()
       underlyingSystem.awaitTermination(60.seconds)
-      ActorSystemTerminated >> ('Name --> id, 'TerminatedInMs --> (System.nanoTime() - startCheckpoint)/1000000)
+      ActorSystemTerminated >> ('Name -> id, 'TerminatedInMs -> (System.nanoTime() - startCheckpoint)/1000000)
     }
   }
 
@@ -54,16 +56,12 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
   
   private var systems = Map[String, Wrapper]()
 
-  private def build(name: String) = configs.get(name) match {
-    case None => ActorSystem(name)
-    case Some(c) => ActorSystem(name, c)
-  }
   
   def withSystem(name: String)(f: ActorSystemWrapper => Unit) = f(systems.get(name) match {
-    case None => 
-      val underlying = build(name)
-      val sys = Wrapper(underlying, name)
-      ActorSystemCreated >> ('Name --> name, 'Instance --> underlying)
+    case None =>
+      val config = configs.get(name).get
+      val sys = Wrapper(config, ActorSystem(name, config), name)
+      ActorSystemCreated >> ('Name -> name)
       systems = systems + (name -> sys)
       sys
     case Some(x) => x

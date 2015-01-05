@@ -51,7 +51,7 @@ case class SignalSubscriptionStateError(details: Option[String] = None) extends 
 class SignalSubscriptionActor(id: String)
   extends PipelineWithStatesActor
   with ActorWithConfigStore
-  with SingleComponentActor
+  with RouteeActor
   with NowProvider {
 
   val T_SIGNAL = TopicKey("signal")

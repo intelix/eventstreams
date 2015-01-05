@@ -18,7 +18,7 @@ package actors
 
 import akka.actor.{Actor, ActorRef, Props}
 import com.diogoduailibe.lzstring4j.LZString
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks}
 import eventstreams.core.messages._
@@ -68,7 +68,7 @@ class WebsocketActor(out: ActorRef)
   override def preStart(): Unit = {
     super.preStart()
 
-    AcceptedConnection >>('ProxyActor --> out, 'ThisActor --> self)
+    AcceptedConnection >>('ProxyActor -> out, 'ThisActor -> self)
 
     LocalClusterAwareActor.path ! InfoRequest()
   }
@@ -77,7 +77,7 @@ class WebsocketActor(out: ActorRef)
   @throws[Exception](classOf[Exception])
   override def postStop(): Unit = {
     super.postStop()
-    ClosedConnection >>('ProxyActor --> out, 'ThisActor --> self)
+    ClosedConnection >>('ProxyActor -> out, 'ThisActor -> self)
   }
 
   override def commonBehavior: Actor.Receive = messageHandler orElse super.commonBehavior

@@ -16,7 +16,7 @@
 
 package eventstreams.plugins.essentials
 
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
@@ -52,7 +52,7 @@ class AddTagInstruction extends SimpleInstructionBuilder with AddTagInstructionC
 
       val uuid = Utils.generateShortUUID
 
-      Built >> ('Tag -->  tagName, 'InstructionInstanceId --> uuid)
+      Built >> ('Tag ->  tagName, 'InstructionInstanceId -> uuid)
 
       frame: JsonFrame => {
 
@@ -67,7 +67,7 @@ class AddTagInstruction extends SimpleInstructionBuilder with AddTagInstructionC
 
         val eventId = value ~> 'eventId | "n/a"
         
-        TagAdded >>('Tag --> tagName, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+        TagAdded >>('Tag -> tagName, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
 
         List(JsonFrame(value, frame.ctx))
 

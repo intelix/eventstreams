@@ -3,7 +3,7 @@ package eventstreams.support
 import akka.actor.{Actor, Props}
 import akka.stream.actor.ActorSubscriberMessage.OnNext
 import akka.stream.actor.{RequestStrategy, WatermarkRequestStrategy, ZeroRequestStrategy}
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.configHelper
@@ -38,9 +38,9 @@ class SinkStubActor(initialStrategyWhenEnabled: RequestStrategy)
 
   override def commonBehavior: Actor.Receive = super.commonBehavior orElse {
     case OnNext(msg) => msg match {
-      case ProducedMessage(value, Some(cursor)) => ReceivedMessageAtSink >>('Contents --> msg, 'Value --> (value ~> 'value | ""), 'Cursor --> cursor)
-      case ProducedMessage(value, _) => ReceivedMessageAtSink >>('Contents --> msg, 'Value --> (value ~> 'value | ""), 'Cursor --> "")
-      case _ => ReceivedMessageAtSink >> ('Contents --> msg)
+      case ProducedMessage(value, Some(cursor)) => ReceivedMessageAtSink >>('Contents -> msg, 'Value -> (value ~> 'value | ""), 'Cursor -> cursor)
+      case ProducedMessage(value, _) => ReceivedMessageAtSink >>('Contents -> msg, 'Value -> (value ~> 'value | ""), 'Cursor -> "")
+      case _ => ReceivedMessageAtSink >> ('Contents -> msg)
     }
     case NewRequestStrategy(rs) => rsWhenEnabled = rs
     case ProduceDemand(i) => request(i)

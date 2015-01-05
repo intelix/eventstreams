@@ -18,7 +18,7 @@ package eventstreams.core.storage
 
 import akka.actor.{Actor, Props}
 import com.typesafe.config.Config
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.actors.{ActorObjWithConfig, ActorWithComposableBehavior, BaseActorEvents}
@@ -77,28 +77,28 @@ class ConfigStorageActor(implicit config: Config)
   override def commonBehavior: Actor.Receive = super.commonBehavior orElse {
     case StoreSnapshot(EntryConfigSnapshot(key, c, s)) =>
       storage.store(key, Json.stringify(c), s.map(Json.stringify))
-      PropsAndStateStored >> ('Key --> key)
+      PropsAndStateStored >> ('Key -> key)
 
     case StoreState(EntryStateConfig(key, s)) =>
       storage.storeState(key, s.map(Json.stringify))
-      StateStored >> ('Key --> key)
+      StateStored >> ('Key -> key)
 
     case StoreProps(EntryPropsConfig(key, s)) =>
       storage.storeConfig(key, Json.stringify(s))
-      PropsStored >> ('Key --> key)
+      PropsStored >> ('Key -> key)
 
     case RetrieveConfigFor(key) =>
-      RequestedSingleEntry >> ('Key --> key)
+      RequestedSingleEntry >> ('Key -> key)
       sender() ! StoredConfig(key, storage.retrieve(key) map {
         case (c, s) => EntryConfigSnapshot(key, Json.parse(c), s.map(Json.parse))
       })
       
     case RemoveConfigFor(key) =>
-      RemovedEntry >> ('Key --> key)
+      RemovedEntry >> ('Key -> key)
       storage.remove(key)
       
     case RetrieveConfigForAllMatching(partialKey) =>
-      RequestedAllMatchingEntries >> ('PartialKey --> partialKey)
+      RequestedAllMatchingEntries >> ('PartialKey -> partialKey)
       sender() ! StoredConfigs(storage.retrieveAllMatching(partialKey).map {
         case (fId, c, s) => StoredConfig(fId, Some(EntryConfigSnapshot(fId, Json.parse(c), s.map(Json.parse))))
       })

@@ -16,7 +16,6 @@ package eventstreams.instructions
  * limitations under the License.
  */
 
-import _root_.core.events.EventOps.symbolToEventField
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials.{AddTagInstruction, AddTagInstructionConstants}
@@ -47,11 +46,11 @@ class AddTagInstructionTest extends TestHelpers {
   }
 
   it should "raise event when built" in new WithBasicConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(Built, 'Tag --> "abc")
+    expectEvent(Json.obj("abc1" -> "bla"))(Built, 'Tag -> "abc")
   }
 
   it should "raise event when tag added" in new WithBasicConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(TagAdded, 'Tag --> "abc")
+    expectEvent(Json.obj("abc1" -> "bla"))(TagAdded, 'Tag -> "abc")
   }
 
   trait WithAdvancedConfig extends WithSimpleInstructionBuilder with AddTagInstructionConstants {

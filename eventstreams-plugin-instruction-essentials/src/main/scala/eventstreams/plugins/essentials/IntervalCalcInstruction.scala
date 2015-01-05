@@ -16,7 +16,7 @@
 
 package eventstreams.plugins.essentials
 
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
+import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.{configHelper, _}
@@ -65,7 +65,7 @@ class IntervalCalcInstruction extends SimpleInstructionBuilder with IntervalCalc
 
       val uuid = Utils.generateShortUUID
 
-      Built >>('Config --> Json.stringify(props), 'InstructionInstanceId --> uuid)
+      Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
       frame: JsonFrame => {
 
@@ -74,18 +74,18 @@ class IntervalCalcInstruction extends SimpleInstructionBuilder with IntervalCalc
         val streamId = macroReplacement(frame, streamIdTemplate).trim
 
         if (streamId.isEmpty) {
-          IntervalCalcSkipped >>('Reason --> s"No stream id in $streamIdTemplate", 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+          IntervalCalcSkipped >>('Reason -> s"No stream id in $streamIdTemplate", 'EventId -> eventId, 'InstructionInstanceId -> uuid)
           List(frame)
         } else {
           val v = frame.event ++> tsField | 0
 
           def initialise() = {
-            IntervalCalcInitialised >>('StreamId --> streamId, 'Initial --> v, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+            IntervalCalcInitialised >>('StreamId -> streamId, 'Initial -> v, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
             streams += streamId -> Some(v)
             List(frame)
           }
           def reset(last: Long) = {
-            IntervalCalcReset >>('StreamId --> streamId, 'Last --> last, 'Current --> v, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+            IntervalCalcReset >>('StreamId -> streamId, 'Last -> last, 'Current -> v, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
             streams += streamId -> Some(v)
             List(frame)
           }
@@ -94,7 +94,7 @@ class IntervalCalcInstruction extends SimpleInstructionBuilder with IntervalCalc
             val keyPath = toPath(macroReplacement(frame, JsString(fieldName)).as[String])
             val interval = v - last
             streams += streamId -> Some(v)
-            IntervalCalculated >>('StreamId --> streamId, 'Interval --> interval, 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+            IntervalCalculated >>('StreamId -> streamId, 'Interval -> interval, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
             List(frame.copy(event = frame.event.set(keyPath -> JsNumber(interval))))
           }
 
@@ -104,7 +104,7 @@ class IntervalCalcInstruction extends SimpleInstructionBuilder with IntervalCalc
             case Some(last) if v < last => reset(last)
             case Some(last) if v >= last => calculate(last)
             case _ =>
-              IntervalCalcSkipped >>('Reason --> s"Invalid ts? Value: $v", 'EventId --> eventId, 'InstructionInstanceId --> uuid)
+              IntervalCalcSkipped >>('Reason -> s"Invalid ts? Value: $v", 'EventId -> eventId, 'InstructionInstanceId -> uuid)
               List(frame)
           }
 

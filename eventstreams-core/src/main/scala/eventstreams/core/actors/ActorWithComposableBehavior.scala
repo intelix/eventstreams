@@ -18,7 +18,7 @@ package eventstreams.core.actors
 
 import akka.actor.{ActorRef, Terminated}
 import com.typesafe.scalalogging.StrictLogging
-import core.events.EventOps.{stringToEventOps, symbolToEventField, symbolToEventOps}
+import core.events.EventOps.{stringToEventOps, symbolToEventOps}
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 
@@ -35,13 +35,13 @@ trait BaseActorEvents extends ComponentWithBaseEvents {
 trait ActorWithComposableBehavior extends ActorUtils with StrictLogging with BaseActorEvents with WithEventPublisher {
 
   def onTerminated(ref:ActorRef) = {
-    WatchedActorTerminated >> ('Actor --> ref)
+    WatchedActorTerminated >> ('Actor -> ref)
   }
 
 
   @throws[Exception](classOf[Exception])
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
-    PreRestart >> ('Reason --> reason.getMessage, 'Message --> message)
+    PreRestart >> ('Reason -> reason.getMessage, 'Message -> message)
     super.preRestart(reason, message)
   }
 
@@ -49,7 +49,7 @@ trait ActorWithComposableBehavior extends ActorUtils with StrictLogging with Bas
   @throws[Exception](classOf[Exception])
   override def postRestart(reason: Throwable): Unit = {
     super.postRestart(reason)
-    PostRestart >> ('Reason --> reason.getMessage)
+    PostRestart >> ('Reason -> reason.getMessage)
   }
 
   @throws[Exception](classOf[Exception])
@@ -70,12 +70,12 @@ trait ActorWithComposableBehavior extends ActorUtils with StrictLogging with Bas
   }
 
   final def switchToCustomBehavior(customBehavior: Receive, bid: Option[String] = None) = {
-    BehaviorSwitch >> ('BehaviorId --> bid)
+    BehaviorSwitch >> ('BehaviorId -> bid)
     context.become(customBehavior orElse commonBehavior)
   }
 
   final def switchToCommonBehavior() = {
-    BehaviorSwitch >> ('BehaviorId --> "common")
+    BehaviorSwitch >> ('BehaviorId -> "common")
     context.become(commonBehavior)
   }
 

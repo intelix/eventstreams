@@ -1,6 +1,5 @@
 package eventstreams.ds.plugins.filetailer
 
-import core.events.EventOps.symbolToEventField
 import core.events.WithEventPublisher
 import eventstreams.core.actors.{ActorWithTicks, PipelineWithStatesActor, Stoppable}
 import eventstreams.core.agent.core.{Cursor, NilCursor}
@@ -97,7 +96,7 @@ trait FileHandler extends PipelineWithStatesActor with ActorWithTicks with Stopp
     ) yield {
       if (opened.canAdvanceTo(fc)) opened.advanceTo(fc)
 
-      Opened >>('Name --> r.id.name, 'ResourceId --> r.idx, 'Position --> opened.cursor.positionWithinItem)
+      Opened >>('Name -> r.id.name, 'ResourceId -> r.idx, 'Position -> opened.cursor.positionWithinItem)
       opened
     }
   }
@@ -134,7 +133,7 @@ trait FileHandler extends PipelineWithStatesActor with ActorWithTicks with Stopp
   private def closeOpenedResource() {
     openResource.foreach { r =>
       r.close()
-      Closed >>('Name --> r.handle.fullPath, 'ResourceId --> r.cursor.idx, 'AtTail --> r.atTheTail_?)
+      Closed >>('Name -> r.handle.fullPath, 'ResourceId -> r.cursor.idx, 'AtTail -> r.atTheTail_?)
     }
     openResource = None
   }

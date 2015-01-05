@@ -18,9 +18,9 @@ package eventstreams.engine.agents
 
 import akka.actor._
 import akka.remote.DisassociatedEvent
-import core.events.EventOps.{symbolToEventField, symbolToEventOps}
-import core.events.{EventFieldWithValue, WithEventPublisher}
+import core.events.EventOps.symbolToEventOps
 import core.events.ref.ComponentWithBaseEvents
+import core.events.{FieldAndValue, WithEventPublisher}
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors._
 import eventstreams.core.agent.core.{CommunicationProxyRef, CreateDatasource}
@@ -59,12 +59,12 @@ case class DatasourceProxyAvailable(key: ComponentKey)
 class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
   extends PipelineWithStatesActor
   with ActorWithDisassociationMonitor
-  with SingleComponentActor 
+  with RouteeActor
   with AgentProxyActorEvents
   with WithEventPublisher {
 
 
-  override def commonFields: Seq[EventFieldWithValue] = super.commonFields ++ Seq('Key --> key, 'RemoteActor --> ref)
+  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('Key -> key, 'RemoteActor -> ref)
 
   private var info: Option[JsValue] = None
   private var dsConfigs: Option[JsValue] = None
@@ -109,7 +109,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
     case DatasourceProxyAvailable(x) =>
       datasources = datasources.map {
         case b@DatasourceProxyMeta(i, _, k, false) if k == x =>
-          DatasourceProxyUp >> ('DatasourceProxyId --> i, 'DatasourceProxyKey --> k)
+          DatasourceProxyUp >> ('DatasourceProxyId -> i, 'DatasourceProxyKey -> k)
           b.copy(confirmed = true)
         case v => v
       }
@@ -128,21 +128,21 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
 
   private def processInfo(json: JsValue) = {
     info = Some(json)
-    InfoUpdate >> ('Data --> json)
+    InfoUpdate >> ('Data -> json)
     publishInfo()
   }
 
   private def processDatasourceConfigs(json: JsValue) = {
     dsConfigs = json #> 'datasourceConfigSchema
-    AvailableDatasourcesUpdate >> ('Data --> json)
+    AvailableDatasourcesUpdate >> ('Data -> json)
     publishConfigs()
   }
 
   private def processListOfTaps(list: List[DatasourceRef]) = {
-    ActiveDatasourcesUpdate >> ('List --> list)
+    ActiveDatasourcesUpdate >> ('List -> list)
 
     datasources.filterNot { d => list.exists(_.id == d.id)} foreach { dsToKill =>
-      TerminatingDatasourceProxy >> ('DatasourceProxyId --> dsToKill.id, 'DatasourceProxyKey --> dsToKill.key, 'Reason --> "No longer active")
+      TerminatingDatasourceProxy >> ('DatasourceProxyId -> dsToKill.id, 'DatasourceProxyKey -> dsToKill.key, 'Reason -> "No longer active")
       dsToKill.ref ! PoisonPill
     }
 

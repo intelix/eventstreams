@@ -5,12 +5,12 @@ import org.scalatest.matchers.{MatchResult, Matcher}
 
 trait EventMatchers {
 
-  class ContainsAllFields(count: Option[Int], values: Seq[EventFieldWithValue]) extends Matcher[List[Seq[EventFieldWithValue]]] {
-    def apply(left: List[Seq[EventFieldWithValue]]) = {
+  class ContainsAllFields(count: Option[Int], values: Seq[FieldAndValue]) extends Matcher[List[Seq[FieldAndValue]]] {
+    def apply(left: List[Seq[FieldAndValue]]) = {
       val found = if (values.isEmpty) left.size else left.count(next =>
         !values.exists { k =>
           !next.exists { v =>
-            v.fieldName == k.fieldName && v.value == k.value
+            v._1 == k._1 && v._2 == k._2
           }
         })
       MatchResult(
@@ -23,6 +23,6 @@ trait EventMatchers {
     }
   }
 
-  def haveAllValues(count: Int, values: Seq[EventFieldWithValue]) = new ContainsAllFields(Some(count), values)
-  def haveAllValues(values: Seq[EventFieldWithValue]) = new ContainsAllFields(None, values)
+  def haveAllValues(count: Int, values: Seq[FieldAndValue]) = new ContainsAllFields(Some(count), values)
+  def haveAllValues(values: Seq[FieldAndValue]) = new ContainsAllFields(None, values)
 }

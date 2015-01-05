@@ -10,7 +10,7 @@ trait WithEventPublisher  {
 
   implicit lazy val evtCtx = this
 
-  def commonFields: Seq[EventFieldWithValue] = Seq()
+  def commonFields: Seq[FieldAndValue] = Seq()
 
 }
 

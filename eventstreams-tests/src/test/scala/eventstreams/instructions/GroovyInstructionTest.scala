@@ -16,7 +16,6 @@ package eventstreams.instructions
  * limitations under the License.
  */
 
-import _root_.core.events.EventOps.symbolToEventField
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials.{GrokInstructionConstants, GroovyInstruction, GroovyInstructionConstants}
@@ -126,7 +125,7 @@ class GroovyInstructionTest extends TestHelpers {
   ))
 
   "GroovyInstruction with dangerous config and poison input" should "raise events" in new WithDangerousConfig {
-    expectEvent(inputWithPoison)(GroovyExecFailed, 'Error --> "Division by zero")
+    expectEvent(inputWithPoison)(GroovyExecFailed, 'Error -> "Division by zero")
   }
   it should "not modify original json" in new WithDangerousConfig {
     expectOne(inputWithPoison) { result =>
