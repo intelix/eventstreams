@@ -82,6 +82,8 @@ trait GateStubActorEvents extends ComponentWithBaseEvents {
   val MessageReceivedAtGate = 'MessageReceivedAtGate.info
   val GateStatusCheckReceived = 'GateStatusCheckReceived.info
   val UnrecognisedMessageAtGate = 'UnrecognisedMessageAtGate.info
+  val OpeningGate = 'OpeningGate.info
+  val ClosingGate = 'ClosingGate.info
 
   override def componentId: String = "Test.GateStubActor"
 }
@@ -104,10 +106,14 @@ class GateStubActor
   def handler: Receive = {
     case x : GateStubConfigDoAcknowledgeAsProcessed => ackFlags = ackFlags + x
     case x : GateStubConfigDoAcknowledgeAsReceived => ackFlags = ackFlags + x
-    case OpenGateStub() => state = GateOpen()
-    case CloseGateStub() => state = GateClosed()
+    case OpenGateStub() =>
+      OpeningGate >> ()
+      state = GateOpen()
+    case CloseGateStub() => 
+      ClosingGate >> ()
+      state = GateClosed()
     case GateStateCheck(ref) =>
-      GateStatusCheckReceived >>()
+      GateStatusCheckReceived >>('State -> state)
       ref ! GateStateUpdate(state)
     case Acknowledgeable(msg, id) =>
       val eId = msg match {
