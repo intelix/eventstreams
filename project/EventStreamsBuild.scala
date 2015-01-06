@@ -9,8 +9,6 @@ import com.typesafe.sbt.rjs.Import.{RjsKeys, rjs}
 import com.typesafe.sbt.web.SbtWeb.autoImport.{Assets, pipelineStages}
 import sbt.Keys._
 import sbt._
-import com.typesafe.sbt.SbtMultiJvm
-import com.typesafe.sbt.SbtMultiJvm.MultiJvmKeys.MultiJvm
 
 object EventStreamsBuild {
   def appName = "eventstreams"
@@ -68,22 +66,6 @@ object EventStreamsBuild {
     )
   )
   
-  lazy val multiJvmSettings = SbtMultiJvm.multiJvmSettings ++ Seq(
-    compile in MultiJvm <<= (compile in MultiJvm) triggeredBy (compile in Test),
-    parallelExecution in Test := false,
-    executeTests in Test <<= (executeTests in Test, executeTests in MultiJvm) map {
-      case (testResults, multiNodeResults)  =>
-        val overall =
-          if (testResults.overall.id < multiNodeResults.overall.id)
-            multiNodeResults.overall
-          else
-            testResults.overall
-        Tests.Output(overall,
-          testResults.events ++ multiNodeResults.events,
-          testResults.summaries ++ multiNodeResults.summaries)
-    }
-  )
-
   lazy val defaultSettings = baseSettings ++ resolverSettings ++ mavenLocalResolverSettings ++ compilerSettings ++ sharedProjectSettings ++ testSettings ++ concurrencySettings
 
   licenseOverrides := {

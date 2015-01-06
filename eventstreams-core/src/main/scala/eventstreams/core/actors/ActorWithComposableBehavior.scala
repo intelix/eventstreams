@@ -54,7 +54,7 @@ trait ActorWithComposableBehavior extends ActorUtils with StrictLogging with Bas
 
   @throws[Exception](classOf[Exception])
   override def preStart(): Unit = {
-    PreStart >> ()
+    PreStart >> ('Path -> self.path)
     super.preStart()
   }
 

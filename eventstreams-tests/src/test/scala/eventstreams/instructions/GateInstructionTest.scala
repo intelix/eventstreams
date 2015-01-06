@@ -80,7 +80,7 @@ class GateInstructionTest(_system: ActorSystem)
 
     "propagate demand to the publisher" in new WithBasicConfig {
       withGateInstructionFlow { implicit ctx =>
-        expectSomeEvents(PublisherStubActor.NewDemandAtPublisher)
+        expectSomeEvents(JsonFramePublisherStubActor.NewDemandAtPublisher)
       }
     }
 
@@ -98,7 +98,7 @@ class GateInstructionTest(_system: ActorSystem)
           withGateInstructionFlow { implicit ctx =>
             withGateStub { gate =>
               activateFlow()
-              expectSomeEvents(PublisherStubActor.NewDemandAtPublisher)
+              expectSomeEvents(JsonFramePublisherStubActor.NewDemandAtPublisher)
               f(ctx)
             }
           }
@@ -194,7 +194,7 @@ class GateInstructionTest(_system: ActorSystem)
           expectSomeEvents(2, GateInstructionConstants.MessageArrived)
           clearEvents()
           publishMsg(Json.obj("value" -> "3"))
-          expectSomeEvents(PublisherStubActor.NoDemandAtPublisher)
+          expectSomeEvents(JsonFramePublisherStubActor.NoDemandAtPublisher)
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.MessageArrived)
           }
@@ -211,7 +211,7 @@ class GateInstructionTest(_system: ActorSystem)
           withGateInstructionFlow { implicit ctx =>
             withGateStub { gate =>
               activateFlow()
-              expectSomeEvents(PublisherStubActor.NewDemandAtPublisher)
+              expectSomeEvents(JsonFramePublisherStubActor.NewDemandAtPublisher)
               openGate(gate)
               f(ctx)
             }
@@ -329,7 +329,7 @@ class GateInstructionTest(_system: ActorSystem)
           expectSomeEvents(2, GateInstructionConstants.MessageArrived)
           clearEvents()
           publishMsg(Json.obj("value" -> "3"))
-          expectSomeEvents(PublisherStubActor.NoDemandAtPublisher)
+          expectSomeEvents(JsonFramePublisherStubActor.NoDemandAtPublisher)
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.MessageArrived)
           }
@@ -358,7 +358,7 @@ class GateInstructionTest(_system: ActorSystem)
           withGateInstructionFlow { implicit ctx =>
             withGateStub { gate =>
               activateFlow()
-              expectSomeEvents(PublisherStubActor.NewDemandAtPublisher)
+              expectSomeEvents(JsonFramePublisherStubActor.NewDemandAtPublisher)
               openGate(gate)
               autoAckAsReceivedAtGate(gate)
               f(ctx)
@@ -505,7 +505,7 @@ class GateInstructionTest(_system: ActorSystem)
           expectSomeEvents(2, GateInstructionConstants.MessageArrived)
           clearEvents()
           publishMsg(Json.obj("value" -> "3"))
-          expectSomeEvents(PublisherStubActor.NoDemandAtPublisher)
+          expectSomeEvents(JsonFramePublisherStubActor.NoDemandAtPublisher)
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.MessageArrived)
           }
@@ -532,7 +532,7 @@ class GateInstructionTest(_system: ActorSystem)
           withGateInstructionFlow { implicit ctx =>
             withGateStub { gate =>
               activateFlow()
-              expectSomeEvents(PublisherStubActor.NewDemandAtPublisher)
+              expectSomeEvents(JsonFramePublisherStubActor.NewDemandAtPublisher)
               openGate(gate)
               autoAckAsReceivedAtGate(gate)
               autoAckAsProcessedAtGate(gate)
@@ -699,7 +699,7 @@ class GateInstructionTest(_system: ActorSystem)
           publishMsg(Json.obj("value" -> "1"))
           publishMsg(Json.obj("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessageArrived)
-          expectSomeEvents(2, PublisherStubActor.NewDemandAtPublisher)
+          expectSomeEvents(2, JsonFramePublisherStubActor.NewDemandAtPublisher)
           clearEvents()
           publishMsg(Json.obj("value" -> "3"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
@@ -710,7 +710,7 @@ class GateInstructionTest(_system: ActorSystem)
           publishMsg(Json.obj("value" -> "1"))
           publishMsg(Json.obj("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessagePublished)
-          expectSomeEvents(2, PublisherStubActor.NewDemandAtPublisher)
+          expectSomeEvents(2, JsonFramePublisherStubActor.NewDemandAtPublisher)
           clearEvents()
           publishMsg(Json.obj("value" -> "3"))
           expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
@@ -728,7 +728,7 @@ class GateInstructionTest(_system: ActorSystem)
           withGateInstructionFlow { implicit ctx =>
             withGateStub { gate =>
               activateFlow()
-              expectSomeEvents(PublisherStubActor.NewDemandAtPublisher)
+              expectSomeEvents(JsonFramePublisherStubActor.NewDemandAtPublisher)
               openGate(gate)
               autoAckAsProcessedAtGate(gate)
               f(ctx)
@@ -898,7 +898,7 @@ class GateInstructionTest(_system: ActorSystem)
           publishMsg(Json.obj("value" -> "1"))
           publishMsg(Json.obj("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessageArrived)
-          expectSomeEvents(2, PublisherStubActor.NewDemandAtPublisher)
+          expectSomeEvents(2, JsonFramePublisherStubActor.NewDemandAtPublisher)
           clearEvents()
           publishMsg(Json.obj("value" -> "3"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
@@ -909,7 +909,7 @@ class GateInstructionTest(_system: ActorSystem)
           publishMsg(Json.obj("value" -> "1"))
           publishMsg(Json.obj("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessagePublished)
-          expectSomeEvents(2, PublisherStubActor.NewDemandAtPublisher)
+          expectSomeEvents(2, JsonFramePublisherStubActor.NewDemandAtPublisher)
           clearEvents()
           publishMsg(Json.obj("value" -> "3"))
           expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
@@ -924,7 +924,7 @@ class GateInstructionTest(_system: ActorSystem)
         def run(f: TestFlowFunc) = {
           withGateInstructionFlow { implicit ctx =>
             activateFlow()
-            expectSomeEvents(PublisherStubActor.NewDemandAtPublisher)
+            expectSomeEvents(JsonFramePublisherStubActor.NewDemandAtPublisher)
             publishMsg(Json.obj("value" -> "1"))
             publishMsg(Json.obj("value" -> "2"))
             expectSomeEvents(2, GateInstructionConstants.ScheduledForDelivery)

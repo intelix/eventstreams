@@ -27,19 +27,25 @@ import eventstreams.core.agent.core.ProducedMessage
 import play.api.libs.json.JsValue
 
 import scala.collection.mutable
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 trait DatasourceSinkEvents 
-  extends DatasourceActorEvents with BaseActorEvents with StateChangeEvents with ReconnectingActorEvents {
+  extends DatasourceActorEvents
+  with BaseActorEvents with StateChangeEvents with ReconnectingActorEvents with GateMonitorEvents with AtLeastOnceDeliveryActorEvents  {
   override def componentId: String = super.componentId + ".Sink"
   
   val MessageAcknowledged = 'MessageAcknowledged.trace
 }
 
 object SubscriberBoundaryInitiatingActor extends DatasourceSinkEvents {
-  def props(endpoint: String) = Props(new SubscriberBoundaryInitiatingActor(endpoint))
+  def props(endpoint: String, gateStateCheckInterval: FiniteDuration = 10.seconds) =
+    Props(new SubscriberBoundaryInitiatingActor(endpoint, gateStateCheckInterval))
 }
 
-class SubscriberBoundaryInitiatingActor(endpoint: String)
+class SubscriberBoundaryInitiatingActor(
+                                         endpoint: String,
+                                         override val gateStateCheckInterval: FiniteDuration
+                                         )
   extends PipelineWithStatesActor
   with StoppableSubscriberActor
   with ReconnectingActor

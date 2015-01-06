@@ -57,7 +57,7 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
   private var systems = Map[String, Wrapper]()
 
   
-  def withSystem(name: String)(f: ActorSystemWrapper => Unit) = f(systems.get(name) match {
+  def withSystem[T](name: String)(f: ActorSystemWrapper => T) = f(systems.get(name) match {
     case None =>
       val config = configs.get(name).get
       val sys = Wrapper(config, ActorSystem(name, config), name)

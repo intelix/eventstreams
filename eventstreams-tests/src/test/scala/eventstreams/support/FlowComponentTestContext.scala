@@ -9,7 +9,7 @@ import akka.testkit.{TestKit, TestProbe}
 import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
-import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor, StateChangeEvents, StoppablePublisherActor}
+import eventstreams.core.actors._
 import eventstreams.core.{BecomeActive, BecomePassive, JsonFrame, Stop}
 import play.api.libs.json.JsValue
 
@@ -76,7 +76,7 @@ trait FlowComponentTestContext {
 
   }
 
-  def withFlow(component: Props)(f: TestFlowFunc) = withCustomFlow(PublisherStubActor.props, component, SinkStubActor.props())(f)
+  def withFlow(component: Props)(f: TestFlowFunc) = withCustomFlow(JsonFramePublisherStubActor.props, component, SinkStubActor.props())(f)
 
   def activateComponent()(implicit ctx: TestFlowCtx) = ctx.comp ! BecomeActive()
 
@@ -101,24 +101,24 @@ trait FlowComponentTestContext {
 }
 
 
-trait PublisherStubActorEvents extends ComponentWithBaseEvents with StateChangeEvents {
+trait JsonFramePublisherStubActorEvents extends ComponentWithBaseEvents with StateChangeEvents with BaseActorEvents {
 
   val PublishingMessage = 'PublishingMessage.trace
   val NoDemandAtPublisher = 'NoDemandAtPublisher.trace
   val NewDemandAtPublisher = 'NewDemandAtPublisher.trace
 
-  override def componentId: String = "Test.PublisherStubActor"
+  override def componentId: String = "Test.JsonFramePublisherStubActor"
 }
 
-object PublisherStubActor extends PublisherStubActorEvents {
-  def props = Props(new PublisherStubActor())
+object JsonFramePublisherStubActor extends JsonFramePublisherStubActorEvents {
+  def props = Props(new JsonFramePublisherStubActor())
 }
 
-class PublisherStubActor
+class JsonFramePublisherStubActor
   extends ActorWithComposableBehavior
   with StoppablePublisherActor[JsonFrame]
   with PipelineWithStatesActor
-  with PublisherStubActorEvents
+  with JsonFramePublisherStubActorEvents
   with WithEventPublisher {
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior

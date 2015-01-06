@@ -23,6 +23,7 @@ import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
 import com.typesafe.config.Config
+import net.ceedubs.ficus.Ficus._
 import core.events.EventOps.symbolToEventOps
 import core.events.ref.ComponentWithBaseEvents
 import core.events.{FieldAndValue, WithEventPublisher}
@@ -36,6 +37,7 @@ import eventstreams.core.messages.{ComponentKey, TopicKey}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
+import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scalaz.Scalaz._
 import scalaz._
 
@@ -55,9 +57,9 @@ trait DatasourceActorEvents extends ComponentWithBaseEvents with BaseActorEvents
 }
 
 object DatasourceActor extends DatasourceActorEvents {
-  def props(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer) = Props(new DatasourceActor(dsId, dsConfigs))
+  def props(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer, sysconfig: Config) = Props(new DatasourceActor(dsId, dsConfigs))
 
-  def start(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer, f: ActorRefFactory) = f.actorOf(props(dsId, dsConfigs), ActorTools.actorFriendlyId(dsId))
+  def start(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer, f: ActorRefFactory, sysconfig: Config) = f.actorOf(props(dsId, dsConfigs), ActorTools.actorFriendlyId(dsId))
 }
 
 
@@ -74,7 +76,7 @@ case class DatasourceStatePassive(details: Option[String] = None) extends Dataso
 case class DatasourceStateError(details: Option[String] = None) extends DatasourceState
 
 
-class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer)
+class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer, sysconfig: Config)
   extends ActorWithComposableBehavior
   with PipelineWithStatesActor
   with ActorWithConfigStore
@@ -191,7 +193,9 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
 
       for (
         endpoint <- props ~> 'targetGate \/> Fail("Invalid datasource config: missing 'targetGate' value");
-        impl <- SubscriberBoundaryInitiatingActor.props(endpoint).right
+        impl <- SubscriberBoundaryInitiatingActor.props(
+          endpoint,
+          gateStateCheckInterval = sysconfig.as[Option[FiniteDuration]]("ehub.agent.gate-check-interval") | 10.seconds).right
       ) yield {
         endpointDetails = endpoint
         impl
@@ -204,12 +208,12 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
       publisherProps <-  buildProducer(dsId, config \ "source");
       sinkProps <- buildSink(dsId, config )
     ) yield {
-      val publisherActor: ActorRef = context.actorOf(publisherProps)
+      val publisherActor: ActorRef = context.actorOf(publisherProps, "dsPublisher")
       val publisher = PublisherSource(ActorPublisher[ProducedMessage](publisherActor))
 
       val processingSteps = buildProcessorFlow(config)
 
-      val sinkActor = context.actorOf(sinkProps)
+      val sinkActor = context.actorOf(sinkProps, "dsSink")
       val sink = SubscriberSink(ActorSubscriber[ProducedMessage](sinkActor))
 
       val runnableFlow: RunnableFlow = publisher.via(processingSteps).to(sink)

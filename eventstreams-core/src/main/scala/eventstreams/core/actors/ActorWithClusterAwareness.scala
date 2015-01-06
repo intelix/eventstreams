@@ -85,10 +85,8 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
     }
   }
 
-  def selectionFor(address: String, id: String) = {
-    logger.info(s"!>>> using $context to resolve ${address + "/user/" + id} into " + context.actorSelection(address + "/user/" + id))
+  def selectionFor(address: String, id: String) =
     context.actorSelection(address + "/user/" + id)
-  }
 
   override def preStart(): Unit = {
     super.preStart()

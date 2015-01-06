@@ -28,11 +28,11 @@
         </layout>
     </appender>
 
-    <logger name="testseparator" level="WARN" additivity="false">
+    <logger name="testseparator" level="DEBUG" additivity="false">
         <appender-ref ref="EVENTS" />
     </logger>
 
-    <logger name="events" level="WARN" additivity="false">
+    <logger name="events" level="DEBUG" additivity="false">
         <appender-ref ref="EVENTS" />
     </logger>
 
@@ -44,7 +44,7 @@
 
     <logger name="akka.cluster.ClusterHeartbeatSender" level="WARN" />
 
-    <root level="WARN">
+    <root level="DEBUG">
         <appender-ref ref="STDOUT" />
     </root>
 

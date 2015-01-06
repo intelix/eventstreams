@@ -35,8 +35,6 @@ addSbtPlugin("com.typesafe.sbt" % "sbt-gzip" % "1.0.0")
 
 addSbtPlugin("com.github.ddispaltro" % "sbt-reactjs" % "0.4.0")
 
-addSbtPlugin("com.typesafe.sbt" % "sbt-multi-jvm" % "0.3.8")
-
 addSbtPlugin("com.typesafe.sbt" % "sbt-license-report" % "1.0.0")
 
 addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.0.1")

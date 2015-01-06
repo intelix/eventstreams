@@ -4,4 +4,4 @@ EventStreamsBuild.serviceSettings("eventstreams-hq")
 
 libraryDependencies ++= Dependencies.eventStreamsHQ
 
-ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := ".*"
+ScoverageSbtPlugin.ScoverageKeys.coverageExcludedPackages := ".*routes"

@@ -4,7 +4,6 @@ import akka.actor.Props
 import com.typesafe.scalalogging.StrictLogging
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.{BuilderFromConfig, Fail}
-import eventstreams.support.PublisherStubActor
 import play.api.libs.json.JsValue
 
 import scalaz.Scalaz._

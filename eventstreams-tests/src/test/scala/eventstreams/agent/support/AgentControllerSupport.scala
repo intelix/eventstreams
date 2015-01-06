@@ -5,6 +5,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import core.events.support.EventAssertions
 import eventstreams.core.actors.DefaultTopicKeys
 import eventstreams.core.messages.{Command, ComponentKey, LocalSubj, TopicKey}
+import eventstreams.support.GateStubTestContext
 import org.scalatest.Suite
 import play.api.libs.json.JsValue
 
@@ -50,7 +51,6 @@ trait AgentControllerSupport extends EventAssertions with MultiActorSystemTestCo
 
     def sendCommand(localRoute: String, topic: TopicKey, data: Option[JsValue]) =
       messageRouterActor.foreach(_ ! Command(ActorRef.noSender, LocalSubj(ComponentKey(localRoute), topic), None, data))
-
 
   }
 
