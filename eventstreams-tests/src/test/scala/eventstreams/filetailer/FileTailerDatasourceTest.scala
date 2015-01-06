@@ -634,6 +634,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "ZZZ")
                }
                clearEvents()
+               Thread.sleep(2000)
                f.rollGz("current-A.gz")
                flowCtx.foreach(sinkProduceDemand(9, _))
                expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
