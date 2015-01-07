@@ -2,7 +2,7 @@ package eventstreams.agent
 
 import akka.actor.ActorSelection
 import eventstreams.agent.flow.{SubscriberBoundaryInitiatingActor, DatasourceActor}
-import eventstreams.agent.support.AgentControllerSupport
+import eventstreams.agent.support.DatasourceTestingSupport
 import eventstreams.agent.support.ds.{PublisherStubActor, StubDatasource}
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.agent.core.CreateDatasource
@@ -14,7 +14,7 @@ import org.scalatest.FlatSpec
 import play.api.libs.json.{JsArray, JsValue, Json}
 
 class AgentsTest
-  extends FlatSpec with AgentControllerSupport {
+  extends FlatSpec with DatasourceTestingSupport {
 
 
   "AgentManager" should "start" in new WithEngineNode {
@@ -419,6 +419,75 @@ class AgentsTest
     dsProxy1Route should not be dsProxy2Route
   }
 
+
+  trait WithSubscriberForAgentProxy extends WithEngineNode {
+    val agentProxyRoute = ComponentKey(locateLastEventFieldValue(AgentProxyActor.PreStart, "ComponentKey").asInstanceOf[String])
+    withSystem(EngineSystem) {
+      startMessageSubscriber
+    }
+  }
+
+  it should "accept a subscriber for the list" in new WithSubscriberForAgentProxy {
+    subscribeTo(LocalSubj(agentProxyRoute, T_LIST))
+    expectSomeEvents(AgentProxyActor.NewSubjectSubscription)
+    expectSomeEvents(AgentProxyActor.FirstSubjectSubscriber)
+  }
+
+  it should "respond to the list subscriber"  in new WithSubscriberForAgentProxy {
+    subscribeTo(LocalSubj(agentProxyRoute, T_LIST))
+    expectSomeEvents(AgentProxyActor.UpdateForSubject)
+    val data = Json.parse(locateFirstEventFieldValue(AgentProxyActor.UpdateForSubject, "Data").asInstanceOf[String])
+    data.as[JsArray].value should be(empty)
+  }
+
+
+  it should "send updates to the list subscriber when datasources are created"  in new WithSubscriberForAgentProxy {
+    subscribeTo(LocalSubj(agentProxyRoute, T_LIST))
+    val route = locateFirstEventFieldValue(AgentProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
+    expectSomeEvents(AgentProxyActor.UpdateForSubject)
+    clearEvents()
+    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate1")))
+    expectSomeEvents(1, AgentProxyActor.DatasourceProxyUp)
+    waitAndCheck {
+      expectSomeEvents(AgentProxyActor.UpdateForSubject)
+    }
+    Json.parse(locateLastEventFieldValue(AgentProxyActor.UpdateForSubject, "Data").asInstanceOf[String]).as[JsArray].value should have size 1
+    clearEvents()
+    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate2")))
+    expectSomeEvents(1, AgentProxyActor.DatasourceProxyUp)
+    waitAndCheck {
+      expectSomeEvents(AgentProxyActor.UpdateForSubject)
+    }
+    Json.parse(locateLastEventFieldValue(AgentProxyActor.UpdateForSubject, "Data").asInstanceOf[String]).as[JsArray].value should have size 2
+  }
+
+
+  it should "accept a subscriber for the info" in new WithSubscriberForAgentProxy {
+    subscribeTo(LocalSubj(agentProxyRoute, T_INFO))
+    expectSomeEvents(AgentProxyActor.NewSubjectSubscription)
+    expectSomeEvents(AgentProxyActor.FirstSubjectSubscriber)
+  }
+
+  it should "respond to the info subscriber"  in new WithSubscriberForAgentProxy {
+    subscribeTo(LocalSubj(agentProxyRoute, T_INFO))
+    expectSomeEvents(AgentProxyActor.UpdateForSubject)
+    Json.parse(locateLastEventFieldValue(AgentProxyActor.UpdateForSubject, "Data").asInstanceOf[String]) ~> 'name should be (Some("agent1"))
+  }
+
+  it should "accept a subscriber for the configtpl" in new WithSubscriberForAgentProxy {
+    subscribeTo(LocalSubj(agentProxyRoute, T_CONFIGTPL))
+    expectSomeEvents(AgentProxyActor.NewSubjectSubscription)
+    expectSomeEvents(AgentProxyActor.FirstSubjectSubscriber)
+  }
+
+  it should "respond to the configtpl subscriber" in new WithSubscriberForAgentProxy {
+    subscribeTo(LocalSubj(agentProxyRoute, T_CONFIGTPL))
+    expectSomeEvents(AgentProxyActor.UpdateForSubject)
+    Json.parse(locateLastEventFieldValue(AgentProxyActor.UpdateForSubject, "Data").asInstanceOf[String]) ~> "title" should not be None
+  }
+
+
+
   trait WithTwoDatasources extends WithEngineNode {
     val route = locateFirstEventFieldValue(AgentProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
     sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate1")))
@@ -594,6 +663,20 @@ class AgentsTest
 
   }
 
+
+  it should "terminate when agent terminates" in new WithTwoDatasources {
+    restartAgentNode()
+    expectSomeEvents(2, DatasourceProxyActor.PostStop)
+    expectSomeEvents(1, AgentProxyActor.PostStop)
+
+  }
+
+  it should "recreate actor hierarchy when agent reconnects" in new WithTwoDatasources {
+    restartAgentNode()
+    expectSomeEvents(2, DatasourceProxyActor.PostStop)
+    expectSomeEvents(1, AgentProxyActor.PostStop)
+    expectSomeEvents(AgentProxyActor.PreStart)
+  }
 
 
 

@@ -9,7 +9,7 @@ import eventstreams.support.GateStubTestContext
 import org.scalatest.Suite
 import play.api.libs.json.JsValue
 
-trait AgentControllerSupport extends EventAssertions with MultiActorSystemTestContext {
+trait DatasourceTestingSupport extends EventAssertions with MultiActorSystemTestContext {
   _: Suite =>
 
   val EngineSystem = "engine"
@@ -27,12 +27,21 @@ trait AgentControllerSupport extends EventAssertions with MultiActorSystemTestCo
 
     var agentControllerActor: Option[ActorRef] = None
 
+    def startAgentNode() =
     withSystem(AgentSystem) { sys =>
       withConfigStorage1(sys)
       agentControllerActor = Some(withAgentController(sys))
     }
 
     def sendToAgentController(msg: Any) = agentControllerActor.foreach(_ ! msg)
+
+    def restartAgentNode() = {
+      destroySystem(AgentSystem)
+      agentControllerActor = None
+      startAgentNode()
+    }
+
+    startAgentNode()
 
   }
 
@@ -68,7 +77,7 @@ trait AgentControllerSupport extends EventAssertions with MultiActorSystemTestCo
     def startGate(name: String) = withSystem(EngineSystem) { sys =>
       withGateStub(sys, name)
     }
-    
+
     def restartEngineNode() = {
       stopMessageRouter()
       destroySystem(EngineSystem)

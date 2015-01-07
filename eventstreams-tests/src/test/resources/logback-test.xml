@@ -36,8 +36,8 @@
         <appender-ref ref="EVENTS" />
     </logger>
 
-    <logger name="akka.event" level="WARN" />
-    <logger name="Remoting" level="WARN" />
+    <logger name="akka" level="ERROR" />
+    <logger name="Remoting" level="ERROR" />
 
 
     <logger name="scala.slick" level="WARN" />
