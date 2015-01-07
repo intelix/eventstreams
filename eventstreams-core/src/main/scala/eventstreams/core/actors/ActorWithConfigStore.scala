@@ -20,8 +20,8 @@ import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.storage._
-import eventstreams.core.{Fail, OK}
-import play.api.libs.json.JsValue
+import eventstreams.core.{NowProvider, Fail, OK}
+import play.api.libs.json.{Json, JsValue}
 
 import scalaz.Scalaz._
 import scalaz._
@@ -41,13 +41,18 @@ trait ActorWithConfigStoreEvents extends ComponentWithBaseEvents {
 
 case class InitialConfig(config: JsValue, state: Option[JsValue])
 
-trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithConfigStoreEvents {
+trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithConfigStoreEvents with ActorWithTicks with NowProvider {
   _: WithEventPublisher =>
 
   private val configStore = ConfigStorageActor.path
   var propsConfig: Option[JsValue] = None
   var stateConfig: Option[JsValue] = None
   var initialConfigApplied = false
+
+  private var pendingStorageProps = false
+  private var pendingStorageState = false
+
+  private var lastPersistenceTimestamp: Option[Long] = None
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
@@ -72,6 +77,20 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithCon
 
   def loadConfig() = storageKey.foreach(configStore ! RetrieveConfigFor(_))
 
+
+  @throws[Exception](classOf[Exception]) override
+  def postStop(): Unit = {
+    storePending()
+    super.postStop()
+  }
+
+
+  @throws[Exception](classOf[Exception]) override
+  def preRestart(reason: Throwable, message: Option[Any]): Unit = {
+    storePending()
+    super.preRestart(reason, message)
+  }
+
   def removeConfig() = {
     propsConfig = None
     stateConfig = None
@@ -79,37 +98,40 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithCon
   }
 
   def updateAndApplyConfigSnapshot(props: JsValue, state: Option[JsValue]): \/[Fail, OK] = {
-    storeConfigSnapshot(props, state)
+    pendingStorageProps = true
+    pendingStorageState = true
     cacheAndApplyConfig(props, state)
     OK().right
   }
 
   def updateWithoutApplyConfigSnapshot(props: JsValue, state: Option[JsValue]): \/[Fail, OK] = {
-    storeConfigSnapshot(props, state)
+    pendingStorageProps = true
+    pendingStorageState = true
     cacheConfig(props, state)
     OK().right
   }
 
   def updateAndApplyConfigProps(props: JsValue): \/[Fail, OK] = {
-    storeConfigProps(props)
+    pendingStorageProps = true
     cacheAndApplyConfig(props, stateConfig)
     OK().right
   }
 
   def updateWithoutApplyConfigProps(props: JsValue): \/[Fail, OK] = {
+    pendingStorageProps = true
     storeConfigProps(props)
     cacheConfig(props, stateConfig)
     OK().right
   }
 
   def updateAndApplyConfigState(state: Option[JsValue]): \/[Fail, OK] = {
-    storeConfigState(state)
+    pendingStorageState = true
     propsConfig.foreach(cacheAndApplyConfig(_, state))
     OK().right
   }
 
   def updateWithoutApplyConfigState(state: Option[JsValue]): \/[Fail, OK] = {
-    storeConfigState(state)
+    pendingStorageState = true
     propsConfig.foreach(cacheConfig(_, state))
     OK().right
   }
@@ -124,6 +146,17 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithCon
 
   private def storeConfigState(state: Option[JsValue]) =
     storageKey.foreach { key => configStore ! StoreState(EntryStateConfig(key, state))}
+
+  private def storePending() = {
+    if (pendingStorageProps && pendingStorageState)
+      storeConfigSnapshot(propsConfig | Json.obj(), stateConfig)
+    else if (pendingStorageState)
+      storeConfigState(stateConfig)
+    else if (pendingStorageProps)
+      storeConfigProps(propsConfig | Json.obj())
+    pendingStorageProps = false
+    pendingStorageState = false
+  }
 
   private def cacheAndApplyConfig(props: JsValue, maybeState: Option[JsValue]): Unit = {
     val isInitialConfig = propsConfig.isEmpty
@@ -171,4 +204,13 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithCon
     }
   }
 
+  override def internalProcessTick(): Unit = {
+    lastPersistenceTimestamp = lastPersistenceTimestamp match {
+      case Some(t) if now - t < 3000 => lastPersistenceTimestamp
+      case _ =>
+        storePending()
+        Some(now)
+    }
+    super.internalProcessTick()
+  }
 }

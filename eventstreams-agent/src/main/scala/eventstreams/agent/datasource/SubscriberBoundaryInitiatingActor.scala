@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package eventstreams.agent.flow
+package eventstreams.agent.datasource
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.stream.actor.ActorSubscriberMessage.OnNext
@@ -42,11 +42,11 @@ trait DatasourceSinkEvents
 }
 
 object SubscriberBoundaryInitiatingActor extends DatasourceSinkEvents {
-  def props(endpoint: String)(implicit sysconfig: Config) =
-    Props(new SubscriberBoundaryInitiatingActor(endpoint))
+  def props(endpoint: String, maxInFlight: Int)(implicit sysconfig: Config) =
+    Props(new SubscriberBoundaryInitiatingActor(endpoint, maxInFlight))
 }
 
-class SubscriberBoundaryInitiatingActor(endpoint: String)(implicit sysconfig: Config)
+class SubscriberBoundaryInitiatingActor(endpoint: String, maxInFlight: Int)(implicit sysconfig: Config)
   extends PipelineWithStatesActor
   with StoppableSubscriberActor
   with ReconnectingActor
@@ -102,7 +102,7 @@ class SubscriberBoundaryInitiatingActor(endpoint: String)(implicit sysconfig: Co
   }
 
 
-  override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(1000) {
+  override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(maxInFlight) {
     override def inFlightInternally: Int = inFlightCount
   }
 

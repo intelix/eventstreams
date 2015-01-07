@@ -24,6 +24,12 @@
       "type": "string",
       "default": "akka.tcp://ehub@localhost:12345/user/gatename"
     },
+    "maxInFlight": {
+      "propertyOrder": 51,
+      "title": "Message buffer",
+      "type": "integer",
+      "default": 1000
+    },
     "source": {
       "propertyOrder": 60,
       "title": "Source configuration",

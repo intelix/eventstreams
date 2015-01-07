@@ -1,7 +1,7 @@
 package eventstreams.agent
 
 import akka.actor.ActorSelection
-import eventstreams.agent.flow.{SubscriberBoundaryInitiatingActor, DatasourceActor}
+import eventstreams.agent.datasource.{SubscriberBoundaryInitiatingActor, DatasourceActor}
 import eventstreams.agent.support.DatasourceTestingSupport
 import eventstreams.agent.support.ds.{PublisherStubActor, StubDatasource}
 import eventstreams.core.Tools.configHelper

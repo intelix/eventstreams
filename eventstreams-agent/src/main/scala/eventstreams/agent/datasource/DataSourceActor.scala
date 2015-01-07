@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package eventstreams.agent.flow
+package eventstreams.agent.datasource
 
 import java.util.Date
 
@@ -125,7 +125,7 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
 
   override def commonBehavior: Receive = super.commonBehavior orElse {
     case Acknowledged(_, Some(msg)) => msg match {
-      case c : JsValue => propsConfig.foreach { propsConfig => updateWithoutApplyConfigSnapshot(propsConfig, Some(c))} // TODO (low priority) aggregate and send updates every sec or so, and on postStop
+      case c : JsValue => propsConfig.foreach { propsConfig => updateWithoutApplyConfigSnapshot(propsConfig, Some(c))}
       case _ => ()
     }
     case CommunicationProxyRef(ref) =>
@@ -193,7 +193,7 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
 
       for (
         endpoint <- props ~> 'targetGate \/> Fail("Invalid datasource config: missing 'targetGate' value");
-        impl <- SubscriberBoundaryInitiatingActor.props(endpoint).right
+        impl <- SubscriberBoundaryInitiatingActor.props(endpoint, props +> 'maxInFlight | 1000).right
       ) yield {
         endpointDetails = endpoint
         impl

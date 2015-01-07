@@ -22,7 +22,7 @@ import com.typesafe.config.Config
 import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
-import eventstreams.agent.flow.DatasourceActor
+import eventstreams.agent.datasource.DatasourceActor
 import eventstreams.core.actors._
 import eventstreams.core.agent.core.{CommunicationProxyRef, CreateDatasource, Handshake}
 import eventstreams.core.ds.AgentMessagesV1.{AgentDatasourceConfigs, AgentDatasources, AgentInfo}
