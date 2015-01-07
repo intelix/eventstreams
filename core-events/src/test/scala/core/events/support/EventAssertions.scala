@@ -71,7 +71,10 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
     }
   }
 
-  def locateAllEvents(event: Event) = events.get(event)
+  def locateAllEvents(event: Event) = {
+    expectSomeEvents(event)
+    events.get(event)
+  }
 
   def locateLastEvent(event: Event) = locateAllEvents(event).map(_.head)
 

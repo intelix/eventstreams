@@ -9,10 +9,18 @@ import eventstreams.core.JsonFrame
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors._
 import eventstreams.core.agent.core.ProducedMessage
-import play.api.libs.json.JsValue
+import play.api.libs.json.{Json, JsValue}
+
+import scala.annotation.tailrec
+import scala.collection.mutable
+
+import scalaz._
+import Scalaz._
 
 trait PublisherStubActorEvents extends ComponentWithBaseEvents with StateChangeEvents with BaseActorEvents {
 
+  val PublisherStubStarted = 'PublisherStubStarted.trace
+  val MessageQueuedAtStub = 'MessageQueuedAtStub.trace
   val PublishingMessage = 'PublishingMessage.trace
   val NoDemandAtPublisher = 'NoDemandAtPublisher.trace
   val NewDemandAtPublisher = 'NewDemandAtPublisher.trace
@@ -21,30 +29,61 @@ trait PublisherStubActorEvents extends ComponentWithBaseEvents with StateChangeE
 }
 
 object PublisherStubActor extends PublisherStubActorEvents {
-  def props = Props(new PublisherStubActor())
+  def props(maybeState: Option[JsValue]) = Props(new PublisherStubActor(maybeState))
 }
 
-class PublisherStubActor
+class PublisherStubActor(maybeState: Option[JsValue])
   extends ActorWithComposableBehavior
   with StoppablePublisherActor[ProducedMessage]
   with PipelineWithStatesActor
   with PublisherStubActorEvents
-  with WithEventPublisher {
+  with WithEventPublisher
+  with ActorWithTicks {
+
+  private var replayList = List[ProducedMessage]()
+  private val queue = mutable.Queue[ProducedMessage]()
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
-  def process(m: ProducedMessage) =
-    if (totalDemand > 0) {
-      PublishingMessage >> ('EventId -> m.value ~> 'eventId)
-      onNext(m)
-    } else {
-      NoDemandAtPublisher >>()
-    }
 
-  def handler: Receive = {
-    case m: ProducedMessage => process(m)
-    case m: JsValue => process(ProducedMessage(m, None))
-    case Request(n) => NewDemandAtPublisher >> ('Requested -> n)
+  override def preStart(): Unit = {
+    super.preStart()
+    PublisherStubStarted >> ('InitialState -> maybeState )
   }
 
+  def process(m: ProducedMessage) = {
+    MessageQueuedAtStub >> ('EventId -> m.value ~> 'eventId)
+    replayList = replayList :+ m
+    queue.enqueue(m)
+    publishNext()
+  }
+
+  @tailrec
+  final def publishNext(): Unit = {
+    if (totalDemand > 0 && isActive && isComponentActive && queue.size > 0) {
+      val m = queue.dequeue()
+      PublishingMessage >> ('EventId -> m.value ~> 'eventId)
+      onNext(m)
+      publishNext()
+    }
+  }
+  
+  def handler: Receive = {
+    case m: ProducedMessage => process(m)
+    case m: JsValue => process(ProducedMessage(m, Some(Json.obj("id" -> (m ~> 'eventId | "na")))))
+    case Request(n) =>
+      NewDemandAtPublisher >> ('Requested -> n)
+      publishNext()
+  }
+
+
+  override def becomeActive(): Unit = {
+    super.becomeActive()
+    publishNext()
+  }
+
+  override def internalProcessTick(): Unit = {
+    publishNext()
+    super.internalProcessTick()
+  }
 }

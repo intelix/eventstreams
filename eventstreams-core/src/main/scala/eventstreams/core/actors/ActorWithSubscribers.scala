@@ -17,13 +17,27 @@
 package eventstreams.core.actors
 
 import akka.actor.{Actor, ActorRef}
+import core.events.EventOps.stringToEventOps
+import core.events.WithEventPublisher
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.messages._
-import play.api.libs.json.JsValue
+import play.api.libs.json.{Json, JsValue}
 
 import scala.collection.immutable.HashSet
 import scala.collection.mutable
 
-trait ActorWithSubscribers[T] extends ActorWithComposableBehavior {
+trait SubjectSubscriptionEvents extends ComponentWithBaseEvents {
+  val UpdateForSubject = "Routee.UpdateForSubject".trace
+  val NewSubjectSubscription = "Routee.NewSubjectSubscription".trace
+  val SubjectSubscriptionRemoved = "Routee.SubjectSubscriptionRemoved".trace
+  val FirstSubjectSubscriber = "Routee.FirstSubjectSubscriber".trace
+  val NoMoreSubjectSubscribers = "Routee.NoMoreSubjectSubscribers".trace
+  val SubjectCmdOK = "Routee.SubjectCmdOK".trace
+  val SubjectCmdError = "Routee.SubjectCmdError".trace
+}
+
+trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSubscriptionEvents {
+  _: WithEventPublisher =>
 
   private val subscribers: mutable.Map[T, Set[ActorRef]] = new mutable.HashMap[T, Set[ActorRef]]()
 
@@ -47,21 +61,24 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior {
 
   def updateToAll(subj: T, data: Option[JsValue]) = subscribersFor(subj).foreach(_.foreach(updateTo(subj, _, data)))
 
-  def updateTo(subj: T, ref: ActorRef, data: Option[JsValue]) = {
-    logger.debug(s"Update for $subj -> $ref")
-    data foreach (ref ! Update(self, subj, _, canBeCached = true))
-  }
+  def updateTo(subj: T, ref: ActorRef, data: Option[JsValue]) =
+    data foreach { d =>
+      ref ! Update(self, subj, d, canBeCached = true)
+      UpdateForSubject >>('Subject -> subj, 'Target -> ref, 'Data -> Json.stringify(d))
+    }
+
 
   def cmdOkTo(subj: Any, ref: ActorRef, data: JsValue) = {
-    logger.debug(s"Cmd OK for $subj -> $ref")
+    SubjectCmdOK >>('Subject -> subj, 'Target -> ref)
     ref ! CommandOk(self, subj, data)
   }
+
   def cmdErrTo(subj: Any, ref: ActorRef, data: JsValue) = {
-    logger.debug(s"Cmd ERR for $subj -> $ref")
+    SubjectCmdError >>('Subject -> subj, 'Target -> ref)
     ref ! CommandErr(self, subj, data)
   }
 
-  def convertSubject(subj: Any) : Option[T]
+  def convertSubject(subj: Any): Option[T]
 
   private def isOneOfTheSubscribers(ref: ActorRef) = subscribers.values.exists(_.contains(ref))
 
@@ -72,19 +89,19 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior {
   }
 
   private def handleMessages: Receive = {
-    case Subscribe(sourceRef, subj) => convertSubject(subj) foreach(addSubscriber(sourceRef, _))
-    case Unsubscribe(sourceRef, subj) => convertSubject(subj) foreach(removeSubscriber(sourceRef, _))
+    case Subscribe(sourceRef, subj) => convertSubject(subj) foreach (addSubscriber(sourceRef, _))
+    case Unsubscribe(sourceRef, subj) => convertSubject(subj) foreach (removeSubscriber(sourceRef, _))
     case Command(sourceRef, subj, replyToSubj, data) =>
-      convertSubject(subj) foreach(processCommand(sourceRef, _, replyToSubj, data))
+      convertSubject(subj) foreach (processCommand(sourceRef, _, replyToSubj, data))
 
   }
 
   private def addSubscriber(ref: ActorRef, subject: T): Unit = {
-    logger.info(s"New subscriber for $subject at $ref")
+    NewSubjectSubscription >>('Subject -> subject, 'Source -> ref)
     context.watch(ref)
     subscribers.get(subject) match {
       case None =>
-        logger.info(s"First subscriber for $subject: $ref")
+        FirstSubjectSubscriber >> ('Subject -> subject)
         firstSubscriber(subject)
       case _ => ()
     }
@@ -101,9 +118,10 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior {
 
   private def removeSubscriber(ref: ActorRef, subject: T): Unit = {
     val refs: Set[ActorRef] = subscribers.getOrElse(subject, new HashSet[ActorRef]()) - ref
+    SubjectSubscriptionRemoved >>('Subject -> subject, 'Target -> ref)
     if (refs.isEmpty) {
       subscribers -= subject
-      logger.info(s"No more subscribers for $subject: $ref")
+      NoMoreSubjectSubscribers >> ('Subject -> subject)
       lastSubscriberGone(subject)
     } else subscribers += (subject -> refs)
     processUnsubscribeRequest(ref, subject)

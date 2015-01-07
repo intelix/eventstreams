@@ -64,7 +64,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
   with WithEventPublisher {
 
 
-  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('Key -> key, 'RemoteActor -> ref)
+  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ComponentKey -> key.key, 'RemoteActor -> ref)
 
   private var info: Option[JsValue] = None
   private var dsConfigs: Option[JsValue] = None

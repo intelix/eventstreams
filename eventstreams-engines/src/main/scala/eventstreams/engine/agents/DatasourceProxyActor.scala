@@ -59,7 +59,7 @@ class DatasourceProxyActor(val key: ComponentKey, ref: ActorRef)
   override def commonBehavior: Actor.Receive = commonMessageHandler orElse super.commonBehavior
 
 
-  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('Key -> key, 'RemoteActor -> ref)
+  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ComponentKey -> key.key, 'RemoteActor -> ref)
 
   override def preStart(): Unit = {
     ref ! CommunicationProxyRef(self)

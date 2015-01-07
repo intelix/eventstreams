@@ -54,7 +54,7 @@ trait AgentControllerSupport extends EventAssertions with MultiActorSystemTestCo
 
   }
 
-  trait WithEngineNode extends DefaultContext with WithMessageRouter with GateStubTestContext {
+  trait WithEngineNode extends DefaultContext with WithMessageRouter with GateStubTestContext with SubscriberStubActor1 {
 
     def startEngineNode() =
       withSystem(EngineSystem) { sys =>

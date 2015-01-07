@@ -19,15 +19,19 @@ package eventstreams.agent.flow
 import akka.actor.{Actor, ActorRef, Props}
 import akka.stream.actor.ActorSubscriberMessage.OnNext
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
+import com.typesafe.config.Config
 import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import eventstreams.core.JsonFrame
 import eventstreams.core.actors._
-import eventstreams.core.agent.core.ProducedMessage
+import eventstreams.core.agent.core.{GateState, ProducedMessage}
+import net.ceedubs.ficus.Ficus._
 import play.api.libs.json.JsValue
 
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scalaz.Scalaz._
+import scalaz._
 
 trait DatasourceSinkEvents 
   extends DatasourceActorEvents
@@ -38,20 +42,22 @@ trait DatasourceSinkEvents
 }
 
 object SubscriberBoundaryInitiatingActor extends DatasourceSinkEvents {
-  def props(endpoint: String, gateStateCheckInterval: FiniteDuration = 10.seconds) =
-    Props(new SubscriberBoundaryInitiatingActor(endpoint, gateStateCheckInterval))
+  def props(endpoint: String)(implicit sysconfig: Config) =
+    Props(new SubscriberBoundaryInitiatingActor(endpoint))
 }
 
-class SubscriberBoundaryInitiatingActor(
-                                         endpoint: String,
-                                         override val gateStateCheckInterval: FiniteDuration
-                                         )
+class SubscriberBoundaryInitiatingActor(endpoint: String)(implicit sysconfig: Config)
   extends PipelineWithStatesActor
   with StoppableSubscriberActor
   with ReconnectingActor
   with AtLeastOnceDeliveryActor[JsonFrame]
   with ActorWithGateStateMonitoring 
   with DatasourceSinkEvents with WithEventPublisher {
+
+  override val gateStateCheckInterval: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("ehub.agent.gate-check-interval") | 10.seconds
+
+  override def reconnectAttemptInterval: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("ehub.agent.gate-reconnect-attempt-interval") | super.reconnectAttemptInterval
+  override def remoteAssociationTimeout: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("ehub.agent.gate-handshake-timeout") | super.remoteAssociationTimeout
 
   override def commonBehavior: Receive = handleOnNext orElse super.commonBehavior
 
@@ -78,6 +84,12 @@ class SubscriberBoundaryInitiatingActor(
     stopGateStateMonitoring()
     disconnect()
   }
+
+  override def onGateStateChanged(state: GateState): Unit = {
+    deliverIfPossible()
+    super.onGateStateChanged(state)
+  }
+
 
   override def canDeliverDownstreamRightNow = isComponentActive && connected && isGateOpen
 

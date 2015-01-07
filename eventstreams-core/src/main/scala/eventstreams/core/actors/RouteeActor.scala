@@ -17,8 +17,7 @@
 package eventstreams.core.actors
 
 import akka.actor.ActorRef
-import core.events.EventOps.symbolToEventOps
-import core.events.ref.ComponentWithBaseEvents
+import core.events.EventOps.stringToEventOps
 import eventstreams.core.components.routing.MessageRouterActor
 import eventstreams.core.messages.{ComponentKey, LocalSubj, RegisterComponent, TopicKey}
 import eventstreams.core.{Fail, OK}
@@ -44,8 +43,11 @@ trait DefaultTopicKeys {
   val T_CONFIGTPL = TopicKey("configtpl")
 }
 
-trait RouteeEvents extends ComponentWithBaseEvents {
-  val UnsupportedPayload = 'UnsupportedPayload.warn
+trait RouteeEvents extends SubjectSubscriptionEvents {
+  val UnsupportedPayload = "Routee.UnsupportedPayload".warn
+  val NewCommand = "Routee.NewCommand".trace
+  val CommandFailed = "Routee.CommandFailed".warn
+  val CommandSuccessful = "Routee.CommandSuccessful".trace
 }
 
 trait RouteeActor
@@ -76,7 +78,6 @@ trait RouteeActor
     }
 
   def genericCommandError(cmdTopicKey: TopicKey, replyToSubj: Option[Any], errorMessage: String, singleTarget: ActorRef = sender()) = {
-    logger.info(s"Command failed $cmdTopicKey, msg: $errorMessage")
     replyToSubj.foreach(
       cmdErrTo(_, singleTarget, Json.obj(
         "error" -> Json.obj(
@@ -86,7 +87,6 @@ trait RouteeActor
   }
 
   def genericCommandSuccess(cmdTopicKey: TopicKey, replyToSubj: Option[Any], message: Option[String], singleTarget: ActorRef = sender()) = {
-    logger.info(s"Command executed successfully $cmdTopicKey, msg: $message")
     replyToSubj.foreach(
       cmdOkTo(_, singleTarget, Json.obj(
         "ok" -> Json.obj(
@@ -103,34 +103,34 @@ trait RouteeActor
 
   override def processSubscribeRequest(sourceRef: ActorRef, subject: LocalSubj): Unit = Try(processTopicSubscribe(sourceRef, subject.topic)) match {
     case Failure(failure) =>
-      logger.error(s"Error while subscribing to $subject", failure)
+      Error >> ('Message -> s"Error while subscribing to $subject", 'Details -> failure)
     case Success(_) => ()
   }
 
   override def processUnsubscribeRequest(sourceRef: ActorRef, subject: LocalSubj): Unit = Try(processTopicUnsubscribe(sourceRef, subject.topic)) match {
     case Failure(failure) =>
-      logger.error(s"Error while unsubscribing from $subject", failure)
+      Error >> ('Message -> s"Error while unsubscribing from $subject", 'Details -> failure)
     case Success(_) => ()
   }
 
   override def processCommand(sourceRef: ActorRef, subject: LocalSubj, replyToSubj: Option[Any], maybeData: Option[JsValue]): Unit = {
-    logger.info(s"!>>>> received command for ${subject.topic} from $sourceRef reply to $replyToSubj")
+    NewCommand >> ('Topic -> subject.topic.key, 'Source -> sourceRef, 'ReplyTo -> replyToSubj)
 
     Try(processTopicCommand(sourceRef, subject.topic, replyToSubj, maybeData)) match {
       case Failure(failure) =>
-        logger.error(s"Error while executing command $subject with $maybeData", failure)
         genericCommandError(subject.topic, replyToSubj, "Invalid operation")
+        CommandFailed >> ('Topic -> subject.topic.key, 'Error -> "Invalid operation")
       case Success(result) => result match {
         case -\/(fail) =>
           fail.message.foreach { msg =>
             genericCommandError(subject.topic, replyToSubj, msg)
           }
-          logger.debug(s"Command ${subject.topic} failed: $fail")
+          CommandFailed >> ('Topic -> subject.topic.key, 'Error -> fail)
         case \/-(ok) =>
           ok.message.foreach { msg =>
             genericCommandSuccess(subject.topic, replyToSubj, Some(msg))
           }
-          logger.debug(s"Command ${subject.topic} succeeded: $ok")
+          CommandSuccessful >> ('Topic -> subject.topic.key, 'Message -> ok)
       }
     }
   }

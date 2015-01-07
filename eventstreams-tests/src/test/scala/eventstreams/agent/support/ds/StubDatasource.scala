@@ -16,6 +16,6 @@ class StubDatasource extends BuilderFromConfig[Props] with StrictLogging {
     if (props ?> 'fail | false)
       Fail("on request").left
     else
-      PublisherStubActor.props.right
+      PublisherStubActor.props(maybeState).right
   }
 }

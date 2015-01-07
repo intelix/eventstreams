@@ -6,7 +6,7 @@ import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.support.{StorageStub1, StorageStub2}
-import org.scalatest.{BeforeAndAfterEach, Suite}
+import org.scalatest.{Tag, BeforeAndAfterEach, Suite}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.DurationInt
@@ -26,7 +26,9 @@ trait ActorSystemWrapper {
 
 trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSystemTestContextEvents with WithEventPublisher {
   self: Suite =>
-  
+
+  object OnlyThisTest extends Tag("OnlyThisTest")
+
   case class Wrapper(config: Config, underlyingSystem: ActorSystem, id: String) extends ActorSystemWrapper {
     private var actors = List[ActorRef]()
     override def start(props: Props, id: String): ActorRef = {

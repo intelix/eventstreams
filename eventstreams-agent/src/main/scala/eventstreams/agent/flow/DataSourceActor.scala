@@ -91,7 +91,7 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
   var currentState: DatasourceState = DatasourceStateUnknown(Some("Initialising"))
 
 
-  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('Key -> key, 'State -> stateAsString)
+  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ComponentKey -> key.key, 'State -> stateAsString)
 
   private var endpointDetails = "N/A"
   private var commProxy: Option[ActorRef] = None
@@ -193,9 +193,7 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
 
       for (
         endpoint <- props ~> 'targetGate \/> Fail("Invalid datasource config: missing 'targetGate' value");
-        impl <- SubscriberBoundaryInitiatingActor.props(
-          endpoint,
-          gateStateCheckInterval = sysconfig.as[Option[FiniteDuration]]("ehub.agent.gate-check-interval") | 10.seconds).right
+        impl <- SubscriberBoundaryInitiatingActor.props(endpoint).right
       ) yield {
         endpointDetails = endpoint
         impl
@@ -208,12 +206,12 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
       publisherProps <-  buildProducer(dsId, config \ "source");
       sinkProps <- buildSink(dsId, config )
     ) yield {
-      val publisherActor: ActorRef = context.actorOf(publisherProps, "dsPublisher")
+      val publisherActor: ActorRef = context.actorOf(publisherProps)
       val publisher = PublisherSource(ActorPublisher[ProducedMessage](publisherActor))
 
       val processingSteps = buildProcessorFlow(config)
 
-      val sinkActor = context.actorOf(sinkProps, "dsSink")
+      val sinkActor = context.actorOf(sinkProps)
       val sink = SubscriberSink(ActorSubscriber[ProducedMessage](sinkActor))
 
       val runnableFlow: RunnableFlow = publisher.via(processingSteps).to(sink)

@@ -25,7 +25,7 @@ import eventstreams.core.agent.core.Handshake
 import eventstreams.core.messages.{ComponentKey, TopicKey}
 import play.api.libs.json.Json
 
-trait AgentManagerActorEvents extends ComponentWithBaseEvents with BaseActorEvents {
+trait AgentManagerActorEvents extends ComponentWithBaseEvents with BaseActorEvents with RouteeEvents {
     override def componentId: String = "Actor.AgentsManager"
 
   val AgentsManagerAvailable = 'AgentsManagerAvailable.info
@@ -56,6 +56,7 @@ class AgentsManagerActor
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
+  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('ComponentKey -> AgentsManagerActor.id)
 
   override def preStart(): Unit = {
     super.preStart()

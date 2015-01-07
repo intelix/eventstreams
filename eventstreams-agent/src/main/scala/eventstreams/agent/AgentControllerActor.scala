@@ -114,8 +114,8 @@ class AgentControllerActor(implicit sysconfig: Config)
   override def connectionEndpoint: String = sysconfig.as[String]("ehub.agent.hq.endpoint")
 
 
-  override def reconnectAttemptInterval: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("ehub.agent.hq.reconnectAttemptInterval") | super.reconnectAttemptInterval
-  override def remoteAssociationTimeout: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("ehub.agent.hq.remoteAssociationTimeout") | super.remoteAssociationTimeout
+  override def reconnectAttemptInterval: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("ehub.agent.engine-reconnect-attempt-interval") | super.reconnectAttemptInterval
+  override def remoteAssociationTimeout: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("ehub.agent.engine-handshake-timeout") | super.remoteAssociationTimeout
 
   
   override def preStart(): Unit = {
