@@ -1,4 +1,4 @@
-package eventstreams.agent.support
+package eventstreams.support
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import core.events.Event

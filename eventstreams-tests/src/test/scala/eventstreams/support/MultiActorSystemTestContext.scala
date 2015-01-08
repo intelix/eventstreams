@@ -1,12 +1,11 @@
-package eventstreams.agent.support
+package eventstreams.support
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import com.typesafe.config._
 import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
-import eventstreams.support.{StorageStub1, StorageStub2}
-import org.scalatest.{Tag, BeforeAndAfterEach, Suite}
+import org.scalatest.{BeforeAndAfterEach, Suite, Tag}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.DurationInt
@@ -47,8 +46,7 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
 
 
   override protected def beforeEach(): Unit = {
-    StorageStub1.clear()
-    StorageStub2.clear()
+    StorageStub.clear()
     LoggerFactory.getLogger("testseparator").debug("\n" * 3 + "-" * 120)
     super.beforeEach()
   }
@@ -59,12 +57,12 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
   private var systems = Map[String, Wrapper]()
 
   
-  def withSystem[T](name: String)(f: ActorSystemWrapper => T) = f(systems.get(name) match {
+  def withSystem[T](configName: String)(f: ActorSystemWrapper => T): T = f(systems.get(configName) match {
     case None =>
-      val config = configs.get(name).get
-      val sys = Wrapper(config, ActorSystem(name, config), name)
-      ActorSystemCreated >> ('Name -> name)
-      systems = systems + (name -> sys)
+      val config = configs.get(configName).get
+      val sys = Wrapper(config, ActorSystem("engine", config), "engine")
+      ActorSystemCreated >> ('Name -> "engine", 'ConfigName -> configName)
+      systems = systems + (configName -> sys)
       sys
     case Some(x) => x
   })

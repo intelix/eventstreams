@@ -9,7 +9,7 @@ import eventstreams.core.BuilderFromConfig
 import eventstreams.core.storage.ConfigStorageActor
 import eventstreams.ds.plugins.filetailer.FileTailerConstants._
 import eventstreams.ds.plugins.filetailer.{FileTailerConstants, FileTailerDatasource}
-import eventstreams.support.{BuilderFromConfigTestContext, FlowPublisherTestContext, StorageStub1}
+import eventstreams.support.{BuilderFromConfigTestContext, FlowPublisherTestContext, StorageStub}
 import org.scalatest.{BeforeAndAfterEach, Suite}
 import play.api.libs.json.{JsValue, Json}
 
@@ -21,7 +21,7 @@ trait FileTailerTestSupport
 
 
   override protected def beforeEach(): Unit = {
-    StorageStub1.clear()
+    StorageStub.clear()
     super.beforeEach()
   }
 
@@ -32,7 +32,7 @@ trait FileTailerTestSupport
 
     def withConfigStorage(f: => Unit) = {
       val cfg = ConfigFactory.parseString( """
-    ehub.storage.provider = "eventstreams.support.StorageStub1"
+    ehub.storage.provider = "eventstreams.support.StorageStub"
                                            """)
       val actor = ConfigStorageActor.start(system, cfg)
       val configMgrActorProbe = TestProbe()

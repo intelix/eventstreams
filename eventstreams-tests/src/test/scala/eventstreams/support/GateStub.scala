@@ -5,7 +5,6 @@ import akka.testkit.{TestKit, TestProbe}
 import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
-import eventstreams.agent.support.ActorSystemWrapper
 import eventstreams.core.JsonFrame
 import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor}
 import eventstreams.core.agent.core._

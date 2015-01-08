@@ -1,4 +1,4 @@
-package eventstreams.agent.support.ds
+package eventstreams.support.ds
 
 import akka.actor.Props
 import akka.stream.actor.ActorPublisherMessage.Request

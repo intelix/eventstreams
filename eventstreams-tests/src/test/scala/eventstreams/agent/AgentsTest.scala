@@ -1,38 +1,36 @@
 package eventstreams.agent
 
 import akka.actor.ActorSelection
-import eventstreams.agent.datasource.{SubscriberBoundaryInitiatingActor, DatasourceActor}
-import eventstreams.agent.support.DatasourceTestingSupport
-import eventstreams.agent.support.ds.{PublisherStubActor, StubDatasource}
+import eventstreams.agent.datasource.{DatasourceActor, SubscriberBoundaryInitiatingActor}
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.agent.core.CreateDatasource
-import eventstreams.core.components.routing.MessageRouterActor
-import eventstreams.core.messages.{LocalSubj, ComponentKey}
-import eventstreams.engine.agents.{DatasourceProxyActor, AgentProxyActor, AgentsManagerActor}
-import eventstreams.support.GateStubActor
+import eventstreams.core.messages.{ComponentKey, LocalSubj}
+import eventstreams.engine.agents.{AgentProxyActor, AgentsManagerActor, DatasourceProxyActor}
+import eventstreams.support.ds.{PublisherStubActor, StubDatasource}
+import eventstreams.support.{GateStubActor, MultiNodeTestingSupport}
 import org.scalatest.FlatSpec
 import play.api.libs.json.{JsArray, JsValue, Json}
 
 class AgentsTest
-  extends FlatSpec with DatasourceTestingSupport {
+  extends FlatSpec with MultiNodeTestingSupport {
 
 
-  "AgentManager" should "start" in new WithEngineNode {
+  "AgentManager" should "start" in new WithAgentNode1 with WithEngineNode1  {
     expectSomeEvents(AgentsManagerActor.PreStart)
   }
 
-  it should "receive a handshake from the agent" in new WithEngineNode {
+  it should "receive a handshake from the agent" in new WithAgentNode1 with WithEngineNode1  {
     expectSomeEvents(AgentsManagerActor.HandshakeReceived)
   }
 
-  it should "create an agent proxy" in new WithEngineNode {
+  it should "create an agent proxy" in new WithAgentNode1 with WithEngineNode1  {
     expectSomeEvents(AgentsManagerActor.AgentProxyInstanceAvailable)
   }
 
-  trait WithSubscriberForAgentManager extends WithEngineNode {
+  trait WithSubscriberForAgentManager extends WithAgentNode1 with WithEngineNode1  {
     expectSomeEvents(AgentsManagerActor.PreStart)
     val agentManagerRoute = ComponentKey(locateLastEventFieldValue(AgentsManagerActor.PreStart, "ComponentKey").asInstanceOf[String])
-    withSystem(EngineSystem) {
+    withSystem(EngineSystemPrefix, 1) {
       startMessageSubscriber
     }
     subscribeTo(LocalSubj(agentManagerRoute, T_LIST))
@@ -50,117 +48,117 @@ class AgentsTest
   }
 
 
-  "Agent Controller" should "start" in new DefaultContext {
+  "Agent Controller" should "start" in new WithAgentNode1 {
     expectSomeEvents(AgentControllerActor.PreStart)
   }
 
-  it should "attempt connect to the engine" in new DefaultContext {
+  it should "attempt connect to the engine" in new WithAgentNode1 {
     expectSomeEvents(AgentControllerActor.AssociationAttempt)
   }
 
-  it should "detect Stub1 as an available datasource" in new DefaultContext {
+  it should "detect Stub1 as an available datasource" in new WithAgentNode1 {
     expectSomeEvents(AgentControllerActor.AvailableDatasources, 'List -> ("Stub1@" + classOf[StubDatasource].getName))
   }
 
-  it should "connect to the engine" in new WithEngineNode {
+  it should "connect to the engine" in new WithAgentNode1 with WithEngineNode1 {
     expectSomeEvents(AgentControllerActor.AssociatedWithRemoteActor)
   }
 
-  it should "send a handshake" in new WithEngineNode {
+  it should "send a handshake" in new WithAgentNode1 with WithEngineNode1  {
     val uuid = locateFirstEventFieldValue(AgentControllerActor.AgentInstanceAvailable, "Id")
     expectSomeEvents(AgentsManagerActor.HandshakeReceived, 'AgentID -> uuid)
   }
 
-  it should "reconnect to the engine if disconnected" in new WithEngineNode {
+  it should "reconnect to the engine if disconnected" in new WithAgentNode1 with WithEngineNode1  {
     expectSomeEvents(AgentsManagerActor.HandshakeReceived)
     clearEvents()
-    restartEngineNode()
+    restartEngineNode1()
     expectSomeEvents(AgentControllerActor.AssociationAttempt)
     expectSomeEvents(AgentControllerActor.AssociatedWithRemoteActor)
   }
 
-  it should "not create a datasource instance yet" in new WithEngineNode {
+  it should "not create a datasource instance yet" in new WithAgentNode1 with WithEngineNode1  {
     waitAndCheck {
       expectNoEvents(AgentControllerActor.DatasourceInstanceAvailable)
     }
   }
 
-  it should "create a datasource actor on demand" in new WithEngineNode {
-    sendToAgentController(CreateDatasource(Json.obj()))
+  it should "create a datasource actor on demand" in new WithAgentNode1 with WithEngineNode1  {
+    sendToAgentController1(CreateDatasource(Json.obj()))
     expectSomeEvents(1, AgentControllerActor.DatasourceInstanceAvailable)
   }
 
   "AgentManager with a subscriber" should "update a subscirber when new agent arrives" in new WithSubscriberForAgentManager {
     expectSomeEvents(AgentsManagerActor.UpdateForSubject)
     clearEvents()
-    sendToAgentController(CreateDatasource(Json.obj()))
+    sendToAgentController1(CreateDatasource(Json.obj()))
     expectSomeEvents(AgentsManagerActor.UpdateForSubject)
     val data = Json.parse(locateFirstEventFieldValue(AgentsManagerActor.UpdateForSubject, "Data").asInstanceOf[String])
     data.as[JsArray].value should not be empty
 
   }
 
-  "Agent Controller with datasource actor" should "not have datasource instance if config is blank" in new WithEngineNode {
-    sendToAgentController(CreateDatasource(Json.obj()))
+  "Agent Controller with datasource actor" should "not have datasource instance if config is blank" in new WithAgentNode1 with WithEngineNode1  {
+    sendToAgentController1(CreateDatasource(Json.obj()))
     waitAndCheck {
       expectNoEvents(DatasourceActor.DatasourceReady)
     }
   }
 
-  it should "not have datasource instance if class is missing" in new WithEngineNode {
-    sendToAgentController(CreateDatasource(Json.obj("source" -> Json.obj(), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate1")))
+  it should "not have datasource instance if class is missing" in new WithAgentNode1 with WithEngineNode1  {
+    sendToAgentController1(CreateDatasource(Json.obj("source" -> Json.obj(), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
     waitAndCheck {
       expectNoEvents(DatasourceActor.DatasourceReady)
     }
   }
 
-  it should "not have datasource instance if class is wrong" in new WithEngineNode {
-    sendToAgentController(CreateDatasource(Json.obj("source" -> Json.obj("class" -> "xx"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate1")))
+  it should "not have datasource instance if class is wrong" in new WithAgentNode1 with WithEngineNode1  {
+    sendToAgentController1(CreateDatasource(Json.obj("source" -> Json.obj("class" -> "xx"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
     waitAndCheck {
       expectNoEvents(DatasourceActor.DatasourceReady)
     }
   }
 
-  it should "not have datasource instance if targetGate is missing" in new WithEngineNode {
-    sendToAgentController(CreateDatasource(Json.obj("source" -> Json.obj("class" -> "stub"))))
+  it should "not have datasource instance if targetGate is missing" in new WithAgentNode1 with WithEngineNode1  {
+    sendToAgentController1(CreateDatasource(Json.obj("source" -> Json.obj("class" -> "stub"))))
     waitAndCheck {
       expectNoEvents(DatasourceActor.DatasourceReady)
     }
   }
 
-  it should "not have datasource instance if targetGate is blank" in new WithEngineNode {
-    sendToAgentController(CreateDatasource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "")))
+  it should "not have datasource instance if targetGate is blank" in new WithAgentNode1 with WithEngineNode1  {
+    sendToAgentController1(CreateDatasource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "")))
     waitAndCheck {
       expectNoEvents(DatasourceActor.DatasourceReady)
     }
   }
 
-  it should "have datasource instance if config is valid" in new WithEngineNode {
-    sendToAgentController(CreateDatasource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate1")))
+  it should "have datasource instance if config is valid" in new WithAgentNode1 with WithEngineNode1  {
+    sendToAgentController1(CreateDatasource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
     expectSomeEvents(1, DatasourceActor.DatasourceReady)
   }
 
 
-  "Datasource Proxy" should "start when datasource is created" in new WithEngineNode {
-    sendToAgentController(CreateDatasource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate1")))
+  "Datasource Proxy" should "start when datasource is created" in new WithAgentNode1 with WithEngineNode1  {
+    sendToAgentController1(CreateDatasource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
     expectSomeEvents(1, AgentProxyActor.DatasourceProxyUp)
   }
 
-  "Datasource" should "communicate the current state (passive)" in new WithEngineNode {
-    sendToAgentController(CreateDatasource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate1")))
+  "Datasource" should "communicate the current state (passive)" in new WithAgentNode1 with WithEngineNode1  {
+    sendToAgentController1(CreateDatasource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
     expectSomeEvents(DatasourceProxyActor.InfoUpdate)
     val infoUpdate = locateFirstEventFieldValue(DatasourceProxyActor.InfoUpdate, "Data").asInstanceOf[String]
     Json.parse(infoUpdate) ~> 'state should be(Some("passive"))
   }
 
 
-  trait WithDatasourceStarted extends WithEngineNode {
-    sendToAgentController(CreateDatasource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate1")))
+  trait WithDatasourceStarted extends WithAgentNode1 with WithEngineNode1  {
+    sendToAgentController1(CreateDatasource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
     expectSomeEvents(1, AgentProxyActor.DatasourceProxyUp)
     expectSomeEvents(DatasourceProxyActor.PreStart)
     expectSomeEvents(PublisherStubActor.PreStart)
     val datasourceProxyRoute = locateLastEventFieldValue(DatasourceProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
-    val datasourcePublisherActorRef = withSystem[ActorSelection](AgentSystem) { sys =>
+    val datasourcePublisherActorRef = withSystem[ActorSelection](AgentSystemPrefix, 1) { sys =>
       sys.underlyingSystem.actorSelection(locateLastEventFieldValue(PublisherStubActor.PreStart, "Path").asInstanceOf[String])
     }
     clearEvents()
@@ -178,7 +176,7 @@ class AgentsTest
   }
 
   trait WithDatasourceActivatedAndGateCreated extends WithDatasourceActivated {
-    startGate("gate1")
+    startGate1("gate1")
     expectSomeEvents(1, SubscriberBoundaryInitiatingActor.AssociatedWithRemoteActor)
     expectSomeEvents(1, GateStubActor.GateStatusCheckReceived)
     clearEvents()
@@ -287,8 +285,8 @@ class AgentsTest
   }
 
   "when datasource is up gate is closed and 1 event available, Datasource" should "reconnect to the gate if connection drops" in new WithOneEventsAvailAndClosedGate {
-    restartEngineNode()
-    startGate("gate1")
+    restartEngineNode1()
+    startGate1("gate1")
     expectSomeEvents(AgentProxyActor.DatasourceProxyUp)
     expectSomeEvents(GateStubActor.GateStatusCheckReceived)
     clearEvents()
@@ -298,8 +296,8 @@ class AgentsTest
 
   it should "communicate the current state once reconnected" in new WithOneEventsAvailAndClosedGate {
     clearEvents()
-    restartEngineNode()
-    startGate("gate1")
+    restartEngineNode1()
+    startGate1("gate1")
     expectSomeEvents(AgentProxyActor.DatasourceProxyUp)
     expectSomeEvents(GateStubActor.GateStatusCheckReceived)
     openGate("gate1")
@@ -340,8 +338,8 @@ class AgentsTest
     (1 to 25).foreach { i =>
       expectSomeEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString)
     }
-    restartEngineNode()
-    startGate("gate1")
+    restartEngineNode1()
+    startGate1("gate1")
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
     (1 to 100).foreach { i =>
@@ -356,16 +354,16 @@ class AgentsTest
     (1 to 25).foreach { i =>
       expectSomeEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString)
     }
-    restartEngineNode()
+    restartEngineNode1()
     autoCloseGateAfter("gate1", 25)
-    startGate("gate1")
+    startGate1("gate1")
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
     (26 to 50).foreach { i =>
       expectSomeEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString)
     }
-    restartEngineNode()
-    startGate("gate1")
+    restartEngineNode1()
+    startGate1("gate1")
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
     (1 to 100).foreach { i =>
@@ -401,28 +399,28 @@ class AgentsTest
     }
   }
 
-  "AgentProxy" should "create datasource on command" in new WithEngineNode {
+  "AgentProxy" should "create datasource on command" in new WithAgentNode1 with WithEngineNode1  {
     val route = locateFirstEventFieldValue(AgentProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
-    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate1")))
+    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
     expectSomeEvents(1, AgentProxyActor.DatasourceProxyUp)
   }
 
-  it should "create be able to create multiple datasources" in new WithEngineNode {
+  it should "create be able to create multiple datasources" in new WithAgentNode1 with WithEngineNode1  {
     val route = locateFirstEventFieldValue(AgentProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
-    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate1")))
+    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
     expectSomeEvents(1, AgentProxyActor.DatasourceProxyUp)
     val dsProxy1Route = locateFirstEventFieldValue(DatasourceProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
     clearEvents()
-    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate2")))
+    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate2")))
     expectSomeEvents(1, AgentProxyActor.DatasourceProxyUp)
     val dsProxy2Route = locateFirstEventFieldValue(DatasourceProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
     dsProxy1Route should not be dsProxy2Route
   }
 
 
-  trait WithSubscriberForAgentProxy extends WithEngineNode {
+  trait WithSubscriberForAgentProxy extends WithAgentNode1 with WithEngineNode1  {
     val agentProxyRoute = ComponentKey(locateLastEventFieldValue(AgentProxyActor.PreStart, "ComponentKey").asInstanceOf[String])
-    withSystem(EngineSystem) {
+    withSystem(EngineSystemPrefix, 1) {
       startMessageSubscriber
     }
   }
@@ -446,14 +444,14 @@ class AgentsTest
     val route = locateFirstEventFieldValue(AgentProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
     expectSomeEvents(AgentProxyActor.UpdateForSubject)
     clearEvents()
-    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate1")))
+    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
     expectSomeEvents(1, AgentProxyActor.DatasourceProxyUp)
     waitAndCheck {
       expectSomeEvents(AgentProxyActor.UpdateForSubject)
     }
     Json.parse(locateLastEventFieldValue(AgentProxyActor.UpdateForSubject, "Data").asInstanceOf[String]).as[JsArray].value should have size 1
     clearEvents()
-    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate2")))
+    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate2")))
     expectSomeEvents(1, AgentProxyActor.DatasourceProxyUp)
     waitAndCheck {
       expectSomeEvents(AgentProxyActor.UpdateForSubject)
@@ -488,28 +486,28 @@ class AgentsTest
 
 
 
-  trait WithTwoDatasources extends WithEngineNode {
+  trait WithTwoDatasources extends WithAgentNode1 with WithEngineNode1  {
     val route = locateFirstEventFieldValue(AgentProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
-    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate1")))
+    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
     expectSomeEvents(1, AgentProxyActor.DatasourceProxyUp)
     val dsProxy1Route = locateFirstEventFieldValue(DatasourceProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
-    var ds1PublisherActorRef = withSystem[ActorSelection](AgentSystem) { sys =>
+    var ds1PublisherActorRef = withSystem[ActorSelection](AgentSystemPrefix, 1) { sys =>
       sys.underlyingSystem.actorSelection(locateLastEventFieldValue(PublisherStubActor.PreStart, "Path").asInstanceOf[String])
     }
     var ds1ComponentKey = locateFirstEventFieldValue(DatasourceActor.PreStart, "ComponentKey").asInstanceOf[String]
 
     clearEvents()
-    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate2")))
+    sendCommand(route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate2")))
     expectSomeEvents(1, AgentProxyActor.DatasourceProxyUp)
     val dsProxy2Route = locateFirstEventFieldValue(DatasourceProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
-    var ds2PublisherActorRef = withSystem[ActorSelection](AgentSystem) { sys =>
+    var ds2PublisherActorRef = withSystem[ActorSelection](AgentSystemPrefix, 1) { sys =>
       sys.underlyingSystem.actorSelection(locateLastEventFieldValue(PublisherStubActor.PreStart, "Path").asInstanceOf[String])
     }
     var ds2ComponentKey = locateFirstEventFieldValue(DatasourceActor.PreStart, "ComponentKey").asInstanceOf[String]
     dsProxy1Route should not be dsProxy2Route
 
-    startGate("gate1")
-    startGate("gate2")
+    startGate1("gate1")
+    startGate1("gate2")
     autoAckAsProcessedAtGate("gate1")
     autoAckAsProcessedAtGate("gate2")
     openGate("gate1")
@@ -665,14 +663,14 @@ class AgentsTest
 
 
   it should "terminate when agent terminates" in new WithTwoDatasources {
-    restartAgentNode()
+    restartAgentNode1()
     expectSomeEvents(2, DatasourceProxyActor.PostStop)
     expectSomeEvents(1, AgentProxyActor.PostStop)
 
   }
 
   it should "recreate actor hierarchy when agent reconnects" in new WithTwoDatasources {
-    restartAgentNode()
+    restartAgentNode1()
     expectSomeEvents(2, DatasourceProxyActor.PostStop)
     expectSomeEvents(1, AgentProxyActor.PostStop)
     expectSomeEvents(AgentProxyActor.PreStart)
@@ -761,17 +759,17 @@ class AgentsTest
     }
     clearEvents()
 
-    startGate("gate3")
+    startGate1("gate3")
     autoAckAsProcessedAtGate("gate3")
     openGate("gate3")
 
 
-    sendCommand(dsProxy1Route, T_UPDATE_PROPS, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12554/user/gate3")))
+    sendCommand(dsProxy1Route, T_UPDATE_PROPS, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate3")))
     expectSomeEvents(1, SubscriberBoundaryInitiatingActor.PostStop)
     expectSomeEvents(1, PublisherStubActor.PostStop)
     expectSomeEvents(1, PublisherStubActor.BecomingActive)
     // the ref will change...
-    ds1PublisherActorRef = withSystem[ActorSelection](AgentSystem) { sys =>
+    ds1PublisherActorRef = withSystem[ActorSelection](AgentSystemPrefix, 1) { sys =>
       sys.underlyingSystem.actorSelection(locateLastEventFieldValue(PublisherStubActor.PreStart, "Path").asInstanceOf[String])
     }
 

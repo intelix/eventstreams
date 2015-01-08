@@ -1,4 +1,4 @@
-package eventstreams.agent.support
+package eventstreams.support
 
 import akka.actor.ActorSystem
 import eventstreams.engine.agents.AgentsManagerActor
