@@ -20,7 +20,7 @@ class TestEventPublisher extends EventPublisher with LoggerEventPublisher {
     eventsInOrder = List()
   }
   def clearComponentEvents(componentId: String) = events.synchronized {
-    events.keys.filter(_.componentId != componentId).foreach(events.remove)
+    events.keys.filter(_.componentId == componentId).foreach(events.remove)
     eventsInOrder = eventsInOrder.filter(_.event.componentId != componentId)
   }
 
