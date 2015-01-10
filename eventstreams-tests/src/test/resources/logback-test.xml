@@ -28,15 +28,25 @@
         </layout>
     </appender>
 
-    <logger name="testseparator" level="WARN" additivity="false">
+    <appender name="EVENTSHISTORY" class="ch.qos.logback.core.ConsoleAppender">
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <Pattern>%msg%n</Pattern>
+        </layout>
+    </appender>
+
+    <logger name="testseparator" level="${test.loglevel:-WARN}" additivity="false">
         <appender-ref ref="EVENTS" />
     </logger>
 
-    <logger name="events" level="WARN" additivity="false">
+    <logger name="events" level="${test.loglevel:-WARN}" additivity="false">
         <appender-ref ref="EVENTS" />
     </logger>
 
-    <logger name="akka" level="WARN" />
+    <logger name="history" level="WARN" additivity="false">
+        <appender-ref ref="EVENTSHISTORY" />
+    </logger>
+
+    <logger name="akka" level="${test.loglevel:-WARN}" />
     <logger name="Remoting" level="ERROR" />
 
 
@@ -44,7 +54,7 @@
 
     <logger name="akka.cluster.ClusterHeartbeatSender" level="WARN" />
 
-    <root level="WARN">
+    <root level="${test.loglevel:-WARN}">
         <appender-ref ref="STDOUT" />
     </root>
 

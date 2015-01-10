@@ -60,7 +60,7 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
       f
     } catch {
       case x: Throwable =>
-        val log = LoggerFactory.getLogger("events")
+        val log = LoggerFactory.getLogger("history")
         log.error("*" * 120 + "\nTest failed", x)
         log.error("Raised events:")
         EventPublisherRef.ref.asInstanceOf[TestEventPublisher].withOrderedEvents { events =>
