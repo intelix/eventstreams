@@ -85,7 +85,7 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
         underlyingSystem.stop(a)
       }
       expectSomeEventsWithTimeout(30000, WatcherActor.AllWatchedActorsGone)
-//      clearEvents()
+      clearComponentEvents(WatcherActor)
       AllActorsTerminated >> ('TerminatedInMs -> (System.nanoTime() - startCheckpoint)/1000000)
     }
   }

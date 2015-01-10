@@ -15,6 +15,8 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
 
   def clearEvents() =
     EventPublisherRef.ref.asInstanceOf[TestEventPublisher].clear()
+  def clearComponentEvents(component: CtxComponent) =
+    EventPublisherRef.ref.asInstanceOf[TestEventPublisher].clearComponentEvents(component.componentId)
 
   override protected def beforeAll(): Unit = {
     logger.warn("**** > Starting " + this.getClass)

@@ -19,6 +19,10 @@ class TestEventPublisher extends EventPublisher with LoggerEventPublisher {
     events.clear()
     eventsInOrder = List()
   }
+  def clearComponentEvents(componentId: String) = events.synchronized {
+    events.keys.filter(_.componentId != componentId).foreach(events.remove)
+    eventsInOrder = eventsInOrder.filter(_.event.componentId != componentId)
+  }
 
 
   override def publish(system: CtxSystem, event: Event, values: => Seq[FieldAndValue]): Unit = {
