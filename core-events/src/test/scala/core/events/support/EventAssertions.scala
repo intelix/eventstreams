@@ -63,7 +63,7 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
         log.error("Raised events:")
         EventPublisherRef.ref.asInstanceOf[TestEventPublisher].withOrderedEvents { events =>
           events.foreach { next =>
-            LoggerEventPublisherHelper.log(next.event, CtxSystemRef.ref, next.values, s => log.error(s))
+            LoggerEventPublisherWithDateHelper.log(next.timestamp, next.event, CtxSystemRef.ref, next.values, s => log.error(s))
           }
         }
         log.error("*" * 120 + "\n\n", x)

@@ -4,7 +4,7 @@ import core.events._
 
 import scala.collection.mutable
 
-case class RaisedEvent(event: Event, values: Seq[FieldAndValue])
+case class RaisedEvent(timestamp: Long, event: Event, values: Seq[FieldAndValue])
 
 class TestEventPublisher extends EventPublisher with LoggerEventPublisher {
 
@@ -23,7 +23,7 @@ class TestEventPublisher extends EventPublisher with LoggerEventPublisher {
 
   override def publish(system: CtxSystem, event: Event, values: => Seq[FieldAndValue]): Unit = {
     events.synchronized {
-      eventsInOrder = eventsInOrder :+ RaisedEvent(event, values)
+      eventsInOrder = eventsInOrder :+ RaisedEvent(System.currentTimeMillis(), event, values)
       events += (event -> (events.getOrElse(event, List()) :+ values.map {
         case (f, v) => f -> transformValue(v)
       }))

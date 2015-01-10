@@ -1,5 +1,8 @@
 package core.events
 
+import java.text.SimpleDateFormat
+import java.util.Date
+
 import org.slf4j._
 import play.api.libs.json._
 
@@ -19,6 +22,26 @@ object LoggerEventPublisherHelper {
     }
 
     val string = logFormat.format(system.id, event.componentId, event.id, fields)
+
+    f(string)
+  }
+}
+
+object LoggerEventPublisherWithDateHelper {
+  val logFormat = "%23s : %10s : %35s - %-25s : %s"
+  val date = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
+
+  def log(timestamp: Long, event: Event, system: CtxSystem, values: Seq[FieldAndValue], f: String => Unit) = {
+
+    def formatNextField(f: FieldAndValue) = f._1.name + "=" + f._2
+
+    val fields = values.foldLeft("") {
+      (aggr, next) => aggr + formatNextField(next) + "  "
+    }
+    
+    val d = date.format(new Date(timestamp))
+    
+    val string = logFormat.format(d, system.id, event.componentId, event.id, fields)
 
     f(string)
   }
