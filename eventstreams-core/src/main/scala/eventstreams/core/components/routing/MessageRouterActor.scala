@@ -24,12 +24,16 @@ import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.actors._
 import eventstreams.core.messages._
+import net.ceedubs.ficus.Ficus._
 import play.api.libs.json.JsValue
 
 import scala.collection.mutable
-import scala.concurrent.duration.DurationLong
+import scala.concurrent.duration.{FiniteDuration, DurationLong}
+import scalaz._
+import Scalaz._
 
-trait MessageRouterEvents extends ComponentWithBaseEvents with BaseActorEvents {
+
+trait MessageRouterEvents extends ComponentWithBaseEvents with BaseActorEvents with SubjectSubscriptionEvents{
   override def componentId: String = "Actor.MessageRouter"
 
   val ForwardedToClient = 'ForwardedToClient.trace
@@ -38,6 +42,7 @@ trait MessageRouterEvents extends ComponentWithBaseEvents with BaseActorEvents {
   val ForwardedToLocalProviders = 'ForwardedToLocalProviders.trace
 
   val MessageDropped = 'MessageDropped.trace
+  val MessageForwarded = 'MessageForwarded.trace
 
   val NewSubscription = 'NewSubscription.info
 
@@ -63,18 +68,22 @@ case class ProviderState(ref: ActorRef, active: Boolean)
 
 case class RemoveIfInactive(ref: ActorRef)
 
-class MessageRouterActor(implicit val cluster: Cluster)
+class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
   extends ActorWithComposableBehavior
   with ActorWithRemoteSubscribers
   with ActorWithClusterAwareness
   with MessageRouterEvents
   with WithEventPublisher {
 
+  val providerRemoveTimeout = sysconfig.as[Option[FiniteDuration]]("ehub.message-router.provider-remove-timeout") | 30.seconds
+  
   val updatesCache: mutable.Map[RemoteSubj, Any] = new mutable.HashMap[RemoteSubj, Any]()
   implicit val ec = context.dispatcher
   var staticRoutes: Map[ComponentKey, ProviderState] = Map[ComponentKey, ProviderState]()
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
+
+  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('InstanceAddress -> myAddress)
 
   def myNodeIsTarget(subj: Any): Boolean = subj match {
     case LocalSubj(_, _) => true
@@ -114,7 +123,9 @@ class MessageRouterActor(implicit val cluster: Cluster)
   def forwardToLocalProviders(subj: LocalSubj, msg: Any) = {
     val component = subj.component
     staticRoutes.get(component) match {
-      case Some(ProviderState(ref, true)) => ref ! msg
+      case Some(ProviderState(ref, true)) =>
+        MessageForwarded >> ('Target -> ref, 'ComponentKey -> component.key)
+        ref ! msg
       case Some(ProviderState(ref, false)) =>
         MessageDropped >> ('Reason -> "Inactive route", 'Target -> component)
       case None =>
@@ -178,8 +189,10 @@ class MessageRouterActor(implicit val cluster: Cluster)
   }
 
   override def processSubscribeRequest(ref: ActorRef, subject: RemoteSubj) = {
-    updatesCache.get(subject) foreach (ref ! _)
-    RespondedWithCached >> ('Subject -> subject, 'Target -> ref)
+    updatesCache.get(subject) foreach { msg => 
+      ref ! msg
+      RespondedWithCached >> ('Subject -> subject, 'Target -> ref)
+    }
   }
 
   override def processUnsubscribeRequest(ref: ActorRef, subject: RemoteSubj) =
@@ -216,8 +229,7 @@ class MessageRouterActor(implicit val cluster: Cluster)
   }
 
   private def scheduleRemoval(ref: ActorRef) {
-    val time = 30.seconds
-    PendingComponentRemoval >> ('Ref -> ref, 'Timeout -> time)
-    context.system.scheduler.scheduleOnce(time, self, RemoveIfInactive(ref))
+    PendingComponentRemoval >> ('Ref -> ref, 'Timeout -> providerRemoveTimeout)
+    context.system.scheduler.scheduleOnce(providerRemoveTimeout, self, RemoveIfInactive(ref))
   }
 }

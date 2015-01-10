@@ -111,6 +111,8 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
   }
 
   trait WithEngineNode1 extends WithEngineNode {
+    def engine1Address = "akka.tcp://engine@localhost:12521"
+    
     def engine1System = getSystem(EngineSystemPrefix + "1")
     
     def startEngineNode1(): Unit = startEngineNode(1)
@@ -123,6 +125,8 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
   }
 
   trait WithEngineNode2 extends WithEngineNode {
+    def engine2Address = "akka.tcp://engine@localhost:12522"
+
     def engine2System = getSystem(EngineSystemPrefix + "2")
 
     def startEngineNode2(): Unit = startEngineNode(2)
@@ -158,18 +162,21 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
   }
 
   trait WithWorkerNode1 extends WithWorkerNode {
+    def worker1Address = "akka.tcp://engine@localhost:12531"
     def worker1System = getSystem(WorkerSystemPrefix + "1")
     def startWorkerNode1(): Unit = startWorkerNode(1)
     def restartWorkerNode1(): Unit = restartWorkerNode(1)
     startWorkerNode1()
   }
   trait WithWorkerNode2 extends WithWorkerNode {
+    def worker2Address = "akka.tcp://engine@localhost:12532"
     def worker2System = getSystem(WorkerSystemPrefix + "2")
     def startWorkerNode2(): Unit = startWorkerNode(2)
     def restartWorkerNode2(): Unit = restartWorkerNode(2)
     startWorkerNode2()
   }
   trait WithWorkerNode3 extends WithWorkerNode {
+    def worker3Address = "akka.tcp://engine@localhost:12533"
     def worker3System = getSystem(WorkerSystemPrefix + "3")
     def startWorkerNode3(): Unit = startWorkerNode(3)
     def restartWorkerNode3(): Unit = restartWorkerNode(3)

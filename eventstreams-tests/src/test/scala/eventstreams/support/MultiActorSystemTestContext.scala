@@ -11,6 +11,7 @@ import eventstreams.core.components.routing.MessageRouterActor
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite, Tag}
 import org.slf4j.LoggerFactory
 
+import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
@@ -24,6 +25,7 @@ trait MultiActorSystemTestContextEvents extends ComponentWithBaseEvents {
 trait ActorSystemWrapper {
   def underlyingSystem: ActorSystem
   def config: Config
+  def stopActor(id: String)
   def start(props: Props, id: String): ActorRef
   def actorSelection(id: String) = underlyingSystem.actorSelection(id)
   def rootUserActorSelection(id: String) = actorSelection(s"/user/$id")
@@ -71,6 +73,14 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
       val newActor = underlyingSystem.actorOf(props, id)
       actors = actors :+ newActor
       newActor
+    }
+    override def stopActor(id: String) = {
+      val futureActor = rootUserActorSelection(id).resolveOne(5.seconds)
+      val actor = Await.result(futureActor, 5.seconds)
+      watcher ! Watch(actor)
+      underlyingSystem.stop(actor)
+      expectSomeEventsWithTimeout(30000, WatcherActor.AllWatchedActorsGone)
+      clearComponentEvents(WatcherActor)
     }
     def stop() = Try {
       val startCheckpoint = System.nanoTime()

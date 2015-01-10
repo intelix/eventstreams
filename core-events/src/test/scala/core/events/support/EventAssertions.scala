@@ -44,6 +44,22 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
   implicit val patienceConfig =
     PatienceConfig(timeout = scaled(Span(5, Seconds)), interval = scaled(Span(15, Millis)))
 
+  
+  def collectAndPrintEvents() = {
+    Thread.sleep(10000)
+    printRaisedEvents()
+  }
+  
+  def printRaisedEvents() = {
+    val log = LoggerFactory.getLogger("history")
+    log.error("*" * 60 + " RAISED EVENTS: " + "*" * 60)
+    EventPublisherRef.ref.asInstanceOf[TestEventPublisher].withOrderedEvents { events =>
+      events.foreach { next =>
+        LoggerEventPublisherWithDateHelper.log(next.timestamp, next.event, CtxSystemRef.ref, next.values, s => log.error(s))
+      }
+    }
+    log.error("*" * 120 + "\n\n\n\n")
+  }
 
   def waitWithTimeout(millis: Long)(f: => Unit) = {
     val startedAt = System.currentTimeMillis()
@@ -61,14 +77,15 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
     } catch {
       case x: Throwable =>
         val log = LoggerFactory.getLogger("history")
-        log.error("*" * 120 + "\nTest failed", x)
+        log.error("Test failed", x)
+        log.error("*" * 60 + " RAISED EVENTS: " + "*" * 60)
         log.error("Raised events:")
         EventPublisherRef.ref.asInstanceOf[TestEventPublisher].withOrderedEvents { events =>
           events.foreach { next =>
             LoggerEventPublisherWithDateHelper.log(next.timestamp, next.event, CtxSystemRef.ref, next.values, s => log.error(s))
           }
         }
-        log.error("*" * 120 + "\n\n", x)
+        log.error("*" * 120 + "\n\n\n\n")
         throw x
     }
   }

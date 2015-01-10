@@ -33,9 +33,13 @@ case class ComponentKey(key: String) {
   def toActorId = key.replaceAll("""[\W]""", "_").replaceAll("__", "_")
 }
 
-case class LocalSubj(component: ComponentKey, topic: TopicKey) extends Subj
+case class LocalSubj(component: ComponentKey, topic: TopicKey) extends Subj {
+  override def toString: String = component.key + "#" + topic.key 
+}
 
-case class RemoteSubj(address: String, localSubj: LocalSubj) extends Subj
+case class RemoteSubj(address: String, localSubj: LocalSubj) extends Subj {
+  override def toString: String = localSubj + "@" + address
+}
 
 
 case class Subscribe(sourceRef: ActorRef, subj: Any) extends HQCommMsg[Any]
