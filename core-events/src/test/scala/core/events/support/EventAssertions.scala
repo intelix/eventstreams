@@ -21,7 +21,7 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
     super.beforeAll()
   }
 
-  override def afterAll() {
+  override protected def afterAll() {
     super.afterAll()
     logger.warn("**** > Finished " + this.getClass)
   }

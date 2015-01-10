@@ -19,27 +19,29 @@ package eventstreams.core.components.cluster
 import akka.actor._
 import akka.cluster.Cluster
 import com.typesafe.config.Config
-import core.events.EventOps.symbolToEventOps
+import core.events.EventOps.{stringToEventOps, symbolToEventOps}
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools._
 import eventstreams.core.actors._
 import eventstreams.core.messages.{ComponentKey, TopicKey}
+import net.ceedubs.ficus.Ficus._
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
 
 
 trait ClusterManagerActorEvents
-  extends ComponentWithBaseEvents
-  with WithEventPublisher {
+  extends ComponentWithBaseEvents {
 
-  val ClusterStateChanged = 'ClusterStateChanged.info
+  val ClusterStateChanged = "Cluster.StateChanged".info
+  val ClusterMemberUp = "Cluster.MemberUp".trace
+  val ClusterMemberDown = "Cluster.MemberDown".trace
 
   override def componentId: String = "Actor.ClusterManager"
 }
 
-object ClusterManagerActor extends ActorObjWithCluster {
+object ClusterManagerActor extends ActorObjWithCluster with ClusterManagerActorEvents with WithEventPublisher {
   def id = "cluster"
 
   def props(implicit cluster: Cluster, config: Config) = Props(new ClusterManagerActor())
@@ -51,7 +53,7 @@ class ClusterManagerActor(implicit val cluster: Cluster, config: Config)
   with ActorWithClusterPeers
   with RouteeActor {
 
-  val nodeName = config.getString("ehub.node.name")
+  override val nodeName = config.as[Option[String]]("ehub.node.name") | myAddress
 
   val T_NODES = TopicKey("nodes")
 
@@ -59,9 +61,25 @@ class ClusterManagerActor(implicit val cluster: Cluster, config: Config)
 
   override def commonBehavior: Actor.Receive = super.commonBehavior
 
+  def confirmedPeersNames = confirmedPeers.map{ case (node,json) => json ~> 'name | node.address.toString }
+
+
+
+
+  override def onClusterMemberUp(info: NodeInfo): Unit = {
+    ClusterMemberUp >> ('NodeInfo -> info)
+    super.onClusterMemberUp(info)
+  }
+
+  override def onClusterMemberRemoved(info: NodeInfo): Unit = {
+    ClusterMemberDown >> ('NodeInfo -> info)
+    super.onClusterMemberRemoved(info)
+  }
+
+  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('ComponentKey -> key.key, 'Node -> nodeName, 'ClusterAddress -> myAddress)
 
   override def onConfirmedPeersChanged(): Unit = {
-    ClusterStateChanged >>()
+    ClusterStateChanged >> ('Peers -> confirmedPeersNames.sorted.mkString(","))
     topicUpdate(T_NODES, nodesList)
   }
 

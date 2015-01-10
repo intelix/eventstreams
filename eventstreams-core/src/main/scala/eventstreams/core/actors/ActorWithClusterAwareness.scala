@@ -19,6 +19,7 @@ package eventstreams.core.actors
 import akka.actor.{Actor, ActorRef, Address}
 import akka.cluster.ClusterEvent._
 import akka.util.Timeout
+import core.events.WithEventPublisher
 import eventstreams.core.components.routing.MessageRouterActor
 
 import scala.collection.immutable.HashMap
@@ -33,13 +34,18 @@ case class Up() extends NodeState
 case class Unreachable() extends NodeState
 
 case class NodeInfo(state: NodeState, address: Address, roles: Set[String]) extends Comparable[NodeInfo] {
-  override def compareTo(o: NodeInfo): Int = address.toString.compareTo(o.address.toString)
+  override def compareTo(o: NodeInfo): Int = address.toString.compareTo(o.address.toString) match {
+    case x if x == 0 => roles.toList.sorted.mkString(",").compareTo(o.roles.toList.sorted.mkString(","))
+    case x => x
+  }
 }
 
 case class ClusterActorId(address: String, id: String)
 
 
 trait ActorWithClusterAwareness extends ActorWithCluster {
+
+  _: WithEventPublisher =>
 
   var nodes: List[NodeInfo] = List[NodeInfo]()
   private var refCache: Map[ClusterActorId, ActorRef] = new HashMap[ClusterActorId, ActorRef]()
@@ -80,7 +86,7 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
     selectionFor(address, id).resolveOne() onComplete {
       case Success(result) => refCache += ClusterActorId(address, id) -> result
       case Failure(failure) =>
-        logger.debug(s"Resolution of $address / $id failed", failure)
+        Warning >>('Message -> s"Address resolution failed, retrying in $timeout", 'Failure -> failure.getMessage)
         context.system.scheduler.scheduleOnce(5.seconds, self, ResolveRetry(address, id))
     }
   }
@@ -103,7 +109,6 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
     case ResolveRetry(address, id) =>
       if (nodeIsUp(address)) resolveActorInCluster(address, id)
     case MemberUp(member) =>
-      logger.info(s"Member is up: $member")
       val newNode = NodeInfo(Up(), member.address, member.roles)
       nodes = (nodes.filter(_.address != member.address) :+ newNode).sorted
       cleanRefCacheFor(member.address)
@@ -111,7 +116,6 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
       onClusterMemberUp(newNode)
       onClusterChangeEvent()
     case UnreachableMember(member) =>
-      logger.info(s"Member is unreachable: $member")
       cleanRefCacheFor(member.address)
       nodes = nodes.map {
         case b if b.address == member.address => b.copy(state = Unreachable())
@@ -122,7 +126,6 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
       } foreach onClusterMemberUnreachable
       onClusterChangeEvent()
     case ReachableMember(member) =>
-      logger.info(s"Member is reachable: $member")
       cleanRefCacheFor(member.address)
       nodes = nodes.map {
         case b if b.address == member.address => b.copy(state = Up())
@@ -134,7 +137,6 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
       } foreach onClusterMemberUp
       onClusterChangeEvent()
     case MemberRemoved(member, previousStatus) =>
-      logger.info(s"Member is removed: $member")
       cleanRefCacheFor(member.address)
       nodes.collectFirst {
         case node if node.address == member.address => node
@@ -142,7 +144,7 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
       nodes = nodes.filter(_.address != member.address)
       onClusterChangeEvent()
     case x: MemberEvent =>
-      logger.info(s"Member event: $x")
+      Warning >>('Message -> "Unexpected cluster member event", 'Event -> x)
 
   }
 

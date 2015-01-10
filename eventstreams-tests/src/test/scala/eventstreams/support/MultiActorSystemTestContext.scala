@@ -1,11 +1,13 @@
 package eventstreams.support
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{Terminated, ActorRef, ActorSystem, Props}
 import com.typesafe.config._
 import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
-import org.scalatest.{BeforeAndAfterEach, Suite, Tag}
+import core.events.support.EventAssertions
+import eventstreams.core.actors.ActorWithComposableBehavior
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite, Tag}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.DurationInt
@@ -13,8 +15,9 @@ import scala.util.Try
 
 trait MultiActorSystemTestContextEvents extends ComponentWithBaseEvents {
   override def componentId: String = "Test.ActorSystem"
-  val ActorSystemCreated = 'ActorSystemCreated.info
-  val ActorSystemTerminated = 'ActorSystemTerminated.info
+  val ActorSystemCreated = 'ActorSystemCreated.trace
+  val ActorSystemTerminated = 'ActorSystemTerminated.trace
+  val AllActorsTerminated = 'AllActorsTerminated.trace
 }
 
 trait ActorSystemWrapper {
@@ -23,13 +26,44 @@ trait ActorSystemWrapper {
   def start(props: Props, id: String): ActorRef
 }
 
+private case class Watch(ref: ActorRef)
+private trait WatcherEvents extends ComponentWithBaseEvents {
+  override def componentId: String = "Test.Watcher"
+  val WatchedActorGone = 'WatchedActorGone.trace
+  val AllWatchedActorsGone = 'AllWatchedActorsGone.trace
+}
+private object WatcherActor extends WatcherEvents {
+  def props = Props(new WatcherActor())
+}
+private class WatcherActor extends ActorWithComposableBehavior with WatcherEvents with WithEventPublisher {
+  override def commonBehavior: Receive = handler orElse super.commonBehavior
+
+  var watched = Set[ActorRef]()
+
+  def handler: Receive = {
+    case Watch(ref) =>
+      watched = watched + ref
+      context.watch(ref)
+    case Terminated(ref) =>
+      watched = watched match  {
+        case w if w contains ref =>
+          WatchedActorGone >> ('Ref -> ref, 'Path -> ref.path.toSerializationFormat)
+          if (w.size == 1) AllWatchedActorsGone >> ()
+          w - ref
+        case w => w
+      }
+
+  }
+}
+
 trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSystemTestContextEvents with WithEventPublisher {
-  self: Suite =>
+  self: Suite with ActorSystemManagement with EventAssertions =>
 
   object OnlyThisTest extends Tag("OnlyThisTest")
 
   case class Wrapper(config: Config, underlyingSystem: ActorSystem, id: String) extends ActorSystemWrapper {
     private var actors = List[ActorRef]()
+    private val watcher = underlyingSystem.actorOf(WatcherActor.props)
     override def start(props: Props, id: String): ActorRef = {
       val newActor = underlyingSystem.actorOf(props, id)
       actors = actors :+ newActor
@@ -37,10 +71,22 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
     }
     def stop() = Try {
       val startCheckpoint = System.nanoTime()
-      actors.foreach(underlyingSystem.stop)
+      stopActors()
       underlyingSystem.shutdown()
       underlyingSystem.awaitTermination(60.seconds)
       ActorSystemTerminated >> ('Name -> id, 'TerminatedInMs -> (System.nanoTime() - startCheckpoint)/1000000)
+    }
+    def stopActors() = Try {
+      val startCheckpoint = System.nanoTime()
+      actors.foreach { a =>
+        watcher ! Watch(a)
+      }
+      actors.foreach { a =>
+        underlyingSystem.stop(a)
+      }
+      expectSomeEventsWithTimeout(30000, WatcherActor.AllWatchedActorsGone)
+//      clearEvents()
+      AllActorsTerminated >> ('TerminatedInMs -> (System.nanoTime() - startCheckpoint)/1000000)
     }
   }
 
@@ -72,15 +118,18 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
     systems = systems - name
     
   }
-  
-  private def destroyAll() = {
+
+  def destroyAllSystems() = {
     systems.values.foreach(_.stop())
     systems = Map()
   }
-  
+
+  def destroyAllActors() = {
+    systems.values.foreach(_.stopActors())
+  }
+
   override protected def afterEach(): Unit = {
     LoggerFactory.getLogger("testseparator").debug(" " * 10 + "~" * 40 + " test finished " + "~" * 40)
-    destroyAll()
     super.afterEach()
   }
 }

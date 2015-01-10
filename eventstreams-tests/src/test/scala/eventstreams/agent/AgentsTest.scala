@@ -7,12 +7,12 @@ import eventstreams.core.agent.core.CreateDatasource
 import eventstreams.core.messages.{ComponentKey, LocalSubj}
 import eventstreams.engine.agents.{AgentProxyActor, AgentsManagerActor, DatasourceProxyActor}
 import eventstreams.support.ds.{PublisherStubActor, StubDatasource}
-import eventstreams.support.{GateStubActor, MultiNodeTestingSupport}
+import eventstreams.support.{IsolatedActorSystems, GateStubActor, MultiNodeTestingSupport}
 import org.scalatest.FlatSpec
 import play.api.libs.json.{JsArray, JsValue, Json}
 
 class AgentsTest
-  extends FlatSpec with MultiNodeTestingSupport {
+  extends FlatSpec with MultiNodeTestingSupport with IsolatedActorSystems {
 
 
   "AgentManager" should "start" in new WithAgentNode1 with WithEngineNode1  {
@@ -331,7 +331,7 @@ class AgentsTest
       expectSomeEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString)
     }
   }
-  it should "deliver all messages even if engine restarts in between" in new With100Events {
+  it should "deliver all messages even if engine restarts in between" taggedAs OnlyThisTest in new With100Events {
     autoCloseGateAfter("gate1", 25)
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
@@ -342,12 +342,12 @@ class AgentsTest
     startGate1("gate1")
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
-    (1 to 100).foreach { i =>
+    (26 to 100).foreach { i =>
       expectSomeEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString)
     }
   }
 
-  it should "deliver all messages even if engine restarts multiple times in between" in new With100Events {
+  it should "deliver all messages even if engine restarts multiple times in between" taggedAs OnlyThisTest in new With100Events {
     autoCloseGateAfter("gate1", 25)
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
@@ -366,7 +366,7 @@ class AgentsTest
     startGate1("gate1")
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
-    (1 to 100).foreach { i =>
+    (51 to 100).foreach { i =>
       expectSomeEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString)
     }
   }

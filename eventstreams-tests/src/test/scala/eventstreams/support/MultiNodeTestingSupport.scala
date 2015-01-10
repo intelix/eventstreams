@@ -6,7 +6,7 @@ import core.events.support.EventAssertions
 import org.scalatest.Suite
 
 trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestContext {
-  _: Suite =>
+  _: Suite with ActorSystemManagement =>
 
   val AgentSystemPrefix = "agent"
   val EngineSystemPrefix = "engine"

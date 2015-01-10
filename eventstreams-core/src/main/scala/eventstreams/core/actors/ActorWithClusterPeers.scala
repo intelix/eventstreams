@@ -17,6 +17,9 @@
 package eventstreams.core.actors
 
 import akka.actor.{Actor, Address}
+import core.events.EventOps.stringToEventOps
+import core.events.WithEventPublisher
+import core.events.ref.ComponentWithBaseEvents
 import play.api.libs.json.{JsValue, Json}
 
 import scala.collection.mutable
@@ -25,12 +28,21 @@ case class ClusterPeerHandshake()
 
 case class ClusterPeerHandshakeResponse(map: JsValue)
 
-trait ActorWithClusterPeers extends ActorWithClusterAwareness {
+trait ActorWithClusterPeersEvents extends ComponentWithBaseEvents {
+  val ClusterHandshakingWith = "Cluster.HandshakingWith".trace
+  val ClusterConfirmedPeer = "Cluster.ConfirmedPeer".info
+  val ClusterPeerHandshakeReceived = "Cluster.PeerHandshakeReceived".trace
+}
 
+trait ActorWithClusterPeers extends ActorWithClusterAwareness with ActorWithClusterPeersEvents with ActorWithTicks {
+  _: WithEventPublisher =>
 
   private val peers = mutable.Map[Address, JsValue]()
+  private var pendingPeers = Set[Address]()
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
+
+  def nodeName: String
 
   def peerData: JsValue
 
@@ -42,30 +54,46 @@ trait ActorWithClusterPeers extends ActorWithClusterAwareness {
     if (info.address == cluster.selfAddress) {
       addPeer(info.address, peerData)
     } else {
-      logger.debug(s"Trying to talk to ${self.path.toStringWithAddress(info.address)}")
+      pendingPeers = pendingPeers + info.address
+      handshakeWith(info.address)
       context.actorSelection(self.path.toStringWithAddress(info.address)) ! ClusterPeerHandshake()
     }
     super.onClusterMemberUp(info)
   }
 
+  private def handshakeWith(address: Address) = {
+    ClusterHandshakingWith >> ('Peer -> self.path.toStringWithAddress(address))
+    context.actorSelection(self.path.toStringWithAddress(address)) ! ClusterPeerHandshake()
+  }
+  
   override def onClusterMemberRemoved(info: NodeInfo): Unit = {
     super.onClusterMemberRemoved(info)
     peers.remove(info.address)
+    pendingPeers = pendingPeers - info.address
     onConfirmedPeersChanged()
   }
 
-  private def addPeer(address: Address, data: JsValue) = {
-    peers.put(address, data)
-    onConfirmedPeersChanged()
+  private def addPeer(address: Address, data: JsValue) = peers get address match {
+    case Some(existingData) if existingData == data =>
+      pendingPeers = pendingPeers - address
+    case _ =>
+      peers.put(address, data)
+      pendingPeers = pendingPeers - address
+      onConfirmedPeersChanged()
   }
 
+
+  override def internalProcessTick(): Unit = {
+    pendingPeers foreach handshakeWith
+    super.internalProcessTick()
+  }
 
   private def handler: Receive = {
     case ClusterPeerHandshake() =>
-      logger.debug(s"Cluster peer handshake request from ${sender()}")
+      ClusterPeerHandshakeReceived >> ('Peer -> sender())
       sender() ! ClusterPeerHandshakeResponse(peerData)
     case ClusterPeerHandshakeResponse(response) =>
-      logger.debug(s"Cluster peer handshake response from ${sender()}")
+      ClusterConfirmedPeer >> ('Peer -> sender(), 'Info -> Json.stringify(response))
       addPeer(sender().path.address, response)
   }
 
