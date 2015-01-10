@@ -62,7 +62,7 @@ object EventStreamsBuild {
   lazy val concurrencySettings = Seq(
     concurrentRestrictions in Global := Seq(
       Tags.limit(Tags.Test, 1),
-      Tags.limitAll( 15 )
+      Tags.limitAll( 1 )
     )
   )
   
