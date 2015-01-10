@@ -7,6 +7,7 @@ import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import core.events.support.EventAssertions
 import eventstreams.core.actors.ActorWithComposableBehavior
+import eventstreams.core.components.routing.MessageRouterActor
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite, Tag}
 import org.slf4j.LoggerFactory
 
@@ -24,6 +25,8 @@ trait ActorSystemWrapper {
   def underlyingSystem: ActorSystem
   def config: Config
   def start(props: Props, id: String): ActorRef
+  def actorSelection(id: String) = underlyingSystem.actorSelection(id)
+  def rootUserActorSelection(id: String) = actorSelection(s"/user/$id")
 }
 
 private case class Watch(ref: ActorRef)
@@ -102,8 +105,7 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
   
   private var systems = Map[String, Wrapper]()
 
-  
-  def withSystem[T](configName: String)(f: ActorSystemWrapper => T): T = f(systems.get(configName) match {
+  def getSystem(configName: String) = systems.get(configName) match {
     case None =>
       val config = configs.get(configName).get
       val sys = Wrapper(config, ActorSystem("engine", config), "engine")
@@ -111,7 +113,9 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
       systems = systems + (configName -> sys)
       sys
     case Some(x) => x
-  })
+  }
+  
+  def withSystem[T](configName: String)(f: ActorSystemWrapper => T): T = f(getSystem(configName))
   
   def destroySystem(name: String) = {
     systems.get(name).foreach(_.stop())

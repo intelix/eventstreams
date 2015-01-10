@@ -80,13 +80,13 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
     extends ConfigStorageActorTestContext
     with MessageRouterActorTestContext
     with GateStubTestContext
-    with SubscriberStubActor1
+    with SubscribingComponentStub
     with AgentManagerActorTestContext
     with ClusterTestContext
     with ClusterManagerActorTestContext {
 
     def startEngineNode(systemIndex: Int) =
-      withSystem(EngineSystemPrefix, systemIndex) { sys =>
+      withSystem(EngineSystemPrefix, systemIndex) { implicit sys =>
 
         withCluster(sys) { cluster =>
           startMessageRouter(sys, cluster)
@@ -104,7 +104,6 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
     }
 
     def restartEngineNode(systemIndex: Int) = {
-      stopMessageRouter()
       destroySystem(EngineSystemPrefix + systemIndex.toString)
       startEngineNode(systemIndex)
     }
@@ -112,6 +111,8 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
   }
 
   trait WithEngineNode1 extends WithEngineNode {
+    def engine1System = getSystem(EngineSystemPrefix + "1")
+    
     def startEngineNode1(): Unit = startEngineNode(1)
 
     def startGate1(name: String): Unit = startGate(1, name)
@@ -122,6 +123,8 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
   }
 
   trait WithEngineNode2 extends WithEngineNode {
+    def engine2System = getSystem(EngineSystemPrefix + "2")
+
     def startEngineNode2(): Unit = startEngineNode(2)
 
     def startGate2(name: String): Unit = startGate(2, name)
@@ -139,7 +142,7 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
     with ClusterManagerActorTestContext {
 
     def startWorkerNode(systemIndex: Int) =
-      withSystem(WorkerSystemPrefix, systemIndex) { sys =>
+      withSystem(WorkerSystemPrefix, systemIndex) { implicit sys =>
         withCluster(sys) { cluster =>
           startMessageRouter(sys, cluster)
           startClusterManager(sys, cluster)
@@ -148,7 +151,6 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
       }
 
     def restartWorkerNode(systemIndex: Int) = {
-      stopMessageRouter()
       destroySystem(WorkerSystemPrefix + systemIndex.toString)
       startWorkerNode(systemIndex)
     }
@@ -156,16 +158,19 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
   }
 
   trait WithWorkerNode1 extends WithWorkerNode {
+    def worker1System = getSystem(WorkerSystemPrefix + "1")
     def startWorkerNode1(): Unit = startWorkerNode(1)
     def restartWorkerNode1(): Unit = restartWorkerNode(1)
     startWorkerNode1()
   }
   trait WithWorkerNode2 extends WithWorkerNode {
+    def worker2System = getSystem(WorkerSystemPrefix + "2")
     def startWorkerNode2(): Unit = startWorkerNode(2)
     def restartWorkerNode2(): Unit = restartWorkerNode(2)
     startWorkerNode2()
   }
   trait WithWorkerNode3 extends WithWorkerNode {
+    def worker3System = getSystem(WorkerSystemPrefix + "3")
     def startWorkerNode3(): Unit = startWorkerNode(3)
     def restartWorkerNode3(): Unit = restartWorkerNode(3)
     startWorkerNode3()
