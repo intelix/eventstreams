@@ -102,7 +102,6 @@ class ClusterManagerActor(implicit val cluster: Cluster, config: Config)
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
     case T_NODES =>
-      logger.debug(s"!>> $ref Subscribed to list of nodes")
       topicUpdate(T_NODES, nodesList, singleTarget = Some(ref))
   }
 

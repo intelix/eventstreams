@@ -13,9 +13,11 @@ trait MessageRouterActorTestContext extends DefaultTopicKeys {
     system.start(MessageRouterActor.props(cluster, system.config), MessageRouterActor.id)
 
   def sendCommand(system: ActorSystemWrapper, subject: Any, data: Option[JsValue]) =
-    system.rootUserActorSelection(MessageRouterActor.id) ! Command(ActorRef.noSender, subject, None, data)
+    messageRouterActorSelection(system) ! Command(ActorRef.noSender, subject, None, data)
 
   def sendCommand(system: ActorSystemWrapper, localRoute: String, topic: TopicKey, data: Option[JsValue]) =
-    system.rootUserActorSelection(MessageRouterActor.id) ! Command(ActorRef.noSender, LocalSubj(ComponentKey(localRoute), topic), None, data)
+    messageRouterActorSelection(system) ! Command(ActorRef.noSender, LocalSubj(ComponentKey(localRoute), topic), None, data)
 
+  def messageRouterActorSelection(system: ActorSystemWrapper) = system.rootUserActorSelection(MessageRouterActor.id)
+  
 }

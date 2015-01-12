@@ -20,7 +20,7 @@ import akka.actor.{Actor, ActorRef, Props}
 import com.diogoduailibe.lzstring4j.LZString
 import core.events.EventOps.symbolToEventOps
 import core.events.ref.ComponentWithBaseEvents
-import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks}
+import eventstreams.core.actors.{BaseActorEvents, ActorWithComposableBehavior, ActorWithTicks}
 import eventstreams.core.messages._
 import play.api.libs.json.{JsValue, Json}
 
@@ -30,14 +30,27 @@ import scala.concurrent.duration.{DurationLong, FiniteDuration}
 
 trait WebsocketActorEvents
   extends ComponentWithBaseEvents
+  with BaseActorEvents
   with WithWebEvents {
+  
+  
   val AcceptedConnection = 'AcceptedConnection.info
   val ClosedConnection = 'ClosedConnection.info
+  val SendingClusterAddress = 'SendingClusterAddress.trace
+  val WebsocketOut = 'WebsocketOut.trace
+  val WebsocketIn = 'WebsocketIn.trace
+  val Request = 'Request.trace
+  val MessageToDownstream = 'MessageToDownstream.trace
+  val NewCmdAlias = 'NewCmdAlias.trace
+  val NewLocationAlias = 'NewLocationAlias.trace
+  val UserUUID = 'UserUUID.info
+  val MessageScheduled = 'MessageScheduled.trace
+  val SentToClient = 'SentToClient.trace
 
   override def componentId: String = "WebsocketActor"
 }
 
-object WebsocketActor {
+object WebsocketActor extends WebsocketActorEvents{
 
   def props(out: ActorRef) = Props(new WebsocketActor(out))
 
@@ -99,25 +112,30 @@ class WebsocketActor(out: ActorRef)
         }
       }
       if (msg == "") msg = "f" + str
-      out ! msg
-      logger.info(s"Sent ${aggregator.size} messages, uncomp ${str.length} comp ${msg.length}")
+      sendToSocket(msg)
+      SentToClient >> ('Count -> aggregator.size, 'UncompLen -> str.length, 'CompLen -> msg.length)
       aggregator.clear()
     }
   }
 
+  private def sendToSocket(msg: String) = {
+    WebsocketOut >> ('Message -> msg)
+    out ! msg
+  } 
+  
+  
   private def messageHandler: Actor.Receive = {
     case InfoResponse(address) =>
-      logger.debug(s"Received cluster info, address: $address, finalising handshake with the client")
-      out ! "fL" + address.toString
+      SendingClusterAddress >> ('Address -> address)
+      sendToSocket("fL" + address.toString)
     case Update(sourceRef, subj, data, _) =>
       path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(Json.stringify(data)))}
     case CommandErr(sourceRef, subj, data) =>
-      logger.debug(s"!>>> ${subj2path(subj)}")
-      logger.debug(s"!>>> ${path2alias get subj2path(subj)}")
-      path2alias get subj2path(subj) foreach { path => logger.info("!>>>>> " + buildClientMessage("U", path)(Json.stringify(data)))}
-      logger.debug(s"!>>> ${path2alias get subj2path(subj)}")
-
-      path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(Json.stringify(data)))}
+      val path = subj2path(subj)
+      val alias = path2alias get path
+      alias foreach { path =>
+        scheduleOut(path, buildClientMessage("U", path)(Json.stringify(data)))
+      }
     case CommandOk(sourceRef, subj, data) =>
       path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(Json.stringify(data)))}
     case Stale(sourceRef, subj) =>
@@ -131,8 +149,7 @@ class WebsocketActor(out: ActorRef)
         case _ => payload.tail
       }
 
-      logger.debug(s"Received from Websocket: $d (${d.length}/${payload.length})")
-
+      WebsocketIn >> ('Message -> d, 'UncompLen -> d.length, 'CompLen -> payload.length)
 
       d.split(msgSplitChar).foreach { msgContents =>
         val mtype = msgContents.head
@@ -143,10 +160,10 @@ class WebsocketActor(out: ActorRef)
           case 'A' => addOrReplaceAlias(data)
           case 'B' => addOrReplaceLocationAlias(data)
           case _ => extractByAlias(data) foreach { str =>
-            logger.debug(s"Next request: $str")
+            Request >> ('Request -> str)
             extractSubjectAndPayload(str,
               processRequestByType(mtype, _, _) foreach { msg =>
-                logger.debug(s"Message to downstream: $msg")
+                MessageToDownstream >> ('Message -> str)
                 proxy ! msg
               }
             )
@@ -156,7 +173,10 @@ class WebsocketActor(out: ActorRef)
 
   }
 
-  private def scheduleOut(path: String, content: String) = aggregator += path -> content
+  private def scheduleOut(path: String, content: String) = {
+    aggregator += path -> content
+    MessageScheduled >> ('Path -> path , 'Message -> content)
+  }
 
   private def buildClientMessage(mt: String, alias: String)(payload: String = "") = {
     mt + alias + opSplitChar + payload
@@ -179,14 +199,15 @@ class WebsocketActor(out: ActorRef)
     val al = value.substring(0, idx)
     val path = value.substring(idx + 1)
 
-    logger.info(s"Alias $al->$path")
+    NewCmdAlias >> ('Name -> al , 'Path -> path)
+    
     alias2path += al -> path
     path2alias += path -> al
   }
 
   private def addUUID(value: String) = {
 
-    logger.info(s"UUID $value")
+    UserUUID >> ( 'UUID -> value)
 
     clientSeed = Some(value)
     cmdReplySubj = Some(LocalSubj(ComponentKey(value), TopicKey("cmd")))
@@ -202,7 +223,8 @@ class WebsocketActor(out: ActorRef)
     val al = value.substring(0, idx)
     val path = value.substring(idx + 1)
 
-    logger.info(s"Location alias $al->$path")
+    NewCmdAlias >> ('Name -> al , 'Location -> path)
+
     alias2location += al -> path
     location2alias += path -> al
   }
@@ -212,7 +234,7 @@ class WebsocketActor(out: ActorRef)
     case 'U' => Some(Unsubscribe(self, subj))
     case 'C' => Some(Command(self, subj, cmdReplySubj, payload))
     case _ =>
-      logger.warn(s"Invalid message type: " + msgType)
+      Error >> ('Message -> s"Invalid message type: $msgType")
       None
   }
 
@@ -247,10 +269,9 @@ class WebsocketActor(out: ActorRef)
           f(RemoteSubj(loc, LocalSubj(ComponentKey(mappedComp), TopicKey(topic))), extractPayload(tail))
         }
       }
-      case _ => logger.warn(s"Invalid payload $str")
+      case _ =>
+        Warning >> ('Message -> s"Invalid payload $str")
     }
-
-    logger.debug(s"extractSubjectAndPayload: ${str.split(opSplitChar).toList}")
 
     extract(str.split(opSplitChar).toList)
   }
