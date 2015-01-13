@@ -86,7 +86,6 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
     selectionFor(address, id).resolveOne() onComplete {
       case Success(result) => refCache += ClusterActorId(address, id) -> result
       case Failure(failure) =>
-        Warning >>('Message -> s"Address resolution failed, retrying in $timeout", 'Failure -> failure.getMessage)
         context.system.scheduler.scheduleOnce(5.seconds, self, ResolveRetry(address, id))
     }
   }

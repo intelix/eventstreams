@@ -16,24 +16,27 @@
 
 package actors
 
+import actors.WebsocketActor.{msgSplitChar, opSplitChar}
 import akka.actor.{Actor, ActorRef, Props}
 import com.diogoduailibe.lzstring4j.LZString
 import core.events.EventOps.symbolToEventOps
+import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
-import eventstreams.core.actors.{BaseActorEvents, ActorWithComposableBehavior, ActorWithTicks}
+import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, BaseActorEvents}
 import eventstreams.core.messages._
 import play.api.libs.json.{JsValue, Json}
 
 import scala.collection._
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
+import scala.util.Try
 
 
 trait WebsocketActorEvents
   extends ComponentWithBaseEvents
   with BaseActorEvents
   with WithWebEvents {
-  
-  
+
+
   val AcceptedConnection = 'AcceptedConnection.info
   val ClosedConnection = 'ClosedConnection.info
   val SendingClusterAddress = 'SendingClusterAddress.trace
@@ -50,10 +53,12 @@ trait WebsocketActorEvents
   override def componentId: String = "WebsocketActor"
 }
 
-object WebsocketActor extends WebsocketActorEvents{
+object WebsocketActor extends WebsocketActorEvents {
 
   def props(out: ActorRef) = Props(new WebsocketActor(out))
 
+  val opSplitChar: Char = 1.toChar
+  val msgSplitChar: Char = 2.toChar
 
 }
 
@@ -61,10 +66,8 @@ object WebsocketActor extends WebsocketActorEvents{
 class WebsocketActor(out: ActorRef)
   extends ActorWithComposableBehavior
   with ActorWithTicks
-  with WebsocketActorEvents {
-
-  val opSplitChar: Char = 1.toChar
-  val msgSplitChar: Char = 2.toChar
+  with WebsocketActorEvents
+  with WithEventPublisher {
 
   val alias2path: mutable.Map[String, String] = new mutable.HashMap[String, String]()
   val path2alias: mutable.Map[String, String] = new mutable.HashMap[String, String]()
@@ -113,17 +116,17 @@ class WebsocketActor(out: ActorRef)
       }
       if (msg == "") msg = "f" + str
       sendToSocket(msg)
-      SentToClient >> ('Count -> aggregator.size, 'UncompLen -> str.length, 'CompLen -> msg.length)
+      SentToClient >>('Count -> aggregator.size, 'UncompLen -> str.length, 'CompLen -> msg.length)
       aggregator.clear()
     }
   }
 
   private def sendToSocket(msg: String) = {
-    WebsocketOut >> ('Message -> msg)
+    WebsocketOut >> ('Len -> msg.length)
     out ! msg
-  } 
-  
-  
+  }
+
+
   private def messageHandler: Actor.Receive = {
     case InfoResponse(address) =>
       SendingClusterAddress >> ('Address -> address)
@@ -141,41 +144,51 @@ class WebsocketActor(out: ActorRef)
     case Stale(sourceRef, subj) =>
       path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("D", path)())}
 
-    case payload: String =>
-
+    case payload: String if payload.length > 0 =>
+  
       val flag = payload.head
       val d = flag match {
-        case 'z' => LZString.decompressFromUTF16(payload.tail)
+        case 'z' =>
+          val uncompressed = Try {
+            LZString.decompressFromUTF16(payload.tail)
+          } recover {
+            case _ => ""
+          } getOrElse ""
+          if (uncompressed != null) uncompressed else ""
         case _ => payload.tail
       }
 
-      WebsocketIn >> ('Message -> d, 'UncompLen -> d.length, 'CompLen -> payload.length)
+      WebsocketIn >>('Message -> d, 'UncompLen -> d.length, 'CompLen -> payload.length)
 
-      d.split(msgSplitChar).foreach { msgContents =>
-        val mtype = msgContents.head
-        val data = msgContents.tail
+      d.split(msgSplitChar).foreach {
+        case msgContents if msgContents.length > 0 =>
+          val mtype = msgContents.head
+          val data = msgContents.tail
 
-        mtype match {
-          case 'X' => addUUID(data)
-          case 'A' => addOrReplaceAlias(data)
-          case 'B' => addOrReplaceLocationAlias(data)
-          case _ => extractByAlias(data) foreach { str =>
-            Request >> ('Request -> str)
-            extractSubjectAndPayload(str,
-              processRequestByType(mtype, _, _) foreach { msg =>
-                MessageToDownstream >> ('Message -> str)
-                proxy ! msg
-              }
-            )
+          mtype match {
+            case 'X' => addUUID(data)
+            case 'A' => addOrReplaceAlias(data)
+            case 'B' => addOrReplaceLocationAlias(data)
+            case _ => extractByAlias(data) foreach { str =>
+              Request >> ('Request -> str)
+              extractSubjectAndPayload(str,
+                processRequestByType(mtype, _, _) foreach { msg =>
+                  MessageToDownstream >> ('Message -> str)
+                  proxy ! msg
+                }
+              )
+            }
           }
-        }
+        case _ => ()
       }
+    case _ => ()
+      
 
   }
 
   private def scheduleOut(path: String, content: String) = {
     aggregator += path -> content
-    MessageScheduled >> ('Path -> path , 'Message -> content)
+    MessageScheduled >>('Path -> path, 'Message -> content)
   }
 
   private def buildClientMessage(mt: String, alias: String)(payload: String = "") = {
@@ -199,15 +212,15 @@ class WebsocketActor(out: ActorRef)
     val al = value.substring(0, idx)
     val path = value.substring(idx + 1)
 
-    NewCmdAlias >> ('Name -> al , 'Path -> path)
-    
+    NewCmdAlias >>('Name -> al, 'Path -> path)
+
     alias2path += al -> path
     path2alias += path -> al
   }
 
   private def addUUID(value: String) = {
 
-    UserUUID >> ( 'UUID -> value)
+    UserUUID >> ('UUID -> value)
 
     clientSeed = Some(value)
     cmdReplySubj = Some(LocalSubj(ComponentKey(value), TopicKey("cmd")))
@@ -223,7 +236,7 @@ class WebsocketActor(out: ActorRef)
     val al = value.substring(0, idx)
     val path = value.substring(idx + 1)
 
-    NewCmdAlias >> ('Name -> al , 'Location -> path)
+    NewLocationAlias >>('Name -> al, 'Location -> path)
 
     alias2location += al -> path
     location2alias += path -> al
@@ -240,10 +253,12 @@ class WebsocketActor(out: ActorRef)
 
   private def extractByAlias(value: String): Option[String] = {
     val idx: Int = value.indexOf(opSplitChar)
-    val al = value.substring(0, idx)
-    val path = value.substring(idx)
+    if (idx > -1) {
+      val al = value.substring(0, idx)
+      val path = value.substring(idx)
 
-    alias2path.get(al).map(_ + path)
+      alias2path.get(al).map(_ + path)
+    } else None
   }
 
   private def mapComponents(comp: String): Option[String] = {

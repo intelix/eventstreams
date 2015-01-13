@@ -223,8 +223,11 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
         }
       }
 
-    def sendToWebsocketOn(systemIndex: Int, msg: String, compressed: Boolean): Unit =  withSystem(WebPlaySystemPrefix, systemIndex) { localSys =>
+    def sendToWebsocketOn(systemIndex: Int, msg: String, compressed: Boolean): Unit = withSystem(WebPlaySystemPrefix, systemIndex) { localSys =>
       sendToWebsocket(localSys, websocketActorIdFor(systemIndex), msg, compressed)
+    }
+    def sendToWebsocketRawOn(systemIndex: Int, msg: String): Unit = withSystem(WebPlaySystemPrefix, systemIndex) { localSys =>
+      sendToWebsocketRaw(localSys, websocketActorIdFor(systemIndex), msg)
     }
 
     def startWebsocketActor(systemIndex: Int): Unit =
@@ -254,7 +257,12 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
     def startWebsocketActor1() = startWebsocketActor(1)
 
     def sendToWebsocketOn1(msg: String, compressed: Boolean = false) = sendToWebsocketOn(1, msg, compressed)
-    
+    def sendToWebsocketRawOn1(msg: String) = sendToWebsocketRawOn(1, msg)
+
+    def websocket1Id = websocketActorIdFor(1)
+
+    def websocket1ClientId = "client_" + websocketActorIdFor(1)
+
     startWebNode1()
   }
 
@@ -271,7 +279,12 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
 
     def startWebsocketActor2() = startWebsocketActor(2)
 
-    def sendToWebsocketOn2(msg: String, compressed: Boolean = false) = sendToWebsocketOn(1, msg, compressed)
+    def sendToWebsocketOn2(msg: String, compressed: Boolean = false) = sendToWebsocketOn(2, msg, compressed)
+    def sendToWebsocketRawOn2(msg: String) = sendToWebsocketRawOn(2, msg)
+
+    def websocket2Id = websocketActorIdFor(2)
+
+    def websocket2ClientId = "client_" + websocketActorIdFor(2)
 
     startWebNode2()
   }

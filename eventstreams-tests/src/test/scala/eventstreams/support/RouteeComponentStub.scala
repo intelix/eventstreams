@@ -2,6 +2,7 @@ package eventstreams.support
 
 
 import akka.actor.{ActorRef, Props}
+import core.events.EventOps.stringToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.{OK, Fail}
@@ -14,7 +15,7 @@ import scalaz.{-\/, \/-, \/}
 private case class UpdateTopicData(topic: TopicKey, msg: String)
 
 trait RouteeComponentStubEvents extends ComponentWithBaseEvents with BaseActorEvents with RouteeEvents {
-  //  val SubscriptionMessageReceived = "SubscriptionMessageReceived".info
+   val RouteeComponentCommandReceived = "RouteeComponentCommandReceived".info
   override def componentId: String = "Test.RouteeComponentStub"
 }
 
@@ -77,11 +78,16 @@ class RouteeComponentStubActor(instanceId: String)
   }
 
 
-  override def processTopicCommand(sourceRef: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = topic match {
-    case TopicKey("okwithmessage") => \/-(OK(message = Some("message")))
-    case TopicKey("ok") => \/-(OK())
-    case TopicKey("failwithmessage") => -\/(Fail(message = Some("message")))
-    case TopicKey("fail") => -\/(Fail())
+  override def processTopicCommand(sourceRef: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = {
+    RouteeComponentCommandReceived >> ('Command -> topic.key, 'Data -> maybeData)
+
+    topic match {
+      case TopicKey("okwithmessage") =>
+        \/-(OK(message = Some("message")))
+      case TopicKey("ok") => \/-(OK())
+      case TopicKey("failwithmessage") => -\/(Fail(message = Some("message")))
+      case TopicKey("fail") => -\/(Fail())
+    }
   }
 
   override def key: ComponentKey = RouteeComponentStubOps.componentKeyForRouteeStub(instanceId)
