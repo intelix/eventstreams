@@ -141,6 +141,19 @@ class WebsocketActorTest
     }
   }
 
+  it should "ignore invalid X message - blank payload" in new WithFourNodesStarted {
+    startWebsocketActor1()
+    expectSomeEvents(WebsocketClientStub.WebsocketAddressReceived, 'Value -> web1Address)
+    clearEvents()
+    sendToWebsocketRawOn1("fX")
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+      expectNoEvents(MessageRouterActor.RouteAdded)
+    }
+  }
+
 
   it should "recognise X message, uncompressed" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("X" + user1Uuid)
@@ -157,7 +170,44 @@ class WebsocketActorTest
   }
 
 
+  it should "ignore invalid B message - blank address" in new WithFourNodesStarted {
+    startWebsocketActor1()
+    expectSomeEvents(WebsocketClientStub.WebsocketAddressReceived, 'Value -> web1Address)
+    clearEvents()
+    sendToWebsocketRawOn1("fB1"+ opSplitChar)
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+      expectNoEvents(WebsocketActor.NewLocationAlias)
+    }
+  }
 
+  it should "ignore invalid B message - missing delimiter" in new WithFourNodesStarted {
+    startWebsocketActor1()
+    expectSomeEvents(WebsocketClientStub.WebsocketAddressReceived, 'Value -> web1Address)
+    clearEvents()
+    sendToWebsocketRawOn1("fB1"+ opSplitChar)
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+      expectNoEvents(WebsocketActor.NewLocationAlias)
+    }
+  }
+
+  it should "ignore invalid B message - blank alias" in new WithFourNodesStarted {
+    startWebsocketActor1()
+    expectSomeEvents(WebsocketClientStub.WebsocketAddressReceived, 'Value -> web1Address)
+    clearEvents()
+    sendToWebsocketRawOn1("fB"+ opSplitChar+"a")
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+      expectNoEvents(WebsocketActor.NewLocationAlias)
+    }
+  }
 
   it should "accept new location alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("Bl" + opSplitChar + localAddress1)
@@ -210,11 +260,157 @@ class WebsocketActorTest
   def buildValidUnsubscribe(key: String) = "U" + key + opSplitChar
   def buildValidCommand(key: String, payload: Option[JsValue]) = "C" + key + opSplitChar + (payload.map(Json.stringify) | "")
 
+
+
+  it should "ignore invalid A message - blank path" in new WithFourNodesStarted {
+    startWebsocketActor1()
+    expectSomeEvents(WebsocketClientStub.WebsocketAddressReceived, 'Value -> web1Address)
+    clearEvents()
+    sendToWebsocketRawOn1("fA1"+ opSplitChar)
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+      expectNoEvents(WebsocketActor.NewCmdAlias)
+    }
+  }
+
+  it should "ignore invalid A message - missing delimiter" in new WithFourNodesStarted {
+    startWebsocketActor1()
+    expectSomeEvents(WebsocketClientStub.WebsocketAddressReceived, 'Value -> web1Address)
+    clearEvents()
+    sendToWebsocketRawOn1("fA1"+ opSplitChar)
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+      expectNoEvents(WebsocketActor.NewCmdAlias)
+    }
+  }
+
+  it should "ignore invalid A message - blank alias" in new WithFourNodesStarted {
+    startWebsocketActor1()
+    expectSomeEvents(WebsocketClientStub.WebsocketAddressReceived, 'Value -> web1Address)
+    clearEvents()
+    sendToWebsocketRawOn1("fA"+ opSplitChar+"a")
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+      expectNoEvents(WebsocketActor.NewCmdAlias)
+    }
+  }
+
+
   it should "accept new command alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
     sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "route", "topic"))
     expectSomeEvents(WebsocketActor.NewCmdAlias, 'Name -> "1", 'Path -> buildValidSubjectKey("1", "route", "topic"))
   }
+
+
+  it should "ignore invalid S message - unknown alias" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+    sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1(buildValidSubscribe("2"))
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+    }
+  }
+
+  it should "ignore invalid S message - missing delimiter" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+    sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1("S1")
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+    }
+  }
+
+  it should "ignore invalid S message - missing alias" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+    sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1(buildValidSubscribe(""))
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+    }
+  }
+
+  it should "ignore invalid U message - unknown alias" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+    sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1(buildValidUnsubscribe("2"))
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+    }
+  }
+
+  it should "ignore invalid U message - missing delimiter" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+    sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1("U1")
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+    }
+  }
+
+  it should "ignore invalid U message - missing alias" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+    sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1(buildValidUnsubscribe(""))
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+    }
+  }
+
+  it should "ignore invalid C message - unknown alias" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+    sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1(buildValidCommand("2", None))
+    waitAndCheck {
+      expectNoEvents(RouteeComponentStubOps.NewCommand)
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+    }
+  }
+
+  it should "ignore invalid C message - missing delimiter" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+    sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1("C1")
+    waitAndCheck {
+      expectNoEvents(RouteeComponentStubOps.NewCommand)
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+    }
+  }
+
+  it should "ignore invalid C message - missing alias" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+    sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1(buildValidCommand("", None))
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
+      expectNoEvents(RouteeComponentStubOps.NewCommand)
+      expectNoEvents(WebsocketClientStub.PreRestart)
+      expectNoEvents(WebsocketActor.PreRestart)
+    }
+  }
+
 
 
   "Websocket client" should "be able to subscribe to the node manager updates" in new WithTwoWebsocketActors {
@@ -321,6 +517,7 @@ class WebsocketActorTest
 
   }
 
+
   it should "be handle bulk updates" in new WithTwoSubscriptions {
     sendToWebsocketOn1("Aa" + opSplitChar + buildValidSubjectKey("1", RouteeComponentStubOps.componentKeyForRouteeStub1.key, "topic1"))
     sendToWebsocketOn1("Ab" + opSplitChar + buildValidSubjectKey("1", RouteeComponentStubOps.componentKeyForRouteeStub1.key, "topic2"))
@@ -421,6 +618,57 @@ class WebsocketActorTest
   }
 
 
-  // TODO all other negative scenarios
+  it should "be able to unsubscribe from updates" in new WithTwoSubscriptions {
+    sendToWebsocketOn1(buildValidUnsubscribe("1"))
+    expectSomeEvents(MessageRouterActor.SubjectSubscriptionRemoved, 'InstanceAddress -> engine1Address)
+  }
+
+  it should "not receive updates once unsubscribed" in new WithTwoSubscriptions {
+    sendToWebsocketOn1(buildValidUnsubscribe("1"))
+    expectSomeEvents(MessageRouterActor.SubjectSubscriptionRemoved, 'InstanceAddress -> engine1Address)
+    clearEvents()
+    updateTopicFromRoutee1(engine1System, TopicKey("withresponse"), "testC")
+
+    expectSomeEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "2", 'Payload -> "{\"msg\":\"testC\"}", 'InstanceId -> websocket2ClientId)
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "1", 'InstanceId -> websocket1ClientId)
+    }
+
+  }
+
+  it should "be able to send a duplicate subscribe requests, which should be handled correctly " in new WithTwoSubscriptions {
+    sendToWebsocketOn1(buildValidSubscribe("1"))
+    sendToWebsocketOn1(buildValidSubscribe("1"))
+    waitAndCheck {
+      expectSomeEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "1", 'Payload -> "{\"msg\":\"response\"}", 'InstanceId -> websocket1ClientId)
+    }
+    sendToWebsocketOn1(buildValidUnsubscribe("1"))
+    expectSomeEvents(MessageRouterActor.SubjectSubscriptionRemoved, 'InstanceAddress -> engine1Address)
+    clearEvents()
+    updateTopicFromRoutee1(engine1System, TopicKey("withresponse"), "testC")
+
+    expectSomeEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "2", 'Payload -> "{\"msg\":\"testC\"}", 'InstanceId -> websocket2ClientId)
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "1", 'InstanceId -> websocket1ClientId)
+    }
+
+  }
+
+
+  it should "be able to send a duplicate unsubscribe requests, which should be handled correctly " in new WithTwoSubscriptions {
+    sendToWebsocketOn1(buildValidUnsubscribe("1"))
+    sendToWebsocketOn1(buildValidUnsubscribe("1"))
+    expectSomeEvents(MessageRouterActor.SubjectSubscriptionRemoved, 'InstanceAddress -> engine1Address)
+    clearEvents()
+    updateTopicFromRoutee1(engine1System, TopicKey("withresponse"), "testC")
+
+    expectSomeEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "2", 'Payload -> "{\"msg\":\"testC\"}", 'InstanceId -> websocket2ClientId)
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "1", 'InstanceId -> websocket1ClientId)
+    }
+
+  }
+
+
   
 }

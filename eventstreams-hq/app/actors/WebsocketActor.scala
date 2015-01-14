@@ -30,6 +30,8 @@ import scala.collection._
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.util.Try
 
+import scalaz._
+import Scalaz._
 
 trait WebsocketActorEvents
   extends ComponentWithBaseEvents
@@ -42,7 +44,6 @@ trait WebsocketActorEvents
   val SendingClusterAddress = 'SendingClusterAddress.trace
   val WebsocketOut = 'WebsocketOut.trace
   val WebsocketIn = 'WebsocketIn.trace
-  val Request = 'Request.trace
   val MessageToDownstream = 'MessageToDownstream.trace
   val NewCmdAlias = 'NewCmdAlias.trace
   val NewLocationAlias = 'NewLocationAlias.trace
@@ -98,6 +99,9 @@ class WebsocketActor(out: ActorRef)
 
   override def commonBehavior: Actor.Receive = messageHandler orElse super.commonBehavior
 
+
+  override def commonFields: scala.Seq[(Symbol, Any)] = super.commonFields ++ Seq('ClientUUID -> (clientSeed | "n/a"))
+
   override def processTick(): Unit = {
     val str = aggregator.values.foldRight("") { (value, aggr) =>
       if (aggr != "") {
@@ -106,6 +110,8 @@ class WebsocketActor(out: ActorRef)
         value
       }
     }
+
+
     if (str.length > 0) {
       var msg = ""
       if (str.length > 100) {
@@ -119,6 +125,7 @@ class WebsocketActor(out: ActorRef)
       SentToClient >>('Count -> aggregator.size, 'UncompLen -> str.length, 'CompLen -> msg.length)
       aggregator.clear()
     }
+    super.processTick()
   }
 
   private def sendToSocket(msg: String) = {
@@ -145,7 +152,7 @@ class WebsocketActor(out: ActorRef)
       path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("D", path)())}
 
     case payload: String if payload.length > 0 =>
-  
+
       val flag = payload.head
       val d = flag match {
         case 'z' =>
@@ -170,10 +177,9 @@ class WebsocketActor(out: ActorRef)
             case 'A' => addOrReplaceAlias(data)
             case 'B' => addOrReplaceLocationAlias(data)
             case _ => extractByAlias(data) foreach { str =>
-              Request >> ('Request -> str)
               extractSubjectAndPayload(str,
                 processRequestByType(mtype, _, _) foreach { msg =>
-                  MessageToDownstream >> ('Message -> str)
+                  MessageToDownstream >> ('Message -> msg)
                   proxy ! msg
                 }
               )
@@ -181,9 +187,6 @@ class WebsocketActor(out: ActorRef)
           }
         case _ => ()
       }
-    case _ => ()
-      
-
   }
 
   private def scheduleOut(path: String, content: String) = {
@@ -209,23 +212,38 @@ class WebsocketActor(out: ActorRef)
 
     val idx: Int = value.indexOf(opSplitChar)
 
-    val al = value.substring(0, idx)
-    val path = value.substring(idx + 1)
+    if (idx > 0) {
 
-    NewCmdAlias >>('Name -> al, 'Path -> path)
+      val al = value.substring(0, idx)
+      val path = value.substring(idx + 1)
 
-    alias2path += al -> path
-    path2alias += path -> al
+      if (path.isEmpty) {
+        Warning >> ('Message -> s"Invalid cmd alias - blank path")
+      } else {
+
+        NewCmdAlias >>('Name -> al, 'Path -> path)
+
+        alias2path += al -> path
+        path2alias += path -> al
+      }
+    } else {
+      Warning >> ('Message -> s"Invalid cmd alias - invalid payload: $value")
+    }
   }
 
   private def addUUID(value: String) = {
 
-    UserUUID >> ('UUID -> value)
+    if (value.isEmpty) {
+      Warning >> ('Message -> s"Invalid UUID - blank")
+    } else {
 
-    clientSeed = Some(value)
-    cmdReplySubj = Some(LocalSubj(ComponentKey(value), TopicKey("cmd")))
+      UserUUID >> ('UUID -> value)
 
-    proxy ! RegisterComponent(ComponentKey(value), self)
+      clientSeed = Some(value)
+      cmdReplySubj = Some(LocalSubj(ComponentKey(value), TopicKey("cmd")))
+
+      proxy ! RegisterComponent(ComponentKey(value), self)
+    }
 
   }
 
@@ -233,13 +251,23 @@ class WebsocketActor(out: ActorRef)
 
     val idx: Int = value.indexOf(opSplitChar)
 
-    val al = value.substring(0, idx)
-    val path = value.substring(idx + 1)
+    if (idx > 0) {
+      val al = value.substring(0, idx)
+      val path = value.substring(idx + 1)
 
-    NewLocationAlias >>('Name -> al, 'Location -> path)
+      if (path.isEmpty) {
+        Warning >> ('Message -> s"Invalid location alias - blank location")
+      } else {
 
-    alias2location += al -> path
-    location2alias += path -> al
+        NewLocationAlias >>('Name -> al, 'Location -> path)
+
+        alias2location += al -> path
+        location2alias += path -> al
+      }
+    } else {
+      Warning >> ('Message -> s"Invalid location alias - invalid payload: $value")
+
+    }
   }
 
   private def processRequestByType(msgType: Char, subj: Subj, payload: Option[JsValue]) = msgType match {

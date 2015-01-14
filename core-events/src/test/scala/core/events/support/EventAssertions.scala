@@ -15,6 +15,7 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
 
   def clearEvents() =
     EventPublisherRef.ref.asInstanceOf[TestEventPublisher].clear()
+
   def clearComponentEvents(component: CtxComponent) =
     EventPublisherRef.ref.asInstanceOf[TestEventPublisher].clearComponentEvents(component.componentId)
 
@@ -27,7 +28,6 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
     super.afterAll()
     logger.warn("**** > Finished " + this.getClass)
   }
-
 
 
   override protected def afterEach(): Unit = {
@@ -44,15 +44,28 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
   implicit val patienceConfig =
     PatienceConfig(timeout = scaled(Span(5, Seconds)), interval = scaled(Span(15, Millis)))
 
-  
+
   def collectAndPrintEvents() = {
     Thread.sleep(10000)
     printRaisedEvents()
   }
-  
+
   def printRaisedEvents() = {
     val log = LoggerFactory.getLogger("history")
     log.error("*" * 60 + " RAISED EVENTS: " + "*" * 60)
+    EventPublisherRef.ref.asInstanceOf[TestEventPublisher].withOrderedEvents { events =>
+      events.foreach { next =>
+        LoggerEventPublisherWithDateHelper.log(next.timestamp, next.event, CtxSystemRef.ref, next.values, s => log.error(s))
+      }
+    }
+    log.error("*" * 120 + "\n\n\n\n")
+  }
+
+  def report(x: Throwable) = {
+    val log = LoggerFactory.getLogger("history")
+    log.error("Test failed", x)
+    log.error("*" * 60 + " RAISED EVENTS: " + "*" * 60)
+    log.error("Raised events:")
     EventPublisherRef.ref.asInstanceOf[TestEventPublisher].withOrderedEvents { events =>
       events.foreach { next =>
         LoggerEventPublisherWithDateHelper.log(next.timestamp, next.event, CtxSystemRef.ref, next.values, s => log.error(s))
@@ -76,16 +89,7 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
       f
     } catch {
       case x: Throwable =>
-        val log = LoggerFactory.getLogger("history")
-        log.error("Test failed", x)
-        log.error("*" * 60 + " RAISED EVENTS: " + "*" * 60)
-        log.error("Raised events:")
-        EventPublisherRef.ref.asInstanceOf[TestEventPublisher].withOrderedEvents { events =>
-          events.foreach { next =>
-            LoggerEventPublisherWithDateHelper.log(next.timestamp, next.event, CtxSystemRef.ref, next.values, s => log.error(s))
-          }
-        }
-        log.error("*" * 120 + "\n\n\n\n")
+        report(x)
         throw x
     }
   }
@@ -103,7 +107,7 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
     val maybeValue = for (
       all <- locateAllEvents(event);
       first = all.head;
-      (f,v) <- first.find { case (f,v) => f.name == field }
+      (f, v) <- first.find { case (f, v) => f.name == field}
     ) yield v
     maybeValue.get
   }
@@ -112,7 +116,7 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
     val maybeValue = for (
       all <- locateAllEvents(event);
       first = all.last;
-      (f,v) <- first.find { case (f,v) => f.name == field }
+      (f, v) <- first.find { case (f, v) => f.name == field}
     ) yield v
     maybeValue.get
   }
@@ -129,7 +133,13 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
   }
 
   def expectNoEvents(event: Event, values: FieldAndValue*): Unit =
-    events.get(event).foreach(_ shouldNot haveAllValues(values))
+    try {
+      events.get(event).foreach(_ shouldNot haveAllValues(values))
+    } catch {
+      case x: Throwable =>
+        report(x)
+        throw x
+    }
 
   def expectSomeEvents(event: Event, values: FieldAndValue*): Unit = expectSomeEventsWithTimeout(5000, event, values: _*)
 
