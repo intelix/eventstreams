@@ -1,6 +1,3 @@
 language: scala
 scala:
    - 2.11.2
-   
-env:
-   - SBT_OPTS="-XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:PermSize=256M -XX:MaxPermSize=512M -Xms2048M -Xmx4096M -Xss8M"
