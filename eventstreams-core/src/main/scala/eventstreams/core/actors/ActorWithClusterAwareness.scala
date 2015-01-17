@@ -54,15 +54,13 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
     if (nodeIsUp(address)) {
       locateRefFor(address, MessageRouterActor.id) match {
         case Some(ref) =>
-          logger.debug(s"!>>> $msg -> $ref")
           ref ! msg
         case None =>
           val sel = selectionFor(address, MessageRouterActor.id)
-          logger.debug(s"!>>> $msg -> $sel")
           sel ! msg
       }
     } else {
-      logger.info(s"Node $address is not up, message dropped")
+      Warning >> ('Message -> s"Node $address is not up, message dropped")
     }
   }
 

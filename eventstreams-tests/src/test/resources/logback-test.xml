@@ -38,23 +38,23 @@
         <appender-ref ref="EVENTS" />
     </logger>
 
-    <logger name="events" level="${test.loglevel:-WARN}" additivity="false">
+    <logger name="events" level="${test.loglevel:-ERROR}" additivity="false">
         <appender-ref ref="EVENTS" />
     </logger>
 
-    <logger name="history" level="WARN" additivity="false">
+    <logger name="history" level="DEBUG" additivity="false">
         <appender-ref ref="EVENTSHISTORY" />
     </logger>
 
-    <logger name="akka" level="${test.loglevel:-WARN}" />
+    <logger name="akka" level="${test.loglevel:-ERROR}" />
     <logger name="Remoting" level="ERROR" />
 
 
     <logger name="scala.slick" level="WARN" />
 
-    <logger name="akka.cluster.ClusterHeartbeatSender" level="WARN" />
+    <logger name="akka.cluster.ClusterHeartbeatSender" level="ERROR" />
 
-    <root level="${test.loglevel:-WARN}">
+    <root level="${test.loglevel:-ERROR}">
         <appender-ref ref="STDOUT" />
     </root>
 

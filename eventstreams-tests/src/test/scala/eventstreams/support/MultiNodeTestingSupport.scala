@@ -87,7 +87,8 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
     with SubscribingComponentStub
     with AgentManagerActorTestContext
     with ClusterTestContext
-    with ClusterManagerActorTestContext {
+    with ClusterManagerActorTestContext
+    with FlowManagerActorTestContext {
 
     def startEngineNode(systemIndex: Int) =
       withSystem(EngineSystemPrefix, systemIndex) { implicit sys =>
@@ -109,6 +110,7 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
 
     def restartEngineNode(systemIndex: Int) = {
       destroySystem(EngineSystemPrefix + systemIndex.toString)
+      Thread.sleep(10000)
       startEngineNode(systemIndex)
     }
 

@@ -41,7 +41,7 @@ trait ActorWithComposableBehavior extends ActorUtils with StrictLogging with Bas
 
   @throws[Exception](classOf[Exception])
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
-    PreRestart >> ('Reason -> reason.getMessage, 'Message -> message)
+    PreRestart >> ('Reason -> reason.getMessage, 'Message -> message, 'ActorInstance -> self.path.toSerializationFormat)
     super.preRestart(reason, message)
   }
 
@@ -49,19 +49,19 @@ trait ActorWithComposableBehavior extends ActorUtils with StrictLogging with Bas
   @throws[Exception](classOf[Exception])
   override def postRestart(reason: Throwable): Unit = {
     super.postRestart(reason)
-    PostRestart >> ('Reason -> reason.getMessage)
+    PostRestart >> ('Reason -> reason.getMessage, 'ActorInstance -> self.path.toSerializationFormat)
   }
 
   @throws[Exception](classOf[Exception])
   override def preStart(): Unit = {
-    PreStart >> ('Path -> self.path)
+    PreStart >> ('Path -> self.path, 'ActorInstance -> self.path.toSerializationFormat)
     super.preStart()
   }
 
   @throws[Exception](classOf[Exception])
   override def postStop(): Unit = {
     super.postStop()
-    PostStop >> ()
+    PostStop >> ('ActorInstance -> self.path.toSerializationFormat)
   }
 
   def commonBehavior: Receive = {

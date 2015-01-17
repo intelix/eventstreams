@@ -16,6 +16,9 @@
 
 package eventstreams.engine.flows
 
+import _root_.core.events.EventOps.symbolToEventOps
+import _root_.core.events.WithEventPublisher
+import _root_.core.events.ref.ComponentWithBaseEvents
 import akka.actor._
 import com.typesafe.config.Config
 import eventstreams.core.actors._
@@ -24,12 +27,19 @@ import eventstreams.core.{Fail, NowProvider, OK, Utils}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
-import scala.io
 import scalaz.Scalaz._
 import scalaz._
 
 
-object FlowManagerActor extends ActorObjWithConfig {
+trait FlowManagerActorEvents extends ComponentWithBaseEvents with BaseActorEvents with RouteeEvents {
+  override def componentId: String = "Actor.FlowManager"
+
+  val FlowBecomeAvailable = 'FlowBecomeAvailable.info
+
+}
+
+
+object FlowManagerActor extends ActorObjWithConfig with FlowManagerActorEvents {
   def id = "flows"
 
   def props(implicit config: Config) = Props(new FlowManagerActor(config))
@@ -41,7 +51,9 @@ class FlowManagerActor(sysconfig: Config)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
   with RouteeActor
-  with NowProvider {
+  with NowProvider
+  with FlowManagerActorEvents
+  with WithEventPublisher {
 
   val instructionsConfigsList = {
     val list = sysconfig.getConfigList("ehub.flows.instructions")

@@ -39,15 +39,17 @@ import scalaz.{-\/, \/-}
 
 trait FlowActorEvents
   extends ComponentWithBaseEvents
+  with BaseActorEvents
   with WithEventPublisher {
 
   val FlowStarted = 'FlowStarted.trace
+  val FlowConfigured = 'FlowConfigured.trace
 
   override def componentId: String = "Actor.Flow"
 }
 object FlowActorEvents extends FlowActorEvents
 
-object FlowActor {
+object FlowActor extends FlowActorEvents {
   def props(id: String, instructions: List[Config]) = Props(new FlowActor(id, instructions))
 
   def start(id: String, instructions: List[Config])(implicit f: ActorRefFactory) = f.actorOf(props(id, instructions), ActorTools.actorFriendlyId(id))
@@ -97,7 +99,7 @@ class FlowActor(id: String, instructions: List[Config])
   var currentState: FlowState = FlowStateUnknown(Some("Initialising"))
 
 
-  override val commonFields: Seq[FieldAndValue] = Seq('ID ->  id, 'Handler -> self)
+  override def commonFields: Seq[FieldAndValue] = Seq('ID ->  id, 'Name -> name, 'Handler -> self)
 
   override def storageKey: Option[String] = Some(id)
 
@@ -213,6 +215,7 @@ class FlowActor(id: String, instructions: List[Config])
     initialState = config ~> 'initialState | "Closed"
     created = prettyTimeFormat(config ++> 'created | now)
 
+    FlowConfigured >> ()
 
     terminateFlow(Some("Applying new configuration"))
 

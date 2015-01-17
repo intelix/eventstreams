@@ -46,6 +46,8 @@ trait MessageRouterEvents extends ComponentWithBaseEvents with BaseActorEvents w
 
   val NewSubscription = 'NewSubscription.info
 
+  val NewPeerSubscription = 'NewPeerSubscription.info
+
   val RouteAdded = 'RouteAdded.info
   val RouteRemoved = 'RouteRemoved.info
 
@@ -94,6 +96,7 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
   override def onClusterMemberUp(info: NodeInfo): Unit =
     if (info.address.toString != myAddress)
       collectSubjects(_.address == info.address.toString).foreach { subj =>
+        NewPeerSubscription >> ('Subject -> subj)
         forwardToClusterNode(info.address.toString, Subscribe(self, subj))
       }
 

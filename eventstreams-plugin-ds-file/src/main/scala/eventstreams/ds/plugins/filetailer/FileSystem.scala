@@ -54,16 +54,16 @@ class DiskFileSystem extends FileSystem with FileTailerEvents with WithEventPubl
             FileMeta(dir.getAbsolutePath, f.getName, f.isFile, f.length(), f.lastModified(), attributes.creationTime().toMillis)
           }
         } else {
-          Error >>('Message -> s"Unable to get a file listing from $directory  - folder does not exist", 'Attempt -> attempt)
+          Warning >>('Message -> s"Unable to get a file listing from $directory  - folder does not exist", 'Attempt -> attempt)
           Seq()
         }
       } catch {
         case e: Throwable if attempt < 10 =>
-          Error >>('Message -> s"Unable to get a file listing from $directory", 'Error -> e.getMessage, 'Attempt -> attempt)
+          Warning >>('Message -> s"Unable to get a file listing from $directory", 'Error -> e.getMessage, 'Attempt -> attempt)
           Thread.sleep(100)
           list(attempt + 1)
         case e: Throwable  =>
-          Error >>('Message -> s"Unable to get a file listing from $directory", 'Error -> e.getMessage, 'Attempt -> attempt)
+          Warning >>('Message -> s"Unable to get a file listing from $directory", 'Error -> e.getMessage, 'Attempt -> attempt)
           Seq()
       }
     list(1)

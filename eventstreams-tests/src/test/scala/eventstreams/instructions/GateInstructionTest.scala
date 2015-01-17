@@ -44,7 +44,7 @@ class GateInstructionTest(_system: ActorSystem)
   trait WithBasicConfig extends WithGateInstructionContext {
     override def builder: BuilderFromConfig[InstructionType] = new GateInstruction()
 
-    override def config: JsValue = Json.obj(CfgFAddress -> "/user/testGate", CfgFBuffer -> 2)
+    override def config: JsValue = Json.obj(CfgFAddress -> "/user/testGate", CfgFBuffer -> 2, CfgFGateCheckInterval -> 1000)
   }
 
 

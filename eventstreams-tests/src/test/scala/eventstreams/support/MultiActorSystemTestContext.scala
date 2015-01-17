@@ -6,6 +6,7 @@ import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import core.events.support.EventAssertions
+import eventstreams.core.Utils
 import eventstreams.core.actors.ActorWithComposableBehavior
 import eventstreams.core.components.routing.MessageRouterActor
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite, Tag}
@@ -19,6 +20,9 @@ trait MultiActorSystemTestContextEvents extends ComponentWithBaseEvents {
   override def componentId: String = "Test.ActorSystem"
   val ActorSystemCreated = 'ActorSystemCreated.trace
   val ActorSystemTerminated = 'ActorSystemTerminated.trace
+  val TerminatingActorSystem = 'TerminatingActorSystem.trace
+  val DestroyingAllSystems = 'DestroyingAllSystems.trace
+  val DestroyingActor = 'DestroyingActor.trace
   val AllActorsTerminated = 'AllActorsTerminated.trace
 }
 
@@ -32,21 +36,33 @@ trait ActorSystemWrapper {
 }
 
 private case class Watch(ref: ActorRef)
+private case class StopAll()
 private trait WatcherEvents extends ComponentWithBaseEvents {
-  override def componentId: String = "Test.Watcher"
+  val Watching = 'Watching.trace
   val WatchedActorGone = 'WatchedActorGone.trace
   val AllWatchedActorsGone = 'AllWatchedActorsGone.trace
+  val TerminatingActor = 'TerminatingActor.trace
+  override def componentId: String = "Test.Watcher"
 }
 private object WatcherActor extends WatcherEvents {
-  def props = Props(new WatcherActor())
+  def props(componentId: String) = Props(new WatcherActor(componentId))
 }
-private class WatcherActor extends ActorWithComposableBehavior with WatcherEvents with WithEventPublisher {
+private class WatcherActor(id: String) extends ActorWithComposableBehavior with WatcherEvents with WithEventPublisher {
   override def commonBehavior: Receive = handler orElse super.commonBehavior
+
+
+  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('InstanceId -> id)
 
   var watched = Set[ActorRef]()
 
   def handler: Receive = {
+    case StopAll() =>
+      watched.foreach { a =>
+        TerminatingActor >> ('Actor -> a)
+        context.stop(a)
+      }
     case Watch(ref) =>
+      Watching >> ('Ref -> ref)
       watched = watched + ref
       context.watch(ref)
     case Terminated(ref) =>
@@ -67,39 +83,39 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
   object OnlyThisTest extends Tag("OnlyThisTest")
 
   case class Wrapper(config: Config, underlyingSystem: ActorSystem, id: String) extends ActorSystemWrapper {
-    private var actors = List[ActorRef]()
-    private val watcher = underlyingSystem.actorOf(WatcherActor.props)
+    private val watcherComponentId = Utils.generateShortUUID
+    private val watcher = underlyingSystem.actorOf(WatcherActor.props(watcherComponentId))
     override def start(props: Props, id: String): ActorRef = {
       val newActor = underlyingSystem.actorOf(props, id)
-      actors = actors :+ newActor
+      watcher ! Watch(newActor)
       newActor
     }
     override def stopActor(id: String) = {
       val futureActor = rootUserActorSelection(id).resolveOne(5.seconds)
       val actor = Await.result(futureActor, 5.seconds)
-      watcher ! Watch(actor)
+      DestroyingActor >> ('Actor -> actor)
       underlyingSystem.stop(actor)
-      expectSomeEventsWithTimeout(30000, WatcherActor.AllWatchedActorsGone)
-      clearComponentEvents(WatcherActor)
+      expectSomeEventsWithTimeout(5000, WatcherActor.WatchedActorGone, 'Path -> actor.path.toSerializationFormat, 'InstanceId -> watcherComponentId)
+      clearComponentEvents(watcherComponentId)
     }
     def stop() = Try {
+      TerminatingActorSystem >> ('Name -> id)
       val startCheckpoint = System.nanoTime()
-      stopActors()
+      try { stopActors() } catch {
+        case x : Throwable => x.printStackTrace()
+      }
+      underlyingSystem.stop(watcher)
       underlyingSystem.shutdown()
       underlyingSystem.awaitTermination(60.seconds)
       ActorSystemTerminated >> ('Name -> id, 'TerminatedInMs -> (System.nanoTime() - startCheckpoint)/1000000)
     }
     def stopActors() = Try {
       val startCheckpoint = System.nanoTime()
-      actors.foreach { a =>
-        watcher ! Watch(a)
-      }
-      actors.foreach { a =>
-        underlyingSystem.stop(a)
-      }
-      expectSomeEventsWithTimeout(30000, WatcherActor.AllWatchedActorsGone)
-      clearComponentEvents(WatcherActor)
-      AllActorsTerminated >> ('TerminatedInMs -> (System.nanoTime() - startCheckpoint)/1000000)
+      clearComponentEvents(watcherComponentId)
+      watcher ! StopAll()
+      expectSomeEventsWithTimeout(30000, WatcherActor.AllWatchedActorsGone, 'InstanceId -> watcherComponentId)
+      clearComponentEvents(watcherComponentId)
+      AllActorsTerminated >> ('TerminatedInMs -> (System.nanoTime() - startCheckpoint)/1000000, 'System -> id)
     }
   }
 
@@ -134,6 +150,7 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
   }
 
   def destroyAllSystems() = {
+    DestroyingAllSystems >> ()
     systems.values.foreach(_.stop())
     systems = Map()
   }

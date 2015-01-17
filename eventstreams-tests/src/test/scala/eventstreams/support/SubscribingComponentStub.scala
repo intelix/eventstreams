@@ -9,7 +9,7 @@ import eventstreams.core.Utils
 import eventstreams.core.actors.{ActorWithComposableBehavior, BaseActorEvents}
 import eventstreams.core.components.routing.MessageRouterActor
 import eventstreams.core.messages._
-import play.api.libs.json.JsValue
+import play.api.libs.json.{Json, JsValue}
 
 import scalaz._
 import Scalaz._
@@ -68,7 +68,7 @@ class SubscribingComponentStubActor(instanceId: String) extends ActorWithComposa
       MessageRouterActor.path(context) ! RegisterComponent(ComponentKey(uuid), self)
       MessageRouterActor.path(context) ! Command(self, subj, Some(LocalSubj(ComponentKey(uuid), TopicKey("_"))), data)
     case x : Stale => StaleReceived >> ('Message -> x)
-    case x : Update => UpdateReceived >> ('Message -> x, 'Subject -> x.subj, 'Contents -> (x.data ~> 'msg | "n/a"))
+    case x : Update => UpdateReceived >> ('Message -> x, 'Subject -> x.subj, 'Contents -> (x.data ~> 'msg | "n/a"), 'Data -> Json.stringify(x.data))
     case x : CommandErr => CommandErrReceived >> ('Message -> x, 'Subject -> x.subj, 'Contents -> ((x.data #> 'error ~> 'msg) | "n/a"))
     case x : CommandOk => CommandOkReceived >> ('Message -> x, 'Subject -> x.subj, 'Contents -> ((x.data #> 'ok ~> 'msg) | "n/a"))
     case x => UnknownMessageReceived >> ('Message -> x)

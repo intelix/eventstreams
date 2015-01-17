@@ -29,15 +29,6 @@ trait ActorSystemTestContext extends EventAssertions {
     super.beforeAll()
   }
 
-  def stopSystem() = {
-    super.afterAll()
-    withSystem { s =>
-      s.shutdown()
-      s.awaitTermination(60.seconds)
-    }
-    system = None
-  }
-
   def withSystem(f: ActorSystem => Unit) = system.foreach(f)
 
 }

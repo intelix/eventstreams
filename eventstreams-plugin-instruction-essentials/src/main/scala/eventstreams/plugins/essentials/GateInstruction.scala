@@ -16,6 +16,8 @@
 
 package eventstreams.plugins.essentials
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.{ActorRef, Props}
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import core.events.EventOps.symbolToEventOps
@@ -29,6 +31,7 @@ import eventstreams.core.agent.core.GateState
 import eventstreams.core.instructions.InstructionConstants
 import play.api.libs.json.{JsValue, Json}
 
+import scala.concurrent.duration.FiniteDuration
 import scalaz.Scalaz._
 import scalaz._
 
@@ -57,6 +60,7 @@ trait GateInstructionConstants
   val CfgFAddress = "address"
   val CfgFBuffer = "buffer"
   val CfgFBlockingDelivery = "blockingDelivery"
+  val CfgFGateCheckInterval = "gateCheckInterval"
   val CfgFCondition = "simpleCondition"
 
 }
@@ -93,6 +97,9 @@ private class GateInstructionActor(instructionId: String, address: String, confi
   val blockingDelivery = config ?> CfgFBlockingDelivery | true
   private val condition = SimpleCondition.conditionOrAlwaysTrue(config ~> CfgFCondition)
 
+
+  override def gateStateCheckInterval: FiniteDuration =
+    (config +> CfgFGateCheckInterval).map(FiniteDuration(_, TimeUnit.MILLISECONDS)) | super.gateStateCheckInterval
 
   override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('Address -> address, 'InstructionInstanceId -> instructionId)
 

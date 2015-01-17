@@ -129,7 +129,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                waitAndCheck {
                  expectNoEvents(FileTailerConstants.MessagePublished)
                }
-               expectSomeEvents(FileTailerConstants.Error)
+               expectSomeEvents(FileTailerConstants.Warning)
              }
            }
 
