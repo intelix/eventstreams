@@ -37,13 +37,13 @@ trait EnrichInstructionEvents extends ComponentWithBaseEvents {
   override def componentId: String = "Instruction.Enrich"
 }
 
-trait EnrichInstructionConstants extends InstructionConstants with EnrichInstructionEvents {
+trait EnrichInstructionConstants extends InstructionConstants {
   val CfgFFieldToEnrich = "fieldToEnrich"
   val CfgFTargetValueTemplate = "targetValueTemplate"
   val CfgFTargetType = "targetType"
 }
 
-class EnrichInstruction extends SimpleInstructionBuilder with EnrichInstructionConstants with WithEventPublisher {
+class EnrichInstruction extends SimpleInstructionBuilder with EnrichInstructionConstants with EnrichInstructionEvents with WithEventPublisher {
   val configId = "enrich"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =

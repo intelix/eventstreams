@@ -18,14 +18,14 @@ package eventstreams.instructions
 
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.plugins.essentials.{EnrichInstruction, EnrichInstructionConstants}
+import eventstreams.plugins.essentials.{EnrichInstructionEvents, EnrichInstruction, EnrichInstructionConstants}
 import eventstreams.support.TestHelpers
 import play.api.libs.json.{JsNull, JsValue, Json}
 
 class EnrichInstructionTest extends TestHelpers {
 
 
-  trait WithBasicConfig extends WithSimpleInstructionBuilder with EnrichInstructionConstants {
+  trait WithBasicConfig extends WithSimpleInstructionBuilder with EnrichInstructionConstants with EnrichInstructionEvents {
     override def builder: SimpleInstructionBuilder = new EnrichInstruction()
 
     override def config: JsValue = Json.obj(
@@ -92,7 +92,7 @@ class EnrichInstructionTest extends TestHelpers {
   }
 
 
-  trait WithComplexEnrich extends WithSimpleInstructionBuilder with EnrichInstructionConstants {
+  trait WithComplexEnrich extends WithSimpleInstructionBuilder with EnrichInstructionConstants with EnrichInstructionEvents {
     override def builder: SimpleInstructionBuilder = new EnrichInstruction()
 
     override def config: JsValue = Json.obj(
@@ -139,7 +139,7 @@ class EnrichInstructionTest extends TestHelpers {
   }
 
 
-  trait WithNumericEnrich extends WithSimpleInstructionBuilder with EnrichInstructionConstants {
+  trait WithNumericEnrich extends WithSimpleInstructionBuilder with EnrichInstructionConstants with EnrichInstructionEvents {
     override def builder: SimpleInstructionBuilder = new EnrichInstruction()
 
     override def config: JsValue = Json.obj(

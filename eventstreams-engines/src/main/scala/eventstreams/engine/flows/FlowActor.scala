@@ -40,6 +40,7 @@ import scalaz.{-\/, \/-}
 trait FlowActorEvents
   extends ComponentWithBaseEvents
   with BaseActorEvents
+  with StateChangeEvents
   with WithEventPublisher {
 
   val FlowStarted = 'FlowStarted.trace

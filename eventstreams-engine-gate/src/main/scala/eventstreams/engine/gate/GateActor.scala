@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package eventstreams.engine.gates
+package eventstreams.engine.gate
 
 import akka.actor._
 import eventstreams.core.Tools.configHelper
@@ -104,8 +104,6 @@ class GateActor(id: String)
 
 
   override def preStart(): Unit = {
-
-    GateSensorManagerActor.start(id)
 
     if (isComponentActive)
       openGate()

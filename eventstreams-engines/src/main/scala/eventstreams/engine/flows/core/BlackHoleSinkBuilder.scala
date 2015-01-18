@@ -19,15 +19,23 @@ package eventstreams.engine.flows.core
 import akka.actor.{Actor, Props}
 import akka.stream.actor.ActorSubscriberMessage.OnNext
 import akka.stream.actor.{RequestStrategy, WatermarkRequestStrategy, ZeroRequestStrategy}
-import eventstreams.core.actors.{Acknowledged, ActorWithComposableBehavior, PipelineWithStatesActor, StoppableSubscriberActor}
+import core.events.EventOps.symbolToEventOps
+import core.events.WithEventPublisher
+import core.events.ref.ComponentWithBaseEvents
+import eventstreams.core.Tools.configHelper
+import eventstreams.core.actors._
 import eventstreams.core.agent.core.ProducedMessage
 import eventstreams.core._
 import Types.SinkActorPropsType
 import nl.grons.metrics.scala.MetricName
-import play.api.libs.json.JsValue
+import play.api.libs.json.{Json, JsValue}
 
 import scalaz.Scalaz._
 import scalaz._
+
+trait BlackHoleSinkEvents extends ComponentWithBaseEvents with BaseActorEvents with StandardSubscriberEvents {
+  override def componentId: String = "Flow.BlackHole"
+}
 
 private[core] object BlackHoleSinkBuilder extends BuilderFromConfig[SinkActorPropsType] {
   val configId = "blackhole"
@@ -37,7 +45,7 @@ private[core] object BlackHoleSinkBuilder extends BuilderFromConfig[SinkActorPro
 
 }
 
-private object BlackholeAutoAckSinkActor {
+ object BlackholeAutoAckSinkActor extends BlackHoleSinkEvents {
   def props(id: Option[String]) = Props(new BlackholeAutoAckSinkActor(id))
 }
 
@@ -45,7 +53,9 @@ private class BlackholeAutoAckSinkActor(maybeId: Option[String])
   extends ActorWithComposableBehavior
   with StoppableSubscriberActor
   with PipelineWithStatesActor
-  with WithMetrics {
+  with WithMetrics
+  with BlackHoleSinkEvents
+  with WithEventPublisher {
 
   override lazy val metricBaseName: MetricName = MetricName("flow")
   val id = maybeId | "default"
@@ -57,18 +67,21 @@ private class BlackholeAutoAckSinkActor(maybeId: Option[String])
 
   @throws[Exception](classOf[Exception])
   override def preStart(): Unit = {
-    logger.info(s"!>>> Starting black hole")
     super.preStart()
     self ! BecomeActive()
   }
 
   override def commonBehavior: Actor.Receive = super.commonBehavior orElse {
     case OnNext(ProducedMessage(v, c)) =>
-      logger.debug(s"Sent into the black hole: $v")
+      MessageArrived >>('EventId -> (v ~> 'eventId | "n/a"), 'Contents -> Json.stringify(v))
       _rate.mark()
       context.parent ! Acknowledged[Option[JsValue]](-1, c)
+    case OnNext(JsonFrame(v,ctx)) =>
+      MessageArrived >>('EventId -> (v ~> 'eventId | "n/a"), 'Contents -> Json.stringify(v))
+      _rate.mark()
+      context.parent ! Acknowledged[Option[JsValue]](-1, None)
     case OnNext(msg) =>
-      logger.debug(s"Sent into the black hole: $msg")
+      MessageArrived >>('Contents -> msg)
       _rate.mark()
       context.parent ! Acknowledged[Option[JsValue]](-1, None)
   }

@@ -25,7 +25,7 @@ import play.api.libs.json._
 class LogInstructionTest extends TestHelpers {
 
 
-  trait WithBasicConfig extends WithSimpleInstructionBuilder with LogInstructionConstants {
+  trait WithBasicConfig extends WithSimpleInstructionBuilder with LogInstructionConstants with LogInstructionEvents {
     override def builder: SimpleInstructionBuilder = new LogInstruction()
 
     override def config: JsValue = Json.obj(
@@ -59,7 +59,7 @@ class LogInstructionTest extends TestHelpers {
     expectEvent(Json.obj("eventId" -> "id", "abc1" -> "bla", "tags" -> Json.arr("abc")))('eventname.info)
   }
 
-  trait WithWarnConfig extends WithSimpleInstructionBuilder with LogInstructionConstants {
+  trait WithWarnConfig extends WithSimpleInstructionBuilder with LogInstructionConstants with LogInstructionEvents {
     override def builder: SimpleInstructionBuilder = new LogInstruction()
 
     override def config: JsValue = Json.obj(
@@ -73,7 +73,7 @@ class LogInstructionTest extends TestHelpers {
     expectEvent(Json.obj("eventId" -> "id", "abc1" -> "bla", "tags" -> Json.arr("abc")))('eventname.warn)
   }
 
-  trait WithErrorConfig extends WithSimpleInstructionBuilder with LogInstructionConstants {
+  trait WithErrorConfig extends WithSimpleInstructionBuilder with LogInstructionConstants with LogInstructionEvents {
     override def builder: SimpleInstructionBuilder = new LogInstruction()
 
     override def config: JsValue = Json.obj(

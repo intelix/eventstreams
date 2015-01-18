@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package eventstreams.engine.gates
+package eventstreams.engine.gate
 
 import akka.actor._
 import com.typesafe.config.Config

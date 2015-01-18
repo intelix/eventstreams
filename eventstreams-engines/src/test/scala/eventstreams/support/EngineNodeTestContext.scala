@@ -16,7 +16,6 @@ package eventstreams.support
  * limitations under the License.
  */
 
-import akka.actor.ActorRef
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.Suite
 

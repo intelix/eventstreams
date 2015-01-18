@@ -37,15 +37,15 @@ trait LogInstructionEvents extends ComponentWithBaseEvents {
   override def componentId: String = "Instruction.Log"
 }
 
-trait LogInstructionConstants extends InstructionConstants with LogInstructionEvents {
+trait LogInstructionConstants extends InstructionConstants {
   val CfgFLevel = "level"
   val CfgFEvent = "event"
 
 }
 
-object LogInstructionConstants extends LogInstructionConstants
+object LogInstructionConstants extends LogInstructionConstants with LogInstructionEvents
 
-class LogInstruction extends SimpleInstructionBuilder with LogInstructionConstants with WithEventPublisher {
+class LogInstruction extends SimpleInstructionBuilder with LogInstructionConstants with LogInstructionEvents with WithEventPublisher {
   val configId = "log"
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] = {

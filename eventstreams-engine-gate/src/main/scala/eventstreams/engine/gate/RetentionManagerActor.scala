@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package eventstreams.engine.gates
+package eventstreams.engine.gate
 
 import java.util.Calendar
 

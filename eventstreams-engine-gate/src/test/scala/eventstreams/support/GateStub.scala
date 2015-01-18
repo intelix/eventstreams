@@ -8,6 +8,7 @@ import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.JsonFrame
 import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor}
 import eventstreams.core.agent.core._
+import eventstreams.engine.gate.RegisterSink
 import play.api.libs.json.JsValue
 
 import scala.util.Try
@@ -22,6 +23,7 @@ private case class GateStubConfigDoAcknowledgeAsProcessed()
 
 private case class GateStubAutoCloseAfter(n: Int)
 
+private case class SendToSinks(m: Any)
 
 trait GateStubTestContext {
 
@@ -48,6 +50,8 @@ trait GateStubTestContext {
   def autoCloseGateAfter(name: String, messagesCount: Int): Unit = gates.get(name).foreach(autoCloseGateAfter(_, messagesCount))
   def autoCloseGateAfter(f: ActorRef, messagesCount: Int): Unit = f ! GateStubAutoCloseAfter(messagesCount)
 
+  def sendFromGateToSinks(name: String, m: Any): Unit = gates.get(name).foreach(sendFromGateToSinks(_, m))
+  def sendFromGateToSinks(f: ActorRef, m: Any): Unit = f ! SendToSinks(m)
 
 }
 
@@ -88,8 +92,11 @@ trait GateStubActorEvents extends ComponentWithBaseEvents {
   val UnrecognisedMessageAtGate = 'UnrecognisedMessageAtGate.info
   val OpeningGate = 'OpeningGate.info
   val ClosingGate = 'ClosingGate.info
+  val RegisterSinkReceived = 'RegisterSinkReceived.info
   val AutoClosingRequested = 'AutoClosingRequested.info
   val AutoClosingGate = 'AutoClosingGate.info
+  val AcknowledgeAsProcessedReceived = 'AcknowledgeAsProcessed.info
+  val AcknowledgeAsReceivedReceived = 'AcknowledgeAsReceivedReceived.info
 
   override def componentId: String = "Test.GateStubActor"
 }
@@ -107,6 +114,7 @@ class GateStubActor(name: String)
   var state: GateState = GateClosed()
   var ackFlags: Set[Any] = Set()
   var autoCloseCounter: Option[Int] =  None
+  var sinks: Set[ActorRef] = Set()
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
@@ -151,6 +159,12 @@ class GateStubActor(name: String)
     case GateStubAutoCloseAfter(x) =>
       AutoClosingRequested >> ('Count -> x)
       autoCloseCounter = Some(x)
+    case RegisterSink(ref) =>
+      RegisterSinkReceived >> ('Ref -> ref)
+      sinks += ref
+    case SendToSinks(m) => sinks.foreach(_ ! m)
+    case AcknowledgeAsProcessed(id) => AcknowledgeAsProcessedReceived >> ('CorrelationId -> id)
+    case AcknowledgeAsReceived(id) => AcknowledgeAsReceivedReceived >> ('CorrelationId -> id)
     case x => UnrecognisedMessageAtGate >> ('Message -> x)
   }
 

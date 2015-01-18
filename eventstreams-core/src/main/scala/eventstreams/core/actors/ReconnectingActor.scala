@@ -103,9 +103,10 @@ trait ReconnectingActor
     case Associate() =>
       initiateReconnect()
     case DisassociatedEvent(local, remote, inbound) =>
-      RemoteActorDisassociated >>('Target -> remote)
       peer match {
-        case Some(ref) if ref.path.address == remote => disconnect()
+        case Some(ref) if ref.path.address == remote =>
+          RemoteActorDisassociated >>('Target -> remote)
+          disconnect()
         case _ => ()
       }
     case AssociationFailed(x) =>

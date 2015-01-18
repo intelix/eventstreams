@@ -22,7 +22,8 @@ lazy val eventStreamsInstructionsEssentials = Project(
   base = file("eventstreams-plugin-instruction-essentials"),
   dependencies = Seq(
     coreEvents % "compile;test->test",
-    eventStreamsCore % "compile;test->test"
+    eventStreamsCore % "compile;test->test",
+    eventStreamsEngineGate % "test->test"
   )
 )
 
@@ -35,12 +36,31 @@ lazy val eventStreamsPluginEndpointInfluxDB = Project(
   )
 )
 
+lazy val eventStreamsEngineGate = Project(
+  id = "eventstreams-engine-gate",
+  base = file("eventstreams-engine-gate"),
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore % "compile;test->test"
+  )
+)
+lazy val eventStreamsEngineFlow = Project(
+  id = "eventstreams-engine-flow",
+  base = file("eventstreams-engine-flow"),
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore % "compile;test->test"
+  )
+)
+
 lazy val eventStreamsEngines = Project(
   id = "eventstreams-engines",
   base = file("eventstreams-engines"),
   dependencies = Seq(
     coreEvents  % "compile;test->test",
     eventStreamsCore % "compile;test->test",
+    eventStreamsEngineGate % "compile;test->test",
+    eventStreamsEngineFlow % "compile;test->test",
     eventStreamsInstructionsEssentials,
     eventStreamsPluginEndpointInfluxDB
   )

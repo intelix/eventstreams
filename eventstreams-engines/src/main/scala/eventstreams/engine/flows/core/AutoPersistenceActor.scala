@@ -21,7 +21,7 @@ import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import eventstreams.core.JsonFrame
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors._
-import eventstreams.engine.gates.{RetentionManagerActor, ScheduleStorage}
+import eventstreams.engine.gate.{RetentionManagerActor, ScheduleStorage}
 
 
 object AutoPersistenceActor {

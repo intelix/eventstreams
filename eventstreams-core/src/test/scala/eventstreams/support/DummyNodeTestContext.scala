@@ -37,7 +37,6 @@ trait DummyNodeTestContext extends MultiNodeTestingSupport {
   trait WithDummyNode
     extends ConfigStorageActorTestContext
     with MessageRouterActorTestContext
-    with GateStubTestContext
     with SubscribingComponentStub
     with ClusterTestContext
     with ClusterManagerActorTestContext {
@@ -54,9 +53,6 @@ trait DummyNodeTestContext extends MultiNodeTestingSupport {
 
       }
 
-    def startGate(systemIndex: Int, name: String) = withSystem(DummySystemPrefix, systemIndex) { sys =>
-      withGateStub(sys, name)
-    }
 
     def restartDummyNode(systemIndex: Int) = {
       destroySystem(DummySystemPrefix + systemIndex.toString)
@@ -72,8 +68,6 @@ trait DummyNodeTestContext extends MultiNodeTestingSupport {
 
     def startDummyNode1(): Unit = startDummyNode(1)
 
-    def startGate1(name: String): Unit = startGate(1, name)
-
     def restartDummyNode1(): Unit = restartDummyNode(1)
 
     startDummyNode1()
@@ -85,8 +79,6 @@ trait DummyNodeTestContext extends MultiNodeTestingSupport {
     def dummy2System = getSystem(DummySystemPrefix + "2")
 
     def startDummyNode2(): Unit = startDummyNode(2)
-
-    def startGate2(name: String): Unit = startGate(2, name)
 
     def restartDummyNode2(): Unit = restartDummyNode(2)
 
@@ -100,8 +92,6 @@ trait DummyNodeTestContext extends MultiNodeTestingSupport {
 
     def startDummyNode3(): Unit = startDummyNode(3)
 
-    def startGate3(name: String): Unit = startGate(3, name)
-
     def restartDummyNode3(): Unit = restartDummyNode(3)
 
     startDummyNode3()
@@ -114,8 +104,6 @@ trait DummyNodeTestContext extends MultiNodeTestingSupport {
 
     def startDummyNode4(): Unit = startDummyNode(4)
 
-    def startGate4(name: String): Unit = startGate(4, name)
-
     def restartDummyNode4(): Unit = restartDummyNode(4)
 
     startDummyNode4()
@@ -127,8 +115,6 @@ trait DummyNodeTestContext extends MultiNodeTestingSupport {
     def dummy5System = getSystem(DummySystemPrefix + "5")
 
     def startDummyNode5(): Unit = startDummyNode(5)
-
-    def startGate5(name: String): Unit = startGate(5, name)
 
     def restartDummyNode5(): Unit = restartDummyNode(5)
 

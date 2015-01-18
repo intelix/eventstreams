@@ -18,17 +18,24 @@ package eventstreams.engine.flows.core
 
 import akka.actor.{ActorRefFactory, Props}
 import akka.stream.actor.ActorPublisherMessage.Request
+import core.events.WithEventPublisher
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.configHelper
+import eventstreams.core.Types.TapActorPropsType
+import eventstreams.core._
 import eventstreams.core.actors._
 import eventstreams.core.agent.core.{AcknowledgeAsProcessed, AcknowledgeAsReceived, Acknowledgeable}
-import eventstreams.core._
-import Types.TapActorPropsType
-import eventstreams.engine.gates.RegisterSink
+import eventstreams.engine.gate.RegisterSink
 import nl.grons.metrics.scala.MetricName
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
 import scalaz._
+
+trait GateInputEvents extends ComponentWithBaseEvents with BaseActorEvents {
+
+  override def componentId: String = "Flow.GateInput"
+}
 
 private[core] object GateInputBuilder extends BuilderFromConfig[TapActorPropsType] {
   val configId = "gate"
@@ -39,7 +46,7 @@ private[core] object GateInputBuilder extends BuilderFromConfig[TapActorPropsTyp
     ) yield GateInputActor.props(id | "default", address)
 }
 
-private object GateInputActor {
+ object GateInputActor extends GateInputEvents{
   def props(id: String, address: String) = Props(new GateInputActor(id, address))
 
   def start(id: String, address: String)(implicit f: ActorRefFactory) = f.actorOf(props(id, address))
@@ -51,7 +58,9 @@ private class GateInputActor(id: String, address: String)
   with ReconnectingActor
   with PipelineWithStatesActor
   with ActorWithDupTracking
-  with WithMetrics {
+  with WithMetrics
+  with GateInputEvents
+  with WithEventPublisher {
 
   override lazy val metricBaseName: MetricName = MetricName("flow")
 
