@@ -309,7 +309,7 @@ class WebsocketActorTest
   }
 
 
-  it should "ignore invalid S message - unknown alias" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+  it should "ignore invalid S message - unknown alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
     sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
     sendToWebsocketOn1(buildValidSubscribe("2"))
@@ -320,7 +320,7 @@ class WebsocketActorTest
     }
   }
 
-  it should "ignore invalid S message - missing delimiter" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+  it should "ignore invalid S message - missing delimiter" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
     sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
     sendToWebsocketOn1("S1")
@@ -331,7 +331,7 @@ class WebsocketActorTest
     }
   }
 
-  it should "ignore invalid S message - missing alias" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+  it should "ignore invalid S message - missing alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
     sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
     sendToWebsocketOn1(buildValidSubscribe(""))
@@ -342,7 +342,7 @@ class WebsocketActorTest
     }
   }
 
-  it should "ignore invalid U message - unknown alias" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+  it should "ignore invalid U message - unknown alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
     sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
     sendToWebsocketOn1(buildValidUnsubscribe("2"))
@@ -353,7 +353,7 @@ class WebsocketActorTest
     }
   }
 
-  it should "ignore invalid U message - missing delimiter" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+  it should "ignore invalid U message - missing delimiter" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
     sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
     sendToWebsocketOn1("U1")
@@ -364,7 +364,7 @@ class WebsocketActorTest
     }
   }
 
-  it should "ignore invalid U message - missing alias" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+  it should "ignore invalid U message - missing alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
     sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
     sendToWebsocketOn1(buildValidUnsubscribe(""))
@@ -375,7 +375,7 @@ class WebsocketActorTest
     }
   }
 
-  it should "ignore invalid C message - unknown alias" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+  it should "ignore invalid C message - unknown alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
     sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
     sendToWebsocketOn1(buildValidCommand("2", None))
@@ -387,7 +387,7 @@ class WebsocketActorTest
     }
   }
 
-  it should "ignore invalid C message - missing delimiter" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+  it should "ignore invalid C message - missing delimiter" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
     sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
     sendToWebsocketOn1("C1")
@@ -399,7 +399,7 @@ class WebsocketActorTest
     }
   }
 
-  it should "ignore invalid C message - missing alias" taggedAs OnlyThisTest in new WithTwoWebsocketActors {
+  it should "ignore invalid C message - missing alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
     sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
     sendToWebsocketOn1(buildValidCommand("", None))

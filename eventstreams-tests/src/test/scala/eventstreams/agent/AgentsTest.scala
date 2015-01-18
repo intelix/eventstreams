@@ -88,14 +88,8 @@ class AgentsTest
     expectSomeEvents(1, AgentControllerActor.DatasourceInstanceAvailable)
   }
 
-  "AgentManager with a subscriber" should "update a subscirber when new agent arrives" in new WithSubscriberForAgentManager {
+  "AgentManager with a subscriber" should "update a subscriber when new agent arrives" taggedAs OnlyThisTest in new WithSubscriberForAgentManager {
     expectSomeEvents(AgentsManagerActor.UpdateForSubject)
-    clearEvents()
-    sendToAgentController1(CreateDatasource(Json.obj()))
-    expectSomeEvents(AgentsManagerActor.UpdateForSubject)
-    val data = Json.parse(locateFirstEventFieldValue(AgentsManagerActor.UpdateForSubject, "Data").asInstanceOf[String])
-    data.as[JsArray].value should not be empty
-
   }
 
   "Agent Controller with datasource actor" should "not have datasource instance if config is blank" in new WithAgentNode1 with WithEngineNode1  {
@@ -331,7 +325,7 @@ class AgentsTest
       expectSomeEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString)
     }
   }
-  it should "deliver all messages even if engine restarts in between" taggedAs OnlyThisTest in new With100Events {
+  it should "deliver all messages even if engine restarts in between" in new With100Events {
     autoCloseGateAfter("gate1", 25)
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
@@ -347,7 +341,7 @@ class AgentsTest
     }
   }
 
-  it should "deliver all messages even if engine restarts multiple times in between" taggedAs OnlyThisTest in new With100Events {
+  it should "deliver all messages even if engine restarts multiple times in between" in new With100Events {
     autoCloseGateAfter("gate1", 25)
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")

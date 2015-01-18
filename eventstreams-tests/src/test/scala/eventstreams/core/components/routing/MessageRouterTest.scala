@@ -249,13 +249,13 @@ class MessageRouterTest
     expectSomeEvents(1, MessageRouterActor.NewSubscription, 'InstanceAddress -> engine1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://engine@localhost:12521")
   }
 
-  it should s"resubscribe with restarted component on another node" taggedAs OnlyThisTest in new WithThreeSubscribersToInfoAndOneToList {
+  it should s"resubscribe with restarted component on another node" in new WithThreeSubscribersToInfoAndOneToList {
     restartEngineNode1()
     expectSomeEventsWithTimeout(30000, 1, MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> engine1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://engine@localhost:12521")
     expectSomeEvents(1, MessageRouterActor.NewSubjectSubscription)
   }
 
-  it should s"resubscribe with restarted component on another node - eventually subscribe to providers" taggedAs OnlyThisTest in new WithThreeSubscribersToInfoAndOneToList {
+  it should s"resubscribe with restarted component on another node - eventually subscribe to providers" in new WithThreeSubscribersToInfoAndOneToList {
     restartEngineNode1()
     expectSomeEventsWithTimeout(30000, 1, MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> engine1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://engine@localhost:12521")
     duringPeriodInMillis(2000) {

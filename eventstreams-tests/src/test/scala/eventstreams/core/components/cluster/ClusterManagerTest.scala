@@ -11,7 +11,7 @@ class ClusterManagerTest
   val expectedPeersListInitial = "engine1"
   val expectedPeersListComplete = "engine1,engine2,worker1,worker2,worker3"
 
-  "Cluster" should "start with 5 nodes and all peers should be discovered" taggedAs OnlyThisTest in new WithEngineNode1
+  "Cluster" should "start with 5 nodes and all peers should be discovered" in new WithEngineNode1
     with WithEngineNode2 with WithWorkerNode1 with WithWorkerNode2 with WithWorkerNode3 {
     expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> expectedPeersListInitial, 'Node -> "engine1")
     expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "engine1")
@@ -51,7 +51,7 @@ class ClusterManagerTest
     expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "worker3")
   }
 
-  it should s"recover if one node fails" taggedAs OnlyThisTest in new WithEngineNode1
+  it should s"recover if one node fails" in new WithEngineNode1
     with WithEngineNode2 with WithWorkerNode1 with WithWorkerNode2 with WithWorkerNode3 {
     expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> expectedPeersListInitial, 'Node -> "engine1")
     expectSomeEventsWithTimeout(30000, 5, ClusterStateChanged, 'Peers -> expectedPeersListComplete)
