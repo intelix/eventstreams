@@ -162,6 +162,7 @@ trait MultiNodeTestingSupport extends EventAssertions with MultiActorSystemTestC
 
     def restartWorkerNode(systemIndex: Int) = {
       destroySystem(WorkerSystemPrefix + systemIndex.toString)
+      Thread.sleep(5000)
       startWorkerNode(systemIndex)
     }
 
