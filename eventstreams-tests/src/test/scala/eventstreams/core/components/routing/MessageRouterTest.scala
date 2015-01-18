@@ -289,8 +289,8 @@ class MessageRouterTest
   }
   it should "use cached value for all new subscriptions (update on list followed by new subscriber to list)" in new WithThreeSubscribersToInfoAndOneToList {
     updateTopicFromRoutee1(engine1System, T_LIST, "test")
-    subscribeFrom2(engine1System, RemoteSubj(engine1Address, LocalSubj(componentKeyForRouteeStub1, T_LIST)))
     expectSomeEvents(1, SubscribingComponentStub.UpdateReceived, 'Contents -> "test", 'Subject -> "provider/routeeStub1#list@akka.tcp://engine@localhost:12521", 'InstanceId -> "subscriberStub1")
+    subscribeFrom2(engine1System, RemoteSubj(engine1Address, LocalSubj(componentKeyForRouteeStub1, T_LIST)))
     expectSomeEvents(1, SubscribingComponentStub.UpdateReceived, 'Contents -> "test", 'Subject -> "provider/routeeStub1#list@akka.tcp://engine@localhost:12521", 'InstanceId -> "subscriberStub2")
     expectSomeEvents(1, MessageRouterActor.RespondedWithCached)
   }
