@@ -82,7 +82,7 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
 
   object OnlyThisTest extends Tag("OnlyThisTest")
 
-  case class Wrapper(config: Config, underlyingSystem: ActorSystem, id: String) extends ActorSystemWrapper {
+  case class Wrapper(config: Config, underlyingSystem: ActorSystem, id: String, configName: String) extends ActorSystemWrapper {
     private val watcherComponentId = Utils.generateShortUUID
     private val watcher = underlyingSystem.actorOf(WatcherActor.props(watcherComponentId))
     override def start(props: Props, id: String): ActorRef = {
@@ -99,7 +99,7 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
       clearComponentEvents(watcherComponentId)
     }
     def stop() = Try {
-      TerminatingActorSystem >> ('Name -> id)
+      TerminatingActorSystem >> ('Name -> configName)
       val startCheckpoint = System.nanoTime()
       try { stopActors() } catch {
         case x : Throwable => x.printStackTrace()
@@ -107,7 +107,7 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
       underlyingSystem.stop(watcher)
       underlyingSystem.shutdown()
       underlyingSystem.awaitTermination(60.seconds)
-      ActorSystemTerminated >> ('Name -> id, 'TerminatedInMs -> (System.nanoTime() - startCheckpoint)/1000000)
+      ActorSystemTerminated >> ('Name -> configName, 'TerminatedInMs -> (System.nanoTime() - startCheckpoint)/1000000)
     }
     def stopActors() = Try {
       val startCheckpoint = System.nanoTime()
@@ -115,7 +115,7 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
       watcher ! StopAll()
       expectSomeEventsWithTimeout(30000, WatcherActor.AllWatchedActorsGone, 'InstanceId -> watcherComponentId)
       clearComponentEvents(watcherComponentId)
-      AllActorsTerminated >> ('TerminatedInMs -> (System.nanoTime() - startCheckpoint)/1000000, 'System -> id)
+      AllActorsTerminated >> ('TerminatedInMs -> (System.nanoTime() - startCheckpoint)/1000000, 'System -> configName)
     }
   }
 
@@ -134,7 +134,7 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
   def getSystem(configName: String) = systems.get(configName) match {
     case None =>
       val config = configs.get(configName).get
-      val sys = Wrapper(config, ActorSystem("engine", config), "engine")
+      val sys = Wrapper(config, ActorSystem("engine", config), "engine", configName)
       ActorSystemCreated >> ('Name -> "engine", 'ConfigName -> configName)
       systems = systems + (configName -> sys)
       sys
