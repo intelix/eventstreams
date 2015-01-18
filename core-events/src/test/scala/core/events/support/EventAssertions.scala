@@ -75,14 +75,17 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
   }
 
   def waitWithTimeout(millis: Long)(f: => Unit) = {
-    val startedAt = System.currentTimeMillis()
+    val allowedAttempts = millis / 15
+    var attempt = 0
     var success = false
-    while (!success && System.currentTimeMillis() - startedAt < millis) {
+    while (!success && attempt < allowedAttempts) {
       try {
         f
         success = true
       } catch {
-        case x: Throwable => Thread.sleep(15)
+        case x: Throwable =>
+          Thread.sleep(15)
+          attempt = attempt + 1
       }
     }
     try {
