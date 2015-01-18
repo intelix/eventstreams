@@ -70,6 +70,7 @@ class ClusterManagerTest
   }
 
 
+  /*
   it should "recover if multiple node fail" in new WithEngineNode1
     with WithEngineNode2 with WithWorkerNode1 with WithWorkerNode2 with WithWorkerNode3 {
     expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> expectedPeersListInitial, 'Node -> "engine1")
@@ -80,7 +81,7 @@ class ClusterManagerTest
     restartWorkerNode3()
     expectSomeEventsWithTimeout(60000, 5, ClusterStateChanged, 'Peers -> expectedPeersListComplete)
   }
-
+*/
 
 
 }

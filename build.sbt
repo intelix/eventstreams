@@ -44,7 +44,7 @@ lazy val eventStreamsEngines = Project(
     eventStreamsInstructionsEssentials,
     eventStreamsPluginEndpointInfluxDB
   )
-)
+).enablePlugins(AkkaAppPackaging)
 
 
 lazy val eventStreamsPluginDSFile = Project(

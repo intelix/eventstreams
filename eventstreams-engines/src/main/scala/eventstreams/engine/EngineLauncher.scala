@@ -18,6 +18,7 @@ package eventstreams.engine
 
 import akka.actor.ActorSystem
 import akka.cluster.Cluster
+import akka.kernel.Bootable
 import com.typesafe.config.ConfigFactory
 import core.events.{CtxSystemRef, EventPublisherRef, EvtSystem, LoggerEventPublisher}
 import eventstreams.core.components.cluster.ClusterManagerActor
@@ -31,7 +32,7 @@ import eventstreams.engine.plugins.SignalSubscriptionManagerActor
 /**
  * Created by maks on 18/09/14.
  */
-object HQLauncher extends App {
+class EngineLauncher extends Bootable {
 
   implicit val config = ConfigFactory.load(java.lang.System.getProperty("config", "hq.conf"))
 
@@ -42,15 +43,19 @@ object HQLauncher extends App {
 
   implicit val cluster = Cluster(system)
 
-  ClusterManagerActor.start
-  ConfigStorageActor.start
-  MessageRouterActor.start
-  GateManagerActor.start
-  AgentsManagerActor.start
-  FlowManagerActor.start
 
-  RetentionManagerActor.start
+  override def startup(): Unit = {
+    ClusterManagerActor.start
+    ConfigStorageActor.start
+    MessageRouterActor.start
+    GateManagerActor.start
+    AgentsManagerActor.start
+    FlowManagerActor.start
+    RetentionManagerActor.start
+    SignalSubscriptionManagerActor.start
+  }
 
-  SignalSubscriptionManagerActor.start
-
+  override def shutdown(): Unit = {
+    system.shutdown()
+  }
 }

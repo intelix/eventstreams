@@ -71,6 +71,7 @@ object Dependencies {
     val groovy          = "org.codehaus.groovy"         %   "groovy-all"                    % groovyVersion
 
     val akkaActor       = "com.typesafe.akka"           %% "akka-actor"                     % akkaVersion
+    val akkaKernel      = "com.typesafe.akka"           %% "akka-kernel"                    % akkaVersion
     val akkaAgent       = "com.typesafe.akka"           %% "akka-agent"                     % akkaVersion
     val akkaSlf4j       = "com.typesafe.akka"           %% "akka-slf4j"                     % akkaVersion
     val akkaRemote      = "com.typesafe.akka"           %% "akka-remote"                    % akkaVersion
@@ -136,6 +137,7 @@ object Dependencies {
   val eventStreamsCommon = essentials ++: Seq(
     akkaActor,
     akkaAgent,
+    akkaKernel,
     akkaCluster,
     akkaRemote,
     akkaSlf4j,
