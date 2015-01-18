@@ -5,6 +5,8 @@ import org.scalatest.matchers.{MatchResult, Matcher}
 
 import scala.util.matching.Regex
 
+case class EventFieldMatcher(f: String => Boolean)
+
 trait EventMatchers {
 
   class ContainsAllFields(count: Option[Int], values: Seq[FieldAndValue]) extends Matcher[List[Seq[FieldAndValue]]] {
@@ -15,7 +17,7 @@ trait EventMatchers {
           !next.exists { v =>
             v._1 == k._1 && (k._2 match {
               case x: Regex => x.findFirstMatchIn(v._2.toString).isDefined
-              case x: (String => Boolean) => x(v._2.toString)
+              case EventFieldMatcher(f) => f(v._2.toString)
               case x => v._2 == x
             })
           }

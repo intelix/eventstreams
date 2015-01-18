@@ -2,7 +2,7 @@ import au.com.eventstreams.EventStreamsBuild
 
 EventStreamsBuild.coreSettings("eventstreams")
 
-parallelExecution := false
+parallelExecution in Global := false
 
 
 lazy val coreEvents = Project(
@@ -98,6 +98,7 @@ lazy val eventStreamsAgent = Project(
   dependencies = Seq(
     coreEvents  % "compile;test->test",
     eventStreamsCore % "compile;test->test",
+    eventStreamsEngines % "test->test",
     eventStreamsPluginDSFile,
     eventStreamsPluginDSJMX,
     eventStreamsPluginDSStatsd,
@@ -110,28 +111,14 @@ lazy val eventStreamsAgent = Project(
 lazy val eventStreamsHQ = Project(
   id = "eventstreams-hq",
   base = file("eventstreams-hq"),
-  dependencies = Seq(coreEvents, eventStreamsCore)
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore  % "compile;test->test"
+  )
 ).enablePlugins(PlayScala,SbtWeb)
 
 
-lazy val eventStreamsTests = Project(
-  id = "eventstreams-tests",
-  base = file("eventstreams-tests"),
-  dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test",
-    eventStreamsPluginDSFile % "compile;test->test",
-    eventStreamsPluginDSJMX % "compile;test->test",
-    eventStreamsPluginDSStatsd % "compile;test->test",
-    eventStreamsPluginDSUDP % "compile;test->test",
-    eventStreamsPluginDSTCP % "compile;test->test",
-    eventStreamsHQ % "compile;test->test",
-    eventStreamsEngines % "compile;test->test",
-    eventStreamsAgent % "compile;test->test",
-    eventStreamsInstructionsEssentials % "compile;test->test",
-    eventStreamsPluginEndpointInfluxDB % "compile;test->test"
-  )
-)
+
 
 
 

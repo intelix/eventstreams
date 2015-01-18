@@ -7,3 +7,9 @@ env:
 
 before_script:
    - ulimit -u 514029
+
+script:
+  - "sbt clean coverage test"
+  - "sbt coverageAggregate"
+
+after_success: "sbt coveralls"
