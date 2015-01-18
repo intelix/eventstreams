@@ -4,10 +4,6 @@ EventStreamsBuild.coreSettings("eventstreams")
 
 parallelExecution := false
 
-concurrentRestrictions in Global := Seq(
-  Tags.limit(Tags.Test, 1),
-  Tags.limitAll( 15 )
-)
 
 lazy val coreEvents = Project(
   id = "core-events",
