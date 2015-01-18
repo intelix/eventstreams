@@ -37,8 +37,8 @@ addSbtPlugin("com.github.ddispaltro" % "sbt-reactjs" % "0.4.0")
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-license-report" % "1.0.0")
 
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.0.1")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.0.2")
 
-addSbtPlugin("org.scoverage" % "sbt-coveralls" % "1.0.0.BETA4")
+addSbtPlugin("org.scoverage" % "sbt-coveralls" % "1.0.0.BETA1")
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.0.0-M4")
