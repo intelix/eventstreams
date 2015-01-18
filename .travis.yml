@@ -4,3 +4,6 @@ scala:
    
 env:
    - SBT_OPTS="-XX:+UseConcMarkSweepGC -XX:+CMSClassUnloadingEnabled -XX:PermSize=256M -XX:MaxPermSize=512M -Xms2048M -Xmx4096M -Xss8M"
+
+before_script:
+   - ulimit -u 514029
