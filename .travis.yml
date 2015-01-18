@@ -8,8 +8,8 @@ env:
 before_script:
    - ulimit -u 514029
 
-script:
-  - "sbt clean coverage test"
-  - "sbt coverageAggregate"
+script: "sbt clean coverage test"
 
-after_success: "sbt coveralls"
+after_success:
+  - "sbt coverageAggregate"
+  - "sbt coveralls"
