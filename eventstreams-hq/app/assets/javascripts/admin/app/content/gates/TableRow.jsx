@@ -61,10 +61,6 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
                     <tr ref='monitorVisibility' >
                         <td>{mainLink}</td>
                         <td>{info.address}</td>
-                        <td>{info.retention}</td>
-                        <td>{stats.retained}</td>
-                        <td>{info.overflow}</td>
-                        <td><YesNo value={info.acceptWithoutSinks} /></td>
                         <td>{stats.inflight}</td>
                         <td><Rate value={stats.rate} /></td>
                         <td><Rate value={stats.mrate} /></td>

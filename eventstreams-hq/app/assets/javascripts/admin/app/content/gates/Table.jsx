@@ -43,10 +43,6 @@ define(['react', 'core_mixin', './TableRow'],
             var header = <tr>
                     <th>Name</th>
                     <th>Address</th>
-                    <th>Retention</th>
-                    <th>Retained</th>
-                    <th>Overflow</th>
-                    <th>Sink req</th>
                     <th>In-flight</th>
                     <th>Current</th>
                     <th>Mean</th>
