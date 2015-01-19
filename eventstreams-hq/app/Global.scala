@@ -22,9 +22,9 @@ object Global extends GlobalSettings with scalalogging.StrictLogging {
 
     val localSystem = Akka.system()
 
-    implicit val config = ConfigFactory.load("ehub.conf")
+    implicit val config = ConfigFactory.load("eventstreams.conf")
 
-    implicit val newClusterSystem = ActorSystem("ehub", config)
+    implicit val newClusterSystem = ActorSystem("engine", config)
 
     clusterSystem = Some(newClusterSystem)
 

@@ -39,7 +39,7 @@ class EngineLauncher extends Bootable {
   EventPublisherRef.ref = LoggerEventPublisher
   CtxSystemRef.ref = EvtSystem("EventStreams.Engine")
 
-  implicit val system = ActorSystem("ehub", config)
+  implicit val system = ActorSystem("engine", config)
 
   implicit val cluster = Cluster(system)
 
@@ -58,4 +58,8 @@ class EngineLauncher extends Bootable {
   override def shutdown(): Unit = {
     system.shutdown()
   }
+}
+
+object EngineLauncherApp extends App {
+  new EngineLauncher().startup()
 }

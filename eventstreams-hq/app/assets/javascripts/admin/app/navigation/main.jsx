@@ -41,7 +41,7 @@ define(
 
                         <div className="navbar-header">
                             <a className="navbar-brand" href="#">
-                            ehub
+                                eventstreams
                                 <b>HQ</b>
                             </a>
                         </div>

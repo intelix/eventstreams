@@ -22,7 +22,7 @@
       "propertyOrder": 50,
       "title": "Gate address",
       "type": "string",
-      "default": "akka.tcp://ehub@localhost:12345/user/gatename"
+      "default": "akka.tcp://engine@localhost:12345/user/gatename"
     },
     "maxInFlight": {
       "propertyOrder": 51,

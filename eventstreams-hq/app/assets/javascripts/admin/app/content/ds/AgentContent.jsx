@@ -39,7 +39,7 @@ define(['react', 'core_mixin', './AgentsTabs', './DatasourcesTable', './Datasour
                     "desc": "",
                     "sourceId": "",
                     "tags": "",
-                    "targetGate": "akka.tcp://ehub@localhost:12345/user/GATENAME"
+                    "targetGate": "akka.tcp://engine@localhost:12345/user/GATENAME"
                 };
                 this.setState({editBlock: <EditBlock addr={this.props.addr} mgrRoute={this.state.agentSelected}  title="Datasource configuration" defaults={defaults} editorId="ds"/>});
             },

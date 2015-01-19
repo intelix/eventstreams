@@ -54,10 +54,10 @@ class SubscriberBoundaryInitiatingActor(endpoint: String, maxInFlight: Int)(impl
   with ActorWithGateStateMonitoring 
   with DatasourceSinkEvents with WithEventPublisher {
 
-  override val gateStateCheckInterval: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("ehub.agent.gate-check-interval") | 10.seconds
+  override val gateStateCheckInterval: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("eventstreams.agent.gate-check-interval") | 10.seconds
 
-  override def reconnectAttemptInterval: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("ehub.agent.gate-reconnect-attempt-interval") | super.reconnectAttemptInterval
-  override def remoteAssociationTimeout: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("ehub.agent.gate-handshake-timeout") | super.remoteAssociationTimeout
+  override def reconnectAttemptInterval: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("eventstreams.agent.gate-reconnect-attempt-interval") | super.reconnectAttemptInterval
+  override def remoteAssociationTimeout: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("eventstreams.agent.gate-handshake-timeout") | super.remoteAssociationTimeout
 
   override def commonBehavior: Receive = handleOnNext orElse super.commonBehavior
 

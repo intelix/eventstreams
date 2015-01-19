@@ -69,14 +69,14 @@ class AgentControllerActor(implicit sysconfig: Config)
 
 
   lazy val datasourcesConfigsList = {
-    val list = sysconfig.getConfigList("ehub.datasources.sources")
+    val list = sysconfig.getConfigList("eventstreams.datasources.sources")
     (0 until list.size()).map(list.get).toList.sortBy[String](_.getString("name"))
   }
   lazy val configSchema = {
     var mainConfigSchema = Json.parse(
       io.Source.fromInputStream(
         getClass.getResourceAsStream(
-          sysconfig.getString("ehub.datasources.main-schema"))).mkString)
+          sysconfig.getString("eventstreams.datasources.main-schema"))).mkString)
     var oneOf = (mainConfigSchema \ "properties" \ "source" \ "oneOf").asOpt[JsArray].map(_.value) | Array[JsValue]()
 
     val datasourceSchemas = datasourcesConfigsList.map { cfg =>
@@ -111,11 +111,11 @@ class AgentControllerActor(implicit sysconfig: Config)
 
   override def commonBehavior: Receive = commonMessageHandler orElse super.commonBehavior
 
-  override def connectionEndpoint: String = sysconfig.as[String]("ehub.agent.hq.endpoint")
+  override def connectionEndpoint: String = sysconfig.as[String]("eventstreams.agent.hq.endpoint")
 
 
-  override def reconnectAttemptInterval: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("ehub.agent.engine-reconnect-attempt-interval") | super.reconnectAttemptInterval
-  override def remoteAssociationTimeout: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("ehub.agent.engine-handshake-timeout") | super.remoteAssociationTimeout
+  override def reconnectAttemptInterval: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("eventstreams.agent.engine-reconnect-attempt-interval") | super.reconnectAttemptInterval
+  override def remoteAssociationTimeout: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("eventstreams.agent.engine-handshake-timeout") | super.remoteAssociationTimeout
 
   
   override def preStart(): Unit = {
@@ -204,9 +204,9 @@ class AgentControllerActor(implicit sysconfig: Config)
   )
 
   private def info = AgentInfo(Json.obj(
-    "name" -> sysconfig.as[String]("ehub.agent.name"),
-    "description" -> sysconfig.as[String]("ehub.agent.description"),
-    "location" -> sysconfig.as[String]("ehub.agent.location"),
+    "name" -> sysconfig.as[String]("eventstreams.agent.name"),
+    "description" -> sysconfig.as[String]("eventstreams.agent.description"),
+    "location" -> sysconfig.as[String]("eventstreams.agent.location"),
     "address" -> context.self.path.address.toString,
     "state" -> "active",
     "datasourceConfigSchema" -> configSchema

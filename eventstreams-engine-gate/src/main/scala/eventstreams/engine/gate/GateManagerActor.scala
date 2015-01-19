@@ -45,7 +45,7 @@ class GateManagerActor(sysconfig: Config)
   val configSchema = Json.parse(
     Source.fromInputStream(
       getClass.getResourceAsStream(
-        sysconfig.getString("ehub.gates.main-schema"))).mkString)
+        sysconfig.getString("eventstreams.gates.main-schema"))).mkString)
 
   type GatesMap = Map[ComponentKey, ActorRef]
 

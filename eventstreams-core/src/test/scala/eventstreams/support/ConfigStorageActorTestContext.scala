@@ -7,7 +7,7 @@ trait ConfigStorageActorTestContext {
 
   def withConfigStorage(idx: Int, system: ActorSystemWrapper) = {
     val cfg = ConfigFactory.parseString( s"""
-    ehub.storage.provider = "eventstreams.support.StorageStub"
+    eventstreams.storage.provider = "eventstreams.support.StorageStub"
     test.instanceId=$idx
                                          """)
     system.start(ConfigStorageActor.props(cfg), ConfigStorageActor.id)

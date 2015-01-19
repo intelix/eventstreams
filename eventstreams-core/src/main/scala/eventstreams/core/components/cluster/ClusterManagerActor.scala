@@ -53,7 +53,7 @@ class ClusterManagerActor(implicit val cluster: Cluster, config: Config)
   with ActorWithClusterPeers
   with RouteeActor {
 
-  override val nodeName = config.as[Option[String]]("ehub.node.name") | myAddress
+  override val nodeName = config.as[Option[String]]("eventstreams.node.name") | myAddress
 
   val T_NODES = TopicKey("nodes")
 

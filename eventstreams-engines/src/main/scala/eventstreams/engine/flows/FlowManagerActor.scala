@@ -56,7 +56,7 @@ class FlowManagerActor(sysconfig: Config)
   with WithEventPublisher {
 
   val instructionsConfigsList = {
-    val list = sysconfig.getConfigList("ehub.flows.instructions")
+    val list = sysconfig.getConfigList("eventstreams.flows.instructions")
     (0 until list.size()).map(list.get).toList.sortBy[String](_.getString("name"))
   }
 
@@ -64,7 +64,7 @@ class FlowManagerActor(sysconfig: Config)
     var mainConfigSchema = Json.parse(
       io.Source.fromInputStream(
         getClass.getResourceAsStream(
-          sysconfig.getString("ehub.flows.main-schema"))).mkString)
+          sysconfig.getString("eventstreams.flows.main-schema"))).mkString)
     var oneOf = (mainConfigSchema \ "properties" \ "pipeline" \ "items" \ "oneOf").asOpt[JsArray].map(_.value) | Array[JsValue]()
 
     val instructionSchemas = instructionsConfigsList.map { cfg =>

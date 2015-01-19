@@ -77,7 +77,7 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
   with MessageRouterEvents
   with WithEventPublisher {
 
-  val providerRemoveTimeout = sysconfig.as[Option[FiniteDuration]]("ehub.message-router.provider-remove-timeout") | 30.seconds
+  val providerRemoveTimeout = sysconfig.as[Option[FiniteDuration]]("eventstreams.message-router.provider-remove-timeout") | 30.seconds
   
   val updatesCache: mutable.Map[RemoteSubj, Any] = new mutable.HashMap[RemoteSubj, Any]()
   implicit val ec = context.dispatcher

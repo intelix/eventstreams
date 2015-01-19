@@ -43,7 +43,7 @@ trait Storage {
 
 object Storage extends StrictLogging {
   def apply(implicit config: Config): Storage = {
-    val s: String = config.as[Option[String]]("ehub.storage.provider") getOrElse classOf[H2Storage].getName
+    val s: String = config.as[Option[String]]("eventstreams.storage.provider") getOrElse classOf[H2Storage].getName
     Class.forName(s).getDeclaredConstructor(classOf[Config]).newInstance(config).asInstanceOf[Storage]
   }
 }
@@ -64,7 +64,7 @@ case class H2Storage(implicit config: Config) extends Storage with StrictLogging
     }
     db
   }
-  private val dir = new File(config.as[Option[String]]("ehub.storage.directory").getOrElse("."))
+  private val dir = new File(config.as[Option[String]]("eventstreams.storage.directory").getOrElse("."))
 
   override def store(key: String, config: String, state: Option[String]): Unit = {
     db withSession { implicit session =>
@@ -115,7 +115,7 @@ case class H2Storage(implicit config: Config) extends Storage with StrictLogging
   }
 
   private def dbURL(file: File): String =
-    "jdbc:h2:" + dir.getAbsolutePath + "/" + config.as[Option[String]]("ehub.storage.db").getOrElse("config")
+    "jdbc:h2:" + dir.getAbsolutePath + "/" + config.as[Option[String]]("eventstreams.storage.db").getOrElse("config")
 
   private def load(): Unit = {
     db withSession { implicit session =>

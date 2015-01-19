@@ -48,7 +48,7 @@ class SignalSubscriptionManagerActor(sysconfig: Config)
   val configSchema = Json.parse(
     Source.fromInputStream(
       getClass.getResourceAsStream(
-        sysconfig.getString("ehub.signalsub.main-schema"))).mkString)
+        sysconfig.getString("eventstreams.signalsub.main-schema"))).mkString)
 
 
   override val key = ComponentKey("signalsub")

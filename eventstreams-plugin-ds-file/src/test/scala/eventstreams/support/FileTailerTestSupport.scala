@@ -47,7 +47,7 @@ trait FileTailerTestSupport
 
     def withConfigStorage(f: => Unit) = {
       val cfg = ConfigFactory.parseString( """
-    ehub.storage.provider = "eventstreams.support.StorageStub"
+    eventstreams.storage.provider = "eventstreams.support.StorageStub"
                                            """)
       val actor = ConfigStorageActor.start(system, cfg)
       val configMgrActorProbe = TestProbe()

@@ -66,9 +66,9 @@ class RetentionManagerActor(config: Config) extends ActorWithComposableBehavior 
 
   implicit val ec = context.dispatcher
   val bulkSize = 100
-  private val host = config.getString("ehub.gates.retention.elastic.host")
-  private val cluster = config.getString("ehub.gates.retention.elastic.cluster")
-  private val port = config.getInt("ehub.gates.retention.elastic.port")
+  private val host = config.getString("eventstreams.gates.retention.elastic.host")
+  private val cluster = config.getString("eventstreams.gates.retention.elastic.cluster")
+  private val port = config.getInt("eventstreams.gates.retention.elastic.port")
   private val cal = Calendar.getInstance()
   private val settings = ImmutableSettings.settingsBuilder().put("cluster.name", cluster).build()
   private val queue = collection.mutable.Queue[JsonFrame]()
