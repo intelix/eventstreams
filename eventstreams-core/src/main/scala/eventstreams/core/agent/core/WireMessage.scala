@@ -39,9 +39,9 @@ case class GateClosed() extends GateState
 
 case class GateOpen() extends GateState
 
-case class GateStateCheck(ref: ActorRef)
+case class GateStateCheck(ref: ActorRef) extends WireMessage
 
-case class GateStateUpdate(state: GateState)
+case class GateStateUpdate(state: GateState) extends WireMessage
 
 
 case class Handshake(ref: ActorRef, uuid: String) extends AgentControllerMessage

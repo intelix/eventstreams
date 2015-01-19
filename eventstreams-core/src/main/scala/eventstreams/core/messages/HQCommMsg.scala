@@ -17,9 +17,10 @@
 package eventstreams.core.messages
 
 import akka.actor.ActorRef
+import eventstreams.core.agent.core.WireMessage
 import play.api.libs.json.JsValue
 
-trait HQCommMsg[T] {
+trait HQCommMsg[T] extends WireMessage {
   val sourceRef: ActorRef
   val subj: T
 }

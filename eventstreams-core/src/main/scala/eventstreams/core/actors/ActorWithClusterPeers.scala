@@ -20,13 +20,14 @@ import akka.actor.{Actor, Address}
 import core.events.EventOps.stringToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
+import eventstreams.core.agent.core.WireMessage
 import play.api.libs.json.{JsValue, Json}
 
 import scala.collection.mutable
 
-case class ClusterPeerHandshake()
+case class ClusterPeerHandshake() extends WireMessage
 
-case class ClusterPeerHandshakeResponse(map: JsValue)
+case class ClusterPeerHandshakeResponse(map: JsValue) extends WireMessage
 
 trait ActorWithClusterPeersEvents extends ComponentWithBaseEvents {
   val ClusterHandshakingWith = "Cluster.HandshakingWith".trace

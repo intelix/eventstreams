@@ -54,6 +54,8 @@ object Dependencies {
     val webjarsReactJsVersion = "0.12.1"
     val webjarsToastrVersion = "2.1.0"
     
+    val kryoserVersion = "0.3.2"
+    
   }
 
 
@@ -104,6 +106,8 @@ object Dependencies {
     val uuid            = "com.eaio.uuid"               %  "uuid"                           % uuidVersion
     val janalyseJmx     = "fr.janalyse"                 %% "janalyse-jmx"                   % janalyseJmxVersion
     val commonsCodec    = "commons-codec"               %  "commons-codec"                  % commonsCodecVersion
+    
+    val kryoser         = "com.github.romix.akka"       %% "akka-kryo-serialization"        % kryoserVersion
   }
   
   object Test {
@@ -141,7 +145,8 @@ object Dependencies {
     akkaCluster,
     akkaRemote,
     akkaSlf4j,
-    akkaStreams
+    akkaStreams,
+    kryoser
   )
   
   val eventStreamsCore = eventStreamsCommon ++: Seq(
