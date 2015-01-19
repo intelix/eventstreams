@@ -1,4 +1,4 @@
-package eventstreams.instructions
+package eventstreams
 
 /*
  * Copyright 2014-15 Intelix Pty Ltd

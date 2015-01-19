@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package eventstreams.instructions
+package eventstreams
 
 import akka.actor._
 import eventstreams.core.Types._

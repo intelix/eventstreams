@@ -1,4 +1,4 @@
-package eventstreams.instructions
+package eventstreams
 
 /*
  * Copyright 2014-15 Intelix Pty Ltd
@@ -18,7 +18,7 @@ package eventstreams.instructions
 
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.plugins.essentials.{EnrichInstructionEvents, EnrichInstruction, EnrichInstructionConstants}
+import eventstreams.plugins.essentials.{EnrichInstruction, EnrichInstructionConstants, EnrichInstructionEvents}
 import eventstreams.support.TestHelpers
 import play.api.libs.json.{JsNull, JsValue, Json}
 

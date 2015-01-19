@@ -100,7 +100,6 @@ class FlowsTest extends FlatSpec with EngineNodeTestContext with SharedActorSyst
     clearEvents()
     commandFrom1(engine1System, LocalSubj(flow1ComponentKey, T_KILL), None)
     expectSomeEvents(GateInputActor.PostStop)
-    expectSomeEvents(MessageRouterActor.RouteRemoved, 'Route -> flow1ComponentKey.key)
   }
 
 

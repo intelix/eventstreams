@@ -107,7 +107,6 @@ object Tools extends StrictLogging {
     } match {
       case Success(x) => x
       case Failure(e) =>
-        logger.info(s"Unable to convert $s to number")
         BigDecimal(0)
     }
     case JsNumber(n) => BigDecimal("" + n)
@@ -128,15 +127,17 @@ object Tools extends StrictLogging {
     case JsUndefined() => ""
   }
 
-  def toPath(infixPath: String) = {
-    val x = infixPath.split('.').flatMap(_.split("/"))
-      .foldLeft[JsPath](__)((path, nextKey) => nextKey.trim match {
-      case arrayPath(a, b) => (path \ a.trim)(b.trim.toIntExact)
-      case value => path \ value
-    })
-    logger.debug("path of " + infixPath + " is " + x)
-    x
-  }
+  def toPath(infixPath: String) =
+    infixPath
+      .split('.')
+      .flatMap(_.split("/"))
+      .foldLeft[JsPath](__) {
+      (path, nextKey) =>
+        nextKey.trim match {
+          case arrayPath(a, b) => (path \ a.trim)(b.trim.toIntExact)
+          case value => path \ value
+        }
+    }
 
   def macroReplacement(frame: JsonFrame, v: String): String = macroReplacement(frame.event, frame.ctx, v)
 
@@ -147,18 +148,12 @@ object Tools extends StrictLogging {
   def macroReplacement(json: JsValue, ctx: Map[String, JsValue], v: String): String = {
     @tailrec
     def repl(value: String): String = {
-
-      logger.debug("Trying to match " + value + " with " + macroMatch)
-
       value match {
         case eventDateMatch(s) =>
-          logger.debug("Matched " + value + " with " + eventDateMatch + " to " + s)
           repl(value.replace("${eventts:" + s + "}", DateTimeFormat.forPattern(s).print(json ++> 'date_ts | java.lang.System.currentTimeMillis())))
         case dateMatch(s) =>
-          logger.debug("Matched " + value + " with " + dateMatch + " to " + s)
           repl(value.replace("${now:" + s + "}", DateTimeFormat.forPattern(s).print(java.lang.System.currentTimeMillis())))
         case macroMatch(s) =>
-          logger.debug("Matched " + value + " with " + macroMatch + " to " + s)
           repl(value.replace("${" + s + "}", locateFieldValue(json, ctx, s)))
         case _ => value
       }
@@ -169,9 +164,6 @@ object Tools extends StrictLogging {
   def setValue(fieldType: String, s: JsValue, path: JsPath, json: JsValue): JsValue =
     fieldTypeConverter(fieldType) match {
       case arrayMatch(t) =>
-
-        logger.debug("Setting " + s + " to " + path + " in " + json)
-
         json.set(path -> (json.getOpt(path) match {
           case Some(JsArray(arr)) => JsArray((arr :+ jsValueOfType(t)(s)).toSet.toSeq)
           case Some(x) => Json.arr(x, jsValueOfType(t)(s))
@@ -179,7 +171,6 @@ object Tools extends StrictLogging {
         }))
       case singleTypeMatch(t) => json.set(path -> jsValueOfType(t)(s))
       case x =>
-        logger.error("Value doesn't match any type pattern " + x)
         Json.obj()
     }
 

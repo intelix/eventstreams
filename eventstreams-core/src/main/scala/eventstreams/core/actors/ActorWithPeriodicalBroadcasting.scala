@@ -16,13 +16,26 @@
 
 package eventstreams.core.actors
 
+import core.events.EventOps.symbolToEventOps
+import core.events.WithEventPublisher
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.NowProvider
 import eventstreams.core.messages.TopicKey
 
 import scala.collection.mutable
 import scala.language.implicitConversions
 
-trait ActorWithPeriodicalBroadcasting extends ActorWithTicks with NowProvider {
+trait PeriodicalBroadcastingEvents extends ComponentWithBaseEvents {
+  
+  val MessageBroadcasted = 'MessageBroadcasted.trace
+  
+}
+
+trait ActorWithPeriodicalBroadcasting 
+  extends ActorWithTicks 
+  with NowProvider 
+  with PeriodicalBroadcastingEvents 
+  with WithEventPublisher {
 
   type Key = TopicKey
   type PayloadGenerator = (() => Any)
@@ -48,7 +61,7 @@ trait ActorWithPeriodicalBroadcasting extends ActorWithTicks with NowProvider {
   override def processTick(): Unit = {
     autoBroadcast.foreach {
       case (key, interval, generator, publisher) => if (isTimeToBroadcast(key, interval)) updateBroadcastCache(key, generator()) foreach { x =>
-        logger.debug(s"Broadcasted $key -> $x")
+        MessageBroadcasted >> ('Topic -> key.key, 'Payload -> x)
         publisher(x)
       }
     }

@@ -36,13 +36,6 @@ class LocalClusterAwareActor(cluster: Cluster) extends ActorWithComposableBehavi
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
-
-  @throws[Exception](classOf[Exception])
-  override def preStart(): Unit = {
-    logger.debug(s"Starting local cluster aware actor, our address: ${cluster.selfAddress}")
-    super.preStart()
-  }
-
   private def handler: Receive = {
     case InfoRequest() => sender() ! InfoResponse(cluster.selfAddress)
   }

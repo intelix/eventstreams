@@ -37,7 +37,6 @@ trait SimpleInstructionWithPerSecondGeneratorBuilder extends BuilderFromConfig[I
         val (a, b) = instr
         (fr => cond.metFor(fr) match {
           case -\/(fail) =>
-            logger.debug("Condition failed: " + fail)
             List(fr)
           case \/-(_) => a(fr)
         }, b)

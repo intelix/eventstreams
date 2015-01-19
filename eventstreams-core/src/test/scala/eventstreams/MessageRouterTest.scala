@@ -1,4 +1,4 @@
-package eventstreams.core.components.routing
+package eventstreams
 
 /*
  * Copyright 2014-15 Intelix Pty Ltd
@@ -17,6 +17,7 @@ package eventstreams.core.components.routing
  */
 
 import eventstreams.core.components.cluster.ClusterManagerActor._
+import eventstreams.core.components.routing.MessageRouterActor
 import eventstreams.core.messages.{ComponentKey, LocalSubj, RemoteSubj, TopicKey}
 import eventstreams.support.RouteeComponentStubOps.{componentKeyForRouteeStub1, componentKeyForRouteeStub2, routeeIdFor}
 import eventstreams.support._

@@ -32,7 +32,7 @@ import play.api.libs.json.{JsValue, Json}
 import scalaz.Scalaz._
 import scalaz._
 
-trait GateInputEvents extends ComponentWithBaseEvents with BaseActorEvents {
+trait GateInputEvents extends ComponentWithBaseEvents with BaseActorEvents with StandardPublisherEvents {
 
   override def componentId: String = "Flow.GateInput"
 }
@@ -65,17 +65,16 @@ private class GateInputActor(id: String, address: String)
   override lazy val metricBaseName: MetricName = MetricName("flow")
 
   val _rate = metrics.meter(s"$id.source")
-
+  val buffer = 1024
 
   override def monitorConnectionWithDeathWatch: Boolean = true
 
-  override def commonBehavior: Receive = handler orElse super.commonBehavior
+  override def commonBehavior: Receive = handlerWhenPassive orElse super.commonBehavior
 
   override def preStart(): Unit = {
     super.preStart()
     switchToCustomBehavior(handlerWhenPassive)
     initiateReconnect()
-    logger.info(s"About to start tap for $address")
   }
 
   override def onConnectedToEndpoint(): Unit = {
@@ -86,44 +85,31 @@ private class GateInputActor(id: String, address: String)
   override def onDisconnectedFromEndpoint(): Unit = super.onDisconnectedFromEndpoint()
 
   override def becomeActive(): Unit = {
-    logger.info(s"Becoming active - new accepting messages from gate [$address]")
     switchToCustomBehavior(handlerWhenActive)
     super.becomeActive()
   }
 
   override def becomePassive(): Unit = {
-    logger.info(s"Becoming passive - no longer accepting messages from gate [$address]")
     switchToCustomBehavior(handlerWhenPassive)
     super.becomePassive()
   }
 
-  def handler: Receive = {
-    case Request(n) => logger.debug(s"Downstream requested $n messages")
-  }
-
   def handlerWhenActive: Receive = {
     case m @ Acknowledgeable(f:JsonFrame,i) =>
-      if (totalDemand > 0) {
+      if (pendingToDownstreamCount < buffer || pendingToDownstreamCount < totalDemand) {
         if (!isDup(sender(), m.id)) {
           sender() ! AcknowledgeAsReceived(i)
-          logger.debug(s"New message at gate tap (demand $totalDemand) [$address]: ${m.id} - produced and acknowledged")
           _rate.mark()
           forwardToFlow(f)
           sender() ! AcknowledgeAsProcessed(i)
         } else {
-          logger.debug(s"Duplicate message at gate tap (demand $totalDemand) [$address]: ${m.id}  - produced and acknowledged")
           sender() ! AcknowledgeAsReceived(i)
         }
-      } else {
-        logger.debug(s"New message at gate tap (demand $totalDemand) [$address]: ${m.id} - ignored, no demand")
       }
-    case m: Acknowledgeable[_] => logger.warn(s"Unexpected message at tap [$address]: ${m.id} - ignored")
   }
 
   def handlerWhenPassive: Receive = {
-    case m @ Acknowledgeable(f:JsonFrame,i) =>
-      logger.debug(s"Not active, message ignored")
-    case m: Acknowledgeable[_] => logger.warn(s"Unexpected message at tap [$address]: ${m.id} - ignored")
+    case m @ Acknowledgeable(f:JsonFrame,i) => ()
   }
 
   override def connectionEndpoint: String = address

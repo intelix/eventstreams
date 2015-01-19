@@ -35,7 +35,6 @@ trait SimpleInstructionBuilder extends BuilderFromConfig[InstructionType] with S
       case None => instr
       case Some(cond) => fr: JsonFrame => cond.metFor(fr) match {
         case -\/(fail) =>
-          logger.debug("Condition failed: " + fail)
           List(fr)
         case \/-(_) => instr(fr)
       }

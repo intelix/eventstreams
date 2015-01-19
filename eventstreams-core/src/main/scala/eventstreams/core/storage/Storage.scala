@@ -56,11 +56,9 @@ case class H2Storage(implicit config: Config) extends Storage with StrictLogging
   private lazy val db = {
     require(dir.exists() && dir.isDirectory)
     val db = Database.forURL(dbURL(dir), driver = "org.h2.Driver");
-    logger.info(s"Initialised db connection: $db at $dir")
     db withSession {
       implicit session =>
         if (MTable.getTables("configurations").list.isEmpty) {
-          logger.info("Creating configurations table")
           configurations.ddl.create
         }
     }

@@ -1,4 +1,4 @@
-package eventstreams.core.components.cluster
+package eventstreams
 
 /*
  * Copyright 2014-15 Intelix Pty Ltd

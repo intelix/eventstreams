@@ -173,25 +173,20 @@ class FlowActor(id: String, instructions: List[Config])
     case T_STOP =>
       lastRequestedState match {
         case Some(Active()) =>
-          logger.info("Stopping the flow")
           self ! BecomePassive()
           \/-(OK())
         case _ =>
-          logger.info("Already stopped")
           -\/(Fail("Already stopped"))
       }
     case T_START =>
       lastRequestedState match {
         case Some(Active()) =>
-          logger.info("Already started")
           -\/(Fail("Already started"))
         case _ =>
-          logger.info("Starting the flow " + self.toString())
           self ! BecomeActive()
           \/-(OK())
       }
     case T_KILL =>
-      terminateFlow(Some("Flow being deleted"))
       removeConfig()
       self ! PoisonPill
       \/-(OK())
@@ -204,8 +199,6 @@ class FlowActor(id: String, instructions: List[Config])
 
   def closeFlow() = {
     currentState = FlowStatePassive()
-
-    logger.debug(s"Tap closed")
     tapActor.foreach(_ ! BecomePassive())
     flowActors.foreach(_.foreach(_ ! BecomePassive()))
   }
@@ -223,8 +216,6 @@ class FlowActor(id: String, instructions: List[Config])
     Builder(instructions, config, context, id) match {
       case -\/(fail) =>
         currentState = FlowStateError(fail.message)
-
-        logger.info(s"Unable to build flow $id: failed with $fail")
       case \/-(FlowComponents(tap, pipeline, sink)) =>
         resetFlowWith(tap, pipeline, sink)
     }
@@ -246,8 +237,6 @@ class FlowActor(id: String, instructions: List[Config])
   }
 
   private def openFlow() = {
-
-    logger.debug(s"Tap opened")
     currentState = FlowStateActive(Some("ok"))
 
     flowActors.foreach(_.foreach(_ ! BecomeActive()))
@@ -261,7 +250,6 @@ class FlowActor(id: String, instructions: List[Config])
   private def propsToActors(list: Seq[Props]) = list map context.actorOf
 
   private def resetFlowWith(tapProps: Props, pipeline: Seq[Props], sinkProps: Props) = {
-    logger.debug(s"Resetting flow [$id]: tapProps: $tapProps, pipeline: $pipeline, sinkProps: $sinkProps")
 
     val tapA = context.actorOf(tapProps)
     val sinkA = context.actorOf(sinkProps)

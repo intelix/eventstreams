@@ -70,12 +70,8 @@ object SimpleCondition extends StrictLogging {
 
         val splitByOr = s.split("(?i)( or )")
 
-        logger.debug(s"Split by or: $s -> $splitByOr")
-
         val orArr = splitByOr.map { eachOr =>
           val splitByAnd = eachOr.split("(?i)( and )")
-
-          logger.debug(s"Split by and: $eachOr -> $splitByAnd")
 
           val arr = splitByAnd.map { eachAnd =>
             for (
