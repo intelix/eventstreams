@@ -215,6 +215,7 @@ class FlowActor(id: String, instructions: List[Config])
 
     Builder(instructions, config, context, id) match {
       case -\/(fail) =>
+        Warning >> ('Message -> "Unable to build the flow", 'Failure -> fail)
         currentState = FlowStateError(fail.message)
       case \/-(FlowComponents(tap, pipeline, sink)) =>
         resetFlowWith(tap, pipeline, sink)

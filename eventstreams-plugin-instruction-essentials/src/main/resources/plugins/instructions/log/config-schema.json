@@ -36,7 +36,6 @@
   },
   "required": [
     "class",
-    "level",
-    "logger"
+    "level"
   ]
 }

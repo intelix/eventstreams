@@ -36,12 +36,7 @@ define(['react', 'core_mixin', 'common_nodetabs', './FlowsTable', './FlowsEditor
             openModal: function (evt) {
                 var defaults = {
                     "name": "",
-                    "desc": "",
-                    "initialState": "Started",
-                    "tap": {
-                        "class": "gate",
-                        "name": ""
-                    },
+                    "sourceGateName": "",
                     "pipeline": []
                 };
                 this.setState({editBlock: <EditBlock addr={this.state.selected} mgrRoute="flows" title="Flow configuration" defaults={defaults}  editorId="flow"/>});

@@ -13,14 +13,14 @@
       "title": "Name",
       "type": "string"
     },
-    "fieldName": {
+    "fieldToEnrich": {
       "propertyOrder": 30,
       "title": "Field name",
       "type": "string"
     },
-    "fieldValue": {
+    "targetValueTemplate": {
       "propertyOrder": 40,
-      "title": "Value for enrichment",
+      "title": "Value template",
       "type": "string"
     },
     "targetType": {
