@@ -80,7 +80,7 @@ class ClusterManagerActor(implicit val cluster: Cluster, config: Config)
 
   override def onConfirmedPeersChanged(): Unit = {
     ClusterStateChanged >> ('Peers -> confirmedPeersNames.sorted.mkString(","))
-    topicUpdate(T_NODES, nodesList)
+    T_NODES !! nodesList
   }
 
   def nodesList = Some(Json.toJson(confirmedPeers.map { case (node, data) =>
@@ -102,7 +102,7 @@ class ClusterManagerActor(implicit val cluster: Cluster, config: Config)
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
     case T_NODES =>
-      topicUpdate(T_NODES, nodesList, singleTarget = Some(ref))
+      T_NODES !! nodesList
   }
 
   override def peerData: JsValue = Json.obj(

@@ -43,7 +43,7 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSu
 
   override def commonBehavior: Actor.Receive = handleMessages orElse super.commonBehavior
 
-  def processCommand(ref: ActorRef, subject: T, replyToSubj: Option[Any], maybeData: Option[JsValue]) = {}
+  def processCommand(subject: T, replyToSubj: Option[Any], maybeData: Option[String]) = {}
 
   def processSubscribeRequest(ref: ActorRef, subject: T) = {}
 
@@ -59,23 +59,23 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSu
 
   def subscribersFor(subj: T) = subscribers.get(subj)
 
-  def updateToAll(subj: T, data: Option[JsValue]) = subscribersFor(subj).foreach(_.foreach(updateTo(subj, _, data)))
+  def updateToAll(subj: T, data: Option[String]) = subscribersFor(subj).foreach(_.foreach(updateTo(subj, _, data)))
 
-  def updateTo(subj: T, ref: ActorRef, data: Option[JsValue]) =
+  def updateTo(subj: T, ref: ActorRef, data: Option[String]) =
     data foreach { d =>
-      ref ! Update(self, subj, d, canBeCached = true)
-      UpdateForSubject >>('Subject -> subj, 'Target -> ref, 'Data -> Json.stringify(d))
+      ref ! Update(subj, d, canBeCached = true)
+      UpdateForSubject >>('Subject -> subj, 'Target -> ref, 'Data -> d)
     }
 
 
   def cmdOkTo(subj: Any, ref: ActorRef, data: JsValue) = {
     SubjectCmdOK >>('Subject -> subj, 'Target -> ref)
-    ref ! CommandOk(self, subj, data)
+    ref ! CommandOk(subj, Json.stringify(data))
   }
 
   def cmdErrTo(subj: Any, ref: ActorRef, data: JsValue) = {
     SubjectCmdError >>('Subject -> subj, 'Target -> ref)
-    ref ! CommandErr(self, subj, data)
+    ref ! CommandErr(subj, Json.stringify(data))
   }
 
   def convertSubject(subj: Any): Option[T]
@@ -91,8 +91,8 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSu
   private def handleMessages: Receive = {
     case Subscribe(sourceRef, subj) => convertSubject(subj) foreach (addSubscriber(sourceRef, _))
     case Unsubscribe(sourceRef, subj) => convertSubject(subj) foreach (removeSubscriber(sourceRef, _))
-    case Command(sourceRef, subj, replyToSubj, data) =>
-      convertSubject(subj) foreach (processCommand(sourceRef, _, replyToSubj, data))
+    case Command(subj, replyToSubj, data) =>
+      convertSubject(subj) foreach (processCommand(_, replyToSubj, data))
 
   }
 

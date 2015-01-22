@@ -77,7 +77,7 @@ class RouteeComponentStubActor(instanceId: String)
   }
 
 
-  override def processTopicCommand(sourceRef: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = {
+  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = {
     RouteeComponentCommandReceived >> ('Command -> topic.key, 'Data -> maybeData)
 
     topic match {

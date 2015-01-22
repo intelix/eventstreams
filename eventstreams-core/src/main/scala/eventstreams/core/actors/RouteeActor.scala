@@ -59,7 +59,11 @@ trait RouteeActor
 
   case class Publisher(key: TopicKey) {
     def !!(data: Any) = data match {
-      case d: Option[_] => topicUpdate(key, d.asInstanceOf[Option[JsValue]])
+      case Some(x) => x match {
+        case t: JsValue => topicUpdate(key, Some(Json.stringify(t)))
+        case t => topicUpdate(key, Some(t.toString))
+      }
+      case None => topicUpdate(key, None)
       case d => UnsupportedPayload >> ('Type -> d)
     }
   }
@@ -71,7 +75,7 @@ trait RouteeActor
     super.preStart()
   }
 
-  def topicUpdate(topic: TopicKey, data: Option[JsValue], singleTarget: Option[ActorRef] = None): Unit =
+  def topicUpdate(topic: TopicKey, data: Option[String], singleTarget: Option[ActorRef] = None): Unit =
     singleTarget match {
       case Some(ref) => updateTo(LocalSubj(key, topic), ref, data)
       case None => updateToAll(LocalSubj(key, topic), data)
@@ -99,7 +103,7 @@ trait RouteeActor
 
   def processTopicUnsubscribe(sourceRef: ActorRef, topic: TopicKey): Unit = {}
 
-  def processTopicCommand(sourceRef: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = \/-(OK())
+  def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = \/-(OK())
 
   override def processSubscribeRequest(sourceRef: ActorRef, subject: LocalSubj): Unit = Try(processTopicSubscribe(sourceRef, subject.topic)) match {
     case Failure(failure) =>
@@ -113,10 +117,10 @@ trait RouteeActor
     case Success(_) => ()
   }
 
-  override def processCommand(sourceRef: ActorRef, subject: LocalSubj, replyToSubj: Option[Any], maybeData: Option[JsValue]): Unit = {
-    NewCommand >> ('Topic -> subject.topic.key, 'Source -> sourceRef, 'ReplyTo -> replyToSubj)
+  override def processCommand(subject: LocalSubj, replyToSubj: Option[Any], maybeData: Option[String]): Unit = {
+    NewCommand >> ('Topic -> subject.topic.key, 'ReplyTo -> replyToSubj)
 
-    Try(processTopicCommand(sourceRef, subject.topic, replyToSubj, maybeData)) match {
+    Try(processTopicCommand(subject.topic, replyToSubj, maybeData.map(Json.parse))) match {
       case Failure(failure) =>
         genericCommandError(subject.topic, replyToSubj, "Invalid operation")
         CommandFailed >> ('Topic -> subject.topic.key, 'Error -> "Invalid operation")

@@ -169,7 +169,7 @@ class FlowActor(id: String, instructions: List[Config])
     (T_STATS, 5, () => infoDynamic, T_STATS !! _)
   )
 
-  override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
+  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
     case T_STOP =>
       lastRequestedState match {
         case Some(Active()) =>

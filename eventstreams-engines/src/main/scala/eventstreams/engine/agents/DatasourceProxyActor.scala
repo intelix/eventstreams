@@ -72,7 +72,7 @@ class DatasourceProxyActor(val key: ComponentKey, ref: ActorRef)
     case T_PROPS => publishProps()
   }
 
-  override def processTopicCommand(sourceRef: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
+  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
     case T_START =>
       ref ! BecomeActive()
       \/-(OK())

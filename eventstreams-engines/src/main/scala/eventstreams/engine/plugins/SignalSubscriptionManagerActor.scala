@@ -73,7 +73,7 @@ class SignalSubscriptionManagerActor(sysconfig: Config)
   }
 
 
-  override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
+  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
     case T_ADD => startActor(None, maybeData, None)
   }
 

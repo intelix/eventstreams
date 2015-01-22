@@ -224,7 +224,7 @@ class GateActor(id: String)
 
   def messageAllowance = if (maxInFlight - correlationToOrigin.size < 1) 1 else maxInFlight - correlationToOrigin.size
 
-  override def processTopicCommand(ref: ActorRef, topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
+  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
     case T_REPLAY =>
       lastRequestedState match {
         case Some(Passive()) =>

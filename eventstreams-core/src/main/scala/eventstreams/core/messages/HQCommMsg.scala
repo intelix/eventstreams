@@ -21,7 +21,6 @@ import eventstreams.core.agent.core.WireMessage
 import play.api.libs.json.JsValue
 
 trait HQCommMsg[T] extends WireMessage {
-  val sourceRef: ActorRef
   val subj: T
 }
 
@@ -47,14 +46,14 @@ case class Subscribe(sourceRef: ActorRef, subj: Any) extends HQCommMsg[Any]
 
 case class Unsubscribe(sourceRef: ActorRef, subj: Any) extends HQCommMsg[Any]
 
-case class Command(sourceRef: ActorRef, subj: Any, replyToSubj: Option[Any], data: Option[JsValue] = None) extends HQCommMsg[Any]
+case class Command(subj: Any, replyToSubj: Option[Any], data: Option[String] = None) extends HQCommMsg[Any]
 
-case class Update(sourceRef: ActorRef, subj: Any, data: JsValue, canBeCached: Boolean = true) extends HQCommMsg[Any]
+case class Update(subj: Any, data: String, canBeCached: Boolean = true) extends HQCommMsg[Any]
 
-case class CommandOk(sourceRef: ActorRef, subj: Any, data: JsValue) extends HQCommMsg[Any]
-case class CommandErr(sourceRef: ActorRef, subj: Any, data: JsValue) extends HQCommMsg[Any]
+case class CommandOk(subj: Any, data: String) extends HQCommMsg[Any]
+case class CommandErr(subj: Any, data: String) extends HQCommMsg[Any]
 
 
-case class Stale(sourceRef: ActorRef, subj: Any) extends HQCommMsg[Any]
+case class Stale(subj: Any) extends HQCommMsg[Any]
 
 case class RegisterComponent(component: ComponentKey, ref: ActorRef)

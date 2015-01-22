@@ -103,13 +103,13 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
   override def onClusterMemberRemoved(info: NodeInfo): Unit =
     if (info.address.toString != myAddress)
       collectSubjects(_.address == info.address.toString).foreach { subj =>
-        publishToClients(subj, Stale(self, _))
+        publishToClients(subj, Stale(_))
       }
 
   override def onClusterMemberUnreachable(info: NodeInfo): Unit = {
     if (info.address.toString != myAddress)
       collectSubjects(_.address == info.address.toString).foreach { subj =>
-        publishToClients(subj, Stale(self, _))
+        publishToClients(subj, Stale(_))
       }
   }
 
@@ -175,7 +175,7 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
         collectSubjects { subj =>
           subj.localSubj.component == component && myNodeIsTarget(subj)
         } foreach { subj =>
-          publishToClients(subj, Stale(self, _))
+          publishToClients(subj, Stale(_))
         }
         context.unwatch(ref) // can be removed
         false
@@ -201,8 +201,8 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
   override def processUnsubscribeRequest(ref: ActorRef, subject: RemoteSubj) =
     super.processUnsubscribeRequest(ref, subject)
 
-  override def processCommand(ref: ActorRef, subject: RemoteSubj, replyToSubj: Option[Any], maybeData: Option[JsValue]) =
-    forwardDownstream(subject, Command(self, subject, convertSubject(replyToSubj.getOrElse(None)), maybeData))
+  override def processCommand(subject: RemoteSubj, replyToSubj: Option[Any], maybeData: Option[String]) =
+    forwardDownstream(subject, Command(subject, convertSubject(replyToSubj.getOrElse(None)), maybeData))
 
 
   override def onTerminated(ref: ActorRef): Unit = {
@@ -212,7 +212,7 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
           collectSubjects { subj =>
             subj.localSubj.component == component && myNodeIsTarget(subj)
           } foreach { subj =>
-            publishToClients(subj, Stale(self, _))
+            publishToClients(subj, Stale(_))
           }
           component -> ProviderState(ref, active = false)
         case (component, state) => component -> state
@@ -223,10 +223,10 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
   }
 
   private def handler: Receive = {
-    case Update(_, subj, data, cacheable) => publishToClients(subj, Update(self, _, data, cacheable))
-    case CommandErr(_, subj, data) => convertSubject(subj) foreach { remoteSubj => forwardDownstream(remoteSubj, CommandErr(self, remoteSubj, data))}
-    case CommandOk(_, subj, data) => convertSubject(subj) foreach { remoteSubj => forwardDownstream(remoteSubj, CommandOk(self, remoteSubj, data))}
-    case Stale(_, subj) => publishToClients(subj, Stale(self, _))
+    case Update(subj, data, cacheable) => publishToClients(subj, Update(_, data, cacheable))
+    case CommandErr(subj, data) => convertSubject(subj) foreach { remoteSubj => forwardDownstream(remoteSubj, CommandErr(remoteSubj, data))}
+    case CommandOk(subj, data) => convertSubject(subj) foreach { remoteSubj => forwardDownstream(remoteSubj, CommandOk(remoteSubj, data))}
+    case Stale(subj) => publishToClients(subj, Stale(_))
     case RegisterComponent(component, ref) => register(ref, component)
     case RemoveIfInactive(ref) => removeRoute(ref)
   }

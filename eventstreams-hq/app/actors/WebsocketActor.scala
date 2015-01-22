@@ -24,14 +24,12 @@ import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, BaseActorEvents}
 import eventstreams.core.messages._
-import play.api.libs.json.{JsValue, Json}
 
 import scala.collection._
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.util.Try
-
+import scalaz.Scalaz._
 import scalaz._
-import Scalaz._
 
 trait WebsocketActorEvents
   extends ComponentWithBaseEvents
@@ -138,17 +136,17 @@ class WebsocketActor(out: ActorRef)
     case InfoResponse(address) =>
       SendingClusterAddress >> ('Address -> address)
       sendToSocket("fL" + address.toString)
-    case Update(sourceRef, subj, data, _) =>
-      path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(Json.stringify(data)))}
-    case CommandErr(sourceRef, subj, data) =>
+    case Update(subj, data, _) =>
+      path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(data))}
+    case CommandErr(subj, data) =>
       val path = subj2path(subj)
       val alias = path2alias get path
       alias foreach { path =>
-        scheduleOut(path, buildClientMessage("U", path)(Json.stringify(data)))
+        scheduleOut(path, buildClientMessage("U", path)(data))
       }
-    case CommandOk(sourceRef, subj, data) =>
-      path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(Json.stringify(data)))}
-    case Stale(sourceRef, subj) =>
+    case CommandOk(subj, data) =>
+      path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(data))}
+    case Stale(subj) =>
       path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("D", path)())}
 
     case payload: String if payload.length > 0 =>
@@ -270,10 +268,10 @@ class WebsocketActor(out: ActorRef)
     }
   }
 
-  private def processRequestByType(msgType: Char, subj: Subj, payload: Option[JsValue]) = msgType match {
+  private def processRequestByType(msgType: Char, subj: Subj, payload: Option[String]) = msgType match {
     case 'S' => Some(Subscribe(self, subj))
     case 'U' => Some(Unsubscribe(self, subj))
-    case 'C' => Some(Command(self, subj, cmdReplySubj, payload))
+    case 'C' => Some(Command(subj, cmdReplySubj, payload))
     case _ =>
       Error >> ('Message -> s"Invalid message type: $msgType")
       None
@@ -297,10 +295,10 @@ class WebsocketActor(out: ActorRef)
     }
   }
 
-  private def extractSubjectAndPayload(str: String, f: (Subj, Option[JsValue]) => Unit) = {
+  private def extractSubjectAndPayload(str: String, f: (Subj, Option[String]) => Unit) = {
     def extractPayload(list: List[String]) = list match {
       case Nil => None
-      case x :: xs => Json.parse(x).asOpt[JsValue]
+      case x :: xs => Some(x)
     }
     def extract(list: List[String]) = list match {
       case "_" :: comp :: topic :: tail =>
