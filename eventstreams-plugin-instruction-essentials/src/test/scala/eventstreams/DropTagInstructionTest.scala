@@ -16,6 +16,7 @@ package eventstreams
  * limitations under the License.
  */
 
+import eventstreams.core.EventFrame
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials.{DropTagInstruction, DropTagInstructionConstants}
@@ -46,11 +47,11 @@ class DropTagInstructionTest extends TestHelpers {
   }
 
   it should "raise event when built" in new WithBasicConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(Built)
+    expectEvent(EventFrame("abc1" -> "bla"))(Built)
   }
 
   it should "raise event when tag dropped" in new WithBasicConfig {
-    expectEvent(Json.obj("abc1" -> "bla", "tags" -> Json.arr("abc")))(TagDropped, 'Tag -> "abc")
+    expectEvent(EventFrame("abc1" -> "bla", "tags" -> Seq("abc")))(TagDropped, 'Tag -> "abc")
   }
 
   trait WithAdvancedConfig extends WithSimpleInstructionBuilder with DropTagInstructionConstants {
@@ -66,14 +67,14 @@ class DropTagInstructionTest extends TestHelpers {
   }
 
   it should "drop existing tag" in new WithAdvancedConfig {
-    expectOne(Json.obj("abc1" -> 1, "source"->"tagname", "tags" -> JsArray(Seq(JsString("tagname_abc"), JsString("tag2"))))) { result =>
-      result ##> 'tags should be(Some(List(JsString("tag2"))))
+    expectOne(EventFrame("abc1" -> 1, "source"->"tagname", "tags" -> Seq("tagname_abc", "tag2"))) { result =>
+      result ##> 'tags should be(Some(List("tag2")))
     }
   }
 
   it should "not do anything if tag does not exists" in new WithAdvancedConfig {
-    expectOne(Json.obj("abc1" -> 1, "source"->"tagname", "tags" -> JsArray(Seq(JsString("tag1"), JsString("tagname_abcx"))))) { result =>
-      result ##> 'tags should be(Some(List(JsString("tag1"), JsString("tagname_abcx"))))
+    expectOne(EventFrame("abc1" -> 1, "source"->"tagname", "tags" -> Seq("tag1", "tagname_abcx"))) { result =>
+      result ##> 'tags should be(Some(List("tag1", "tagname_abcx")))
     }
   }
 

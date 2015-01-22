@@ -5,7 +5,7 @@ import akka.stream.FlowMaterializer
 import akka.stream.actor._
 import akka.stream.scaladsl.{PublisherSource, SubscriberSink}
 import akka.testkit.{TestKit, TestProbe}
-import eventstreams.core.{BecomeActive, BecomePassive, JsonFrame, Stop}
+import eventstreams.core.{BecomeActive, BecomePassive, EventFrame, Stop}
 import play.api.libs.json.JsValue
 
 import scala.util.Try
@@ -29,8 +29,8 @@ trait FlowPublisherTestContext {
     val tapActor = system.actorOf(pub)
     val sinkActor = system.actorOf(sink)
 
-    val pubSrc = PublisherSource[JsonFrame](ActorPublisher[JsonFrame](tapActor))
-    val subSink = SubscriberSink(ActorSubscriber[JsonFrame](sinkActor))
+    val pubSrc = PublisherSource[EventFrame](ActorPublisher[EventFrame](tapActor))
+    val subSink = SubscriberSink(ActorSubscriber[EventFrame](sinkActor))
 
     pubSrc.to(subSink).run()
 

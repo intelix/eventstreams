@@ -16,7 +16,8 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.Tools.configHelper
+import eventstreams.core.EventFrame
+import eventstreams.core.EventFrameConverter.optionsConverter
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials.{GrokInstruction, GrokInstructionConstants}
 import eventstreams.support.TestHelpers
@@ -129,16 +130,16 @@ class GrokInstructionTest extends TestHelpers {
   }
 
   it should "raise event when built" in new WithMinimalConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(Built)
+    expectEvent(EventFrame("abc1" -> "bla"))(Built)
   }
 
   val originalSource = " field1=1  field2=20 field3=300"
-  val input = Json.obj("source" -> originalSource)
+  val input = EventFrame("source" -> originalSource)
 
   "Grok with input \"source\" -> \" field1=1  field2=20 field3=300\"" should "raise events when grokked" in new WithMinimalConfig {
-    expectEvent(input)(Grokked, 'Field -> "/field1", 'Value -> "1", 'Type -> "n")
-    expectEvent(input)(Grokked, 'Field -> "/field2", 'Value -> "20", 'Type -> "n")
-    expectEvent(input)(Grokked, 'Field -> "/field3", 'Value -> "300", 'Type -> "n")
+    expectEvent(input)(Grokked, 'Field -> "field1", 'Value -> "1", 'Type -> "n")
+    expectEvent(input)(Grokked, 'Field -> "field2", 'Value -> "20", 'Type -> "n")
+    expectEvent(input)(Grokked, 'Field -> "field3", 'Value -> "300", 'Type -> "n")
   }
 
   it should "set fields as per config" in new WithMinimalConfig {
@@ -171,15 +172,15 @@ class GrokInstructionTest extends TestHelpers {
   }
 
   "Grok with input \"source\" -> \" field1=1  field2=20 field3=300\" and multifields config" should "raise events when grokked" in new WithMultifieldConfig {
-    expectEvent(input)(Grokked, 'Field -> "/field1", 'Value -> "1", 'Type -> "n")
-    expectEvent(input)(Grokked, 'Field -> "/tags", 'Value -> "tag_field1", 'Type -> "as")
-    expectEvent(input)(Grokked, 'Field -> "/field1_branch/name", 'Value -> "tag_field1", 'Type -> "s")
-    expectEvent(input)(Grokked, 'Field -> "/values", 'Value -> "1", 'Type -> "an")
+    expectEvent(input)(Grokked, 'Field -> "field1", 'Value -> "1", 'Type -> "n")
+    expectEvent(input)(Grokked, 'Field -> "tags", 'Value -> "tag_field1", 'Type -> "as")
+    expectEvent(input)(Grokked, 'Field -> "field1_branch.name", 'Value -> "tag_field1", 'Type -> "s")
+    expectEvent(input)(Grokked, 'Field -> "values", 'Value -> "1", 'Type -> "an")
     
-    expectEvent(input)(Grokked, 'Field -> "/field2", 'Value -> "20", 'Type -> "n")
-    expectEvent(input)(Grokked, 'Field -> "/tags", 'Value -> "tag_field2", 'Type -> "as")
-    expectEvent(input)(Grokked, 'Field -> "/field2_branch/name", 'Value -> "tag_field2", 'Type -> "s")
-    expectEvent(input)(Grokked, 'Field -> "/values", 'Value -> "20", 'Type -> "an")
+    expectEvent(input)(Grokked, 'Field -> "field2", 'Value -> "20", 'Type -> "n")
+    expectEvent(input)(Grokked, 'Field -> "tags", 'Value -> "tag_field2", 'Type -> "as")
+    expectEvent(input)(Grokked, 'Field -> "field2_branch.name", 'Value -> "tag_field2", 'Type -> "s")
+    expectEvent(input)(Grokked, 'Field -> "values", 'Value -> "20", 'Type -> "an")
   }
 
   it should "set numeric fields into /field1, etc" in new WithMultifieldConfig {
@@ -192,13 +193,13 @@ class GrokInstructionTest extends TestHelpers {
 
   it should "set tags into /tags, etc" in new WithMultifieldConfig {
     expectOne(input) { result =>
-      result ##> 'tags should be (Some(List(JsString("tag_field1"),JsString("tag_field2"),JsString("tag_field3"))))
+      result ##> 'tags should be (Some(List(("tag_field1"),("tag_field2"),("tag_field3"))))
     }
   }
 
   it should "set values into array /values, etc" in new WithMultifieldConfig {
     expectOne(input) { result =>
-      result ##> 'values should be (Some(Seq(JsNumber(1),JsNumber(20),JsNumber(300))))
+      result ##> 'values should be (Some(Seq((1),(20),(300))))
     }
   }
 

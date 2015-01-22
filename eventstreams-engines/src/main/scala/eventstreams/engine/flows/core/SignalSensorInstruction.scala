@@ -130,13 +130,13 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
     }
   }
 
-  def eventToSignal(e: JsonFrame): Signal = {
+  def eventToSignal(e: EventFrame): Signal = {
 
     sequenceCounter = sequenceCounter + 1
 
-    val eventId = e.event ~> 'eventId | "undefined"
+    val eventId = e.eventIdOrNA
     val signalId = eventId + ":" + sequenceCounter
-    val ts = timestampSource.flatMap { tsSource => Tools.locateFieldValue(e, tsSource).asOpt[Long]} | now
+    val ts = timestampSource.flatMap { tsSource => Tools.locateRawFieldValue(e, tsSource, now).asNumber.map(_.longValue())} | now
 
     Signal(signalId, sequenceCounter, ts,
       eventId, level, signalClass, signalSubclass,
@@ -149,18 +149,18 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
       expirySec.map(_ * 1000 + now))
   }
 
-  def signalToEvent(s: Signal): JsonFrame = JsonFrame(Json.obj(
+  def signalToEvent(s: Signal): EventFrame = EventFrame(
     "eventId" -> s.signalId,
     "eventSeq" -> s.sequenceId,
     DateInstructionConstants.default_targetFmtField -> DateTime.now().toString(DateInstructionConstants.default),
     DateInstructionConstants.default_targetTsField -> DateTime.now().getMillis,
     "transaction" -> (transactionDemarcation.map { demarc =>
-      Json.obj(
+      Map(
         "demarcation" -> demarc,
         "status" -> JsString(transactionStatus.getOrElse("unknown"))
       )
-    } | Json.obj()),
-    "signal" -> Json.obj(
+    } | Map()),
+    "signal" -> Map(
       "sourceEventId" -> s.eventId,
       "conflationKey" -> s.conflationKey,
       "correlationId" -> s.correlationId,
@@ -174,7 +174,7 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
       "time" -> s.ts,
       "time_fmt" -> new DateTime(s.ts).toString(DateInstructionConstants.default)
     )
-  ), Map())
+  )
 
 
   def throttlingAllowed() = throttlingAllowance match {
@@ -184,7 +184,7 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
   }
 
 
-  override def execute(frame: JsonFrame): Option[Seq[JsonFrame]] = {
+  override def execute(frame: EventFrame): Option[Seq[EventFrame]] = {
     if (simpleCondition.metFor(frame).isRight) {
       val signal = eventToSignal(frame)
       accountSignal(signal)
@@ -204,10 +204,10 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
       && isActive
       && isComponentActive
       && millisTimeSinceStateChange > occurrenceWatchPeriodSec * 1000
-      && countSignals(correlationIdTemplate.map { s => Tools.macroReplacement(JsonFrame(Json.obj(), Map()), s)}) == 0) {
+      && countSignals(correlationIdTemplate.map { s => Tools.macroReplacement(EventFrame(), s)}) == 0) {
       if (throttlingAllowed()) {
         mark(now)
-        forwardToFlow(signalToEvent(eventToSignal(JsonFrame(Json.obj("eventId" -> Utils.generateShortUUID, "ts" -> now), Map()))))
+        forwardToFlow(signalToEvent(eventToSignal(EventFrame("eventId" -> Utils.generateShortUUID, "ts" -> now))))
       }
     }
   }

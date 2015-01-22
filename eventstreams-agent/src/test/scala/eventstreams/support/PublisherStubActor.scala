@@ -5,6 +5,7 @@ import akka.stream.actor.ActorPublisherMessage.Request
 import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
+import eventstreams.core.EventFrame
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors._
 import eventstreams.core.agent.core.ProducedMessage
@@ -49,7 +50,7 @@ class PublisherStubActor(maybeState: Option[JsValue])
   }
 
   def process(m: ProducedMessage) = {
-    MessageQueuedAtStub >> ('EventId -> m.value ~> 'eventId)
+    MessageQueuedAtStub >> ('EventId -> m.value.eventIdOrNA)
     replayList = replayList :+ m
     queue.enqueue(m)
     publishNext()
@@ -59,7 +60,7 @@ class PublisherStubActor(maybeState: Option[JsValue])
   final def publishNext(): Unit = {
     if (totalDemand > 0 && isActive && isComponentActive && queue.size > 0) {
       val m = queue.dequeue()
-      PublishingMessage >> ('EventId -> m.value ~> 'eventId)
+      PublishingMessage >> ('EventId -> m.value.eventIdOrNA)
       onNext(m)
       publishNext()
     }
@@ -67,7 +68,8 @@ class PublisherStubActor(maybeState: Option[JsValue])
   
   def handler: Receive = {
     case m: ProducedMessage => process(m)
-    case m: JsValue => process(ProducedMessage(m, Some(Json.obj("id" -> (m ~> 'eventId | "na")))))
+//    case m: JsValue => process(ProducedMessage(m, Some(Json.obj("id" -> (m ~> 'eventId | "na")))))
+    case m: EventFrame => process(ProducedMessage(m, Some(Json.obj("id" -> (m ~> 'eventId | "na")))))
     case Request(n) =>
       NewDemandAtPublisher >> ('Requested -> n)
       publishNext()

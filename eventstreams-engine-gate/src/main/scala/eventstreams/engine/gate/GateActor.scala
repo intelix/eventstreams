@@ -59,7 +59,7 @@ case class GateStateError(details: Option[String] = None) extends GateState
 
 class GateActor(id: String)
   extends PipelineWithStatesActor
-  with AtLeastOnceDeliveryActor[JsonFrame]
+  with AtLeastOnceDeliveryActor[EventFrame]
   with ActorWithConfigStore
   with RouteeActor
   with ActorWithDupTracking
@@ -207,7 +207,7 @@ class GateActor(id: String)
 
 
   def initiateReplay(ref: ActorRef, limit: Int): \/[Fail, OK] = {
-    val idx = Tools.macroReplacement(Json.obj(), Map[String, JsValue](), replayIndexPattern)
+    val idx = Tools.macroReplacement(EventFrame(), replayIndexPattern)
     RetentionManagerActor.path ! InitiateReplay(ref, idx, replayEventType, limit)
     currentState = GateStateReplay(Some("awaiting"))
     publishInfo()
@@ -267,7 +267,7 @@ class GateActor(id: String)
 
   override def canDeliverDownstreamRightNow: Boolean = isComponentActive
 
-  override def fullyAcknowledged(correlationId: Long, msg: JsonFrame): Unit = {
+  override def fullyAcknowledged(correlationId: Long, msg: EventFrame): Unit = {
     logger.info(s"Delivered to all active sinks $correlationId ")
     correlationToOrigin.get(correlationId).foreach { origin =>
       correlationToOrigin += correlationId -> origin.copy(deliveryPending = false)
@@ -283,44 +283,19 @@ class GateActor(id: String)
     eventSequenceCounter
   }
 
-  def enrichInboundJsonFrame(inboundCorrelationId: Long, frame: JsonFrame) = {
-    val eventId = frame.event ~> 'eventId | shortUUID
-    val eventSeq = frame.event ++> 'eventSeq | nextEventSequence()
-    val eventType = frame.event ~> 'eventType | "default"
-    val timestamp = frame.event ++> 'ts | now
-    var trace = (frame.event ##> 'trace).map(_.map(_.asOpt[String] | "")) | List()
+  def enrichInboundJsonFrame(inboundCorrelationId: Long, frame: EventFrame) = {
+    val eventId = frame.eventId | shortUUID
+    val eventSeq = frame ++> 'eventSeq | nextEventSequence()
+    val eventType = frame ~> 'eventType | "default"
+    val timestamp = frame ++> 'ts | now
+    var trace = (frame ##> 'trace).map(_.map(_.asString | "")) | List()
     if (!trace.contains(id)) trace = trace :+ id
 
-
-    var event = frame.event
-    try {
-      event = event.set(__ \ 'eventId -> JsString(eventId))
-    }
-    catch {
-      case x: Throwable => logger.error(s"Unable to set eventId into $event", x)
-    }
-    try {
-      event = event.set(__ \ 'eventSeq -> JsNumber(eventSeq))
-    }
-    catch {
-      case x: Throwable => logger.error(s"Unable to set eventSeq into $event", x)
-    }
-    try {
-      event = event.set(__ \ 'ts -> JsNumber(timestamp))
-    }
-    catch {
-      case x: Throwable => logger.error(s"Unable to set ts into $event", x)
-    }
-
-
-    JsonFrame(
-      event,
-      frame.ctx + ("correlationId" -> JsNumber(inboundCorrelationId)) + ("processedTs" -> JsNumber(now)) + ("trace" -> Json.toJson(trace.toArray))
-    )
+    frame + ('eventId -> eventId) + ('eventSeq -> eventSeq) + ('ts -> timestamp)
   }
 
-  def convertInboundPayload(id: Long, message: Any): Option[JsonFrame] = message match {
-    case m: JsonFrame => Some(enrichInboundJsonFrame(id, m))
+  def convertInboundPayload(id: Long, message: Any): Option[EventFrame] = message match {
+    case m: EventFrame => Some(enrichInboundJsonFrame(id, m))
     case x =>
       logger.warn(s"Unsupported message type at the gate  $id: $x")
       None
@@ -406,7 +381,7 @@ class GateActor(id: String)
     case ReplayedEvent(originalCId, msg) =>
       if (canAcceptAnotherReplayMessage) {
         logger.info(s"New replayed message arrived at the gate $id ... $originalCId")
-        val frame = JsonFrame(Json.parse(msg).as[JsValue], Map())
+        val frame = EventFrameConverter.fromJson(Json.parse(msg))
         val correlationId = if (sinks.isEmpty && acceptWithoutSinks) generateCorrelationId(frame) else deliverMessage(frame)
         correlationToOrigin += correlationId ->
           InflightMessage(

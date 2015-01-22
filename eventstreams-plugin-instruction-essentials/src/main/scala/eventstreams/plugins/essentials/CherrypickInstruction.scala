@@ -71,44 +71,38 @@ class CherrypickInstruction extends SimpleInstructionBuilder with CherrypickInst
 
       Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
-      frame: JsonFrame => {
+      frame: EventFrame => {
 
-        val sourcePath = toPath(macroReplacement(frame, valuePath))
-        val targetPath = toPath(macroReplacement(frame, fieldName))
+        val sourcePath = macroReplacement(frame, valuePath)
+        val targetPath = macroReplacement(frame, fieldName)
 
         val result = if (keepOriginalEvent) List(frame) else List()
 
-        frame.event.getOpt(sourcePath) match {
+        EventValuePath(sourcePath).extractRaw(frame) match {
           case Some(v) =>
-            var newValue = Json.obj().set(
-              targetPath -> v
-            )
-
             val newEventId = macroReplacement(frame, eventIdTemplate)
-
-            newValue = setValue("s", JsString(newEventId), __ \ 'eventId, newValue)
-            newValue = setValue("n", JsString(macroReplacement(frame, eventSeqTemplate)), __ \ 'eventSeq, newValue)
-            newValue = setValue("s", JsString(macroReplacement(frame, index)), __ \ 'index, newValue)
-            newValue = setValue("s", JsString(macroReplacement(frame, table)), __ \ 'table, newValue)
-            newValue = setValue("s", JsString(macroReplacement(frame, ttl)), __ \ '_ttl, newValue)
+            var newValue = EventValuePath(targetPath).setValueInto(EventFrame(), v) +
+              ('eventId -> newEventId) +
+              ('eventSeq -> macroReplacement(frame, eventSeqTemplate)) +
+              ('index -> macroReplacement(frame, index)) +
+              ('table -> macroReplacement(frame, table)) +
+              ('_ttl -> macroReplacement(frame, ttl))
 
             additionalTags.foreach { tag =>
-              newValue = setValue("as", JsString(tag), __ \ 'tags, newValue)
+              newValue = setValue("as", tag, "tags", newValue)
             }
 
-            val newFrame = frame.copy(event = newValue)
-
-            val eventId = frame.event ~> 'eventId | "n/a"
+            val eventId = frame.eventIdOrNA
 
             Cherrypicked >>> Seq(
               'From -> sourcePath,
-              'Result -> Json.stringify(newValue),
+              'Result -> newValue,
               'KeepOriginal -> keepOriginalEvent,
               'EventId -> eventId,
               'NewEventId -> newEventId,
               'InstructionInstanceId -> uuid)
 
-            result :+ newFrame
+            result :+ newValue
           case None => result
         }
 

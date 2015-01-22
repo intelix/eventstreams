@@ -24,8 +24,8 @@ object Types {
   type TapActorPropsType = Props
   type SinkActorPropsType = Props
   type InstructionType = Props
-  type SimpleInstructionType = (JsonFrame) => scala.collection.immutable.Seq[JsonFrame]
-  type SimpleInstructionTypeWithGenerator = ((JsonFrame) => scala.collection.immutable.Seq[JsonFrame], Option[(Long) => scala.collection.immutable.Seq[JsonFrame]])
+  type SimpleInstructionType = (EventFrame) => scala.collection.immutable.Seq[EventFrame]
+  type SimpleInstructionTypeWithGenerator = ((EventFrame) => scala.collection.immutable.Seq[EventFrame], Option[(Long) => scala.collection.immutable.Seq[EventFrame]])
 
 
 }

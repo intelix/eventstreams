@@ -17,6 +17,7 @@ package eventstreams
  */
 
 import _root_.core.events.EventOps.symbolToEventOps
+import eventstreams.core.EventFrame
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials._
 import eventstreams.support.TestHelpers
@@ -52,11 +53,11 @@ class LogInstructionTest extends TestHelpers {
   }
 
   it should "raise event when built" in new WithBasicConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(Built)
+    expectEvent(EventFrame("abc1" -> "bla"))(Built)
   }
 
   it should "raise event" in new WithBasicConfig {
-    expectEvent(Json.obj("eventId" -> "id", "abc1" -> "bla", "tags" -> Json.arr("abc")))('eventname.info)
+    expectEvent(EventFrame("eventId" -> "id", "abc1" -> "bla", "tags" -> Seq("abc")))('eventname.info)
   }
 
   trait WithWarnConfig extends WithSimpleInstructionBuilder with LogInstructionConstants with LogInstructionEvents {
@@ -70,7 +71,7 @@ class LogInstructionTest extends TestHelpers {
   }
 
   it should "raise warn event" in new WithWarnConfig {
-    expectEvent(Json.obj("eventId" -> "id", "abc1" -> "bla", "tags" -> Json.arr("abc")))('eventname.warn)
+    expectEvent(EventFrame("eventId" -> "id", "abc1" -> "bla", "tags" -> Seq("abc")))('eventname.warn)
   }
 
   trait WithErrorConfig extends WithSimpleInstructionBuilder with LogInstructionConstants with LogInstructionEvents {
@@ -84,7 +85,7 @@ class LogInstructionTest extends TestHelpers {
   }
 
   it should "raise error event" in new WithErrorConfig {
-    expectEvent(Json.obj("eventId" -> "id", "abc1" -> "bla", "tags" -> Json.arr("abc")))('eventname.error)
+    expectEvent(EventFrame("eventId" -> "id", "abc1" -> "bla", "tags" -> Seq("abc")))('eventname.error)
   }
 
 

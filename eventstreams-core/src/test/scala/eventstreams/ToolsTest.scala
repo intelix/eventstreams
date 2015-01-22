@@ -1,7 +1,7 @@
 package eventstreams
 
 import eventstreams.core.Tools.configHelper
-import eventstreams.core.{JsonFrame, Tools, Utils}
+import eventstreams.core._
 import eventstreams.support.TestHelpers
 import org.joda.time.format.DateTimeFormat
 import play.api.libs.json._
@@ -250,9 +250,11 @@ class ToolsTest extends TestHelpers {
     Tools.toPath("p1 (1)/p2( 0).p3 ( 3 ) ") should be ((((__ \ 'p1)(1) \ 'p2)(0) \ 'p3)(3))
   }
 
+
+
   val testDate = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").parseDateTime("2014-02-03 23:10:11")
-  val testInput = Json.obj("date_ts" -> testDate.getMillis, "f1"->"abc", "f2"->true,"f3"->123.1,"f4"->Json.arr("a1","a2"),"f5"->Json.obj("z1"->"xyz"))
-  val testFrame = JsonFrame(testInput,Map())
+  val testInput = EventFrame("date_ts" -> testDate.getMillis, "f1"->"abc", "f2"->true,"f3"->123.1,"f4"->Seq("a1","a2"),"f5"->Map("z1"->"xyz"))
+  val testFrame = testInput
 
   s"macroReplacement for input $testInput" should "resolve mnb into mnb" in {
     Tools.macroReplacement(testFrame,"mnb") should be ("mnb")
@@ -261,13 +263,13 @@ class ToolsTest extends TestHelpers {
     Tools.macroReplacement(testFrame,"${f1}") should be ("abc")
   }
   it should "resolve ${f1} into abc if we use overloaded method" in {
-    Tools.macroReplacement(testInput, Map[String,JsValue](), "${f1}") should be ("abc")
+    Tools.macroReplacement(testInput, Map[String,String](), "${f1}") should be ("abc")
   }
   it should "resolve ${f1} into abc if we use overloaded method with JsString as param" in {
-    Tools.macroReplacement(testInput, Map[String,JsValue](), JsString("${f1}")) should be (JsString("abc"))
+    Tools.macroReplacement(testInput, Map[String,String](), "${f1}") should be ("abc")
   }
   it should "resolve ${fx} into abc1 if we provide value in the context" in {
-    Tools.macroReplacement(testInput, Map[String,JsValue]("fx" -> JsString("abc1")), "${fx}") should be ("abc1")
+    Tools.macroReplacement(testInput, Map[String,String]("fx" -> "abc1"), "${fx}") should be ("abc1")
   }
 
   it should "resolve ${f1}_x into abc_x" in {
@@ -310,111 +312,111 @@ class ToolsTest extends TestHelpers {
     Tools.macroReplacement(testFrame,"evt:${eventts:yyyy-MMM-dd_HH:mm:ss}") should be (s"evt:$expectedEvt")
   }
 
-  val testInputNoDateTs = Json.obj("f1"->"abc", "f2"->true,"f3"->123.1,"f4"->Json.arr("a1","a2"),"f5"->Json.obj("z1"->"xyz"))
+  val testInputNoDateTs = EventFrame("f1"->"abc", "f2"->true,"f3"->123.1,"f4"->Seq("a1","a2"),"f5"->Map("z1"->"xyz"))
   val expectedEvtBasedOnNow = DateTimeFormat.forPattern("yyyy-MMM-dd_HH").print(System.currentTimeMillis())
 
   s"macroReplacement for input $testInputNoDateTs" should "resolve evt:${eventts:yyyy-MMM-dd_HH} into "+expectedEvtBasedOnNow in {
-    Tools.macroReplacement(testInputNoDateTs, Map[String,JsValue](),"evt:${eventts:yyyy-MMM-dd_HH}") should be (s"evt:$expectedEvtBasedOnNow")
+    Tools.macroReplacement(testInputNoDateTs, Map[String,String](),"evt:${eventts:yyyy-MMM-dd_HH}") should be (s"evt:$expectedEvtBasedOnNow")
   }
 
   s"setValue(s,JsString(qwe)...)for input $testInputNoDateTs " should "set string into path" in {
-    Tools.setValue("s",JsString("qwe"),__ \ 'path, testInputNoDateTs) ~> "path" should be (Some("qwe"))
+    Tools.setValue("s","qwe",'path, testInputNoDateTs) ~> "path" should be (Some("qwe"))
   }
   it should "set string into f1" in {
-    Tools.setValue("s",JsString("qwe"),__ \ 'f1, testInputNoDateTs) ~> "f1" should be (Some("qwe"))
+    Tools.setValue("s","qwe",'f1, testInputNoDateTs) ~> "f1" should be (Some("qwe"))
   }
   it should "set string into f2" in {
-    Tools.setValue("s",JsString("qwe"),__ \ 'f2, testInputNoDateTs) ~> "f2" should be (Some("qwe"))
+    Tools.setValue("s","qwe",'f2, testInputNoDateTs) ~> "f2" should be (Some("qwe"))
   }
   it should "set string into f3" in {
-    Tools.setValue("s",JsString("qwe"),__ \ 'f3, testInputNoDateTs) ~> "f3" should be (Some("qwe"))
+    Tools.setValue("s","qwe",'f3, testInputNoDateTs) ~> "f3" should be (Some("qwe"))
   }
   it should "set string into f4" in {
-    Tools.setValue("s",JsString("qwe"),__ \ 'f4, testInputNoDateTs) ~> "f4" should be (Some("qwe"))
+    Tools.setValue("s","qwe",'f4, testInputNoDateTs) ~> "f4" should be (Some("qwe"))
   }
 
-  s"setValue(n,JsString(qwe)...)for input $testInputNoDateTs " should "not set string into path" in {
-    Tools.setValue("n",JsString("qwe"),__ \ 'path, testInputNoDateTs) ~> "path" should be (None)
-    Tools.setValue("n",JsString("qwe"),__ \ 'path, testInputNoDateTs) +> "path" should be (Some(0))
+  s"setValue(n,JsString(qwe)...)for input $testInputNoDateTs " should "set string or num into path" in {
+    Tools.setValue("n","qwe",'path, testInputNoDateTs) ~> "path" should be (Some("0"))
+    Tools.setValue("n","qwe",'path, testInputNoDateTs) +> "path" should be (Some(0))
   }
 
   s"setValue(n,JsString(12)...)for input $testInputNoDateTs " should "set number into path" in {
-    Tools.setValue("n",JsString("12"),__ \ 'path, testInputNoDateTs) +> "path" should be (Some(12))
+    Tools.setValue("n","12",'path, testInputNoDateTs) +> "path" should be (Some(12))
   }
   it should "set number into f1" in {
-    Tools.setValue("n",JsString("12"),__ \ 'f1, testInputNoDateTs) +> "f1" should be (Some(12))
+    Tools.setValue("n","12",'f1, testInputNoDateTs) +> "f1" should be (Some(12))
   }
   it should "set number into f2" in {
-    Tools.setValue("n",JsString("12"),__ \ 'f2, testInputNoDateTs) +> "f2" should be (Some(12))
+    Tools.setValue("n","12",'f2, testInputNoDateTs) +> "f2" should be (Some(12))
   }
   it should "set number into f3" in {
-    Tools.setValue("n",JsString("12"),__ \ 'f3, testInputNoDateTs) +> "f3" should be (Some(12))
+    Tools.setValue("n","12",'f3, testInputNoDateTs) +> "f3" should be (Some(12))
   }
   it should "set number into f4" in {
-    Tools.setValue("n",JsString("12"),__ \ 'f4, testInputNoDateTs) +> "f4" should be (Some(12))
+    Tools.setValue("n","12",'f4, testInputNoDateTs) +> "f4" should be (Some(12))
   }
 
-  s"setValue(n,JsNumber(12)...)for input $testInputNoDateTs " should "set number into path" in {
-    Tools.setValue("n",JsNumber(12),__ \ 'path, testInputNoDateTs) +> "path" should be (Some(12))
+  s"setValue(n,12...)for input $testInputNoDateTs " should "set number into path" in {
+    Tools.setValue("n","12",'path, testInputNoDateTs) +> "path" should be (Some(12))
   }
   it should "set number into f1" in {
-    Tools.setValue("n",JsNumber(12),__ \ 'f1, testInputNoDateTs) +> "f1" should be (Some(12))
+    Tools.setValue("n","12",'f1, testInputNoDateTs) +> "f1" should be (Some(12))
   }
   it should "set number into f2" in {
-    Tools.setValue("n",JsNumber(12),__ \ 'f2, testInputNoDateTs) +> "f2" should be (Some(12))
+    Tools.setValue("n","12",'f2, testInputNoDateTs) +> "f2" should be (Some(12))
   }
   it should "set number into f3" in {
-    Tools.setValue("n",JsNumber(12),__ \ 'f3, testInputNoDateTs) +> "f3" should be (Some(12))
+    Tools.setValue("n","12",'f3, testInputNoDateTs) +> "f3" should be (Some(12))
   }
   it should "set number into f4" in {
-    Tools.setValue("n",JsNumber(12),__ \ 'f4, testInputNoDateTs) +> "f4" should be (Some(12))
+    Tools.setValue("n","12",'f4, testInputNoDateTs) +> "f4" should be (Some(12))
   }
-  s"setValue(s,JsNumber(12)...)for input $testInputNoDateTs " should "set string into path" in {
-    Tools.setValue("s",JsNumber(12),__ \ 'path, testInputNoDateTs) ~> "path" should be (Some("12"))
+  s"setValue(s,12...)for input $testInputNoDateTs " should "set string into path" in {
+    Tools.setValue("s","12",'path, testInputNoDateTs) ~> "path" should be (Some("12"))
   }
   it should "set string into f1" in {
-    Tools.setValue("s",JsNumber(12),__ \ 'f1, testInputNoDateTs) ~> "f1" should be (Some("12"))
+    Tools.setValue("s","12",'f1, testInputNoDateTs) ~> "f1" should be (Some("12"))
   }
   it should "set string into f2" in {
-    Tools.setValue("s",JsNumber(12),__ \ 'f2, testInputNoDateTs) ~> "f2" should be (Some("12"))
+    Tools.setValue("s","12",'f2, testInputNoDateTs) ~> "f2" should be (Some("12"))
   }
   it should "set string into f3" in {
-    Tools.setValue("s",JsNumber(12),__ \ 'f3, testInputNoDateTs) ~> "f3" should be (Some("12"))
+    Tools.setValue("s","12",'f3, testInputNoDateTs) ~> "f3" should be (Some("12"))
   }
   it should "set string into f4" in {
-    Tools.setValue("s",JsNumber(12),__ \ 'f4, testInputNoDateTs) ~> "f4" should be (Some("12"))
+    Tools.setValue("s","12",'f4, testInputNoDateTs) ~> "f4" should be (Some("12"))
   }
 
   s"setValue(b,JsString(true)...)for input $testInputNoDateTs " should "set bool into path" in {
-    Tools.setValue("b",JsString("true"),__ \ 'path, testInputNoDateTs) ?> "path" should be (Some(true))
+    Tools.setValue("b","true",'path, testInputNoDateTs) ?> "path" should be (Some(true))
   }
   it should "set bool into f1" in {
-    Tools.setValue("b",JsString("true"),__ \ 'f1, testInputNoDateTs) ?> "f1" should be (Some(true))
+    Tools.setValue("b","true",'f1, testInputNoDateTs) ?> "f1" should be (Some(true))
   }
   it should "set bool into f2" in {
-    Tools.setValue("b",JsString("true"),__ \ 'f2, testInputNoDateTs) ?> "f2" should be (Some(true))
+    Tools.setValue("b","true",'f2, testInputNoDateTs) ?> "f2" should be (Some(true))
   }
   it should "set bool into f3" in {
-    Tools.setValue("b",JsString("true"),__ \ 'f3, testInputNoDateTs) ?> "f3" should be (Some(true))
+    Tools.setValue("b","true",'f3, testInputNoDateTs) ?> "f3" should be (Some(true))
   }
   it should "set bool into f4" in {
-    Tools.setValue("b",JsString("true"),__ \ 'f4, testInputNoDateTs) ?> "f4" should be (Some(true))
+    Tools.setValue("b","true",'f4, testInputNoDateTs) ?> "f4" should be (Some(true))
   }
 
   s"setValue(as,JsString(qwe)...)for input $testInputNoDateTs " should "set string arr into path" in {
-    Tools.setValue("as",JsString("qwe"),__ \ 'path, testInputNoDateTs) ##> "path" should be (Some(List(JsString("qwe"))))
+    Tools.setValue("as","qwe",'path, testInputNoDateTs) ##> "path" should be (Some(List(EventDataValueString("qwe"))))
   }
   it should "set string into f1" in {
-    Tools.setValue("as",JsString("qwe"),__ \ 'f1, testInputNoDateTs) ##> "f1" should be (Some(List(JsString("abc"),JsString("qwe"))))
+    Tools.setValue("as","qwe",'f1, testInputNoDateTs) ##> "f1" should be (Some(List(EventDataValueString("abc"),EventDataValueString("qwe"))))
   }
   it should "set string into f2" in {
-    Tools.setValue("as",JsString("qwe"),__ \ 'f2, testInputNoDateTs) ##> "f2" should be (Some(List(JsBoolean(true),JsString("qwe"))))
+    Tools.setValue("as","qwe",'f2, testInputNoDateTs) ##> "f2" should be (Some(List(EventDataValueBoolean(true),EventDataValueString("qwe"))))
   }
   it should "set string into f3" in {
-    Tools.setValue("as",JsString("qwe"),__ \ 'f3, testInputNoDateTs) ##> "f3" should be (Some(List(JsNumber(123.1),JsString("qwe"))))
+    Tools.setValue("as","qwe",'f3, testInputNoDateTs) ##> "f3" should be (Some(List(EventDataValueNumber(123.1),EventDataValueString("qwe"))))
   }
   it should "set string into f4" in {
-    Tools.setValue("as",JsString("qwe"),__ \ 'f4, testInputNoDateTs) ##> "f4" should be (Some(List(JsString("a1"),JsString("a2"),JsString("qwe"))))
+    Tools.setValue("as","qwe",'f4, testInputNoDateTs) ##> "f4" should be (Some(List(EventDataValueString("a1"),EventDataValueString("a2"),EventDataValueString("qwe"))))
   }
 
   "Utils.generateShortUUID" should "generate a random short uuid" in {

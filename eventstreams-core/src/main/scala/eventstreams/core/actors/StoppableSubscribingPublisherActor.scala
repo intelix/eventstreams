@@ -18,14 +18,14 @@ package eventstreams.core.actors
 
 import akka.stream.actor.ActorSubscriberMessage.OnNext
 import core.events.WithEventPublisher
-import eventstreams.core.JsonFrame
+import eventstreams.core.EventFrame
 
 trait SubscribingPublisherActorEvents extends StandardSubscriberEvents with StandardPublisherEvents
 
 trait StoppableSubscribingPublisherActor
   extends ActorWithComposableBehavior
   with PipelineWithStatesActor
-  with StoppablePublisherActor[JsonFrame]
+  with StoppablePublisherActor[EventFrame]
   with StoppableSubscriberActor
   with SubscribingPublisherActorEvents {
 
@@ -33,10 +33,10 @@ trait StoppableSubscribingPublisherActor
   
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
-  def execute(value: JsonFrame): Option[Seq[JsonFrame]]
+  def execute(value: EventFrame): Option[Seq[EventFrame]]
 
   private def handler: Receive = {
-    case OnNext(el: JsonFrame) =>
+    case OnNext(el: EventFrame) =>
       MessageArrived >>('EventId -> el.eventIdOrNA, 'PublisherQueueDepth -> pendingToDownstreamCount, 'StreamActive -> isActive)
       if (isActive) execute(el) foreach (_.foreach(forwardToFlow))
 

@@ -16,7 +16,8 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.Tools.configHelper
+import eventstreams.core.EventFrame
+import eventstreams.core.EventFrameConverter.optionsConverter
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials._
 import eventstreams.support.TestHelpers
@@ -56,15 +57,15 @@ class CherrypickInstructionTest extends TestHelpers with CherrypickInstructionCo
   }
 
   it should "raise event when built" in new WithBasicConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(Built)
+    expectEvent(EventFrame("abc1" -> "bla"))(Built)
   }
 
   it should "raise event when tag added" in new WithBasicConfig {
-    expectEvent(Json.obj("abc1" -> "bla", "source" -> Json.obj("branch" -> Json.obj("f1"->"abc", "f2"->123))))(Cherrypicked)
+    expectEvent(EventFrame("abc1" -> "bla", "source" -> EventFrame("branch" -> EventFrame("f1"->"abc", "f2"->123))))(Cherrypicked)
   }
 
   it should "produce two events" in new WithBasicConfig {
-    expectN(Json.obj("abc1" -> "bla", "source" -> Json.obj("branch" -> Json.obj("f1"->"abc", "f2"->123)))) { result =>
+    expectN(EventFrame("abc1" -> "bla", "source" -> EventFrame("branch" -> EventFrame("f1"->"abc", "f2"->123)))) { result =>
       result should have size 2
       (result(1) #> 'value ~> 'f1) should be(Some("abc"))
       (result(1) #> 'value +> 'f2) should be(Some(123))
@@ -89,43 +90,43 @@ class CherrypickInstructionTest extends TestHelpers with CherrypickInstructionCo
   }
 
   "CherrypickInstruction with advanced config" should "produce one event" in new WithAdvacedConfig {
-    expectOne(Json.obj("abc1" -> "bla", "source" -> Json.obj("branch" -> Json.obj("f1"->"abc", "f2"->123)))) { result =>
+    expectOne(EventFrame("abc1" -> "bla", "source" -> EventFrame("branch" -> EventFrame("f1"->"abc", "f2"->123)))) { result =>
     }
   }
 
   it should "drop the original" in new WithAdvacedConfig {
-    expectOne(Json.obj("abc1" -> "bla", "source" -> Json.obj("branch" -> Json.obj("f1"->"abc", "f2"->123)))) { result =>
+    expectOne(EventFrame("abc1" -> "bla", "source" -> EventFrame("branch" -> EventFrame("f1"->"abc", "f2"->123)))) { result =>
       (result #> 'value ~> 'f1) should be(Some("abc"))
       (result #> 'value +> 'f2) should be(Some(123))
     }
   }
 
   it should "add new tags" in new WithAdvacedConfig {
-    expectOne(Json.obj("abc1" -> "bla", "source" -> Json.obj("branch" -> Json.obj("f1"->"abc", "f2"->123)))) { result =>
-      (result ##> 'tags ) should be(Some(List(JsString("tag1"),JsString("tag2"))))
+    expectOne(EventFrame("abc1" -> "bla", "source" -> EventFrame("branch" -> EventFrame("f1"->"abc", "f2"->123)))) { result =>
+      (result ##> 'tags ) should be(Some(List(("tag1"),("tag2"))))
     }
   }
 
   it should "not use tags from the original event" in new WithAdvacedConfig {
-    expectOne(Json.obj("abc1" -> "bla", "tags" -> JsArray(Seq(JsString("tx"))), "source" -> Json.obj("branch" -> Json.obj("f1"->"abc", "f2"->123)))) { result =>
-      (result ##> 'tags ) should be(Some(List(JsString("tag1"),JsString("tag2"))))
+    expectOne(EventFrame("abc1" -> "bla", "tags" -> (Seq(("tx"))), "source" -> EventFrame("branch" -> EventFrame("f1"->"abc", "f2"->123)))) { result =>
+      (result ##> 'tags ) should be(Some(List(("tag1"),("tag2"))))
     }
   }
 
   it should "populate index" in new WithAdvacedConfig {
-    expectOne(Json.obj("index" -> "bla", "source" -> Json.obj("branch" -> Json.obj("f1"->"abc", "f2"->123)))) { result =>
+    expectOne(EventFrame("index" -> "bla", "source" -> EventFrame("branch" -> EventFrame("f1"->"abc", "f2"->123)))) { result =>
       (result ~> 'index ) should be(Some("bla"))
     }
   }
 
   it should "populate eventId" in new WithAdvacedConfig {
-    expectOne(Json.obj("eventId" -> "id", "source" -> Json.obj("branch" -> Json.obj("f1"->"abc", "f2"->123)))) { result =>
+    expectOne(EventFrame("eventId" -> "id", "source" -> EventFrame("branch" -> EventFrame("f1"->"abc", "f2"->123)))) { result =>
       (result ~> 'eventId ) should be(Some("id_picked"))
     }
   }
 
   it should "populate ttl" in new WithAdvacedConfig {
-    expectOne(Json.obj("_ttl" -> "1d", "source" -> Json.obj("branch" -> Json.obj("f1"->"abc", "f2"->123)))) { result =>
+    expectOne(EventFrame("_ttl" -> "1d", "source" -> EventFrame("branch" -> EventFrame("f1"->"abc", "f2"->123)))) { result =>
       (result ~> '_ttl ) should be(Some("1d"))
     }
   }

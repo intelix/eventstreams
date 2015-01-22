@@ -22,7 +22,7 @@ import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.Types.SimpleInstructionType
 import eventstreams.core.instructions.{InstructionConstants, SimpleInstructionBuilder}
-import eventstreams.core.{Fail, JsonFrame, Utils}
+import eventstreams.core.{Fail, EventFrame, Utils}
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
@@ -49,8 +49,8 @@ class DropInstruction extends SimpleInstructionBuilder with DropInstructionConst
 
     Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
-    frame: JsonFrame => {
-      val eventId = frame.event ~> 'eventId | "n/a"
+    frame: EventFrame => {
+      val eventId = frame.eventIdOrNA
 
       Dropped >>('EventId -> eventId, 'InstructionInstanceId -> uuid)
       List()

@@ -127,33 +127,35 @@ class DateInstruction extends SimpleInstructionBuilder with DateInstructionConst
 
       Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
-      fr: JsonFrame => {
+      fr: EventFrame => {
 
-        val sourceField = macroReplacement(fr, JsString(source))
+        val sourceField = macroReplacement(fr, source)
 
 
         Try {
           sourcePattern match {
             case Some(p) =>
-              val sourceValue = locateFieldValue(fr, sourceField).asOpt[String].getOrElse("")
+              val sourceValue = locateFieldValue(fr, sourceField)
               (sourceValue, p.parseDateTime(sourceValue))
             case None =>
-              val sourceValue = locateFieldValue(fr, sourceField).asOpt[Long].getOrElse(0)
+              val sourceValue = locateRawFieldValue(fr, sourceField, 0).asNumber.map(_.longValue()) | 0
               (sourceValue, new DateTime(sourceValue))
           }
         }.map { case (s, dt) =>
 
           val fmt = dt.toString(targetPattern)
 
-          val eventId = fr.event ~> 'eventId | "n/a"
+          val eventId = fr.eventIdOrNA
 
           DateParsed >>> Seq('SourceValue -> s, 'SourceDate -> dt, 'ResultFmt -> fmt, 'Ts -> dt.getMillis, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
-          List(JsonFrame(
-            setValue("n", JsNumber(dt.getMillis), toPath(targetTsField),
-              setValue("s", JsString(fmt), toPath(targetFmtField), fr.event)), fr.ctx))
+
+          List(
+            EventValuePath(targetTsField).setLongInto(
+              EventValuePath(targetFmtField).setStringInto(fr, fmt), dt.getMillis))
+
         }.recover {
           case x =>
-            UnableToParseDate >>('Source -> fr.event, 'InstructionInstanceId -> uuid)
+            UnableToParseDate >>('Source -> fr, 'InstructionInstanceId -> uuid)
             List(fr)
         }.get
 

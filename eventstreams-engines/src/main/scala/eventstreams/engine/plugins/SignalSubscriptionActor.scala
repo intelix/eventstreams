@@ -205,15 +205,15 @@ class SignalSubscriptionActor(id: String)
   def checkLevel(l: Int, required: SignalLevel) = required.code <= l
 
 
-  def forward(value: JsValue) = {
+  def forward(value: EventFrame) = {
     val expiry = value ++> 'expiryTs | 0
     if (isComponentActive && expiry < 1 || expiry >= now)
       T_SIGNAL !! Some(value)
   }
 
-  def processSignal(value: JsValue): Unit = {
+  def processSignal(value: EventFrame): Unit = {
     for (
-      signal <- value #> 'signal;
+      signal <- value %> 'signal;
       sClass <- signal ~> 'signalClass
     ) {
       val sSubclass = signal ~> 'signalSubclass | ""
@@ -228,7 +228,7 @@ class SignalSubscriptionActor(id: String)
   }
 
   private def handler: Receive = {
-    case f: JsonFrame if isComponentActive => processSignal(f.event)
+    case f: EventFrame if isComponentActive => processSignal(f)
   }
 
   private def terminateSubscription(reason: Option[String]) = {

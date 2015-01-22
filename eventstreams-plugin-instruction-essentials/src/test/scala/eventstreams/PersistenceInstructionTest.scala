@@ -16,6 +16,7 @@ package eventstreams
  * limitations under the License.
  */
 
+import eventstreams.core.EventFrame
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials._
@@ -79,11 +80,11 @@ class PersistenceInstructionTest extends TestHelpers {
   }
 
   it should "raise event when built" in new WithBasicConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(Built)
+    expectEvent(EventFrame("abc1" -> "bla"))(Built)
   }
 
   it should "set values as configured" in new WithBasicConfig {
-    expectOne(Json.obj("cfg" -> Json.obj("index" -> "i", "ttl"->"1d", "table" -> "t"))) { result =>
+    expectOne(EventFrame("cfg" -> EventFrame("index" -> "i", "ttl"->"1d", "table" -> "t"))) { result =>
       result ~> '_ttl should be (Some("1d"))
       result ~> 'index should be (Some("i"))
       result ~> 'table should be (Some("t"))

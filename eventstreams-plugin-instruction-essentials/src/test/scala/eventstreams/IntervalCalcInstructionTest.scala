@@ -16,7 +16,7 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.Tools.configHelper
+import eventstreams.core.EventFrame
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials._
 import eventstreams.support.TestHelpers
@@ -77,95 +77,95 @@ class IntervalCalcInstructionTest extends TestHelpers {
   }
 
   it should "raise event when built" in new WithMinimalConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(Built)
+    expectEvent(EventFrame("abc1" -> "bla"))(Built)
   }
 
   "IntervalCalcInstruction" should "skip events without designated streamId field" in new WithMinimalConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(IntervalCalcSkipped)
+    expectEvent(EventFrame("abc1" -> "bla"))(IntervalCalcSkipped)
   }
 
   it should "skip initialisation if ts is empty" in new WithMinimalConfig {
-    expectEvent(Json.obj("streamId" -> "stream1"))(IntervalCalcSkipped)
+    expectEvent(EventFrame("streamId" -> "stream1"))(IntervalCalcSkipped)
   }
 
   val ts = System.currentTimeMillis()
 
   it should "initialise on first event with streamId and proper ts" in new WithMinimalConfig {
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
   }
 
   it should "not set interval field when initialised" in new WithMinimalConfig {
-    expectOne(Json.obj("streamId" -> "stream1", "ts" -> ts)) { result =>
+    expectOne(EventFrame("streamId" -> "stream1", "ts" -> ts)) { result =>
       result ++> 'interval should be(None)
     }
   }
 
   it should "calculate interval on second event" in new WithMinimalConfig {
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 100)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 100)
   }
 
   it should "calculate interval and update fields on second event" in new WithMinimalConfig {
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
-    expectOne(Json.obj("streamId" -> "stream1", "ts" -> (ts + 100))) { result =>
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
+    expectOne(EventFrame("streamId" -> "stream1", "ts" -> (ts + 100))) { result =>
       result ++> 'interval should be(Some(100))
     }
   }
 
   it should "calculate interval on third event" in new WithMinimalConfig {
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 100)
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> (ts + 110)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 10)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 100)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 110)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 10)
   }
 
   trait WithCalculated extends WithMinimalConfig {
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 100)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 100)
   }
 
   "IntervalCalcInstruction with one calculated interval" should "reset if next event ts is out of order" in new WithCalculated {
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> (ts + 90)))(IntervalCalcReset)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 90)))(IntervalCalcReset)
   }
   it should "calc another interval if ts value is higher" in new WithCalculated {
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> (ts + 190)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 90)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 190)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 90)
   }
   it should "calc another interval if ts value is the same" in new WithCalculated {
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 0)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 0)
   }
   it should "start another interval if streamID is different" in new WithCalculated {
-    expectEvent(Json.obj("streamId" -> "stream2", "ts" -> (ts + 100)))(IntervalCalcInitialised, 'StreamId -> "stream2")
+    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 100)))(IntervalCalcInitialised, 'StreamId -> "stream2")
   }
   it should "reset if ts is missing" in new WithCalculated {
-    expectEvent(Json.obj("streamId" -> "stream1"))(IntervalCalcReset, 'StreamId -> "stream1")
+    expectEvent(EventFrame("streamId" -> "stream1"))(IntervalCalcReset, 'StreamId -> "stream1")
   }
   it should "reset if ts is lower" in new WithCalculated {
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> ts))(IntervalCalcReset, 'StreamId -> "stream1")
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> ts))(IntervalCalcReset, 'StreamId -> "stream1")
   }
   it should "handle two intervals independently" in new WithCalculated {
-    expectEvent(Json.obj("streamId" -> "stream2", "ts" -> (ts + 100)))(IntervalCalcInitialised, 'StreamId -> "stream2")
-    expectEvent(Json.obj("streamId" -> "stream2", "ts" -> (ts + 200)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 100)
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> (ts + 120)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 20)
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> (ts + 130)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 10)
-    expectEvent(Json.obj("streamId" -> "stream2", "ts" -> (ts + 201)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 1)
+    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 100)))(IntervalCalcInitialised, 'StreamId -> "stream2")
+    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 200)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 100)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 120)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 20)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 130)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 10)
+    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 201)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 1)
   }
 
   trait WithTwoIntervalsOneReset extends WithCalculated {
-    expectEvent(Json.obj("streamId" -> "stream2", "ts" -> (ts + 100)))(IntervalCalcInitialised, 'StreamId -> "stream2")
-    expectEvent(Json.obj("streamId" -> "stream2", "ts" -> (ts + 200)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 100)
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> (ts + 120)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 20)
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> (ts + 130)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 10)
-    expectEvent(Json.obj("streamId" -> "stream2", "ts" -> (ts + 201)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 1)
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> ts))(IntervalCalcReset, 'StreamId -> "stream1")
+    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 100)))(IntervalCalcInitialised, 'StreamId -> "stream2")
+    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 200)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 100)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 120)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 20)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 130)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 10)
+    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 201)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 1)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> ts))(IntervalCalcReset, 'StreamId -> "stream1")
   }
 
   "IntervalCalcInstruction with one reset one calculated intervals" should "continue after reset" in new WithTwoIntervalsOneReset {
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> (ts + 90)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 90)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 90)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 90)
   }
 
   it should "ignore invalid events and then continue normal operation" in new WithTwoIntervalsOneReset {
-    expectEvent(Json.obj("ts" -> (ts + 90)))(IntervalCalcSkipped)
-    expectEvent(Json.obj("streamId" -> "stream1", "ts" -> (ts + 90)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 90)
-    expectEvent(Json.obj("streamId" -> "stream2", "ts" -> (ts + 290)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 89)
+    expectEvent(EventFrame("ts" -> (ts + 90)))(IntervalCalcSkipped)
+    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 90)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 90)
+    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 290)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 89)
   }
 
   it should "consistently produce correct values" in new WithTwoIntervalsOneReset {
@@ -174,8 +174,8 @@ class IntervalCalcInstructionTest extends TestHelpers {
     (1 to 10000) foreach { i =>
       shift1 += i
       shift2 += i
-      expectEvent(Json.obj("streamId" -> "stream1", "ts" -> shift1))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> i)
-      expectEvent(Json.obj("streamId" -> "stream2", "ts" -> shift2))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> i)
+      expectEvent(EventFrame("streamId" -> "stream1", "ts" -> shift1))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> i)
+      expectEvent(EventFrame("streamId" -> "stream2", "ts" -> shift2))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> i)
       
     }
   }

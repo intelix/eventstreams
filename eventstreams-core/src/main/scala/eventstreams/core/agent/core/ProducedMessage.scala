@@ -16,6 +16,7 @@
 
 package eventstreams.core.agent.core
 
+import eventstreams.core.EventFrame
 import play.api.libs.json.JsValue
 
-case class ProducedMessage(value: JsValue, cursor: Option[JsValue])
+case class ProducedMessage(value: EventFrame, cursor: Option[JsValue])

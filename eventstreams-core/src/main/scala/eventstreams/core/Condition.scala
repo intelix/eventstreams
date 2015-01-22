@@ -30,7 +30,7 @@ import scalaz._
 sealed trait Condition extends StrictLogging {
   type CheckResult = \/[Fail, OK]
 
-  def metFor(frame: JsonFrame): CheckResult
+  def metFor(frame: EventFrame): CheckResult
 }
 
 private object Support {
@@ -138,39 +138,37 @@ object SimpleCondition extends StrictLogging {
 }
 
 case class AlwaysTrueCondition() extends Condition {
-  override def metFor(frame: JsonFrame): CheckResult = OK("always true condition").right
+  override def metFor(frame: EventFrame): CheckResult = OK("always true condition").right
 }
 
 case class NeverTrueCondition() extends Condition {
-  override def metFor(frame: JsonFrame): CheckResult = Fail("always false condition").left
+  override def metFor(frame: EventFrame): CheckResult = Fail("always false condition").left
 }
 
 private case class AnyCondition(conditions: Seq[Condition]) extends Condition {
-  override def metFor(frame: JsonFrame): CheckResult =
+  override def metFor(frame: EventFrame): CheckResult =
     conditions.map(_.metFor(frame)).collectFirst {
       case c if c.isRight => c
     } | Fail(s"All conditions failed for $frame").left
 }
 
 private case class AllCondition(conditions: Seq[Condition]) extends Condition {
-  override def metFor(frame: JsonFrame): CheckResult =
+  override def metFor(frame: EventFrame): CheckResult =
     conditions.map(_.metFor(frame)).collectFirst {
       case c if c.isLeft => c
     } | OK().right
 }
 
 private case class FieldCondition(name: String, criteriaValue: Option[String], criteriaCondition: Option[String]) extends Condition {
-  override def metFor(frame: JsonFrame): CheckResult =
-    checkConditions(
-      locateFieldValue(
-        frame, macroReplacement(frame, JsString(name))))
+  override def metFor(frame: EventFrame): CheckResult =
+    checkConditions(locateRawFieldValue(frame, macroReplacement(frame, name), ""))
 
-  def checkConditions(valueToCheck: JsValue): CheckResult =
+  def checkConditions(valueToCheck: EventData): CheckResult =
     criteriaCondition match {
       case None => OK("condition not defined. skipped").right
       case Some("is") => criteriaValue match {
         case Some(expectedValue) => valueToCheck match {
-          case JsNumber(numericValueToCheck) => Try {
+          case EventDataValueNumber(numericValueToCheck) => Try {
             if (numericValueToCheck ==  BigDecimal(expectedValue))
               OK(s"'is' condition succeeded: $numericValueToCheck == $expectedValue").right
             else
@@ -178,7 +176,7 @@ private case class FieldCondition(name: String, criteriaValue: Option[String], c
           }.recover {
             case _ => Fail(s"'is' condition failed: Unparsable number $expectedValue in criteria").left
           }.get
-          case JsBoolean(booleanValueToCheck) => Try {
+          case EventDataValueBoolean(booleanValueToCheck) => Try {
             if (booleanValueToCheck ==  expectedValue.toBoolean)
               OK(s"'is' condition succeeded: $booleanValueToCheck == $expectedValue").right
             else
@@ -186,7 +184,7 @@ private case class FieldCondition(name: String, criteriaValue: Option[String], c
           }.recover {
             case _ => Fail(s"'is' condition failed: Invalid boolean $expectedValue in criteria").left
           }.get
-          case other => other.asOpt[String].map { stringValueToCheck =>
+          case other => other.asString.map { stringValueToCheck =>
             Support.regexFor(criteriaValue) match {
               case Some(regex) => regex.findFirstIn(stringValueToCheck) match {
                 case None => Fail(s"'is' condition failed: $regex in $stringValueToCheck. ").left
@@ -200,7 +198,7 @@ private case class FieldCondition(name: String, criteriaValue: Option[String], c
       }
       case Some("isnot") => criteriaValue match {
         case Some(expectedValue) => valueToCheck match {
-          case JsNumber(numericValueToCheck) => Try {
+          case EventDataValueNumber(numericValueToCheck) => Try {
             if (numericValueToCheck !=  BigDecimal(expectedValue))
               OK(s"'isnot' condition succeeded: $numericValueToCheck != $expectedValue").right
             else
@@ -208,7 +206,7 @@ private case class FieldCondition(name: String, criteriaValue: Option[String], c
           }.recover {
             case _ => Fail(s"'isnot' condition failed: Unparsable number $expectedValue in criteria").left
           }.get
-          case JsBoolean(booleanValueToCheck) => Try {
+          case EventDataValueBoolean(booleanValueToCheck) => Try {
             if (booleanValueToCheck !=  expectedValue.toBoolean)
               OK(s"'isnot' condition succeeded: $booleanValueToCheck != $expectedValue").right
             else
@@ -216,7 +214,7 @@ private case class FieldCondition(name: String, criteriaValue: Option[String], c
           }.recover {
             case _ => Fail(s"'isnot' condition failed: Invalid boolean $expectedValue in criteria").left
           }.get
-          case other => other.asOpt[String].map { stringValueToCheck =>
+          case other => other.asString.map { stringValueToCheck =>
             Support.regexFor(criteriaValue) match {
               case Some(regex) => regex.findFirstIn(stringValueToCheck) match {
                 case Some(_) => Fail(s"'isnot' condition failed: $regex in $stringValueToCheck. ").left
@@ -230,7 +228,7 @@ private case class FieldCondition(name: String, criteriaValue: Option[String], c
       }
       case Some("isless") => criteriaValue match {
         case Some(expectedValue) => valueToCheck match {
-          case JsNumber(numericValueToCheck) => Try {
+          case EventDataValueNumber(numericValueToCheck) => Try {
             if (numericValueToCheck <  BigDecimal(expectedValue))
               OK(s"'isless' condition succeeded: $numericValueToCheck < $expectedValue").right
             else
@@ -238,7 +236,7 @@ private case class FieldCondition(name: String, criteriaValue: Option[String], c
           }.recover {
             case _ => Fail(s"'isless' condition failed: Unparsable number $expectedValue in criteria").left
           }.get
-          case other => other.asOpt[String].map { stringValueToCheck =>
+          case other => other.asString.map { stringValueToCheck =>
             if (stringValueToCheck < expectedValue)
               OK(s"'isless' condition succeeded: $stringValueToCheck < $expectedValue").right
             else
@@ -249,7 +247,7 @@ private case class FieldCondition(name: String, criteriaValue: Option[String], c
       }
       case Some("ismore") => criteriaValue match {
         case Some(expectedValue) => valueToCheck match {
-          case JsNumber(numericValueToCheck) => Try {
+          case EventDataValueNumber(numericValueToCheck) => Try {
             if (numericValueToCheck > BigDecimal(expectedValue))
               OK(s"'ismore' condition succeeded: $numericValueToCheck > $expectedValue").right
             else
@@ -257,7 +255,7 @@ private case class FieldCondition(name: String, criteriaValue: Option[String], c
           }.recover {
             case _ => Fail(s"'ismore' condition failed: Unparsable number $expectedValue in criteria").left
           }.get
-          case other => other.asOpt[String].map { stringValueToCheck =>
+          case other => other.asString.map { stringValueToCheck =>
             if (stringValueToCheck > expectedValue)
               OK(s"'ismore' condition succeeded: $stringValueToCheck > $expectedValue").right
             else
@@ -273,9 +271,9 @@ private case class FieldCondition(name: String, criteriaValue: Option[String], c
 }
 
 private case class TagCondition(name: String, criteriaValue: Option[String], criteriaCondition: Option[String]) extends Condition {
-  override def metFor(frame: JsonFrame): CheckResult = {
+  override def metFor(frame: EventFrame): CheckResult = {
     checkConditions(
-      locateFieldValue(frame, "tags").asOpt[JsArray].map(_.value.map(_.asOpt[String].getOrElse("")).filter(_ == name)))
+      locateRawFieldValue(frame, "tags", Seq()).asSeq.map(_.map(_.asString |"").filter { x => x == name }))
   }
   def checkConditions(value: Option[Seq[String]]): CheckResult =
     criteriaCondition match {

@@ -22,7 +22,7 @@ import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import com.typesafe.config.Config
 import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
-import eventstreams.core.JsonFrame
+import eventstreams.core.EventFrame
 import eventstreams.core.actors._
 import eventstreams.core.agent.core.{GateState, ProducedMessage}
 import net.ceedubs.ficus.Ficus._
@@ -50,7 +50,7 @@ class SubscriberBoundaryInitiatingActor(endpoint: String, maxInFlight: Int)(impl
   extends PipelineWithStatesActor
   with StoppableSubscriberActor
   with ReconnectingActor
-  with AtLeastOnceDeliveryActor[JsonFrame]
+  with AtLeastOnceDeliveryActor[EventFrame]
   with ActorWithGateStateMonitoring 
   with DatasourceSinkEvents with WithEventPublisher {
 
@@ -95,7 +95,7 @@ class SubscriberBoundaryInitiatingActor(endpoint: String, maxInFlight: Int)(impl
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
-  override def fullyAcknowledged(correlationId: Long, msg: JsonFrame): Unit = {
+  override def fullyAcknowledged(correlationId: Long, msg: EventFrame): Unit = {
     MessageAcknowledged >> ('CorrelationId -> correlationId)
     context.parent ! Acknowledged(correlationId, correlationToCursor.get(correlationId))
     correlationToCursor -= correlationId
@@ -108,7 +108,7 @@ class SubscriberBoundaryInitiatingActor(endpoint: String, maxInFlight: Int)(impl
 
   private def handleOnNext: Actor.Receive = {
     case OnNext(ProducedMessage(value, cursor)) =>
-      val correlationId = deliverMessage(JsonFrame(value,Map()))
+      val correlationId = deliverMessage(value)
       cursor.foreach(correlationToCursor += correlationId -> _)
     case OnNext(x) =>
       Error >> ('Message -> "unsupported payload", 'Payload -> x)

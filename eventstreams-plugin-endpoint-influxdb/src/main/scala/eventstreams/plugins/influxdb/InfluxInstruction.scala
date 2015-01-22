@@ -71,7 +71,7 @@ private class InfluxInstructionActor(series: String, config: JsValue)
 
   private val condition = SimpleCondition.conditionOrAlwaysTrue(config ~> 'simpleCondition)
 
-  private var queue = List[JsonFrame]()
+  private var queue = List[EventFrame]()
   private var client: Option[Client] = Some(new Client(host = host + ":" + port, username = user, password = passw, database = database))
 
   private var deliveringNow: Option[Int] = None
@@ -92,7 +92,7 @@ private class InfluxInstructionActor(series: String, config: JsValue)
     logger.info(s"Influx link becoming passive")
   }
 
-  override def execute(value: JsonFrame): Option[Seq[JsonFrame]] = {
+  override def execute(value: EventFrame): Option[Seq[EventFrame]] = {
     // TODO log failed condition
     if (!condition.isDefined || condition.get.metFor(value).isRight) {
       queue = queue :+ value
@@ -114,9 +114,9 @@ private class InfluxInstructionActor(series: String, config: JsValue)
   private def aggregatorCriteriaMet: Boolean =
     (now - lastSent.getOrElse(0.toLong)) > bulkCollectionPeriodMillis || queue.size >= bulkSizeLimit
 
-  private def toPoints(frame: JsonFrame): JsValue =
+  private def toPoints(frame: EventFrame): JsValue =
     Json.toJson((timeSource + "," + eventSeqSource + "," + points).split(",").map { field =>
-      locateFieldValue(frame, field.trim).asOpt[JsValue] | JsNull
+      locateRawFieldValue(frame, field.trim, 0).asJson
     }.toArray[JsValue])
 
   private def toColumns: JsValue =
@@ -130,11 +130,11 @@ private class InfluxInstructionActor(series: String, config: JsValue)
     if (isComponentActive && isActive && queue.size > 0 && deliveringNow.isEmpty && client.isDefined && aggregatorCriteriaMet) {
       client.foreach { c =>
 
-        val pairs = queue.map { entry => (macroReplacement(entry, JsString(series)).asOpt[String], entry)}
+        val pairs = queue.map { entry => (macroReplacement(entry, series), entry)}
 
-        val uniqueSeries = pairs.collect { case (Some(key), _) => key}.distinct.map { seriesName =>
+        val uniqueSeries = pairs.collect { case (key, _) => key}.distinct.map { seriesName =>
 
-          val relatedPoints = pairs.collect { case (Some(key), frame) if key == seriesName => frame}.map(toPoints).toArray
+          val relatedPoints = pairs.collect { case (key, frame) if key == seriesName => frame}.map(toPoints).toArray
 
           Json.obj(
             "name" -> seriesName,

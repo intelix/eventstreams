@@ -21,7 +21,7 @@ import akka.stream.actor.ActorPublisherMessage.{Cancel, Request}
 import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
-import eventstreams.core.JsonFrame
+import eventstreams.core.EventFrame
 import eventstreams.core.Tools.configHelper
 import play.api.libs.json.JsValue
 
@@ -52,8 +52,7 @@ trait StoppablePublisherActor[T]
   def pendingToDownstreamCount = queue.size
 
   private def eventId(x: T): Option[String] = x match {
-    case m: JsonFrame => m.eventId
-    case m: JsValue => m ~> 'eventId
+    case m: EventFrame => m.eventId
     case m => None
   }
 

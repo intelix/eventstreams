@@ -16,7 +16,7 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.Tools.configHelper
+import eventstreams.core.EventFrame
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials._
 import eventstreams.support.TestHelpers
@@ -76,11 +76,11 @@ class SplitInstructionTest extends TestHelpers {
   }
 
   it should "raise event when built" in new WithBasicConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(Built)
+    expectEvent(EventFrame("abc1" -> "bla"))(Built)
   }
 
   it should "split basic sequence into 2 events" in new WithBasicConfig {
-    expectN(Json.obj("source" -> "bla<s>first<s>second<s>incompletethird")) { result =>
+    expectN(EventFrame("source" -> "bla<s>first<s>second<s>incompletethird")) { result =>
       result should have size 2
       result(0) ~> 'source should be (Some("<s>first"))
       result(1) ~> 'source should be (Some("<s>second"))
@@ -88,75 +88,75 @@ class SplitInstructionTest extends TestHelpers {
   }
 
   it should "properly use remainder in all cases - scenario 1" in new WithBasicConfig {
-    expectN(Json.obj("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
-    expectN(Json.obj("source" -> "rest<s>bla")) { result =>
+    expectN(EventFrame("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
+    expectN(EventFrame("source" -> "rest<s>bla")) { result =>
       result should have size 1
       result(0) ~> 'source should be (Some("<s>incompletethirdrest"))
     }
   }
 
   it should "properly use remainder in all cases - scenario 2" in new WithBasicConfig {
-    expectN(Json.obj("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
-    expectN(Json.obj("source" -> "<s>bla")) { result =>
+    expectN(EventFrame("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
+    expectN(EventFrame("source" -> "<s>bla")) { result =>
       result should have size 1
       result(0) ~> 'source should be (Some("<s>incompletethird"))
     }
   }
 
   it should "properly use remainder in all cases - scenario 3" in new WithBasicConfig {
-    expectN(Json.obj("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
-    expectN(Json.obj("source" -> "more<s")) { result =>
+    expectN(EventFrame("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
+    expectN(EventFrame("source" -> "more<s")) { result =>
       result should have size 0
     }
   }
 
   it should "properly use remainder in all cases - scenario 4" in new WithBasicConfig {
-    expectN(Json.obj("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
-    expectN(Json.obj("source" -> "more<s")) { result => }
-    expectN(Json.obj("source" -> ">bla")) { result =>
+    expectN(EventFrame("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
+    expectN(EventFrame("source" -> "more<s")) { result => }
+    expectN(EventFrame("source" -> ">bla")) { result =>
       result should have size 1
       result(0) ~> 'source should be (Some("<s>incompletethirdmore"))
     }
   }
   it should "properly use remainder in all cases - scenario 5" in new WithBasicConfig {
-    expectN(Json.obj("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
-    expectN(Json.obj("source" -> "more<s")) { result => }
-    expectN(Json.obj("source" -> ">bla<s>another")) { result =>
+    expectN(EventFrame("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
+    expectN(EventFrame("source" -> "more<s")) { result => }
+    expectN(EventFrame("source" -> ">bla<s>another")) { result =>
       result should have size 2
       result(0) ~> 'source should be (Some("<s>incompletethirdmore"))
       result(1) ~> 'source should be (Some("<s>bla"))
     }
   }
   it should "properly use remainder in all cases - scenario 6" in new WithBasicConfig {
-    expectN(Json.obj("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
-    expectN(Json.obj("source" -> "more<s")) { result => }
-    expectN(Json.obj("source" -> ">bla<s>")) { result =>
+    expectN(EventFrame("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
+    expectN(EventFrame("source" -> "more<s")) { result => }
+    expectN(EventFrame("source" -> ">bla<s>")) { result =>
       result should have size 2
       result(0) ~> 'source should be (Some("<s>incompletethirdmore"))
       result(1) ~> 'source should be (Some("<s>bla"))
     }
   }
   it should "properly use remainder in all cases - scenario 7" in new WithBasicConfig {
-    expectN(Json.obj("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
-    expectN(Json.obj("source" -> "more<s")) { result => }
-    expectN(Json.obj("source" -> ">bla<s>")) { result => }
-    expectN(Json.obj("source" -> "another")) { result =>
+    expectN(EventFrame("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
+    expectN(EventFrame("source" -> "more<s")) { result => }
+    expectN(EventFrame("source" -> ">bla<s>")) { result => }
+    expectN(EventFrame("source" -> "another")) { result =>
       result should have size 0
     }
   }
 
   it should "properly use remainder in all cases - scenario 8" in new WithBasicConfig {
-    expectN(Json.obj("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
-    expectN(Json.obj("source" -> "more<s")) { result => }
-    expectN(Json.obj("source" -> ">bla<s>")) { result => }
-    expectN(Json.obj("source" -> "another")) { result => }
-    expectN(Json.obj("source" -> "another<s>")) { result =>
+    expectN(EventFrame("source" -> "bla<s>first<s>second<s>incompletethird")) { result => }
+    expectN(EventFrame("source" -> "more<s")) { result => }
+    expectN(EventFrame("source" -> ">bla<s>")) { result => }
+    expectN(EventFrame("source" -> "another")) { result => }
+    expectN(EventFrame("source" -> "another<s>")) { result =>
       result should have size 1
       result(0) ~> 'source should be (Some("<s>anotheranother"))
     }
   }
   it should "operate in utf8" in new WithBasicConfig {
-    expectN(Json.obj("source" -> "bla<s>первый<s>второй<s>incompletethird")) { result =>
+    expectN(EventFrame("source" -> "bla<s>первый<s>второй<s>incompletethird")) { result =>
       result should have size 2
       result(0) ~> 'source should be (Some("<s>первый"))
       result(1) ~> 'source should be (Some("<s>второй"))
@@ -174,7 +174,7 @@ class SplitInstructionTest extends TestHelpers {
   }
 
   it should "support advanced patterns - multiline split" in new WithMultilineConfig {
-    expectN(Json.obj("source" -> "bla\nfirst\nsecond\nincompletethird")) { result =>
+    expectN(EventFrame("source" -> "bla\nfirst\nsecond\nincompletethird")) { result =>
       result should have size 3
       result(0) ~> 'source should be (Some("bla"))
       result(1) ~> 'source should be (Some("first"))
@@ -182,7 +182,7 @@ class SplitInstructionTest extends TestHelpers {
     }
   }
   it should "support advanced patterns - multiline split - scenario 2" in new WithMultilineConfig {
-    expectN(Json.obj("source" -> "bla\nfirst\nsecond\nincompletethird\n")) { result =>
+    expectN(EventFrame("source" -> "bla\nfirst\nsecond\nincompletethird\n")) { result =>
       result should have size 3
       result(0) ~> 'source should be (Some("bla"))
       result(1) ~> 'source should be (Some("first"))
@@ -190,39 +190,39 @@ class SplitInstructionTest extends TestHelpers {
     }
   }
   it should "support advanced patterns - multiline split - scenario 3" in new WithMultilineConfig {
-    expectN(Json.obj("source" -> "bla\nfirst\nsecond\nincompletethird")) { result => }
-    expectN(Json.obj("source" -> "\nsome")) { result =>
+    expectN(EventFrame("source" -> "bla\nfirst\nsecond\nincompletethird")) { result => }
+    expectN(EventFrame("source" -> "\nsome")) { result =>
       result should have size 1
       result(0) ~> 'source should be (Some("incompletethird"))
     }
   }
   it should "support advanced patterns - multiline split - scenario 4" in new WithMultilineConfig {
-    expectN(Json.obj("source" -> "bla\nfirst\nsecond\nincompletethird")) { result => }
-    expectN(Json.obj("source" -> "\n")) { result => }
-    expectN(Json.obj("source" -> "\n")) { result =>
+    expectN(EventFrame("source" -> "bla\nfirst\nsecond\nincompletethird")) { result => }
+    expectN(EventFrame("source" -> "\n")) { result => }
+    expectN(EventFrame("source" -> "\n")) { result =>
       result should have size 1
       result(0) ~> 'source should be (Some("incompletethird"))
     }
   }
   it should "support advanced patterns - multiline split - scenario 5" in new WithMultilineConfig {
-    expectN(Json.obj("source" -> "bla\nfirst\nsecond\nincompletethird")) { result => }
-    expectN(Json.obj("source" -> "\n")) { result => }
-    expectN(Json.obj("source" -> "another\nsome")) { result =>
+    expectN(EventFrame("source" -> "bla\nfirst\nsecond\nincompletethird")) { result => }
+    expectN(EventFrame("source" -> "\n")) { result => }
+    expectN(EventFrame("source" -> "another\nsome")) { result =>
       result should have size 2
       result(0) ~> 'source should be (Some("incompletethird"))
       result(1) ~> 'source should be (Some("another"))
     }
   }
   it should "support advanced patterns - multiline split - scenario 6" in new WithMultilineConfig {
-    expectN(Json.obj("source" -> "bla\nfirst\nsecond\nincompletethird\n")) { result => }
-    expectN(Json.obj("source" -> "\n")) { result => }
-    expectN(Json.obj("source" -> "another")) { result =>
+    expectN(EventFrame("source" -> "bla\nfirst\nsecond\nincompletethird\n")) { result => }
+    expectN(EventFrame("source" -> "\n")) { result => }
+    expectN(EventFrame("source" -> "another")) { result =>
       result should have size 0
     }
-    expectN(Json.obj("source" -> "another")) { result =>
+    expectN(EventFrame("source" -> "another")) { result =>
       result should have size 0
     }
-    expectN(Json.obj("source" -> "xx\nxx")) { result =>
+    expectN(EventFrame("source" -> "xx\nxx")) { result =>
       result should have size 1
       result(0) ~> 'source should be (Some("anotheranotherxx"))
     }
@@ -239,7 +239,7 @@ class SplitInstructionTest extends TestHelpers {
   }
 
   it should "support advanced patterns - NMON split" in new WithNMONConfig {
-    expectN(Json.obj("source" -> "\n\nZZZZ,T00001\nCPU\nWHATEVER\nZZZZ,T00002")) { result =>
+    expectN(EventFrame("source" -> "\n\nZZZZ,T00001\nCPU\nWHATEVER\nZZZZ,T00002")) { result =>
       result should have size 1
       result(0) ~> 'source should be (Some("ZZZZ,T00001\nCPU\nWHATEVER"))
     }
@@ -260,7 +260,7 @@ class SplitInstructionTest extends TestHelpers {
 
 
   it should "keep original if requested" in new WithKeepOriginalConfig {
-    expectN(Json.obj("source" -> "bla<s>first<s>second<s>incompletethird")) { result =>
+    expectN(EventFrame("source" -> "bla<s>first<s>second<s>incompletethird")) { result =>
       result should have size 3
       result(2) ~> 'source should be (Some("bla<s>first<s>second<s>incompletethird"))
       result(0) ~> 'source should be (Some("<s>first"))
@@ -269,7 +269,7 @@ class SplitInstructionTest extends TestHelpers {
   }
 
   it should "use unique ids" in new WithKeepOriginalConfig {
-    expectN(Json.obj("eventId" -> "id", "source" -> "bla<s>first<s>second<s>incompletethird")) { result =>
+    expectN(EventFrame("eventId" -> "id", "source" -> "bla<s>first<s>second<s>incompletethird")) { result =>
       result should have size 3
 
       result(2) ~> 'eventId should be (Some("id"))
@@ -293,7 +293,7 @@ class SplitInstructionTest extends TestHelpers {
   }
 
   it should "copy persistence settings if requested" in new WithPersistenceSettingsConfig {
-    expectN(Json.obj("eventId" -> "id", "index" -> "i", "_ttl"->"1d", "table" -> "t", "source" -> "bla<s>first<s>second<s>incompletethird")) { result =>
+    expectN(EventFrame("eventId" -> "id", "index" -> "i", "_ttl"->"1d", "table" -> "t", "source" -> "bla<s>first<s>second<s>incompletethird")) { result =>
       result should have size 2
 
       result(0) ~> 'index should be (Some("i"))
@@ -306,11 +306,11 @@ class SplitInstructionTest extends TestHelpers {
   }
 
   it should "populate tags as requested" in new WithPersistenceSettingsConfig {
-    expectN(Json.obj("eventId" -> "id", "index" -> "i", "_ttl"->"1d", "table" -> "t", "source" -> "bla<s>first<s>second<s>incompletethird")) { result =>
+    expectN(EventFrame("eventId" -> "id", "index" -> "i", "_ttl"->"1d", "table" -> "t", "source" -> "bla<s>first<s>second<s>incompletethird")) { result =>
       result should have size 2
 
-      result(0) ##> 'tags should be (Some(List(JsString("tag1"), JsString("tag2"))))
-      result(1) ##> 'tags should be (Some(List(JsString("tag1"), JsString("tag2"))))
+      result(0) ##> 'tags should be (Some(List(("tag1"), ("tag2"))))
+      result(1) ##> 'tags should be (Some(List(("tag1"), ("tag2"))))
     }
   }
 

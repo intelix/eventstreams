@@ -18,7 +18,7 @@ package eventstreams.engine.flows.core
 
 import akka.actor.{ActorRef, ActorSelection, Props}
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
-import eventstreams.core.JsonFrame
+import eventstreams.core.EventFrame
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors._
 import eventstreams.engine.gate.{RetentionManagerActor, ScheduleStorage}
@@ -65,16 +65,16 @@ class AutoPersistenceActor(id: String)
     logger.info(s"Stored $correlationId id ${msg.id}")
   }
 
-  override def execute(value: JsonFrame): Option[Seq[JsonFrame]] = {
+  override def execute(value: EventFrame): Option[Seq[EventFrame]] = {
     // TODO log failed condition
 
     for (
-      index <- value.event ~> 'index;
-      table <- value.event ~> 'table;
-      id <- value.event ~> 'eventId
+      index <- value ~> 'index;
+      table <- value ~> 'table;
+      id <- value.eventId
     ) {
       logger.debug(s"Scheduled storage for id $id")
-      deliverMessage(ScheduleStorage(self, index, table, id, value.event))
+      deliverMessage(ScheduleStorage(self, index, table, id, value.asJson))
     }
 
     Some(List(value))

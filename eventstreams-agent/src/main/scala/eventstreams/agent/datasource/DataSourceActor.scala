@@ -23,7 +23,6 @@ import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
 import com.typesafe.config.Config
-import net.ceedubs.ficus.Ficus._
 import core.events.EventOps.symbolToEventOps
 import core.events.ref.ComponentWithBaseEvents
 import core.events.{FieldAndValue, WithEventPublisher}
@@ -35,9 +34,7 @@ import eventstreams.core.agent.core._
 import eventstreams.core.ds.AgentMessagesV1.{DatasourceConfig, DatasourceInfo}
 import eventstreams.core.messages.{ComponentKey, TopicKey}
 import play.api.libs.json._
-import play.api.libs.json.extensions._
 
-import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scalaz.Scalaz._
 import scalaz._
 
@@ -52,8 +49,8 @@ trait DatasourceActorEvents extends ComponentWithBaseEvents with BaseActorEvents
   val CreatingSink = 'CreatingSink.trace
 
   val MessageToDatasourceProxy = 'MessageToDatasourceProxy.trace
-  
-  
+
+
 }
 
 object DatasourceActor extends DatasourceActorEvents {
@@ -80,7 +77,7 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
   extends ActorWithComposableBehavior
   with PipelineWithStatesActor
   with ActorWithConfigStore
-  with ActorWithPeriodicalBroadcasting 
+  with ActorWithPeriodicalBroadcasting
   with DatasourceActorEvents with WithEventPublisher {
 
   val allBuilders = dsConfigs.map { cfg =>
@@ -98,7 +95,6 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
   private var flow: Option[FlowInstance] = None
 
   override def storageKey: Option[String] = Some(dsId)
-
 
 
   def stateAsString = currentState match {
@@ -125,7 +121,7 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
 
   override def commonBehavior: Receive = super.commonBehavior orElse {
     case Acknowledged(_, Some(msg)) => msg match {
-      case c : JsValue => propsConfig.foreach { propsConfig => updateWithoutApplyConfigSnapshot(propsConfig, Some(c))}
+      case c: JsValue => propsConfig.foreach { propsConfig => updateWithoutApplyConfigSnapshot(propsConfig, Some(c))}
       case _ => ()
     }
     case CommunicationProxyRef(ref) =>
@@ -156,19 +152,17 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
 
     def buildProcessorFlow(props: JsValue): Flow[ProducedMessage, ProducedMessage] = {
 
-      CreatingFlow >> ()      
+      CreatingFlow >>()
 
       val setSource = Flow[ProducedMessage].map {
-        case ProducedMessage(json, c) =>
-          val modifiedJson = json set __ \ "sourceId" -> JsString((props \ "sourceId").asOpt[String].getOrElse("undefined"))
-          ProducedMessage(modifiedJson, c)
+        case ProducedMessage(frame, c) =>
+          ProducedMessage(frame + ("sourceId" -> (props ~> "sourceId" | "undefined")), c)
       }
 
       val setTags = Flow[ProducedMessage].map {
         case ProducedMessage(json, c) =>
-          val v = (props \ "tags").asOpt[String].map(_.split(",").map(_.trim)).map(Json.toJson(_)).getOrElse(Json.arr())
-          val modifiedJson = json set __ \ "tags" -> v
-          ProducedMessage(modifiedJson, c)
+          val v: Seq[String] = (props ~> "tags").map(_.split(",").map(_.trim).toSeq).getOrElse(Seq[String]())
+          ProducedMessage(json + ("tags" -> v), c)
       }
 
       setSource.via(setTags)
@@ -203,8 +197,8 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
 
 
     val result = for (
-      publisherProps <-  buildProducer(dsId, config \ "source");
-      sinkProps <- buildSink(dsId, config )
+      publisherProps <- buildProducer(dsId, config \ "source");
+      sinkProps <- buildSink(dsId, config)
     ) yield {
       val publisherActor: ActorRef = context.actorOf(publisherProps)
       val publisher = PublisherSource(ActorPublisher[ProducedMessage](publisherActor))
@@ -228,10 +222,10 @@ class DatasourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowM
 
     result match {
       case -\/(fail) =>
-        Warning >> ('Message -> "Unable to build datasource", 'Reason -> fail)
+        Warning >>('Message -> "Unable to build datasource", 'Reason -> fail)
         currentState = DatasourceStateError(fail.message)
-      case _ => 
-        DatasourceReady >> ()
+      case _ =>
+        DatasourceReady >>()
     }
 
 

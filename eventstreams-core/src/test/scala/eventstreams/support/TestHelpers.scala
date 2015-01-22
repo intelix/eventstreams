@@ -5,7 +5,7 @@ import com.typesafe.scalalogging.StrictLogging
 import core.events.support.EventAssertions
 import eventstreams.core.Types.SimpleInstructionType
 import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.core.{Fail, JsonFrame}
+import eventstreams.core.{Fail, EventFrame}
 import org.scalatest.{BeforeAndAfterEach, FlatSpec, Matchers}
 import play.api.libs.json.JsValue
 
@@ -35,36 +35,36 @@ trait TestHelpers extends FlatSpec with Matchers with EventAssertions with Befor
       }
     }
 
-    def expectAny(json: JsValue)(f: Seq[JsValue] => Unit) =
+    def expectAny(json: EventFrame)(f: Seq[EventFrame] => Unit) =
       shouldBuild { i =>
-        val result = i(JsonFrame(json, Map())).map(_.event)
+        val result = i(json)
         f(result)
       }
 
-    def expectN(json: JsValue)(f: Seq[JsValue] => Unit) =
+    def expectN(json: EventFrame)(f: Seq[EventFrame] => Unit) =
       expectAny(json) { result =>
         f(result)
       }
 
-    def expectOne(json: JsValue)(f: JsValue => Unit) =
+    def expectOne(json: EventFrame)(f: EventFrame => Unit) =
       expectN(json) { result =>
         result should not be empty
         result should have size 1
         f(result(0))
       }
 
-    def expectNone(json: JsValue) =
+    def expectNone(json: EventFrame) =
       expectN(json) { result =>
         result should be (empty)
       }
 
-    def expectEvent(json: JsValue)(event: Event, values: FieldAndValue*) = {
+    def expectEvent(json: EventFrame)(event: Event, values: FieldAndValue*) = {
       clearEvents()
       expectAny(json) { _ =>
         expectSomeEvents(event, values: _*)
       }
     }
-    def expectNEvents(json: JsValue)(count: Int, event: Event, values: FieldAndValue*) = {
+    def expectNEvents(json: EventFrame)(count: Int, event: Event, values: FieldAndValue*) = {
       clearEvents()
       expectAny(json) { _ =>
         expectSomeEvents(count, event, values: _*)

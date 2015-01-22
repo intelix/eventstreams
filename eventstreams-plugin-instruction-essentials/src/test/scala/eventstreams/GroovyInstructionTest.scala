@@ -16,7 +16,8 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.Tools.configHelper
+import eventstreams.core.EventFrame
+import eventstreams.core.EventFrameConverter.optionsConverter
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials.{GrokInstructionConstants, GroovyInstruction, GroovyInstructionConstants}
 import eventstreams.support.TestHelpers
@@ -51,10 +52,10 @@ class GroovyInstructionTest extends TestHelpers {
   }
 
   it should "raise event when built" in new WithMinimalConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(Built)
+    expectEvent(EventFrame("abc1" -> "bla"))(Built)
   }
 
-  val input = Json.obj("gc" -> Json.obj(
+  val input = EventFrame("gc" -> EventFrame(
     "totalafter" -> 1000000,
     "newafter" -> 100000,
     "real" -> 3.1,
@@ -75,7 +76,7 @@ class GroovyInstructionTest extends TestHelpers {
   it should "produce correct json, consistently" in new WithMinimalConfig {
 
     (1 to 5000) foreach { i =>
-      val input = Json.obj("gc" -> Json.obj(
+      val input = EventFrame("gc" -> EventFrame(
         "totalafter" -> (1000000 + i),
         "newafter" -> 100000,
         "real" -> 3.1,
@@ -118,7 +119,7 @@ class GroovyInstructionTest extends TestHelpers {
     )
   }
 
-  val inputWithPoison = Json.obj("gc" -> Json.obj(
+  val inputWithPoison = EventFrame("gc" -> EventFrame(
     "real" -> 0,
     "sys" -> 0.1,
     "user" -> 9.2
@@ -151,11 +152,11 @@ class GroovyInstructionTest extends TestHelpers {
     )
   }
 
-  val inputStream1 = Json.obj(
+  val inputStream1 = EventFrame(
     "value" -> 10,
     "streamId" -> "stream1"
   )
-  val inputStream2 = Json.obj(
+  val inputStream2 = EventFrame(
     "value" -> 23,
     "streamId" -> "stream2"
   )

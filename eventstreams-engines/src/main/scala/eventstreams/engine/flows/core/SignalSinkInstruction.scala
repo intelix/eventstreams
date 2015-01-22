@@ -44,7 +44,7 @@ private object SignalSinkInstructionActor {
 private class SignalSinkInstructionActor(address: String, config: JsValue)
   extends StoppableSubscribingPublisherActor
   with ReconnectingActor
-  with AtLeastOnceDeliveryActor[JsonFrame] {
+  with AtLeastOnceDeliveryActor[EventFrame] {
 
   val maxInFlight = config +> 'buffer | 1000
   private val condition = SimpleCondition.conditionOrAlwaysTrue(config ~> 'simpleCondition)
@@ -81,12 +81,12 @@ private class SignalSinkInstructionActor(address: String, config: JsValue)
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
-  override def fullyAcknowledged(correlationId: Long, msg: JsonFrame): Unit = {
+  override def fullyAcknowledged(correlationId: Long, msg: EventFrame): Unit = {
     logger.info(s"Fully acknowledged $correlationId")
     //    context.parent ! Acknowledged(correlationId, msg)
   }
 
-  override def execute(value: JsonFrame): Option[Seq[JsonFrame]] = {
+  override def execute(value: EventFrame): Option[Seq[EventFrame]] = {
     // TODO log failed condition
     if (!condition.isDefined || condition.get.metFor(value).isRight) {
       deliverMessage(value)

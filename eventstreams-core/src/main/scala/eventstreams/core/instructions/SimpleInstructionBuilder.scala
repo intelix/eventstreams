@@ -33,7 +33,7 @@ trait SimpleInstructionBuilder extends BuilderFromConfig[InstructionType] with S
   def wrapInCondition(instr: SimpleInstructionType, maybeCondition: Option[Condition]): SimpleInstructionType =
     maybeCondition match {
       case None => instr
-      case Some(cond) => fr: JsonFrame => cond.metFor(fr) match {
+      case Some(cond) => fr: EventFrame => cond.metFor(fr) match {
         case -\/(fail) =>
           List(fr)
         case \/-(_) => instr(fr)

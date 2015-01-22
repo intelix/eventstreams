@@ -21,13 +21,12 @@ import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import com.sksamuel.elastic4s.ElasticClient
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.source.StringDocumentSource
-import eventstreams.core.Tools.configHelper
-import eventstreams.core.actors.{ActorWithTicks, StoppableSubscribingPublisherActor}
+import eventstreams.core.Tools.{configHelper, _}
+import eventstreams.core.Types._
 import eventstreams.core._
-import Tools._
-import Types._
+import eventstreams.core.actors.{ActorWithTicks, StoppableSubscribingPublisherActor}
 import org.elasticsearch.common.settings.ImmutableSettings
-import play.api.libs.json.{JsString, JsValue, Json}
+import play.api.libs.json.{JsValue, Json}
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success}
@@ -60,16 +59,17 @@ private class ElasticsearchInstructionActor(idx: String, config: JsValue)
 
   private val maxInFlight = config +> 'buffer | 1000
   private val branch = config ~> 'branch
+  private val branchPath = branch.map(EventValuePath)
   private val idSource = config ~> 'idSource | "id"
   private val host = config ~> 'host | "localhost"
   private val port = config +> 'port | 9300
   private val cluster = config ~> 'cluster | "elasticsearch"
   private val settings = ImmutableSettings.settingsBuilder().put("cluster.name", cluster).build()
-  private val queue = collection.mutable.Queue[JsonFrame]()
+  private val queue = collection.mutable.Queue[EventFrame]()
   private var client: Option[ElasticClient] = None
   private val condition = SimpleCondition.conditionOrAlwaysTrue(config ~> 'simpleCondition)
 
-  private var deliveringNow: Option[JsonFrame] = None
+  private var deliveringNow: Option[EventFrame] = None
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
@@ -89,7 +89,7 @@ private class ElasticsearchInstructionActor(idx: String, config: JsValue)
     logger.info(s"Elasticsearch link becoming passive")
   }
 
-  override def execute(value: JsonFrame): Option[Seq[JsonFrame]] = {
+  override def execute(value: EventFrame): Option[Seq[EventFrame]] = {
     // TODO log failed condition
     if (!condition.isDefined || condition.get.metFor(value).isRight) {
       queue.enqueue(value)
@@ -117,23 +117,23 @@ private class ElasticsearchInstructionActor(idx: String, config: JsValue)
         deliveringNow = Some(next)
 
         val branchToPost = (for (
-          b <- branch;
-          v <- locateFieldValue(next, b).asOpt[JsValue]
-        ) yield v) | next.event
+          b <- branchPath;
+          v <- b.extractFrame(next)
+        ) yield v) | next
 
-        val targetId = locateFieldValue(next, idSource).asOpt[String]
+        val targetId = locateFieldValue(next, idSource)
 
-        val targetIndex = macroReplacement(next, JsString(idx)).asOpt[String] | idx
+        val targetIndex = macroReplacement(next, idx)
 
 
         c.execute {
           targetId match {
-            case None =>
+            case "" =>
               logger.debug(s"!>> Delivering to elastic - $next  -> index into $targetIndex doc $branchToPost")
-              index into targetIndex doc StringDocumentSource(Json.stringify(branchToPost))
-            case Some(x) =>
+              index into targetIndex doc StringDocumentSource(Json.stringify(branchToPost.asJson))
+            case x =>
               logger.debug(s"!>> Delivering to elastic - $next  -> index into $targetIndex id $x doc $branchToPost")
-              index into targetIndex id x doc StringDocumentSource(Json.stringify(branchToPost))
+              index into targetIndex id x doc StringDocumentSource(Json.stringify(branchToPost.asJson))
           }
         } onComplete {
           case Success(_) => self ! DeliverySuccessful()

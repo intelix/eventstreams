@@ -23,7 +23,7 @@ import core.events.{FieldAndValue, WithEventPublisher}
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.Types.SimpleInstructionType
 import eventstreams.core.instructions.{InstructionConstants, SimpleInstructionBuilder}
-import eventstreams.core.{Fail, JsonFrame, Utils}
+import eventstreams.core.{Fail, EventFrame, Utils}
 import org.slf4j.LoggerFactory
 import play.api.libs.json.{JsValue, Json}
 
@@ -70,7 +70,7 @@ class LogInstruction extends SimpleInstructionBuilder with LogInstructionConstan
 
           Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
-          frame: JsonFrame =>
+          frame: EventFrame =>
             loggerForLevel('Frame -> frame.toString)
             List(frame)
         }

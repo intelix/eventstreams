@@ -16,6 +16,7 @@ package eventstreams
  * limitations under the License.
  */
 
+import eventstreams.core.EventFrame
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials._
@@ -92,17 +93,17 @@ class ReplaceInstructionTest extends TestHelpers {
   }
 
   it should "raise event when built" in new WithBasicConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(Built)
+    expectEvent(EventFrame("abc1" -> "bla"))(Built)
   }
 
   it should "replace value as configured" in new WithBasicConfig {
-    expectOne(Json.obj("eventId" -> "id", "value" -> "bla1234bla345", "replacement" -> "REPL")) { result =>
+    expectOne(EventFrame("eventId" -> "id", "value" -> "bla1234bla345", "replacement" -> "REPL")) { result =>
       result ~> 'value should be (Some("blaREPLblaREPL"))
     }
   }
 
   it should "raise event when replaced" in new WithBasicConfig {
-    expectEvent(Json.obj("eventId" -> "id", "value" -> "bla1234bla345", "replacement" -> "REPL"))(Replaced, 'NewValue -> "blaREPLblaREPL")
+    expectEvent(EventFrame("eventId" -> "id", "value" -> "bla1234bla345", "replacement" -> "REPL"))(Replaced, 'NewValue -> "blaREPLblaREPL")
   }
 
 

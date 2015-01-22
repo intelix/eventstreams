@@ -26,7 +26,7 @@ import com.sksamuel.elastic4s.source.StringDocumentSource
 import com.typesafe.config.Config
 import eventstreams.core.actors.{ActorObjWithConfig, ActorWithComposableBehavior, ActorWithTicks}
 import eventstreams.core.agent.core.{AcknowledgeAsProcessed, Acknowledgeable}
-import eventstreams.core.{JsonFrame, NowProvider}
+import eventstreams.core.{EventFrame, NowProvider}
 import org.elasticsearch.common.settings.ImmutableSettings
 import play.api.libs.json._
 import play.api.libs.json.extensions._
@@ -71,7 +71,7 @@ class RetentionManagerActor(config: Config) extends ActorWithComposableBehavior 
   private val port = config.getInt("eventstreams.gates.retention.elastic.port")
   private val cal = Calendar.getInstance()
   private val settings = ImmutableSettings.settingsBuilder().put("cluster.name", cluster).build()
-  private val queue = collection.mutable.Queue[JsonFrame]()
+  private val queue = collection.mutable.Queue[EventFrame]()
   private val clientAgent = Agent[Option[ElasticClient]](Some(ElasticClient.remote(settings, (host, port))))
   private var insertSequence = now
   private var lastDelivery: Long = 0

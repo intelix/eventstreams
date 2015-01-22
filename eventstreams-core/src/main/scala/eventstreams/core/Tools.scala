@@ -19,7 +19,6 @@ package eventstreams.core
 import com.typesafe.scalalogging.StrictLogging
 import org.joda.time.format.DateTimeFormat
 import play.api.libs.json._
-import play.api.libs.json.extensions._
 
 import scala.annotation.tailrec
 import scala.language.implicitConversions
@@ -139,71 +138,101 @@ object Tools extends StrictLogging {
         }
     }
 
-  def macroReplacement(frame: JsonFrame, v: String): String = macroReplacement(frame.event, frame.ctx, v)
+  def macroReplacement(frame: EventFrame, v: String): String = macroReplacement(frame, None, v)
 
-  def macroReplacement(frame: JsonFrame, v: JsValue): JsValue = macroReplacement(frame.event, frame.ctx, v)
+//  def macroReplacement(frame: EventFrame, v: JsValue): JsValue = macroReplacement(frame, v)
 
-  def macroReplacement(json: JsValue, ctx: Map[String, JsValue], v: JsValue): JsValue = JsString(macroReplacement(json, ctx, v.asOpt[String].getOrElse("")))
+//  def macroReplacement(json: JsValue, ctx: Map[String, JsValue], v: JsValue): JsValue = JsString(macroReplacement(json, ctx, v.asOpt[String].getOrElse("")))
 
-  def macroReplacement(json: JsValue, ctx: Map[String, JsValue], v: String): String = {
+  def macroReplacement(e: EventData, ctx: Map[String, String], v: String): String = macroReplacement(e, Some(ctx), v)
+  def macroReplacement(e: EventData, ctx: Option[Map[String, String]], v: String): String = {
     @tailrec
     def repl(value: String): String = {
       value match {
         case eventDateMatch(s) =>
-          repl(value.replace("${eventts:" + s + "}", DateTimeFormat.forPattern(s).print(json ++> 'date_ts | java.lang.System.currentTimeMillis())))
+          repl(value.replace("${eventts:" + s + "}", DateTimeFormat.forPattern(s).print(e ++> 'date_ts | java.lang.System.currentTimeMillis())))
         case dateMatch(s) =>
           repl(value.replace("${now:" + s + "}", DateTimeFormat.forPattern(s).print(java.lang.System.currentTimeMillis())))
         case macroMatch(s) =>
-          repl(value.replace("${" + s + "}", locateFieldValue(json, ctx, s)))
+          repl(value.replace("${" + s + "}", locateFieldValue(e, ctx, s)))
         case _ => value
       }
     }
     repl(v)
   }
 
-  def setValue(fieldType: String, s: JsValue, path: JsPath, json: JsValue): JsValue =
-    fieldTypeConverter(fieldType) match {
-      case arrayMatch(t) =>
-        json.set(path -> (json.getOpt(path) match {
-          case Some(JsArray(arr)) => JsArray((arr :+ jsValueOfType(t)(s)).toSet.toSeq)
-          case Some(x) => Json.arr(x, jsValueOfType(t)(s))
-          case None => Json.arr(jsValueOfType(t)(s))
-        }))
-      case singleTypeMatch(t) => json.set(path -> jsValueOfType(t)(s))
-      case x =>
-        Json.obj()
+  def locateFieldValue(e: EventData, path: String): String = locateFieldValue(e, None, path)
+  def locateRawFieldValue(e: EventData, path: String, default: => Any): EventData = locateRawFieldValue(e, None, path, default)
+
+  def locateFieldValue(e: EventData, ctx: Option[Map[String, String]], path: String): String =
+    EventValuePath(path).extractAsStringFrom(e) match {
+      case None => ctx.flatMap(_.get(path)) | ""
+      case Some(x) => x
     }
 
-  def templateToStringValue(frame: JsonFrame, template: String) =
-    for (
-      dirtyValue <- Tools.locateFieldValue(frame, Tools.macroReplacement(frame, template)) match {
-        case JsString(s) => Some(s)
-        case JsNumber(n) => Some(n.toString())
-        case JsBoolean(b) => None
-        case JsObject(b) => Some(b.toString())
-        case JsArray(arr) => None
-        case JsNull => None
-        case JsUndefined() => None
-      };
-      cleanValue <- dirtyValue match {
-        case x if x.trim.isEmpty => None
-        case x => Some(x)
-      }
-    ) yield cleanValue
+  def locateRawFieldValue(e: EventData, ctx: Option[Map[String, String]], path: String, default: => Any): EventData =
+    EventValuePath(path).extractRaw(e) match {
+      case None => ctx.flatMap(_.get(path).map[EventData](EventDataValueString)) | EventFrameConverter.wrap(default)
+      case Some(x) => x
+    }
 
 
-  def locateFieldValue(frame: JsonFrame, v: String): JsValue = locateFieldValue(frame.event, frame.ctx, v)
+  def setValue(fieldType: String, s: String, path: Symbol, json: EventFrame): EventFrame = setValue(fieldType, s, path.name, json)
 
-  def locateFieldValue(json: JsValue, ctx: Map[String, JsValue], v: String): JsValue =
-    (json.getOpt(toPath(v)) getOrElse {
-      ctx.getOrElse(v, JsString(""))
-    }).asOpt[JsValue].getOrElse(JsString(""))
+  def setValue(fieldType: String, s: String, path: String, json: EventFrame): EventFrame =
+    fieldTypeConverter(fieldType) match {
+      case arrayMatch(t) =>
+        val p = EventValuePath(path)
+        p.setValueInto(json, p.extractRaw(json) match {
+          case Some(EventDataValueSeq(arr)) =>
+            EventDataValueSeq((arr :+ wrapperOfType(t, s)).distinct)
+          case Some(x) => EventDataValueSeq(Seq(x, wrapperOfType(t, s)))
+          case None => EventDataValueSeq(Seq(wrapperOfType(t, s)))
+        })
+      case singleTypeMatch(t) =>
+        val p = EventValuePath(path)
+        p.setValueInto(json, wrapperOfType(t, s))
+      case x =>
+        json
+    }
+
+//  def templateToStringValue(frame: EventFrame, template: String) =
+//    for (
+//      dirtyValue <- Tools.locateFieldValue(frame, Tools.macroReplacement(frame, template)) match {
+//        case JsString(s) => Some(s)
+//        case JsNumber(n) => Some(n.toString())
+//        case JsBoolean(b) => None
+//        case JsObject(b) => Some(b.toString())
+//        case JsArray(arr) => None
+//        case JsNull => None
+//        case JsUndefined() => None
+//      };
+//      cleanValue <- dirtyValue match {
+//        case x if x.trim.isEmpty => None
+//        case x => Some(x)
+//      }
+//    ) yield cleanValue
+
+
+//  def locateFieldValue(frame: EventFrame, v: String): JsValue = locateFieldValue(frame.event, frame.ctx, v)
+//
+//  def locateFieldValue(json: JsValue, ctx: Map[String, JsValue], v: String): JsValue =
+//    (json.getOpt(toPath(v)) getOrElse {
+//      ctx.getOrElse(v, JsString(""))
+//    }).asOpt[JsValue].getOrElse(JsString(""))
 
   def jsValueOfType(t: String)(value: JsValue): JsValue = {
     t match {
       case "s" => JsString(value)
       case "b" => JsBoolean(value)
       case "n" => JsNumber(value)
+    }
+  }
+  def wrapperOfType(t: String, value: String): EventData = {
+    t match {
+      case "s" => EventDataValueString(value)
+      case "b" => EventDataValueString(value).asBoolean.map(EventDataValueBoolean) | EventDataValueBoolean(v = false)
+      case "n" => EventDataValueString(value).asNumber.map(EventDataValueNumber) | EventDataValueNumber(0)
     }
   }
 

@@ -73,11 +73,11 @@ private class BlackholeAutoAckSinkActor(maybeId: Option[String])
 
   override def commonBehavior: Actor.Receive = super.commonBehavior orElse {
     case OnNext(ProducedMessage(v, c)) =>
-      MessageArrived >>('EventId -> (v ~> 'eventId | "n/a"), 'Contents -> Json.stringify(v))
+      MessageArrived >>('EventId -> v.eventIdOrNA, 'Contents -> Json.stringify(v.asJson))
       _rate.mark()
       context.parent ! Acknowledged[Option[JsValue]](-1, c)
-    case OnNext(JsonFrame(v,ctx)) =>
-      MessageArrived >>('EventId -> (v ~> 'eventId | "n/a"), 'Contents -> Json.stringify(v))
+    case OnNext(EventFrame(v)) =>
+      MessageArrived >>('EventId -> EventFrame(v).eventIdOrNA, 'Contents -> Json.stringify(EventFrame(v).asJson))
       _rate.mark()
       context.parent ! Acknowledged[Option[JsValue]](-1, None)
     case OnNext(msg) =>

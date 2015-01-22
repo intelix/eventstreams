@@ -67,9 +67,9 @@ class IntervalCalcInstruction extends SimpleInstructionBuilder with IntervalCalc
 
       Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
-      frame: JsonFrame => {
+      frame: EventFrame => {
 
-        val eventId = frame.event ~> 'eventId | "n/a"
+        val eventId = frame.eventIdOrNA
 
         val streamId = macroReplacement(frame, streamIdTemplate).trim
 
@@ -77,7 +77,7 @@ class IntervalCalcInstruction extends SimpleInstructionBuilder with IntervalCalc
           IntervalCalcSkipped >>('Reason -> s"No stream id in $streamIdTemplate", 'EventId -> eventId, 'InstructionInstanceId -> uuid)
           List(frame)
         } else {
-          val v = frame.event ++> tsField | 0
+          val v = frame ++> tsField | 0
 
           def initialise() = {
             IntervalCalcInitialised >>('StreamId -> streamId, 'Initial -> v, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
@@ -91,11 +91,12 @@ class IntervalCalcInstruction extends SimpleInstructionBuilder with IntervalCalc
           }
           def calculate(last: Long) = {
             // TODO test what happens if path is invalid, or fieldname is invalid
-            val keyPath = toPath(macroReplacement(frame, JsString(fieldName)).as[String])
+            val keyPath = EventValuePath(macroReplacement(frame, fieldName))
             val interval = v - last
             streams += streamId -> Some(v)
             IntervalCalculated >>('StreamId -> streamId, 'Interval -> interval, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
-            List(frame.copy(event = frame.event.set(keyPath -> JsNumber(interval))))
+
+            List(keyPath.setLongInto(frame, interval))
           }
 
 

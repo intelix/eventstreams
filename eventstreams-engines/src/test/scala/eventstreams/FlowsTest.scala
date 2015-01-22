@@ -1,6 +1,6 @@
 package eventstreams
 
-import eventstreams.core.JsonFrame
+import eventstreams.core.EventFrame
 import eventstreams.core.agent.core.Acknowledgeable
 import eventstreams.core.components.routing.MessageRouterActor
 import eventstreams.core.messages.{ComponentKey, LocalSubj}
@@ -90,8 +90,8 @@ class FlowsTest extends FlatSpec with EngineNodeTestContext with SharedActorSyst
     commandFrom1(engine1System, LocalSubj(flow1ComponentKey, T_START), None)
     expectSomeEvents(1, FlowActor.BecomingActive)
     clearEvents()
-    sendFromGateToSinks("gate1", Acknowledgeable(JsonFrame(Json.obj("eventId"->"1", "abc1" -> "xyz"), Map()), 123))
-    expectSomeEvents(BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """{"eventId":"1","abc":"xyz","abc1":"xyz"}""")
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId"->"1", "abc1" -> "xyz"), 123))
+    expectSomeEvents(BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc1":"xyz"""".r)
   }
 
   it should "terminate in response to kill command" in new WithFlow1Created  {

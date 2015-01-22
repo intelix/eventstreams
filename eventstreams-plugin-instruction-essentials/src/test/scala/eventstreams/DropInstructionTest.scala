@@ -16,6 +16,7 @@ package eventstreams
  * limitations under the License.
  */
 
+import eventstreams.core.EventFrame
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials.{DropInstruction, DropInstructionConstants}
 import eventstreams.support.TestHelpers
@@ -36,11 +37,11 @@ class DropInstructionTest extends TestHelpers {
   }
 
   it should "raise event when built" in new WithBasicConfig {
-    expectEvent(Json.obj("abc1" -> "bla"))(Built)
+    expectEvent(EventFrame("abc1" -> "bla"))(Built)
   }
 
   it should "raise event when dropped" in new WithBasicConfig {
-    expectEvent(Json.obj("eventId" -> "id", "abc1" -> "bla", "tags" -> Json.arr("abc")))(Dropped, 'EventId -> "id")
+    expectEvent(EventFrame("eventId" -> "id", "abc1" -> "bla", "tags" -> Seq("abc")))(Dropped, 'EventId -> "id")
   }
 
 

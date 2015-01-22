@@ -255,17 +255,17 @@ class FlowActor(id: String, instructions: List[Config])
     val tapA = context.actorOf(tapProps)
     val sinkA = context.actorOf(sinkProps)
 
-    val pubSrc = PublisherSource[JsonFrame](ActorPublisher[JsonFrame](tapA))
-    val subSink = SubscriberSink(ActorSubscriber[JsonFrame](sinkA))
+    val pubSrc = PublisherSource[EventFrame](ActorPublisher[EventFrame](tapA))
+    val subSink = SubscriberSink(ActorSubscriber[EventFrame](sinkA))
 
     val pipelineActors = propsToActors(pipeline)
 
 
 
 
-    val flowPipeline = pipelineActors.foldRight[Sink[JsonFrame]](subSink) { (actor, sink) =>
-      val s = SubscriberSink(ActorSubscriber[JsonFrame](actor))
-      val p = PublisherSource[JsonFrame](ActorPublisher[JsonFrame](actor))
+    val flowPipeline = pipelineActors.foldRight[Sink[EventFrame]](subSink) { (actor, sink) =>
+      val s = SubscriberSink(ActorSubscriber[EventFrame](actor))
+      val p = PublisherSource[EventFrame](ActorPublisher[EventFrame](actor))
       p.to(sink).run()
       s
     }

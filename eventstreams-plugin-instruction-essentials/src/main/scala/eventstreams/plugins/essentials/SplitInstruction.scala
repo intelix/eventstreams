@@ -82,10 +82,10 @@ class SplitInstruction extends SimpleInstructionBuilder with NowProvider with Sp
 
       Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
-      fr: JsonFrame => {
+      fr: EventFrame => {
 
-        val sourceId = fr.event ~> 'eventId | "!" + Utils.generateShortUUID
-        val eventSeq = fr.event ++> 'eventSeq | now
+        val sourceId = fr.eventId | "!" + Utils.generateShortUUID
+        val eventSeq = fr ++> 'eventSeq | now
 
         val baseEventSeq = eventSeq << 16
 
@@ -102,7 +102,7 @@ class SplitInstruction extends SimpleInstructionBuilder with NowProvider with Sp
 
         sequence = sequence + 1
 
-        val str = Some(remainder.getOrElse("") + locateFieldValue(fr, sourceField).asOpt[String].getOrElse(""))
+        val str = Some(remainder.getOrElse("") + locateFieldValue(fr, sourceField))
 
         val (resultList, newRemainder) = ext(List(), str)
 
@@ -115,7 +115,7 @@ class SplitInstruction extends SimpleInstructionBuilder with NowProvider with Sp
 
         var counter = 0
 
-        val originalEventId = fr.event ~> 'eventId | "n/a"
+        val originalEventId = fr.eventIdOrNA
 
         Split >>> Seq(
           'Sequence -> sequence,
@@ -127,24 +127,22 @@ class SplitInstruction extends SimpleInstructionBuilder with NowProvider with Sp
           )
 
         val result = resultList.map(_.trim).filter(!_.isEmpty).map { value =>
-          var event = setValue("s", JsString(value), toPath(sourceField), fr.event).set(
-            __ \ 'eventId -> JsString(sourceId + ":" + counter),
-            __ \ 'eventSeq -> JsNumber(baseEventSeq + counter),
-            __ \ 'splitSequence -> JsNumber(sequence)
-          )
 
-          event = setValue("s", JsString(macroReplacement(fr, index)), __ \ 'index, event)
-          event = setValue("s", JsString(macroReplacement(fr, table)), __ \ 'table, event)
-          event = setValue("s", JsString(macroReplacement(fr, ttl)), __ \ '_ttl, event)
+          var event = setValue("s", value, sourceField, fr) +
+            ("eventId" -> (sourceId + ":" + counter)) +
+            ("eventSeq" -> (baseEventSeq + counter)) +
+            ("splitSequence" -> sequence) +
+            ("index" -> macroReplacement(fr, index)) +
+            ("table" -> macroReplacement(fr, table)) +
+            ("_ttl" -> macroReplacement(fr, ttl))
 
           additionalTags.foreach { tag =>
-            event = setValue("as", JsString(tag), __ \ 'tags, event)
+            event = setValue("as", tag, "tags", event)
           }
-
 
           counter = counter + 1
 
-          JsonFrame(event, fr.ctx)
+          event
 
         }
 

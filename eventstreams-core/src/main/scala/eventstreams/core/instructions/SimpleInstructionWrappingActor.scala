@@ -18,7 +18,7 @@ package eventstreams.core.instructions
 
 import akka.actor.{ActorRefFactory, Props}
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
-import eventstreams.core.JsonFrame
+import eventstreams.core.EventFrame
 import eventstreams.core.Types._
 import eventstreams.core.actors.{ActorWithTicks, StoppableSubscribingPublisherActor}
 
@@ -38,7 +38,7 @@ class SimpleInstructionWrappingActor(instruction: SimpleInstructionTypeWithGener
 
   val (onEvent, onTick) = instruction
 
-  override def execute(value: JsonFrame) = Some(onEvent(value))
+  override def execute(value: EventFrame) = Some(onEvent(value))
 
   override def internalProcessTick(): Unit = {
     super.internalProcessTick()

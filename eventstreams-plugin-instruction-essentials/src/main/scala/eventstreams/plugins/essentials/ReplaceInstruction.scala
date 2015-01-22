@@ -57,29 +57,29 @@ class ReplaceInstruction extends SimpleInstructionBuilder with ReplaceInstructio
       pattern <- props ~> CfgFPattern \/> Fail(s"Invalid replace instruction. Missing '$CfgFPattern' value. Contents: ${Json.stringify(props)}");
       _ <- Try(new Regex(pattern)).toOption \/> Fail(s"Invalid replace instruction. Invalid '$CfgFPattern' value. Contents: ${Json.stringify(props)}")
     ) yield {
-      val replacementValue = props #> CfgFReplacementValue | JsString("")
+      val replacementValue = props ~> CfgFReplacementValue | ""
 
       val uuid = Utils.generateShortUUID
 
       Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
-      frame: JsonFrame => {
+      frame: EventFrame => {
 
-        val keyPath = toPath(macroReplacement(frame, JsString(fieldName)).as[String])
+        val keyPath = macroReplacement(frame, fieldName)
 
-        val replacement = macroReplacement(frame, replacementValue).asOpt[String].getOrElse("")
+        val replacement = macroReplacement(frame, replacementValue)
 
-        val originalValue = locateFieldValue(frame, fieldName).asOpt[String].getOrElse("")
+        val originalValue = locateFieldValue(frame, fieldName)
 
         val newValue = originalValue.replaceAll(pattern, replacement)
 
-        val value: JsValue = setValue("s", JsString(newValue), keyPath, frame.event)
+        val value: EventFrame = setValue("s", newValue, keyPath, frame)
 
-        val eventId = frame.event ~> 'eventId | "n/a"
+        val eventId = frame.eventIdOrNA
 
         Replaced >>('Path -> keyPath, 'NewValue -> newValue, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
 
-        List(JsonFrame(value, frame.ctx))
+        List(value)
 
       }
     }

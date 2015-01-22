@@ -3,6 +3,7 @@ package eventstreams
 import akka.actor.ActorSelection
 import eventstreams.agent.AgentControllerActor
 import eventstreams.agent.datasource.{DatasourceActor, SubscriberBoundaryInitiatingActor}
+import eventstreams.core.EventFrame
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.agent.core.CreateDatasource
 import eventstreams.core.messages.{ComponentKey, LocalSubj}
@@ -157,7 +158,7 @@ class AgentsTest
     }
     clearEvents()
 
-    def publishEventFromDatasource(j: JsValue) = datasourcePublisherActorRef ! j
+    def publishEventFromDatasource(j: EventFrame) = datasourcePublisherActorRef ! j
   }
 
   trait WithDatasourceActivated extends WithDatasourceStarted {
@@ -197,9 +198,9 @@ class AgentsTest
     expectSomeEvents(SubscriberBoundaryInitiatingActor.MonitoredGateStateChanged, 'NewState -> "GateOpen()")
   }
 
-  it should "produce a single event at the gate if there is a demand and gate is open and event is published at the same time with gate opening" in new WithDatasourceActivatedAndGateCreated {
+  it should "produce a single event at the gate if there is a demand and gate is open and event is published at the same time with gate opening" taggedAs (OnlyThisTest) in new WithDatasourceActivatedAndGateCreated {
     openGate("gate1")
-    publishEventFromDatasource(Json.obj("eventId" -> "1"))
+    publishEventFromDatasource(EventFrame("eventId" -> "1"))
     waitAndCheck {
       expectSomeEvents(1, GateStubActor.MessageReceivedAtGate, 'EventId -> "1")
     }
@@ -211,14 +212,14 @@ class AgentsTest
     duringPeriodInMillis(2000) {
       expectNoEvents(GateStubActor.MessageReceivedAtGate)
     }
-    publishEventFromDatasource(Json.obj("eventId" -> "1"))
+    publishEventFromDatasource(EventFrame("eventId" -> "1"))
     waitAndCheck {
       expectSomeEvents(1, GateStubActor.MessageReceivedAtGate, 'EventId -> "1")
     }
   }
 
   it should "produce a single event at the gate if there is a demand and gate is open and event is published before gate opening" in new WithDatasourceActivatedAndGateCreated {
-    publishEventFromDatasource(Json.obj("eventId" -> "1"))
+    publishEventFromDatasource(EventFrame("eventId" -> "1"))
     expectSomeEvents(SubscriberBoundaryInitiatingActor.ScheduledForDelivery)
     duringPeriodInMillis(2000) {
       expectNoEvents(GateStubActor.MessageReceivedAtGate)
@@ -233,12 +234,12 @@ class AgentsTest
 
 
   trait WithThreeEventsAvailAndOpenNotAckingGate extends WithDatasourceActivatedAndGateCreated {
-    publishEventFromDatasource(Json.obj("eventId" -> "1"))
+    publishEventFromDatasource(EventFrame("eventId" -> "1"))
     expectSomeEvents(SubscriberBoundaryInitiatingActor.ScheduledForDelivery)
     clearEvents()
-    publishEventFromDatasource(Json.obj("eventId" -> "2"))
+    publishEventFromDatasource(EventFrame("eventId" -> "2"))
     openGate("gate1")
-    publishEventFromDatasource(Json.obj("eventId" -> "3"))
+    publishEventFromDatasource(EventFrame("eventId" -> "3"))
     waitAndCheck {
       expectSomeEvents(1, GateStubActor.MessageReceivedAtGate)
     }
@@ -273,7 +274,7 @@ class AgentsTest
 
 
   trait WithOneEventsAvailAndClosedGate extends WithDatasourceActivatedAndGateCreated {
-    publishEventFromDatasource(Json.obj("eventId" -> "1"))
+    publishEventFromDatasource(EventFrame("eventId" -> "1"))
     expectSomeEvents(SubscriberBoundaryInitiatingActor.ScheduledForDelivery)
     clearEvents()
   }
@@ -303,7 +304,7 @@ class AgentsTest
 
   trait With100Events extends WithDatasourceActivatedAndGateCreated {
     (1 to 100).foreach { i =>
-      publishEventFromDatasource(Json.obj("eventId" -> i.toString))
+      publishEventFromDatasource(EventFrame("eventId" -> i.toString))
     }
 
   }
@@ -512,9 +513,9 @@ class AgentsTest
 
     clearEvents()
 
-    def publishEventFromDatasource1(j: JsValue) = ds1PublisherActorRef ! j
+    def publishEventFromDatasource1(j: EventFrame) = ds1PublisherActorRef ! j
 
-    def publishEventFromDatasource2(j: JsValue) = ds2PublisherActorRef ! j
+    def publishEventFromDatasource2(j: EventFrame) = ds2PublisherActorRef ! j
   }
 
   "when two datasources created, and both gates available, AgentProxy" should "be able to activate one" in new WithTwoDatasources {
@@ -679,7 +680,7 @@ class AgentsTest
 
   trait WithTwoDatasourcesAnd10EventsForEach extends WithTwoDatasources {
     (1 to 10) foreach { i =>
-      val v = Json.obj("eventId" -> i.toString)
+      val v = EventFrame("eventId" -> i.toString)
       publishEventFromDatasource1(v)
       publishEventFromDatasource2(v)
     }
@@ -784,7 +785,7 @@ class AgentsTest
 
   it should "publish to gate3 any new messages" in new WithBothActivated10MsgPublishedAndOneReconfiguredForGate3 {
     clearEvents()
-    publishEventFromDatasource1(Json.obj("eventId" -> "abc"))
+    publishEventFromDatasource1(EventFrame("eventId" -> "abc"))
     expectSomeEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> "abc", 'GateName -> "gate3")
     expectNoEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> "abc", 'GateName -> "gate1")
     expectNoEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> "abc", 'GateName -> "gate2")
@@ -793,7 +794,7 @@ class AgentsTest
 
   it should "2nd ds still publish to gate2" in new WithBothActivated10MsgPublishedAndOneReconfiguredForGate3 {
     clearEvents()
-    publishEventFromDatasource2(Json.obj("eventId" -> "abc"))
+    publishEventFromDatasource2(EventFrame("eventId" -> "abc"))
     expectSomeEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> "abc", 'GateName -> "gate2")
     expectNoEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> "abc", 'GateName -> "gate1")
     expectNoEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> "abc", 'GateName -> "gate3")

@@ -54,22 +54,22 @@ class AddTagInstruction extends SimpleInstructionBuilder with AddTagInstructionC
 
       Built >> ('Tag ->  tagName, 'InstructionInstanceId -> uuid)
 
-      frame: JsonFrame => {
+      frame: EventFrame => {
 
         val fieldName = "tags"
         val fieldType = "as"
 
-        val keyPath = toPath(macroReplacement(frame, JsString(fieldName)).as[String])
+        val keyPath = macroReplacement(frame, fieldName)
 
-        val replacement: JsValue = macroReplacement(frame, JsString(tagName))
+        val replacement = macroReplacement(frame, tagName)
 
-        val value: JsValue = setValue(fieldType, replacement, keyPath, frame.event)
+        val value: EventFrame = setValue(fieldType, replacement, keyPath, frame)
 
-        val eventId = value ~> 'eventId | "n/a"
+        val eventId = value.eventIdOrNA
         
         TagAdded >>('Tag -> tagName, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
 
-        List(JsonFrame(value, frame.ctx))
+        List(value)
 
       }
     }

@@ -5,7 +5,7 @@ import akka.testkit.{TestKit, TestProbe}
 import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
-import eventstreams.core.JsonFrame
+import eventstreams.core.EventFrame
 import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor}
 import eventstreams.core.agent.core._
 import eventstreams.engine.gate.RegisterSink
@@ -135,9 +135,9 @@ class GateStubActor(name: String)
       ref ! GateStateUpdate(state)
     case Acknowledgeable(msg, id) =>
       val eId = msg match {
-        case m: JsonFrame => m.eventIdOrNA
-        case m: JsValue => JsonFrame(m, Map()).eventIdOrNA
-        case m: ProducedMessage => JsonFrame(m.value, Map()).eventIdOrNA
+        case m: EventFrame => m.eventIdOrNA
+//        case m: JsValue => EventFrame(m, Map()).eventIdOrNA
+        case m: ProducedMessage => m.value.eventIdOrNA
       }
       MessageReceivedAtGate >>('CorrelationId -> id, 'EventId -> eId)
 

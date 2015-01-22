@@ -59,9 +59,9 @@ class PersistenceInstruction extends SimpleInstructionBuilder with PersistenceIn
 
       Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
-      frame: JsonFrame => {
+      frame: EventFrame => {
 
-        val eventId = frame.event ~> 'eventId | "n/a"
+        val eventId = frame.eventIdOrNA
 
         val indexValue = macroReplacement(frame, index)
         val tableValue = macroReplacement(frame, table)
@@ -74,12 +74,7 @@ class PersistenceInstruction extends SimpleInstructionBuilder with PersistenceIn
           'EventId -> eventId,
           'InstructionInstanceId -> uuid)
 
-        List(JsonFrame(
-          frame.event.set(
-            __ \ 'index -> JsString(indexValue),
-            __ \ 'table -> JsString(tableValue),
-            __ \ '_ttl -> JsString(ttlValue)),
-          frame.ctx))
+        List(frame + ('index -> indexValue) + ('table -> tableValue) + ('_ttl -> ttlValue))
 
       }
     }

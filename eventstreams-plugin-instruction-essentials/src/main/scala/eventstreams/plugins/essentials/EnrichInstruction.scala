@@ -57,19 +57,19 @@ class EnrichInstruction extends SimpleInstructionBuilder with EnrichInstructionC
 
       Built >>('Field -> fieldName, 'Value -> fieldValue, 'Type -> fieldType, 'InstructionInstanceId -> uuid)
 
-      frame: JsonFrame => {
+      frame: EventFrame => {
 
-        val keyPath = toPath(macroReplacement(frame, JsString(fieldName)).as[String])
+        val keyPath = macroReplacement(frame, fieldName)
 
-        val replacement: JsValue = macroReplacement(frame, fieldValue)
+        val replacement: String = macroReplacement(frame, fieldValue)
 
-        val value: JsValue = setValue(fieldType, replacement, keyPath, frame.event)
+        val value: EventFrame = setValue(fieldType, replacement, keyPath, frame)
 
-        val eventId = frame.event ~> 'eventId | "n/a"
+        val eventId = frame.eventIdOrNA
 
         Enriched >>('Path -> keyPath, 'Replacement -> replacement, 'NewValue -> value, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
 
-        List(JsonFrame(value, frame.ctx))
+        List(value)
 
       }
     }

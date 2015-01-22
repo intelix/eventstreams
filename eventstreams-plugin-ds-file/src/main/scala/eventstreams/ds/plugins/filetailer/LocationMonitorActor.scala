@@ -8,7 +8,8 @@ import core.events.WithEventPublisher
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, PipelineWithStatesActor, StoppablePublisherActor}
 import eventstreams.core.agent.core.ProducedMessage
-import play.api.libs.json.{JsString, JsValue, Json}
+import eventstreams.core.{EventFrame, EventFrameConverter}
+import play.api.libs.json.{JsValue, Json}
 
 import scala.util.matching.Regex
 import scalaz.Scalaz._
@@ -43,9 +44,9 @@ class LocationMonitorActor(val datasourceId: String, props: JsValue, cursor: Opt
     super.preStart()
   }
 
-  private def convertPayload(b: ByteString, meta: Option[JsValue]) = Json.obj(
-    "value" -> JsString(b.utf8String),
-    "meta" -> (meta | Json.obj())
+  private def convertPayload(b: ByteString, meta: Option[JsValue]) = EventFrame(
+    "value" -> b.utf8String,
+    "meta" -> EventFrameConverter.fromJson( meta | Json.obj() )
   )
 
   override def produceMore(count: Long): Option[Seq[ProducedMessage]] = for (

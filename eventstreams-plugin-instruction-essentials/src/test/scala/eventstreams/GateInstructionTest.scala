@@ -123,14 +123,14 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "accept flow message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
         }
 
       }
       "schedule incoming message for delivery" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery)
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveringToActor)
@@ -139,7 +139,7 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "not deliver to the gate" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveringToActor)
           }
@@ -147,7 +147,7 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "not deliver to the sink" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           waitAndCheck {
             expectNoEvents(SinkStubActor.ReceivedMessageAtSink)
           }
@@ -155,24 +155,24 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "accept second flow message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
         }
       }
       "schedule second message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 1)
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 2)
         }
       }
       "not deliver to the gate after second message scheduled" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveringToActor)
           }
@@ -180,8 +180,8 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "not deliver second message to the sink" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           waitAndCheck {
             expectNoEvents(SinkStubActor.ReceivedMessageAtSink)
           }
@@ -189,11 +189,11 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "not see third message as publisher will not publish it without further demand" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessageArrived)
           clearEvents()
-          publishMsg(Json.obj("value" -> "3"))
+          publishMsg(EventFrame("value" -> "3"))
           expectSomeEvents(JsonFramePublisherStubActor.NoDemandAtPublisher)
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.MessageArrived)
@@ -237,26 +237,26 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "accept flow message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
         }
 
       }
       "schedule incoming message for delivery" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery)
         }
       }
       "deliver to the gate" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
         }
       }
       "attempt re-delivery " in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
           expectSomeEvents(2,GateInstructionConstants.DeliveringToActor)
           expectSomeEvents(3,GateInstructionConstants.DeliveringToActor)
@@ -267,7 +267,7 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "not deliver to the sink" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           waitAndCheck {
             expectNoEvents(SinkStubActor.ReceivedMessageAtSink)
           }
@@ -276,39 +276,39 @@ class GateInstructionTest(_system: ActorSystem)
       "deliver to the sink if blocking delivery option turned off" in new LocalCtx {
         override def config: JsValue = Json.obj(CfgFAddress -> "/user/testGate", CfgFBuffer -> 2, CfgFBlockingDelivery -> false)
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(1, SinkStubActor.ReceivedMessageAtSink)
         }
       }
       "accept second flow message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
           clearEvents()
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
         }
       }
       "schedule second message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 1)
           clearEvents()
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 2)
         }
       }
       "deliver second message to the gate" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.DeliveringToActor)
         }
       }
       "not deliver second message to the sink" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           waitAndCheck {
             expectNoEvents(SinkStubActor.ReceivedMessageAtSink)
           }
@@ -317,18 +317,18 @@ class GateInstructionTest(_system: ActorSystem)
       "deliver second message to the sink if blocking delivery is off" in new LocalCtx {
         override def config: JsValue = Json.obj(CfgFAddress -> "/user/testGate", CfgFBuffer -> 2, CfgFBlockingDelivery -> false)
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, SinkStubActor.ReceivedMessageAtSink)
         }
       }
       "not see third message as publisher will not publish it without further demand" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessageArrived)
           clearEvents()
-          publishMsg(Json.obj("value" -> "3"))
+          publishMsg(EventFrame("value" -> "3"))
           expectSomeEvents(JsonFramePublisherStubActor.NoDemandAtPublisher)
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.MessageArrived)
@@ -338,11 +338,11 @@ class GateInstructionTest(_system: ActorSystem)
       "accept third message if in flights configured to more than two" in new LocalCtx {
         override def config: JsValue = Json.obj(CfgFAddress -> "/user/testGate", CfgFBuffer -> 3, CfgFBlockingDelivery -> false)
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessageArrived)
           clearEvents()
-          publishMsg(Json.obj("value" -> "3"))
+          publishMsg(EventFrame("value" -> "3"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
         }
       } 
@@ -385,26 +385,26 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "accept flow message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
         }
 
       }
       "schedule incoming message for delivery" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery)
         }
       }
       "deliver to the gate" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
         }
       }
       "not attempt re-delivery " in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt -> 1)
@@ -413,13 +413,13 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "confirm delivery" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveryConfirmed)
         }
       }
       "not confirm processing" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.ProcessingConfirmed)
           }
@@ -427,7 +427,7 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "not deliver to the sink" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           waitAndCheck {
             expectNoEvents(SinkStubActor.ReceivedMessageAtSink)
           }
@@ -436,46 +436,46 @@ class GateInstructionTest(_system: ActorSystem)
       "deliver to the sink if blocking delivery option turned off" in new LocalCtx {
         override def config: JsValue = Json.obj(CfgFAddress -> "/user/testGate", CfgFBuffer -> 2, CfgFBlockingDelivery -> false)
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(1, SinkStubActor.ReceivedMessageAtSink)
         }
       }
       "accept second flow message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
           clearEvents()
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
         }
       }
       "schedule second message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 1)
           clearEvents()
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 2)
         }
       }
       "deliver second message to the gate" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.DeliveringToActor)
         }
       }
       "confirm delivery of the second" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.DeliveryConfirmed)
         }
       }
       "not confirm processing of the second" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.ProcessingConfirmed)
           }
@@ -483,8 +483,8 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "not deliver second message to the sink" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           waitAndCheck {
             expectNoEvents(SinkStubActor.ReceivedMessageAtSink)
           }
@@ -493,18 +493,18 @@ class GateInstructionTest(_system: ActorSystem)
       "deliver second message to the sink if blocking delivery is off" in new LocalCtx {
         override def config: JsValue = Json.obj(CfgFAddress -> "/user/testGate", CfgFBuffer -> 2, CfgFBlockingDelivery -> false)
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, SinkStubActor.ReceivedMessageAtSink)
         }
       }
       "not see third message as publisher will not publish it without further demand" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessageArrived)
           clearEvents()
-          publishMsg(Json.obj("value" -> "3"))
+          publishMsg(EventFrame("value" -> "3"))
           expectSomeEvents(JsonFramePublisherStubActor.NoDemandAtPublisher)
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.MessageArrived)
@@ -514,11 +514,11 @@ class GateInstructionTest(_system: ActorSystem)
       "accept third message if in flights configured to more than two" in new LocalCtx {
         override def config: JsValue = Json.obj(CfgFAddress -> "/user/testGate", CfgFBuffer -> 3, CfgFBlockingDelivery -> false)
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessageArrived)
           clearEvents()
-          publishMsg(Json.obj("value" -> "3"))
+          publishMsg(EventFrame("value" -> "3"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
         }
       }
@@ -560,26 +560,26 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "accept flow message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
         }
 
       }
       "schedule incoming message for delivery" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery)
         }
       }
       "deliver to the gate" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
         }
       }
       "not attempt re-delivery " in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt -> 1)
@@ -588,106 +588,106 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "confirm delivery" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(1, GateInstructionConstants.DeliveryConfirmed)
         }
       }
       "confirm processing" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(1, GateInstructionConstants.ProcessingConfirmed)
         }
       }
       "confirm full ack" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(1, GateInstructionConstants.FullAcknowledgement)
         }
       }
       "confirm publishing" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(1, GateInstructionConstants.MessagePublished)
         }
       }
       "deliver to the sink" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(SinkStubActor.ReceivedMessageAtSink)
         }
       }
       "deliver to the sink once if blocking delivery option turned off" in new LocalCtx {
         override def config: JsValue = Json.obj(CfgFAddress -> "/user/testGate", CfgFBuffer -> 2, CfgFBlockingDelivery -> false)
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(1, SinkStubActor.ReceivedMessageAtSink)
         }
       }
       "accept second flow message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
           clearEvents()
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
         }
       }
       "schedule second message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 1)
           clearEvents()
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery)
         }
       }
       "deliver second message to the gate" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.DeliveringToActor)
         }
       }
       "confirm delivery of the second" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.DeliveryConfirmed)
         }
       }
       "confirm processing of the second" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.ProcessingConfirmed)
         }
       }
       "confirm full ack of the second" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.FullAcknowledgement)
         }
       }
       "confirm publishing of the second" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessagePublished)
         }
       }
       "deliver second message to the sink" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2")) 
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2")) 
           expectSomeEvents(2, SinkStubActor.ReceivedMessageAtSink)
         }
       }
       "deliver second message to the sink once if blocking delivery is off" in new LocalCtx {
         override def config: JsValue = Json.obj(CfgFAddress -> "/user/testGate", CfgFBuffer -> 2, CfgFBlockingDelivery -> false)
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           waitAndCheck {
             expectSomeEvents(2, SinkStubActor.ReceivedMessageAtSink)
           }
@@ -696,23 +696,23 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "see third message as there should be further demand at publisher" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessageArrived)
           expectSomeEvents(2, JsonFramePublisherStubActor.NewDemandAtPublisher)
           clearEvents()
-          publishMsg(Json.obj("value" -> "3"))
+          publishMsg(EventFrame("value" -> "3"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
         }
       }
       "have empty queues when third message arrives" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessagePublished)
           expectSomeEvents(2, JsonFramePublisherStubActor.NewDemandAtPublisher)
           clearEvents()
-          publishMsg(Json.obj("value" -> "3"))
+          publishMsg(EventFrame("value" -> "3"))
           expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 1)
         }
@@ -755,26 +755,26 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "accept flow message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
         }
 
       }
       "schedule incoming message for delivery" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery)
         }
       }
       "deliver to the gate" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
         }
       }
       "not attempt re-delivery " in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.DeliveringToActor)
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveryAttempt, 'Attempt -> 1)
@@ -783,7 +783,7 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "not confirm delivery" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveryConfirmed)
           }
@@ -791,64 +791,64 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "confirm processing" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(1, GateInstructionConstants.ProcessingConfirmed)
         }
       }
       "confirm full ack" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(1, GateInstructionConstants.FullAcknowledgement)
         }
       }
       "confirm publishing" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(1, GateInstructionConstants.MessagePublished)
         }
       }
       "deliver to the sink" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(SinkStubActor.ReceivedMessageAtSink)
         }
       }
       "deliver to the sink once if blocking delivery option turned off" in new LocalCtx {
         override def config: JsValue = Json.obj(CfgFAddress -> "/user/testGate", CfgFBuffer -> 2, CfgFBlockingDelivery -> false)
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(1, SinkStubActor.ReceivedMessageAtSink)
         }
       }
       "accept second flow message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
           clearEvents()
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
         }
       }
       "schedule second message" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
+          publishMsg(EventFrame("value" -> "1"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 1)
           clearEvents()
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery)
         }
       }
       "deliver second message to the gate" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.DeliveringToActor)
         }
       }
       "not confirm delivery of the second" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           waitAndCheck {
             expectNoEvents(GateInstructionConstants.DeliveryConfirmed)
           }
@@ -856,37 +856,37 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "confirm processing of the second" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.ProcessingConfirmed)
         }
       }
       "confirm full ack of the second" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.FullAcknowledgement)
         }
       }
       "confirm publishing of the second" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessagePublished)
         }
       }
       "deliver second message to the sink" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, SinkStubActor.ReceivedMessageAtSink)
         }
       }
       "deliver second message to the sink once if blocking delivery is off" in new LocalCtx {
         override def config: JsValue = Json.obj(CfgFAddress -> "/user/testGate", CfgFBuffer -> 2, CfgFBlockingDelivery -> false)
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           waitAndCheck {
             expectSomeEvents(2, SinkStubActor.ReceivedMessageAtSink)
           }
@@ -895,23 +895,23 @@ class GateInstructionTest(_system: ActorSystem)
       }
       "see third message as there should be further demand at publisher" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessageArrived)
           expectSomeEvents(2, JsonFramePublisherStubActor.NewDemandAtPublisher)
           clearEvents()
-          publishMsg(Json.obj("value" -> "3"))
+          publishMsg(EventFrame("value" -> "3"))
           expectSomeEvents(GateInstructionConstants.MessageArrived)
         }
       }
       "have empty queues when third message arrives" in new LocalCtx {
         run { implicit ctx =>
-          publishMsg(Json.obj("value" -> "1"))
-          publishMsg(Json.obj("value" -> "2"))
+          publishMsg(EventFrame("value" -> "1"))
+          publishMsg(EventFrame("value" -> "2"))
           expectSomeEvents(2, GateInstructionConstants.MessagePublished)
           expectSomeEvents(2, JsonFramePublisherStubActor.NewDemandAtPublisher)
           clearEvents()
-          publishMsg(Json.obj("value" -> "3"))
+          publishMsg(EventFrame("value" -> "3"))
           expectSomeEvents(GateInstructionConstants.MessageArrived, 'PublisherQueueDepth -> 0)
           expectSomeEvents(GateInstructionConstants.ScheduledForDelivery, 'DeliveryQueueDepth -> 1)
         }
@@ -925,8 +925,8 @@ class GateInstructionTest(_system: ActorSystem)
           withGateInstructionFlow { implicit ctx =>
             activateFlow()
             expectSomeEvents(JsonFramePublisherStubActor.NewDemandAtPublisher)
-            publishMsg(Json.obj("value" -> "1"))
-            publishMsg(Json.obj("value" -> "2"))
+            publishMsg(EventFrame("value" -> "1"))
+            publishMsg(EventFrame("value" -> "2"))
             expectSomeEvents(2, GateInstructionConstants.ScheduledForDelivery)
             f(ctx)
           }

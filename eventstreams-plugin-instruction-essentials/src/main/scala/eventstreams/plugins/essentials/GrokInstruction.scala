@@ -52,19 +52,19 @@ object GrokInstructionConstants extends GrokInstructionConstants
 class GrokInstruction extends SimpleInstructionBuilder with GrokInstructionConstants with WithEventPublisher {
   val configId = "grok"
 
-  def nextField(eventId: String, uuid: String)(frame: JsonFrame, fvt: ((String, String), String)): JsonFrame =
+  def nextField(eventId: String, uuid: String, ctx: Map[String,String])(frame: EventFrame, fvt: ((String, String), String)): EventFrame =
     fvt match {
       case ((f, v), t) =>
-        val field = toPath(macroReplacement(frame, JsString(f)))
-        val value = macroReplacement(frame, JsString(v))
+        val field = macroReplacement(frame, Some(ctx), f)
+        val value = macroReplacement(frame, Some(ctx), v)
         Grokked >>('Field -> field, 'Value -> value, 'Type -> t, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
-        JsonFrame(setValue(t, value, field, frame.event), frame.ctx)
+        setValue(t, value, field, frame)
     }
 
-  def populateContext(frame: JsonFrame, gv: (String, String)): JsonFrame =
+  def populateContext(ctx: Map[String,String], gv: (String, String)): Map[String,String] =
     gv match {
       case (g, v) =>
-        JsonFrame(frame.event, frame.ctx + (g -> JsString(v)))
+        ctx + (g -> v)
     }
 
 
@@ -90,20 +90,20 @@ class GrokInstruction extends SimpleInstructionBuilder with GrokInstructionConst
 
       val uuid = Utils.generateShortUUID
 
-      def contextToFrame(frame: JsonFrame, rmatch: Regex.Match): JsonFrame =
-        (groups zip rmatch.subgroups).foldLeft(frame)(populateContext)
+      def contextForFrame(rmatch: Regex.Match): Map[String,String] =
+        (groups zip rmatch.subgroups).foldLeft(Map[String,String]())(populateContext)
 
 
-      def matcherToFrame(eventId: String)(frame: JsonFrame, rmatch: Regex.Match): JsonFrame =
+      def matcherToFrame(eventId: String)(frame: EventFrame, rmatch: Regex.Match): EventFrame =
         (fields zip values zip types)
-          .foldLeft(contextToFrame(frame, rmatch))(nextField(eventId, uuid))
+          .foldLeft(frame)(nextField(eventId, uuid, contextForFrame(rmatch)))
 
       Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
-      fr: JsonFrame =>
+      fr: EventFrame =>
 
         val sourceValue = locateFieldValue(fr, macroReplacement(fr, JsString(source)))
-        val eventId = fr.event ~> 'eventId | "n/a"
+        val eventId = fr.eventIdOrNA
 
         List(regex.findAllMatchIn(sourceValue)
           .toSeq

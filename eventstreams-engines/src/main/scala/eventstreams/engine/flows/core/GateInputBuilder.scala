@@ -54,7 +54,7 @@ private[core] object GateInputBuilder extends BuilderFromConfig[TapActorPropsTyp
 
 private class GateInputActor(id: String, address: String)
   extends ActorWithComposableBehavior
-  with StoppablePublisherActor[JsonFrame]
+  with StoppablePublisherActor[EventFrame]
   with ReconnectingActor
   with PipelineWithStatesActor
   with ActorWithDupTracking
@@ -95,7 +95,7 @@ private class GateInputActor(id: String, address: String)
   }
 
   def handlerWhenActive: Receive = {
-    case m @ Acknowledgeable(f:JsonFrame,i) =>
+    case m @ Acknowledgeable(f:EventFrame,i) =>
       if (pendingToDownstreamCount < buffer || pendingToDownstreamCount < totalDemand) {
         if (!isDup(sender(), m.id)) {
           sender() ! AcknowledgeAsReceived(i)
@@ -109,7 +109,7 @@ private class GateInputActor(id: String, address: String)
   }
 
   def handlerWhenPassive: Receive = {
-    case m @ Acknowledgeable(f:JsonFrame,i) => ()
+    case m @ Acknowledgeable(f:EventFrame,i) => ()
   }
 
   override def connectionEndpoint: String = address

@@ -23,6 +23,7 @@ import akka.io.Udp.Unbind
 import akka.io.{IO, Udp}
 import akka.stream.actor.ActorPublisherMessage.Request
 import akka.util.ByteString
+import eventstreams.core.EventFrame
 import eventstreams.core.Tools.configHelper
 import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, PipelineWithStatesActor, StoppablePublisherActor}
 import eventstreams.core.agent.core.ProducedMessage
@@ -97,23 +98,23 @@ class StatsdPublisher(val props: JsValue)
     }
   }
 
-  private def parseStatsdMessage(data: String): JsValue = data match {
+  private def parseStatsdMessage(data: String) = data match {
     case StatsdParser(b, v, t) =>
 
       val value = t match {
-        case "s" => \/-(JsString(v))
-        case _ => Try(\/-(JsNumber(BigDecimal(v)))).recover {
+        case "s" => \/-(v)
+        case _ => Try(\/-(BigDecimal(v))).recover {
           case _ =>
             logger.warn(s"Unparsable number in the statsd payload $data")
             -\/(s"Unparsable number in the statsd payload $data")
         }.get
       }
       value match {
-        case -\/(x) => Json.obj(
+        case -\/(x) => Map(
           "valid" -> false,
           "error" -> x
         )
-        case \/-(value) => Json.obj(
+        case \/-(value) => Map(
           "valid" -> true,
           "bucket" -> b,
           "value" -> value,
@@ -123,15 +124,15 @@ class StatsdPublisher(val props: JsValue)
       }
     case s =>
       logger.warn(s"Invalid statsd payload: $data")
-      Json.obj(
+      Map(
         "valid" -> false
       )
   }
 
   private def parse(data: String) = {
     ProducedMessage(
-    Json.obj(
-      "statsd" -> (if (!parsePayload) JsString(data) else parseStatsdMessage(data))), None)
+      EventFrame(
+      "statsd" -> (if (!parsePayload) data else parseStatsdMessage(data))), None)
   }
 
 

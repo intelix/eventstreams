@@ -16,8 +16,9 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.{Condition, JsonFrame, SimpleCondition}
+import eventstreams.core.{Condition, EventFrame, SimpleCondition}
 import eventstreams.support.TestHelpers
+import org.scalatest.Tag
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.{-\/, \/-}
@@ -40,33 +41,33 @@ class SimpleConditionTest extends TestHelpers {
     case x => fail(s"Failed with $x")
   }
 
-  def shouldMatch(cond: String, json: JsValue) = shouldBuild(cond) { c =>
-    c.metFor(JsonFrame(json, Map())) shouldBe a[\/-[_]]
+  def shouldMatch(cond: String, json: EventFrame) = shouldBuild(cond) { c =>
+    c.metFor(json) shouldBe a[\/-[_]]
   }
 
-  def shouldNotMatch(cond: String, json: JsValue) = shouldBuild(cond) { c =>
-    c.metFor(JsonFrame(json, Map())) shouldBe a[-\/[_]]
+  def shouldNotMatch(cond: String, json: EventFrame) = shouldBuild(cond) { c =>
+    c.metFor(json) shouldBe a[-\/[_]]
   }
 
   "conditionOrAlwaysTrue built from None" should "match to empty frame" in {
     shouldBuildWithAlwaysTrue(None) { c =>
-      c.metFor(JsonFrame(Json.obj(), Map())) shouldBe a[\/-[_]]
+      c.metFor(EventFrame()) shouldBe a[\/-[_]]
     }
   }
   it should "match to anything" in {
     shouldBuildWithAlwaysTrue(None) { c =>
-      c.metFor(JsonFrame(Json.obj("bla" -> 12345), Map())) shouldBe a[\/-[_]]
+      c.metFor((EventFrame("bla" -> 12345))) shouldBe a[\/-[_]]
     }
   }
 
   "conditionOrAlwaysTrue built from Some()" should "match to empty frame" in {
     shouldBuildWithAlwaysTrue(Some("")) { c =>
-      c.metFor(JsonFrame(Json.obj(), Map())) shouldBe a[\/-[_]]
+      c.metFor((EventFrame())) shouldBe a[\/-[_]]
     }
   }
   it should "match to anything" in {
     shouldBuildWithAlwaysTrue(Some("")) { c =>
-      c.metFor(JsonFrame(Json.obj("bla" -> 12345), Map())) shouldBe a[\/-[_]]
+      c.metFor((EventFrame("bla" -> 12345))) shouldBe a[\/-[_]]
     }
   }
 
@@ -83,7 +84,7 @@ class SimpleConditionTest extends TestHelpers {
 
 
   "Simple condition" should "match field=abc in field\"->\"abc\"" in {
-    shouldMatch("field=abc", Json.obj("field" -> "abc"))
+    shouldMatch("field=abc", EventFrame("field" -> "abc"))
   }
   it should "not match field= in field\"->\"abc\" (missing expected value)" in {
     shouldNotBuild("field=")
@@ -101,81 +102,81 @@ class SimpleConditionTest extends TestHelpers {
     shouldNotBuild("f1 or f2=1")
   }
   it should "match field!=abc in \"field2\"->\"acc\"" in {
-    shouldMatch("field!=abc", Json.obj("field2" -> "acc"))
+    shouldMatch("field!=abc", EventFrame("field2" -> "acc"))
   }
   it should "match field!=abc in \"field2\"->\"abc\"" in {
-    shouldMatch("field!=abc", Json.obj("field2" -> "abc"))
+    shouldMatch("field!=abc", EventFrame("field2" -> "abc"))
   }
   it should "not match field=abc in \"field2\"->\"abc\"" in {
-    shouldNotMatch("field=abc", Json.obj("field2" -> "abc"))
+    shouldNotMatch("field=abc", EventFrame("field2" -> "abc"))
   }
   it should "not match field=abc in \"field\"->\"xyz\"" in {
-    shouldNotMatch("field=abc", Json.obj("field" -> "xyz"))
+    shouldNotMatch("field=abc", EventFrame("field" -> "xyz"))
   }
 
   it should "match field=x in \"field\"->\"xyz\"" in {
-    shouldMatch("field=x", Json.obj("field" -> "xyz"))
+    shouldMatch("field=x", EventFrame("field" -> "xyz"))
   }
   it should "match field=xy in \"field\"->\"xyz\"" in {
-    shouldMatch("field=xy", Json.obj("field" -> "xyz"))
+    shouldMatch("field=xy", EventFrame("field" -> "xyz"))
   }
   it should "match field=xyz.* in \"field\"->\"xyz\"" in {
-    shouldMatch("field=xyz.*", Json.obj("field" -> "xyz"))
+    shouldMatch("field=xyz.*", EventFrame("field" -> "xyz"))
   }
   it should "not match field=xyzy in \"field\"->\"xyz\"" in {
-    shouldNotMatch("field=xyzy", Json.obj("field" -> "xyz"))
+    shouldNotMatch("field=xyzy", EventFrame("field" -> "xyz"))
   }
   it should "not match field=xyz.+ in \"field\"->\"xyz\"" in {
-    shouldNotMatch("field=xyz.+", Json.obj("field" -> "xyz"))
+    shouldNotMatch("field=xyz.+", EventFrame("field" -> "xyz"))
   }
   it should "match field=^xy in \"field\"->\"xyz\"" in {
-    shouldMatch("field=^xy", Json.obj("field" -> "xyz"))
+    shouldMatch("field=^xy", EventFrame("field" -> "xyz"))
   }
   it should "not match field=^y in \"field\"->\"xyz\"" in {
-    shouldNotMatch("field=^y", Json.obj("field" -> "xyz"))
+    shouldNotMatch("field=^y", EventFrame("field" -> "xyz"))
   }
   it should "match field=yz$ in \"field\"->\"xyz\"" in {
-    shouldMatch("field=^xy", Json.obj("field" -> "xyz"))
+    shouldMatch("field=^xy", EventFrame("field" -> "xyz"))
   }
   it should "not match field=y$ in \"field\"->\"xyz\"" in {
-    shouldNotMatch("field=y$", Json.obj("field" -> "xyz"))
+    shouldNotMatch("field=y$", EventFrame("field" -> "xyz"))
   }
   it should "match field=123 in \"field\"->\"12345\"" in {
-    shouldMatch("field=123", Json.obj("field" -> "12345"))
+    shouldMatch("field=123", EventFrame("field" -> "12345"))
   }
   it should "not match field=123 in \"field\"->\"1245\"" in {
-    shouldNotMatch("field=123", Json.obj("field" -> "1245"))
+    shouldNotMatch("field=123", EventFrame("field" -> "1245"))
   }
   it should "match field=123 in \"field\"->123" in {
-    shouldMatch("field=123", Json.obj("field" -> 123))
+    shouldMatch("field=123", EventFrame("field" -> 123))
   }
   it should "not match field=123a in \"field\"->123 (invalid expected number)" in {
-    shouldNotMatch("field=123a", Json.obj("field" -> 123))
+    shouldNotMatch("field=123a", EventFrame("field" -> 123))
   }
   it should "not match field!=123a in \"field\"->123 (invalid expected number)" in {
-    shouldNotMatch("field!=123a", Json.obj("field" -> 123))
+    shouldNotMatch("field!=123a", EventFrame("field" -> 123))
   }
   it should "match field=123 in \"field\"->123.0" in {
-    shouldMatch("field=123", Json.obj("field" -> 123.0))
+    shouldMatch("field=123", EventFrame("field" -> 123.0))
   }
   it should "not match field=123 in \"field\"->1234" in {
-    shouldNotMatch("field=123", Json.obj("field" -> 1234))
+    shouldNotMatch("field=123", EventFrame("field" -> 1234))
   }
   it should "not match field=123 in \"field\"->123.1" in {
-    shouldNotMatch("field=123", Json.obj("field" -> 123.1))
+    shouldNotMatch("field=123", EventFrame("field" -> 123.1))
   }
 
   it should "not match field!=x in \"field\"->\"xyz\"" in {
-    shouldNotMatch("field!=x", Json.obj("field" -> "xyz"))
+    shouldNotMatch("field!=x", EventFrame("field" -> "xyz"))
   }
   it should "not match field!=xy in \"field\"->\"xyz\"" in {
-    shouldNotMatch("field!=xy", Json.obj("field" -> "xyz"))
+    shouldNotMatch("field!=xy", EventFrame("field" -> "xyz"))
   }
   it should "not match field!=xyz.* in \"field\"->\"xyz\"" in {
-    shouldNotMatch("field!=xyz.*", Json.obj("field" -> "xyz"))
+    shouldNotMatch("field!=xyz.*", EventFrame("field" -> "xyz"))
   }
   it should "match field!=xyzy in \"field\"->\"xyz\"" in {
-    shouldMatch("field!=xyzy", Json.obj("field" -> "xyz"))
+    shouldMatch("field!=xyzy", EventFrame("field" -> "xyz"))
   }
   it should "not match field!= in \"field\"->\"xyz\" (missing expected value)" in {
     shouldNotBuild("field!=")
@@ -184,196 +185,196 @@ class SimpleConditionTest extends TestHelpers {
     shouldNotBuild("field1!=")
   }
   it should "match field!=xyz.+ in \"field\"->\"xyz\"" in {
-    shouldMatch("field!=xyz.+", Json.obj("field" -> "xyz"))
+    shouldMatch("field!=xyz.+", EventFrame("field" -> "xyz"))
   }
   it should "not match field!=^xy in \"field\"->\"xyz\"" in {
-    shouldNotMatch("field!=^xy", Json.obj("field" -> "xyz"))
+    shouldNotMatch("field!=^xy", EventFrame("field" -> "xyz"))
   }
   it should "match field!=^y in \"field\"->\"xyz\"" in {
-    shouldMatch("field!=^y", Json.obj("field" -> "xyz"))
+    shouldMatch("field!=^y", EventFrame("field" -> "xyz"))
   }
   it should "not match field!=yz$ in \"field\"->\"xyz\"" in {
-    shouldNotMatch("field!=^xy", Json.obj("field" -> "xyz"))
+    shouldNotMatch("field!=^xy", EventFrame("field" -> "xyz"))
   }
   it should "match field!=y$ in \"field\"->\"xyz\"" in {
-    shouldMatch("field!=y$", Json.obj("field" -> "xyz"))
+    shouldMatch("field!=y$", EventFrame("field" -> "xyz"))
   }
   it should "not match field!=123 in \"field\"->\"12345\"" in {
-    shouldNotMatch("field!=123", Json.obj("field" -> "12345"))
+    shouldNotMatch("field!=123", EventFrame("field" -> "12345"))
   }
   it should "match field!=123 in \"field\"->\"1245\"" in {
-    shouldMatch("field!=123", Json.obj("field" -> "1245"))
+    shouldMatch("field!=123", EventFrame("field" -> "1245"))
   }
   it should "not match field!=123 in \"field\"->123" in {
-    shouldNotMatch("field!=123", Json.obj("field" -> 123))
+    shouldNotMatch("field!=123", EventFrame("field" -> 123))
   }
   it should "not match field!=123 in \"field\"->123.0" in {
-    shouldNotMatch("field!=123", Json.obj("field" -> 123.0))
+    shouldNotMatch("field!=123", EventFrame("field" -> 123.0))
   }
   it should "match field!=123 in \"field\"->1234" in {
-    shouldMatch("field!=123", Json.obj("field" -> 1234))
+    shouldMatch("field!=123", EventFrame("field" -> 1234))
   }
   it should "match field!=123 in \"field\"->123.1" in {
-    shouldMatch("field!=123", Json.obj("field" -> 123.1))
+    shouldMatch("field!=123", EventFrame("field" -> 123.1))
   }
 
 
 
   it should "match field>123 in \"field\"->\"124\"" in {
-    shouldMatch("field>123", Json.obj("field" -> "124"))
+    shouldMatch("field>123", EventFrame("field" -> "124"))
   }
   it should "not match field<123 in \"field\"->\"124\"" in {
-    shouldNotMatch("field<123", Json.obj("field" -> "124"))
+    shouldNotMatch("field<123", EventFrame("field" -> "124"))
   }
   it should "match field>abc in \"field\"->\"abcd\"" in {
-    shouldMatch("field>abc", Json.obj("field" -> "abcd"))
+    shouldMatch("field>abc", EventFrame("field" -> "abcd"))
   }
   it should "match field<abc in \"field\"->\"abcd\"" in {
-    shouldNotMatch("field<abc", Json.obj("field" -> "abcd"))
+    shouldNotMatch("field<abc", EventFrame("field" -> "abcd"))
   }
 
   it should "match field>123 in \"field\"->124" in {
-    shouldMatch("field>123", Json.obj("field" -> 124))
+    shouldMatch("field>123", EventFrame("field" -> 124))
   }
   it should "not match field<123 in \"field\"->124" in {
-    shouldNotMatch("field<123", Json.obj("field" -> 124))
+    shouldNotMatch("field<123", EventFrame("field" -> 124))
   }
   it should "match field>123.1 in \"field\"->124" in {
-    shouldMatch("field>123.1", Json.obj("field" -> 124))
+    shouldMatch("field>123.1", EventFrame("field" -> 124))
   }
   it should "not match field<123.1 in \"field\"->124" in {
-    shouldNotMatch("field<123.1", Json.obj("field" -> 124))
+    shouldNotMatch("field<123.1", EventFrame("field" -> 124))
   }
   it should "match field>123 in \"field\"->123.1" in {
-    shouldMatch("field>123", Json.obj("field" -> 123.1))
+    shouldMatch("field>123", EventFrame("field" -> 123.1))
   }
   it should "not match field<123 in \"field\"->123.1" in {
-    shouldNotMatch("field<123", Json.obj("field" -> 123.1))
+    shouldNotMatch("field<123", EventFrame("field" -> 123.1))
   }
 
   it should "match field<125 in \"field\"->124" in {
-    shouldMatch("field<125", Json.obj("field" -> 124))
+    shouldMatch("field<125", EventFrame("field" -> 124))
   }
   it should "not match field>125 in \"field\"->124" in {
-    shouldNotMatch("field>125", Json.obj("field" -> 124))
+    shouldNotMatch("field>125", EventFrame("field" -> 124))
   }
   it should "match field<124.1 in \"field\"->124" in {
-    shouldMatch("field<124.1", Json.obj("field" -> 124))
+    shouldMatch("field<124.1", EventFrame("field" -> 124))
   }
   it should "not match field>124.1 in \"field\"->124" in {
-    shouldNotMatch("field>124.1", Json.obj("field" -> 124))
+    shouldNotMatch("field>124.1", EventFrame("field" -> 124))
   }
   it should "match field<124 in \"field\"->123.1" in {
-    shouldMatch("field<124", Json.obj("field" -> 123.1))
+    shouldMatch("field<124", EventFrame("field" -> 123.1))
   }
   it should "not match field>124 in \"field\"->123.1" in {
-    shouldNotMatch("field>124", Json.obj("field" -> 123.1))
+    shouldNotMatch("field>124", EventFrame("field" -> 123.1))
   }
 
   it should "match field=true in \"field\"->true" in {
-    shouldMatch("field=true", Json.obj("field" -> true))
+    shouldMatch("field=true", EventFrame("field" -> true))
   }
   it should "not match field=true in \"field\"->false" in {
-    shouldNotMatch("field=true", Json.obj("field" -> false))
+    shouldNotMatch("field=true", EventFrame("field" -> false))
   }
   it should "match field!=true in \"field\"->false" in {
-    shouldMatch("field!=true", Json.obj("field" -> false))
+    shouldMatch("field!=true", EventFrame("field" -> false))
   }
   it should "not match field!=true in \"field\"->true" in {
-    shouldNotMatch("field!=true", Json.obj("field" -> true))
+    shouldNotMatch("field!=true", EventFrame("field" -> true))
   }
 
-  "For input {\"tags\"=[\"abc\",\"123\"]} condition" should "match #abc=abc" in {
-    shouldMatch("#abc=abc", Json.obj("tags" -> Json.arr("abc", "123")))
+  "For input {\"tags\"=[\"abc\",\"123\"]} condition" should "match #abc=abc" taggedAs (Tag("OnlyThisTest")) in {
+    shouldMatch("#abc=abc", EventFrame("tags" -> Seq("abc", "123")))
   }
   it should "not match #abc!=abc" in {
-    shouldNotMatch("#abc!=abc", Json.obj("tags" -> Json.arr("abc", "123")))
+    shouldNotMatch("#abc!=abc", EventFrame("tags" -> Seq("abc", "123")))
   }
   it should "not match #xyz=xyz" in {
-    shouldNotMatch("#xyz=xyz", Json.obj("tags" -> Json.arr("abc", "123")))
+    shouldNotMatch("#xyz=xyz", EventFrame("tags" -> Seq("abc", "123")))
   }
   it should "not match #123!=123" in {
-    shouldNotMatch("#123!=123", Json.obj("tags" -> Json.arr("abc", "123")))
+    shouldNotMatch("#123!=123", EventFrame("tags" -> Seq("abc", "123")))
   }
   it should "match #123=123" in {
-    shouldMatch("#123=123", Json.obj("tags" -> Json.arr("abc", "123")))
+    shouldMatch("#123=123", EventFrame("tags" -> Seq("abc", "123")))
   }
 
   "For input {\"tags\"=[\"abc\",\"123\"],\"f1\":{\"f2\":123.1,\"f3\":\"abc\"}} condition" should "match #abc=abc" in {
-    shouldMatch("#abc=abc", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldMatch("#abc=abc", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "match f1.f3=ab" in {
-    shouldMatch("f1.f3=ab", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldMatch("f1.f3=ab", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "match f1/f3=ab" in {
-    shouldMatch("f1/f3=ab", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldMatch("f1/f3=ab", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "match #abc=abc and f1.f3=ab" in {
-    shouldMatch("#abc=abc and f1.f3=ab", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldMatch("#abc=abc and f1.f3=ab", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "match #abc=abc or f1.f3=ac" in {
-    shouldMatch("#abc=abc or f1.f3=ac", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldMatch("#abc=abc or f1.f3=ac", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "match #xyz=xyz or f1.f3=ab" in {
-    shouldMatch("#xyz=xyz or f1.f3=ab", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldMatch("#xyz=xyz or f1.f3=ab", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "match #abc=abc and f1.f3=ab and f1.f3=ab" in {
-    shouldMatch("#abc=abc and f1.f3=ab and f1.f3=ab", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldMatch("#abc=abc and f1.f3=ab and f1.f3=ab", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "match #abc=abc and f1.f3=ab and f1.f2=123" in {
-    shouldMatch("#abc=abc and f1.f3=ab and f1.f2=123", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldMatch("#abc=abc and f1.f3=ab and f1.f2=123", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "match #abc=abc and f1.f3=ab and f1.f2>1" in {
-    shouldMatch("#abc=abc and f1.f3=ab and f1.f2>1", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldMatch("#abc=abc and f1.f3=ab and f1.f2>1", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "match #abc=abc and f1.f3!=x and f1.f2>1" in {
-    shouldMatch("#abc=abc and f1.f3!=x and f1.f2>1", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldMatch("#abc=abc and f1.f3!=x and f1.f2>1", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "match #abc=abc and f1.f3=ab and f1.f2>1 or f1.f3=x" in {
-    shouldMatch("#abc=abc and f1.f3=ab and f1.f2>1 or f1.f3=x", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldMatch("#abc=abc and f1.f3=ab and f1.f2>1 or f1.f3=x", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "match #abc=abc and f1.f3!=ab and f1.f2>1 or f1.f3=c" in {
-    shouldMatch("#abc=abc and f1.f3!=ab and f1.f2>1 or f1.f3=c", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldMatch("#abc=abc and f1.f3!=ab and f1.f2>1 or f1.f3=c", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "match #abc=abc and f1.f3!=ab and f1.f2>1 or f1.f3=c and f1.f2>2" in {
-    shouldMatch("#abc=abc and f1.f3!=ab and f1.f2>1 or f1.f3=c and f1.f2>2", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldMatch("#abc=abc and f1.f3!=ab and f1.f2>1 or f1.f3=c and f1.f2>2", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
 
   it should "not match #abc=abc and f1.f3=ac" in {
-    shouldNotMatch("#abc=abc and f1.f3=ac", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldNotMatch("#abc=abc and f1.f3=ac", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "not match #abc!=abc or f1.f3=ac" in {
-    shouldNotMatch("#abc!=abc or f1.f3=ac", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldNotMatch("#abc!=abc or f1.f3=ac", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "not match #xyz=xyz or f1.f3=ax" in {
-    shouldNotMatch("#xyz=xyz or f1.f3=ax", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldNotMatch("#xyz=xyz or f1.f3=ax", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "not match #abc=abc and f1.f3=ab and f1.f3=ac" in {
-    shouldNotMatch("#abc=abc and f1.f3=ab and f1.f3=ac", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldNotMatch("#abc=abc and f1.f3=ab and f1.f3=ac", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "not match #abc=abc and f1.f3=ab and f1.f2=123.1" in {
-    shouldNotMatch("#abc=abc and f1.f3=ab and f1.f2=123.1", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldNotMatch("#abc=abc and f1.f3=ab and f1.f2=123.1", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "not match #abc=abc and f1.f3=ab and f1.f2<1" in {
-    shouldNotMatch("#abc=abc and f1.f3=ab and f1.f2<1", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldNotMatch("#abc=abc and f1.f3=ab and f1.f2<1", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "not match #abc=abc and f1.f3=x and f1.f2>1" in {
-    shouldNotMatch("#abc=abc and f1.f3=x and f1.f2>1", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldNotMatch("#abc=abc and f1.f3=x and f1.f2>1", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "not match #abc=abc and f1.f3=ac and f1.f2>1 or f1.f3=x" in {
-    shouldNotMatch("#abc=abc and f1.f3=ac and f1.f2>1 or f1.f3=x", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldNotMatch("#abc=abc and f1.f3=ac and f1.f2>1 or f1.f3=x", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "not match #abc=abc and f1.f3!=ab and f1.f2>1 or f1.f3=z" in {
-    shouldNotMatch("#abc=abc and f1.f3!=ab and f1.f2>1 or f1.f3=z", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldNotMatch("#abc=abc and f1.f3!=ab and f1.f2>1 or f1.f3=z", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "not match #abc=abc and f1.f3!=ab and f1.f2>1 or f1.f3=c and f1.f2>200" in {
-    shouldNotMatch("#abc=abc and f1.f3!=ab and f1.f2>1 or f1.f3=c and f1.f2>200", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldNotMatch("#abc=abc and f1.f3!=ab and f1.f2>1 or f1.f3=c and f1.f2>200", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "not match #abc = abc and   f1.f3!=ab    and       f1.f2 >  1    or  f1.f3= c and       f1.f2  >   200" in {
-    shouldNotMatch("#abc = abc and   f1.f3!=ab    and       f1.f2 >  1    or  f1.f3= c and       f1.f2  >   200", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldNotMatch("#abc = abc and   f1.f3!=ab    and       f1.f2 >  1    or  f1.f3= c and       f1.f2  >   200", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
   it should "match #abc = abc and   f1.f3 != ab  and       f1.f2 >  1    or  f1.f3= c and       f1.f2 >    2" in {
-    shouldMatch("#abc = abc and   f1.f3 != ab  and       f1.f2 >  1    or  f1.f3= c and       f1.f2 >    2", Json.obj("tags" -> Json.arr("abc", "123"), "f1" -> Json.obj("f2" -> 123, "f3" -> "abc")))
+    shouldMatch("#abc = abc and   f1.f3 != ab  and       f1.f2 >  1    or  f1.f3= c and       f1.f2 >    2", EventFrame("tags" -> Seq("abc", "123"), "f1" -> EventFrame("f2" -> 123, "f3" -> "abc")))
   }
 
 }

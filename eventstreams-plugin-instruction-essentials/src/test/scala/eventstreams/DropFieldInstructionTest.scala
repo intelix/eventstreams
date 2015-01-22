@@ -16,7 +16,8 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.Tools.configHelper
+import eventstreams.core.{EventDataValueNil, EventFrame}
+import eventstreams.core.EventFrameConverter.optionsConverter
 import eventstreams.core.instructions.SimpleInstructionBuilder
 import eventstreams.plugins.essentials.{DropFieldInstruction, DropFieldInstructionConstants}
 import eventstreams.support.TestHelpers
@@ -46,11 +47,11 @@ class DropFieldInstructionTest extends TestHelpers {
   }
 
   it should "raise event when built" in new WithBasicConfig {
-    expectEvent(Json.obj("abc" -> "bla"))(Built)
+    expectEvent(EventFrame("abc" -> "bla"))(Built)
   }
 
   it should "raise event when tag dropped" in new WithBasicConfig {
-    expectEvent(Json.obj("abc" -> "bla", "tags" -> Json.arr("abc")))(FieldDropped, 'Field -> "abc")
+    expectEvent(EventFrame("abc" -> "bla", "tags" -> Seq("abc")))(FieldDropped, 'Field -> "abc")
   }
 
   trait WithAdvancedConfig extends WithSimpleInstructionBuilder with DropFieldInstructionConstants {
@@ -66,33 +67,33 @@ class DropFieldInstructionTest extends TestHelpers {
   }
 
   it should "drop existing field" in new WithAdvancedConfig {
-    expectOne(Json.obj("fname_abc" -> 1, "source" -> "fname")) { result =>
+    expectOne(EventFrame("fname_abc" -> 1, "source" -> "fname")) { result =>
       result +> 'fname_abc should be(None)
     }
   }
 
   it should "not touch any other field" in new WithAdvancedConfig {
-    expectOne(Json.obj("fname_abc" -> 1, "source" -> "fname")) { result =>
+    expectOne(EventFrame("fname_abc" -> 1, "source" -> "fname")) { result =>
       result ~> 'source should be(Some("fname"))
     }
   }
 
   it should "drop existing branch" in new WithAdvancedConfig {
-    expectOne(Json.obj("fname_abc" -> Json.obj("x" -> "some"), "source" -> "fname")) { result =>
+    expectOne(EventFrame("fname_abc" -> EventFrame("x" -> "some"), "source" -> "fname")) { result =>
       result #> 'fname_abc ~> 'x should be(None)
     }
   }
 
   it should "not touch any existing branch" in new WithAdvancedConfig {
-    expectOne(Json.obj("fname_abc" -> Json.obj("x" -> "some"), "fname" -> Json.obj("x" -> "some"), "source" -> "fname")) { result =>
+    expectOne(EventFrame("fname_abc" -> EventFrame("x" -> "some"), "fname" -> EventFrame("x" -> "some"), "source" -> "fname")) { result =>
       result #> 'fname_abc ~> 'x should be(None)
       result #> 'fname ~> 'x should be(Some("some"))
     }
   }
 
   it should "drop existing array" in new WithAdvancedConfig {
-    expectOne(Json.obj("fname_abc" -> Json.arr("x", "some"), "source" -> "fname")) { result =>
-      result ##> 'fname_abc should be(None)
+    expectOne(EventFrame("fname_abc" -> Seq("x", "some"), "source" -> "fname")) { result =>
+      result #> 'fname_abc should be(Some(EventDataValueNil()))
     }
   }
 
@@ -109,14 +110,14 @@ class DropFieldInstructionTest extends TestHelpers {
     shouldBuild()
   }
 
-  val testInput = Json.obj("abc" -> 1, "branch" -> Json.obj("abc" -> "f2", "b2" -> Json.obj("abc" -> Json.obj("x" -> "some"), "xyz" -> 2)), "source" -> "fname")
+  val testInput = EventFrame("abc" -> 1, "branch" -> EventFrame("abc" -> "f2", "b2" -> EventFrame("abc" -> EventFrame("x" -> "some"), "xyz" -> 2)), "source" -> "fname")
   
   it should "drop existing field" in new WithWildcardConfig {
     expectOne(testInput) { result =>
       result +> 'abc should be(None)
       result #> 'branch ~> 'abc should be(None)
       result #> 'branch #> 'b2 #> 'abc ~> 'x should be(None)
-      expectSomeEvents(3, FieldDropped, 'Field -> "abc")
+      expectSomeEvents(FieldDropped, 'Field -> "abc")
     }
   }
 

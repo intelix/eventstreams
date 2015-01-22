@@ -10,7 +10,7 @@ import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.actors._
-import eventstreams.core.{BecomeActive, BecomePassive, JsonFrame, Stop}
+import eventstreams.core.{BecomeActive, BecomePassive, EventFrame, Stop}
 import play.api.libs.json.JsValue
 
 import scala.util.Try
@@ -36,11 +36,11 @@ trait FlowComponentTestContext {
     val sinkActor = system.actorOf(sink)
     val componentActor = system.actorOf(component)
 
-    val pubSrc = PublisherSource[JsonFrame](ActorPublisher[JsonFrame](tapActor))
-    val subSink = SubscriberSink(ActorSubscriber[JsonFrame](sinkActor))
+    val pubSrc = PublisherSource[EventFrame](ActorPublisher[EventFrame](tapActor))
+    val subSink = SubscriberSink(ActorSubscriber[EventFrame](sinkActor))
 
-    val componentAsSink = SubscriberSink(ActorSubscriber[JsonFrame](componentActor))
-    val componentAsPub = PublisherSource[JsonFrame](ActorPublisher[JsonFrame](componentActor))
+    val componentAsSink = SubscriberSink(ActorSubscriber[EventFrame](componentActor))
+    val componentAsPub = PublisherSource[EventFrame](ActorPublisher[EventFrame](componentActor))
 
     componentAsPub.to(subSink).run()
     pubSrc.to(componentAsSink).run()
@@ -96,7 +96,7 @@ trait FlowComponentTestContext {
     deactivateSink()
   }
 
-  def publishMsg(j: JsValue)(implicit ctx: TestFlowCtx): Unit = ctx.pub ! j
+  def publishMsg(j: EventFrame)(implicit ctx: TestFlowCtx): Unit = ctx.pub ! j
 
 }
 
@@ -116,14 +116,14 @@ object JsonFramePublisherStubActor extends JsonFramePublisherStubActorEvents {
 
 class JsonFramePublisherStubActor
   extends ActorWithComposableBehavior
-  with StoppablePublisherActor[JsonFrame]
+  with StoppablePublisherActor[EventFrame]
   with PipelineWithStatesActor
   with JsonFramePublisherStubActorEvents
   with WithEventPublisher {
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
-  def process(m: JsonFrame) =
+  def process(m: EventFrame) =
     if (totalDemand > 0) {
       PublishingMessage >> ('EventId -> m.eventIdOrNA)
       onNext(m)
@@ -132,8 +132,8 @@ class JsonFramePublisherStubActor
     }
 
   def handler: Receive = {
-    case m: JsonFrame => process(m)
-    case m: JsValue => process(JsonFrame(m, Map()))
+    case m: EventFrame => process(m)
+//    case m: JsValue => process(EventFrame(m, Map()))
     case Request(n) => NewDemandAtPublisher >> ('Requested -> n)
   }
 

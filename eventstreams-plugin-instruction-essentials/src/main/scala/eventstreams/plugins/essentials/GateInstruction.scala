@@ -89,7 +89,7 @@ private object GateInstructionActor {
 private class GateInstructionActor(instructionId: String, address: String, config: JsValue)
   extends StoppableSubscribingPublisherActor
   with ReconnectingActor
-  with AtLeastOnceDeliveryActor[JsonFrame]
+  with AtLeastOnceDeliveryActor[EventFrame]
   with ActorWithGateStateMonitoring
   with GateInstructionConstants {
 
@@ -143,12 +143,12 @@ private class GateInstructionActor(instructionId: String, address: String, confi
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
-  override def fullyAcknowledged(correlationId: Long, msg: JsonFrame): Unit = {
+  override def fullyAcknowledged(correlationId: Long, msg: EventFrame): Unit = {
     FullAcknowledgement >> ('CorrelationId -> correlationId)
     if (blockingDelivery) forwardToFlow(msg)
   }
 
-  override def execute(value: JsonFrame): Option[Seq[JsonFrame]] = {
+  override def execute(value: EventFrame): Option[Seq[EventFrame]] = {
     if (!condition.isDefined || condition.get.metFor(value).isRight) {
       deliverMessage(value)
       if (blockingDelivery) None else Some(List(value))

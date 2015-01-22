@@ -105,14 +105,14 @@ private class TransactionInstructionActor(correlationIdTemplate: String, props: 
   }
 
   /*
-  def toEvent(t: Transaction): JsonFrame = {
+  def toEvent(t: Transaction): EventFrame = {
     // TODO
-    return JsonFrame(Json.obj(), Map())
+    return EventFrame(Json.obj(), Map())
   }
 */
 
 /*
-  def accountTransaction(frame: JsonFrame): Option[Seq[JsonFrame]] =
+  def accountTransaction(frame: EventFrame): Option[Seq[EventFrame]] =
     for (
       logic <- demarcationLogic;
 
@@ -161,7 +161,7 @@ private class TransactionInstructionActor(correlationIdTemplate: String, props: 
     ) yield seq.map(toEvent)
 
 
-  override def execute(frame: JsonFrame): Option[Seq[JsonFrame]] =
+  override def execute(frame: EventFrame): Option[Seq[EventFrame]] =
     accountTransaction(frame) match {
       case Some(tx) => Some(List(frame) ++ tx)
       case _ => Some(List(frame))
@@ -189,7 +189,7 @@ case class Transaction(completeCheckFunc: Transaction => Boolean, tranId: String
 
   def close(): Transaction
 
-  def add(ts: Long, frame: JsonFrame): Transaction
+  def add(ts: Long, frame: EventFrame): Transaction
 
   def markSuccess(): Transaction
 
@@ -204,11 +204,11 @@ case class Transaction(completeCheckFunc: Transaction => Boolean, tranId: String
 
 
 sealed trait DemarcationLogic {
-  def isApplicableFromFrame(frame: JsonFrame): Boolean
+  def isApplicableFromFrame(frame: EventFrame): Boolean
 
-  def applyTo(tx: Transaction, ts: Long, frame: JsonFrame): Option[Transaction]
+  def applyTo(tx: Transaction, ts: Long, frame: EventFrame): Option[Transaction]
 
-  def newTx(ts: Long, frame: JsonFrame): Transaction
+  def newTx(ts: Long, frame: EventFrame): Transaction
 
 }
 
@@ -216,23 +216,23 @@ case class DemarcationWithUniqueId(uniqueIdTemplate: String, minEvents: Option[I
 
   val minEventsReq = minEvents | 2
 
-  override def isApplicableFromFrame(frame: JsonFrame): Boolean = Tools.templateToStringValue(frame, uniqueIdTemplate).isDefined
+  override def isApplicableFromFrame(frame: EventFrame): Boolean = Tools.templateToStringValue(frame, uniqueIdTemplate).isDefined
 
-  def applyTo(tx: Transaction, ts: Long, frame: JsonFrame): Option[Transaction] = Tools.templateToStringValue(frame, uniqueIdTemplate) match {
+  def applyTo(tx: Transaction, ts: Long, frame: EventFrame): Option[Transaction] = Tools.templateToStringValue(frame, uniqueIdTemplate) match {
     case Some(v) if tx.tranId == v => Some(tx.add(ts, frame))
     case _ => None
   }
 
-  override def newTx(ts: Long, frame: JsonFrame): Transaction =
+  override def newTx(ts: Long, frame: EventFrame): Transaction =
     Transaction(_.eventsCount >= minEventsReq, Tools.templateToStringValue(frame, uniqueIdTemplate)|"undefined")
 }
 
 case class DemarcationWithStartAndStop(txStart: Condition, txStopSuccess: Condition, txStopFailure: Option[Condition]) extends DemarcationLogic {
-  override def isApplicableFromFrame(frame: JsonFrame): Boolean =
+  override def isApplicableFromFrame(frame: EventFrame): Boolean =
     txStart.metFor(frame).isRight || txStopSuccess.metFor(frame).isRight || (txStopFailure.map(_.metFor(frame).isRight) | false)
 
 
-  def applyTo(tx: Transaction, ts: Long, frame: JsonFrame): Option[Transaction] = tx match {
+  def applyTo(tx: Transaction, ts: Long, frame: EventFrame): Option[Transaction] = tx match {
     case x if !x.hasDefinedFinish && txStopSuccess.metFor(frame).isRight =>
       Some(tx.add(ts, frame).markHasFinish().markSuccess())
     case x if !x.hasDefinedFinish && (txStopFailure.map(_.metFor(frame).isRight) | false) =>
@@ -242,7 +242,7 @@ case class DemarcationWithStartAndStop(txStart: Condition, txStopSuccess: Condit
     case _ => None
   }
 
-  override def newTx(ts: Long, frame: JsonFrame): Transaction = Transaction(t => t.hasDefinedFinish && t.hasDefinedStart)
+  override def newTx(ts: Long, frame: EventFrame): Transaction = Transaction(t => t.hasDefinedFinish && t.hasDefinedStart)
 
 
 }
@@ -252,10 +252,10 @@ case class DemarcationWithStartAndAlives(txStart: Condition, txAlive: Condition,
   val minEventsReq = minEvents | 2
 
 
-  override def isApplicableFromFrame(frame: JsonFrame): Boolean =
+  override def isApplicableFromFrame(frame: EventFrame): Boolean =
     txStart.metFor(frame).isRight || txAlive.metFor(frame).isRight
 
-  def applyTo(tx: Transaction, ts: Long, frame: JsonFrame): Option[Transaction] = tx match {
+  def applyTo(tx: Transaction, ts: Long, frame: EventFrame): Option[Transaction] = tx match {
     case x if !x.hasDefinedStart && txStart.metFor(frame).isRight =>
       Some(tx.add(ts, frame).markHasStart())
     case x if txAlive.metFor(frame).isRight =>
@@ -263,16 +263,16 @@ case class DemarcationWithStartAndAlives(txStart: Condition, txAlive: Condition,
     case _ => None
   }
 
-  override def newTx(ts: Long, frame: JsonFrame): Transaction =
+  override def newTx(ts: Long, frame: EventFrame): Transaction =
     Transaction(t => t.hasDefinedStart).add(ts, frame)
 
 }
 
 case class DemarcationWithAlivesOnly(txAlive: Condition, maxEvents: Option[Int], maxDuration: Option[Int]) extends DemarcationLogic {
-  override def isApplicableFromFrame(frame: JsonFrame): Boolean =
+  override def isApplicableFromFrame(frame: EventFrame): Boolean =
     txAlive.metFor(frame).isRight
 
-  def applyTo(tx: Transaction, ts: Long, frame: JsonFrame): Option[Transaction] = tx match {
+  def applyTo(tx: Transaction, ts: Long, frame: EventFrame): Option[Transaction] = tx match {
     case x if txAlive.metFor(frame).isRight =>
       Some(tx.add(ts, frame))
     case _ => None
@@ -281,10 +281,10 @@ case class DemarcationWithAlivesOnly(txAlive: Condition, maxEvents: Option[Int],
 }
 
 case class DemarcationWithAlivesAndStop(txAlive: Condition, txStopSuccess: Condition, txStopFailure: Option[Condition]) extends DemarcationLogic {
-  override def isApplicableFromFrame(frame: JsonFrame): Boolean =
+  override def isApplicableFromFrame(frame: EventFrame): Boolean =
     txAlive.metFor(frame).isRight || txStopSuccess.metFor(frame).isRight || (txStopFailure.map(_.metFor(frame).isRight) | false)
 
-  def applyTo(tx: Transaction, ts: Long, frame: JsonFrame): Option[Transaction] = tx match {
+  def applyTo(tx: Transaction, ts: Long, frame: EventFrame): Option[Transaction] = tx match {
     case x if !x.hasDefinedFinish && txStopSuccess.metFor(frame).isRight =>
       Some(tx.add(ts, frame).markHasFinish().markSuccess())
     case x if !x.hasDefinedFinish && (txStopFailure.map(_.metFor(frame).isRight) | false) =>
@@ -294,5 +294,5 @@ case class DemarcationWithAlivesAndStop(txAlive: Condition, txStopSuccess: Condi
     case _ => None
   }
 */
-  override def execute(value: JsonFrame): Option[Seq[JsonFrame]] = None  // TODO
+  override def execute(value: EventFrame): Option[Seq[EventFrame]] = None  // TODO
 }

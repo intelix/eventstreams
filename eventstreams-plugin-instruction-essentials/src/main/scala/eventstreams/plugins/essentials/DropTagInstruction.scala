@@ -55,25 +55,25 @@ class DropTagInstruction extends SimpleInstructionBuilder with DropTagInstructio
 
       Built >>('Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)
 
-      frame: JsonFrame => {
+      frame: EventFrame => {
 
         val fieldName = "tags"
         val fieldType = "as"
 
-        val name = macroReplacement(frame, JsString(tagName)).asOpt[String].getOrElse("")
+        val name = macroReplacement(frame, tagName)
 
-        val originalValue = locateFieldValue(frame, fieldName).asOpt[JsArray].getOrElse(Json.arr()).value
+        val originalValue = locateRawFieldValue(frame, fieldName, Seq()).asSeq
 
-        if (originalValue.exists(_.asOpt[String].contains(name))) {
-          val newValue = Json.toJson(originalValue.filter(_.asOpt[String].getOrElse("") != name).toArray)
+        if (originalValue.exists(_.exists(_.asString.contains(name)))) {
+          val nv = originalValue.get.filter(_.asString.exists( _ != name ))
 
-          val value: JsValue = frame.event.set(toPath(fieldName) -> newValue)
+          val newFrame = EventValuePath(fieldName).setSeqInto(frame, nv)
 
-          val eventId = frame.event ~> 'eventId | "n/a"
+          val eventId = frame.eventIdOrNA
 
           TagDropped >>('Tag -> name, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
 
-          List(JsonFrame(value, frame.ctx))
+          List(newFrame)
         } else List(frame)
 
       }
