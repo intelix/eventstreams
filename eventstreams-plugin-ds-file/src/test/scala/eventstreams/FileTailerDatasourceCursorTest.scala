@@ -36,7 +36,7 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
          }
 
@@ -45,9 +45,9 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runBare {
            flowCtx.foreach(sinkProduceDemand(1, _))
            waitAndCheck {
-             expectSomeEvents(1, ReceivedMessageAtSink)
+             expectExactlyNEvents(1, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
 
@@ -55,7 +55,7 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(2, _))
-           expectSomeEvents(2, ReceivedMessageAtSink)
+           expectExactlyNEvents(2, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
          }
 
@@ -64,9 +64,9 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runBare {
            flowCtx.foreach(sinkProduceDemand(1, _))
            waitAndCheck {
-             expectSomeEvents(1, ReceivedMessageAtSink)
+             expectExactlyNEvents(1, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
          }
        }
 
@@ -74,7 +74,7 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(3, _))
-           expectSomeEvents(3, ReceivedMessageAtSink)
+           expectExactlyNEvents(3, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
          }
 
@@ -92,7 +92,7 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(3, _))
-           expectSomeEvents(3, ReceivedMessageAtSink)
+           expectExactlyNEvents(3, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
          }
 
@@ -105,7 +105,7 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            }
 
            f.write("DDDDD")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "DDDDD")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "DDDDD")
            expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
 
          }
@@ -116,7 +116,7 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
            f.rollGz("current-1.gz")
            f.write("DDDDD")
@@ -127,9 +127,9 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runBare {
            flowCtx.foreach(sinkProduceDemand(1, _))
            waitAndCheck {
-             expectSomeEvents(1, ReceivedMessageAtSink)
+             expectExactlyNEvents(1, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
 
@@ -137,7 +137,7 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
            f.rollGz("current-1.gz")
            f.write("DDDDD")
@@ -148,11 +148,11 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runBare {
            flowCtx.foreach(sinkProduceDemand(10, _))
            waitAndCheck {
-             expectSomeEvents(3, ReceivedMessageAtSink)
+             expectExactlyNEvents(3, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "DDDDD")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "DDDDD")
          }
        }
 
@@ -160,12 +160,12 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            clearEvents()
            f.rollGz("current-1.gz")
            f.write("DDDDD")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
          }
 
@@ -174,10 +174,10 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runBare {
            flowCtx.foreach(sinkProduceDemand(10, _))
            waitAndCheck {
-             expectSomeEvents(2, ReceivedMessageAtSink)
+             expectExactlyNEvents(2, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "DDDDD")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "DDDDD")
            expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
@@ -186,12 +186,12 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            clearEvents()
            f.rollGz("current-1.gz")
            f.write("D" * testBlockSize + "E" * testBlockSize + "F" * testBlockSize + "GGG")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
          }
 
@@ -200,13 +200,13 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runBare {
            flowCtx.foreach(sinkProduceDemand(10, _))
            waitAndCheck {
-             expectSomeEvents(5, ReceivedMessageAtSink)
+             expectExactlyNEvents(5, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "GGG")
            expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
@@ -216,12 +216,12 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            clearEvents()
            f.rollGz("current-1.gz")
            f.write("D" * testBlockSize + "E" * testBlockSize + "F" * testBlockSize + "GGG")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
            f.rollGz("current-2.gz")
          }
@@ -231,13 +231,13 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runBare {
            flowCtx.foreach(sinkProduceDemand(10, _))
            waitAndCheck {
-             expectSomeEvents(5, ReceivedMessageAtSink)
+             expectExactlyNEvents(5, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "GGG")
            expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
@@ -247,13 +247,13 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            clearEvents()
            f.rollGz("current-1.gz")
            f.write("D" * testBlockSize + "E" * testBlockSize + "F" * testBlockSize + "GGG")
            f.rollGz("current-2.gz")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
          }
 
@@ -262,13 +262,13 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runBare {
            flowCtx.foreach(sinkProduceDemand(10, _))
            waitAndCheck {
-             expectSomeEvents(5, ReceivedMessageAtSink)
+             expectExactlyNEvents(5, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "GGG")
            expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
@@ -277,14 +277,14 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            clearEvents()
            f.rollGz("current-1.gz")
            f.write("D" * testBlockSize + "E" * testBlockSize + "F" * testBlockSize)
            f.rollGz("current-2.gz")
            f.write("GGG")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
          }
 
@@ -293,13 +293,13 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runBare {
            flowCtx.foreach(sinkProduceDemand(10, _))
            waitAndCheck {
-             expectSomeEvents(5, ReceivedMessageAtSink)
+             expectExactlyNEvents(5, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "GGG")
            expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
@@ -308,13 +308,13 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            clearEvents()
            f.rollGz("current-1.gz")
            f.write("D" * testBlockSize + "E" * testBlockSize + "F" * testBlockSize)
            f.rollGz("current-2.gz")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
            f.write("GGG")
          }
@@ -324,13 +324,13 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runBare {
            flowCtx.foreach(sinkProduceDemand(10, _))
            waitAndCheck {
-             expectSomeEvents(5, ReceivedMessageAtSink)
+             expectExactlyNEvents(5, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "GGG")
            expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
@@ -340,11 +340,11 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            clearEvents()
            f.rollGz("current-1.gz")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
            f.write("D" * testBlockSize + "E" * testBlockSize + "F" * testBlockSize)
            f.rollGz("current-2.gz")
@@ -356,13 +356,13 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runBare {
            flowCtx.foreach(sinkProduceDemand(10, _))
            waitAndCheck {
-             expectSomeEvents(5, ReceivedMessageAtSink)
+             expectExactlyNEvents(5, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "GGG")
            expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
@@ -371,11 +371,11 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            clearEvents()
            f.rollGz("current-1.gz")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
            f.write("D" * testBlockSize + "E" * testBlockSize + "F" * testBlockSize)
            f.rollGz("current-2.gz")
@@ -388,12 +388,12 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            f.delete("current-1.gz")
            flowCtx.foreach(sinkProduceDemand(10, _))
            waitAndCheck {
-             expectSomeEvents(4, ReceivedMessageAtSink)
+             expectExactlyNEvents(4, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "GGG")
            expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
@@ -402,11 +402,11 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            clearEvents()
            f.rollGz("current-1.gz")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
            clearEvents()
            f.write("D" * testBlockSize + "E" * testBlockSize + "F" * testBlockSize)
@@ -424,9 +424,9 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
            f.delete("current-2.gz")
            flowCtx.foreach(sinkProduceDemand(10, _))
            waitAndCheck {
-             expectSomeEvents(1, ReceivedMessageAtSink)
+             expectExactlyNEvents(1, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "GGG")
            expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
        }
@@ -436,13 +436,13 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            clearEvents()
            f.rollGz("current-1.gz")
            f.write("D" * testBlockSize + "E" * testBlockSize + "F" * testBlockSize)
            f.rollGz("current-2.gz")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
            clearEvents()
            f.write("GGG")
@@ -457,12 +457,12 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithExistingFile { f =>
            flowCtx.foreach(sinkProduceDemand(10, _))
            waitAndCheck {
-             expectSomeEvents(4, ReceivedMessageAtSink)
+             expectExactlyNEvents(4, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("F" * testBlockSize))
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "GGG")
            expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
 
@@ -474,11 +474,11 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            clearEvents()
            f.rollGz("current-1.gz")
            flowCtx.foreach(sinkProduceDemand(1, _))
-           expectSomeEvents(1, ReceivedMessageAtSink)
+           expectExactlyNEvents(1, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
            clearEvents()
            f.write("D" * testBlockSize + "E" * testBlockSize + "F" * testBlockSize)
@@ -496,9 +496,9 @@ class FileTailerDatasourceCursorTest(_system: ActorSystem)
          runWithExistingFile { f =>
            flowCtx.foreach(sinkProduceDemand(10, _))
            waitAndCheck {
-             expectSomeEvents(1, ReceivedMessageAtSink)
+             expectExactlyNEvents(1, ReceivedMessageAtSink)
            }
-           expectSomeEvents(ReceivedMessageAtSink, 'Value -> "GGG")
+           expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "GGG")
            expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
          }
 

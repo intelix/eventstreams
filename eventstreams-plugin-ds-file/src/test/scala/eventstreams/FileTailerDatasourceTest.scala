@@ -85,7 +85,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
 
        "be a new instance when added to the flow" in new WithBasicConfig {
          withDatasourceFlow {
-           expectSomeEvents(DatasourceInstance)
+           expectOneOrMoreEvents(DatasourceInstance)
          }
        }
 
@@ -100,7 +100,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
        "propagate demand to the publisher" in new WithBasicConfig {
          withDatasourceFlow {
            flowCtx.foreach(activateSink)
-           expectSomeEvents(FileTailerConstants.NewDemand)
+           expectOneOrMoreEvents(FileTailerConstants.NewDemand)
          }
        }
 
@@ -109,7 +109,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
          "activate on request" in new WithBasicConfig {
            withDatasourceFlow {
              flowCtx.foreach(activateFlow)
-             expectSomeEvents(FileTailerConstants.BecomingActive)
+             expectOneOrMoreEvents(FileTailerConstants.BecomingActive)
            }
          }
 
@@ -145,48 +145,48 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                waitAndCheck {
                  expectNoEvents(FileTailerConstants.MessagePublished)
                }
-               expectSomeEvents(FileTailerConstants.Warning)
+               expectOneOrMoreEvents(FileTailerConstants.Warning)
              }
            }
 
            "produce message when first file gets some data" in new EmptyDirWithDemand {
              runWithNewFile { f =>
                f.write("line1")
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> "line1")
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "line1")
              }
            }
 
            "produce a single message regardless of how many lines are in the file" in new EmptyDirWithDemand {
              runWithNewFile { f =>
                f.write("line1\nline2\nline3")
-               expectSomeEvents(1, ReceivedMessageAtSink)
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> "line1\nline2\nline3")
+               expectExactlyNEvents(1, ReceivedMessageAtSink)
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "line1\nline2\nline3")
              }
            }
 
            "produce two messages as per blocksize config" in new EmptyDirWithDemand {
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "BBB")
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> "BBB")
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "BBB")
              }
            }
 
            "produce two messages as per blocksize config - taking all characters into account" in new EmptyDirWithDemand {
              runWithNewFile { f =>
                f.write(("A" * (testBlockSize - 1) + "\n") + "BBB")
-               expectSomeEvents(2, ReceivedMessageAtSink)
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * (testBlockSize - 1) + "\n"))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> "BBB")
+               expectExactlyNEvents(2, ReceivedMessageAtSink)
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * (testBlockSize - 1) + "\n"))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "BBB")
              }
            }
 
            "produce two messages as per blocksize config - taking all characters into account 2" in new EmptyDirWithDemand {
              runWithNewFile { f =>
                f.write(("A" * testBlockSize + "\n") + "BBB")
-               expectSomeEvents(2, ReceivedMessageAtSink)
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> "\nBBB")
+               expectExactlyNEvents(2, ReceivedMessageAtSink)
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "\nBBB")
              }
            }
 
@@ -208,9 +208,9 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                }
                flowCtx.foreach(sinkProduceDemand(1, _))
                waitAndCheck {
-                 expectSomeEvents(1, ReceivedMessageAtSink)
+                 expectExactlyNEvents(1, ReceivedMessageAtSink)
                }
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
              }
            }
 
@@ -222,15 +222,15 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                }
                flowCtx.foreach(sinkProduceDemand(1, _))
                waitAndCheck {
-                 expectSomeEvents(1, ReceivedMessageAtSink)
+                 expectExactlyNEvents(1, ReceivedMessageAtSink)
                }
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                flowCtx.foreach(sinkProduceDemand(1, _))
                waitAndCheck {
-                 expectSomeEvents(1, ReceivedMessageAtSink)
+                 expectExactlyNEvents(1, ReceivedMessageAtSink)
                }
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
              }
            }
            "produce a single message followed by another two messages as per demand" in new EmptyDirWithoutDemand {
@@ -241,16 +241,16 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                }
                flowCtx.foreach(sinkProduceDemand(1, _))
                waitAndCheck {
-                 expectSomeEvents(1, ReceivedMessageAtSink)
+                 expectExactlyNEvents(1, ReceivedMessageAtSink)
                }
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                flowCtx.foreach(sinkProduceDemand(2, _))
                waitAndCheck {
-                 expectSomeEvents(2, ReceivedMessageAtSink)
+                 expectExactlyNEvents(2, ReceivedMessageAtSink)
                }
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
              }
            }
 
@@ -262,16 +262,16 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                }
                flowCtx.foreach(sinkProduceDemand(1, _))
                waitAndCheck {
-                 expectSomeEvents(1, ReceivedMessageAtSink)
+                 expectExactlyNEvents(1, ReceivedMessageAtSink)
                }
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                flowCtx.foreach(sinkProduceDemand(10, _))
                waitAndCheck {
-                 expectSomeEvents(2, ReceivedMessageAtSink)
+                 expectExactlyNEvents(2, ReceivedMessageAtSink)
                }
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
              }
            }
 
@@ -280,14 +280,14 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("DDD")
                flowCtx.foreach(sinkProduceDemand(10, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> "DDD")
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "DDD")
              }
            }
 
@@ -295,12 +295,12 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("DDD")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "DDD")
@@ -313,19 +313,19 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("DDD")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "DDD")
                }
                clearEvents()
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "DDD")
                }
@@ -338,25 +338,25 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("DDD")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "DDD")
                }
                clearEvents()
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "DDD")
                }
                clearEvents()
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "DDD")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "DDD")
              }
            }
 
@@ -364,27 +364,27 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
                f.rollGz("current-2.gz")
                f.write("G" * testBlockSize + "H" * testBlockSize + "III")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
                }
                clearEvents()
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
                }
                clearEvents()
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
              }
            }
 
@@ -392,29 +392,29 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
                f.rollGz("current-2.gz")
                f.write("G" * testBlockSize + "H" * testBlockSize + "III")
                flowCtx.foreach(sinkProduceDemand(2, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
                }
                clearEvents()
                flowCtx.foreach(sinkProduceDemand(2, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "FFF")
                }
                clearEvents()
                flowCtx.foreach(sinkProduceDemand(2, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "III")
@@ -426,21 +426,21 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
                f.rollGz("current-2.gz")
                f.write("G" * testBlockSize + "H" * testBlockSize + "III")
                flowCtx.foreach(sinkProduceDemand(20, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "III")
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "III")
              }
            }
 
@@ -449,14 +449,14 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
                f.rollGz("current-2.gz")
                f.write("G" * testBlockSize + "H" * testBlockSize + "III")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
@@ -464,13 +464,13 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                clearEvents()
                f.rollGz("current-3.gz")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
                }
                clearEvents()
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
              }
            }
 
@@ -478,14 +478,14 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
                f.rollGz("current-2.gz")
                f.write("G" * testBlockSize + "H" * testBlockSize + "III")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
@@ -493,13 +493,13 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                clearEvents()
                f.rollGz("current-3.gz")
                flowCtx.foreach(sinkProduceDemand(20, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "III")
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "III")
              }
            }
 
@@ -507,14 +507,14 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
                f.rollGz("current-2.gz")
                f.write("G" * testBlockSize + "H" * testBlockSize + "III")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
@@ -522,18 +522,18 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                clearEvents()
                f.rollGz("current-3.gz")
                flowCtx.foreach(sinkProduceDemand(20, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "III")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "III")
                clearEvents()
                f.write("X" * testBlockSize + "Y" * testBlockSize + "ZZZ")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
              }
            }
 
@@ -541,14 +541,14 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
                f.rollGz("current-2.gz")
                f.write("G" * testBlockSize + "H" * testBlockSize + "III")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
@@ -556,17 +556,17 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                clearEvents()
                f.rollGz("current-3.gz")
                flowCtx.foreach(sinkProduceDemand(9, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "III")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "III")
                clearEvents()
                f.write("X" * testBlockSize + "Y" * testBlockSize + "ZZZ")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "ZZZ")
                }
@@ -577,14 +577,14 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
                f.rollGz("current-2.gz")
                f.write("G" * testBlockSize + "H" * testBlockSize + "III")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
@@ -592,24 +592,24 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                clearEvents()
                f.rollGz("current-3.gz")
                flowCtx.foreach(sinkProduceDemand(9, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "III")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "III")
                clearEvents()
                f.write("X" * testBlockSize + "Y" * testBlockSize + "ZZZ")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "ZZZ")
                }
                clearEvents()
                f.rollGz("current-4.gz")
                flowCtx.foreach(sinkProduceDemand(9, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
 
              }
            }
@@ -618,7 +618,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-Z.gz")
                Thread.sleep(2000)
@@ -627,7 +627,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                Thread.sleep(2000)
                f.write("G" * testBlockSize + "H" * testBlockSize + "III")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
@@ -635,17 +635,17 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                clearEvents()
                f.rollGz("current-X.gz")
                flowCtx.foreach(sinkProduceDemand(9, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "III")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "III")
                clearEvents()
                f.write("X" * testBlockSize + "Y" * testBlockSize + "ZZZ")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "ZZZ")
                }
@@ -653,7 +653,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                Thread.sleep(2000)
                f.rollGz("current-A.gz")
                flowCtx.foreach(sinkProduceDemand(9, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
 
              }
            }
@@ -662,7 +662,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "BBB")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
@@ -671,7 +671,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                flowCtx.foreach(sinkProduceDemand(1, _))
 
 
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> "BBB")
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "BBB")
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
@@ -683,14 +683,14 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "BBB")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
                f.rollGz("current-2.gz")
                f.write("G" * testBlockSize + "H" * testBlockSize + "III")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> "BBB")
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> "BBB")
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
@@ -699,16 +699,16 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.delete("current-1.gz")
                f.rollGz("current-3.gz")
                flowCtx.foreach(sinkProduceDemand(8, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "III")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "III")
                clearEvents()
                f.write("X" * testBlockSize + "Y" * testBlockSize + "ZZZ")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "ZZZ")
                }
@@ -717,7 +717,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.delete("current-3.gz")
                f.rollGz("current-4.gz")
                flowCtx.foreach(sinkProduceDemand(9, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
 
              }
            }
@@ -726,7 +726,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
@@ -734,7 +734,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.write("G" * testBlockSize + "H" * testBlockSize + "III")
 
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
@@ -745,17 +745,17 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                flowCtx.foreach(activateFlow)
                flowCtx.foreach(sinkProduceDemand(8, _))
                expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "III")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "III")
                clearEvents()
                f.rollGz("current-3.gz")
                f.write("X" * testBlockSize + "Y" * testBlockSize + "ZZZ")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "ZZZ")
                }
@@ -764,7 +764,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.delete("current-3.gz")
                f.rollGz("current-4.gz")
                flowCtx.foreach(sinkProduceDemand(9, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
 
              }
            }
@@ -781,7 +781,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
@@ -789,7 +789,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.write("G" * testBlockSize + "H" * testBlockSize + "III")
 
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
@@ -798,17 +798,17 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.delete("current-1.gz")
                flowCtx.foreach(sinkProduceDemand(8, _))
                expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "III")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "III")
                clearEvents()
                f.rollGz("current-3.gz")
                f.write("X" * testBlockSize + "Y" * testBlockSize + "ZZZ")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "ZZZ")
                }
@@ -817,7 +817,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.delete("current-3.gz")
                f.rollGz("current-4.gz")
                flowCtx.foreach(sinkProduceDemand(9, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
 
              }
            }
@@ -826,14 +826,14 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                f.rollOpen("current-1.log")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
                f.rollOpen("current-2.log")
                f.write("G" * testBlockSize + "H" * testBlockSize + "III")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
@@ -841,24 +841,24 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                clearEvents()
                f.rollOpen("current-3.log")
                flowCtx.foreach(sinkProduceDemand(9, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "III")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "III")
                clearEvents()
                f.write("X" * testBlockSize + "Y" * testBlockSize + "ZZZ")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "ZZZ")
                }
                clearEvents()
                f.rollOpen("current-4.log")
                flowCtx.foreach(sinkProduceDemand(9, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
 
              }
            }
@@ -867,7 +867,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                clearEvents()
                flowCtx.foreach(deactivateFlow)
                f.rollOpen("current-1.log")
@@ -876,7 +876,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.write("G" * testBlockSize + "H" * testBlockSize + "III")
                flowCtx.foreach(activateFlow)
                flowCtx.foreach(sinkProduceDemand(1, _))
-               expectSomeEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectOneOrMoreEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
@@ -886,24 +886,24 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.rollOpen("current-3.log")
                flowCtx.foreach(activateFlow)
                flowCtx.foreach(sinkProduceDemand(9, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "III")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("G" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("H" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "III")
                clearEvents()
                f.write("X" * testBlockSize + "Y" * testBlockSize + "ZZZ")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("X" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("Y" * testBlockSize))
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> "ZZZ")
                }
                clearEvents()
                f.rollOpen("current-4.log")
                flowCtx.foreach(sinkProduceDemand(9, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "ZZZ")
 
              }
            }
@@ -921,14 +921,14 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.write("FFF")
                flowCtx.foreach(activateFlow)
                flowCtx.foreach(sinkProduceDemand(3, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
                clearEvents()
                flowCtx.foreach(sinkProduceDemand(3, _))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
              }
            }
 
@@ -940,9 +940,9 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              run { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
              }
            }
 
@@ -950,14 +950,14 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              run { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
                clearEvents()
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
              }
            }
 
@@ -965,15 +965,15 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              run { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
              }
            }
 
@@ -981,15 +981,15 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              run { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
                clearEvents()
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
                f.rollGz("current-1.gz")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
              }
            }
 
@@ -997,16 +997,16 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              run { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
                clearEvents()
                f.write("D" * testBlockSize + "E" * testBlockSize)
                f.rollGz("current-1.gz")
                f.write("FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
              }
            }
 
@@ -1016,12 +1016,12 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
              }
            }
 
@@ -1030,9 +1030,9 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                f.rollGz("current-1.gz")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
              }
            }
 
@@ -1042,10 +1042,10 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.rollGz("current-1.gz")
                f.write("FFF")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
              }
            }
 
@@ -1058,12 +1058,12 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.write("FFF")
                f.rollGz("current-3.gz")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
              }
            }
 
@@ -1076,15 +1076,15 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.write("FFF")
                f.rollGz("current-3.gz")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
                clearEvents()
                f.write("GGG")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "GGG")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "GGG")
              }
            }
 
@@ -1096,12 +1096,12 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.rollGz("current-2.gz")
                f.write("FFF")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
              }
            }
 
@@ -1113,15 +1113,15 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.rollGz("current-2.gz")
                f.write("FFF")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
                clearEvents()
                f.write("GGG")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "GGG")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "GGG")
              }
            }
 
@@ -1144,10 +1144,10 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                }
                Thread.sleep(5000)
                (1 to rounds) foreach { i =>
-                 expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("CCC" + i.toString))
+                 expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("CCC" + i.toString))
                }
                expectSomeEventsWithTimeout(10000, rounds, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(rounds, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(rounds, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
              }
            }
 
@@ -1169,10 +1169,10 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                }
                Thread.sleep(5000)
                (1 to 50) foreach { i =>
-                 expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("CCC" + i.toString))
+                 expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("CCC" + i.toString))
                }
                expectSomeEventsWithTimeout(10000, 50, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(50, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(50, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
              }
            }
 
@@ -1197,10 +1197,10 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                }
                Thread.sleep(5000)
                (1 to 50) foreach { i =>
-                 expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("CCC" + i.toString))
+                 expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("CCC" + i.toString))
                }
                expectSomeEventsWithTimeout(10000, 50, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(50, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(50, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
              }
            }
 
@@ -1215,9 +1215,9 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              run { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
              }
            }
 
@@ -1225,14 +1225,14 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              run { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
                clearEvents()
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
              }
            }
 
@@ -1240,15 +1240,15 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              run { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
                clearEvents()
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
              }
            }
 
@@ -1256,15 +1256,15 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              run { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
                clearEvents()
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
                f.rollGz("current-1.gz")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
              }
            }
 
@@ -1272,16 +1272,16 @@ class FileTailerDatasourceTest(_system: ActorSystem)
              run { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "CCC")
                clearEvents()
                f.write("D" * testBlockSize + "E" * testBlockSize)
                f.rollGz("current-1.gz")
                f.write("FFF")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
              }
            }
 
@@ -1291,9 +1291,9 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.rollGz("current-1.gz")
                f.write("D" * testBlockSize + "E" * testBlockSize + "FFF")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("D" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
                expectNoEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
@@ -1318,7 +1318,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.rollGz("current-1.gz")
                f.write("FFF")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
                expectNoEvents(ReceivedMessageAtSink, 'Value -> ("A" * testBlockSize))
                expectNoEvents(ReceivedMessageAtSink, 'Value -> ("B" * testBlockSize))
                expectNoEvents(ReceivedMessageAtSink, 'Value -> "CCC")
@@ -1353,7 +1353,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                  expectNoEvents(ReceivedMessageAtSink)
                }
                f.write("GGG")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "GGG")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "GGG")
              }
            }
 
@@ -1365,7 +1365,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.rollGz("current-2.gz")
                f.write("FFF")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
                }
@@ -1380,13 +1380,13 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                f.rollGz("current-2.gz")
                f.write("FFF")
                flowCtx.foreach(activateFlow)
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "FFF")
                waitAndCheck {
                  expectNoEvents(ReceivedMessageAtSink, 'Value -> ("E" * testBlockSize))
                }
                clearEvents()
                f.write("GGG")
-               expectSomeEvents(1, ReceivedMessageAtSink, 'Value -> "GGG")
+               expectExactlyNEvents(1, ReceivedMessageAtSink, 'Value -> "GGG")
              }
            }
 
@@ -1401,25 +1401,25 @@ class FileTailerDatasourceTest(_system: ActorSystem)
 
                flowCtx.foreach(activateFlow)
 
-               expectSomeEvents(FileTailerConstants.MessagePublished)
+               expectOneOrMoreEvents(FileTailerConstants.MessagePublished)
 
                clearEvents()
 
                f.write("line2\n")
 
-               expectSomeEvents(FileTailerConstants.MessagePublished)
+               expectOneOrMoreEvents(FileTailerConstants.MessagePublished)
 
                clearEvents()
 
                f.write("line3\n")
                f.rollGz("current-1.gz")
-               expectSomeEvents(FileTailerConstants.MessagePublished)
+               expectOneOrMoreEvents(FileTailerConstants.MessagePublished)
 
                clearEvents()
 
                f.write("line4\n")
 
-               expectSomeEvents(FileTailerConstants.MessagePublished)
+               expectOneOrMoreEvents(FileTailerConstants.MessagePublished)
 
                clearEvents()
 
@@ -1428,7 +1428,7 @@ class FileTailerDatasourceTest(_system: ActorSystem)
                  f.rollGz(s"current-${i + 2}.gz")
                  f.write(s"line6-${i + 2}\nline7-${i + 2}\n")
 
-                 expectSomeEvents(2, FileTailerConstants.MessagePublished)
+                 expectNtoMEvents(2 to 4, FileTailerConstants.MessagePublished)
 
                  clearEvents()
                }

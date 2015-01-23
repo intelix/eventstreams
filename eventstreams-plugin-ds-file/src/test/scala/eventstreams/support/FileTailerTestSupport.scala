@@ -57,7 +57,7 @@ trait FileTailerTestSupport
       } finally {
         system.stop(actor)
         Try {
-          expectSomeEvents(ConfigStorageActor.PostStop)
+          expectOneOrMoreEvents(ConfigStorageActor.PostStop)
         }
       }
 
@@ -97,7 +97,7 @@ trait FileTailerTestSupport
     def runWithNewFile(f: OpenFile => Unit) = withDatasourceFlow {
       withNewFile("current.log") { file =>
         flowCtx.foreach(activateFlow)
-        expectSomeEvents(FileTailerConstants.BecomingActive)
+        expectOneOrMoreEvents(FileTailerConstants.BecomingActive)
         clearEvents()
         f(file)
       }
@@ -105,7 +105,7 @@ trait FileTailerTestSupport
     def runWithExistingFile(f: OpenFile => Unit) = withDatasourceFlow {
       withExistingFile("current.log") { file =>
         flowCtx.foreach(activateFlow)
-        expectSomeEvents(FileTailerConstants.BecomingActive)
+        expectOneOrMoreEvents(FileTailerConstants.BecomingActive)
         clearEvents()
         f(file)
       }
@@ -113,7 +113,7 @@ trait FileTailerTestSupport
 
     def runBare(f: => Unit) = withDatasourceFlow {
       flowCtx.foreach(activateFlow)
-      expectSomeEvents(FileTailerConstants.BecomingActive)
+      expectOneOrMoreEvents(FileTailerConstants.BecomingActive)
       clearEvents()
       f
     }

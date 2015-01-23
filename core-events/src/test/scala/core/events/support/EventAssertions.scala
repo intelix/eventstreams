@@ -98,7 +98,7 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
   }
 
   def locateAllEvents(event: Event) = {
-    expectSomeEvents(event)
+    expectOneOrMoreEvents(event)
     events.get(event)
   }
 
@@ -144,21 +144,28 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
         throw x
     }
 
-  def expectSomeEvents(event: Event, values: FieldAndValue*): Unit = expectSomeEventsWithTimeout(5000, event, values: _*)
+  def expectOneOrMoreEvents(event: Event, values: FieldAndValue*): Unit = expectSomeEventsWithTimeout(5000, event, values: _*)
 
-  def expectSomeEvents(count: Int, event: Event, values: FieldAndValue*): Unit = expectSomeEventsWithTimeout(5000, count, event, values: _*)
+  def expectExactlyNEvents(count: Int, event: Event, values: FieldAndValue*): Unit = expectRangeOfEventsWithTimeout(5000, count to count, event, values: _*)
+
+  def expectNtoMEvents(count: Range, event: Event, values: FieldAndValue*): Unit = expectRangeOfEventsWithTimeout(5000, count, event, values: _*)
 
   def expectSomeEventsWithTimeout(timeout: Int, event: Event, values: FieldAndValue*): Unit = {
     waitWithTimeout(timeout) {
-      events should contain key event
-      events.get(event).get should haveAllValues(values)
+      val e = Map() ++ events
+      e should contain key event
+      e.get(event).get should haveAllValues(values)
     }
   }
 
-  def expectSomeEventsWithTimeout(timeout: Int, count: Int, event: Event, values: FieldAndValue*): Unit = {
+  def expectSomeEventsWithTimeout(timeout: Int, c: Int, event: Event, values: FieldAndValue*): Unit =
+    expectRangeOfEventsWithTimeout(timeout, c to c, event, values: _*)
+
+  def expectRangeOfEventsWithTimeout(timeout: Int, count: Range, event: Event, values: FieldAndValue*): Unit = {
     waitWithTimeout(timeout) {
-      events should contain key event
-      events.get(event).get should haveAllValues(count, values)
+      val e = Map() ++ events
+      e should contain key event
+      e.get(event).get should haveAllValues(count, values)
     }
   }
 

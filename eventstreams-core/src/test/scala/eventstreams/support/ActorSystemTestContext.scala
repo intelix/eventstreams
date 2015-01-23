@@ -17,7 +17,7 @@ trait ActorSystemTestContext extends EventAssertions {
   def stop(actor: Option[ActorRef], terminationEvent: Event) = system.flatMap { s =>
     actor.foreach { a =>
       s.stop(a)
-      expectSomeEvents(terminationEvent)
+      expectOneOrMoreEvents(terminationEvent)
     }
     None
   }

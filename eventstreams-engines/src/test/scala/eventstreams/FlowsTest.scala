@@ -18,29 +18,29 @@ class FlowsTest extends FlatSpec with EngineNodeTestContext with SharedActorSyst
   trait WithFlowManager extends WithEngineNode1 {
     startFlowManager(engine1System)
     val flowManagerComponentKey = ComponentKey(FlowManagerActor.id)
-    expectSomeEvents(MessageRouterActor.RouteAdded, 'Route -> FlowManagerActor.id)
+    expectOneOrMoreEvents(MessageRouterActor.RouteAdded, 'Route -> FlowManagerActor.id)
   }
 
   "FlowManager" should "start" in new WithEngineNode1  {
     startFlowManager(engine1System)
-    expectSomeEvents(FlowManagerActor.PreStart)
+    expectOneOrMoreEvents(FlowManagerActor.PreStart)
   }
 
   it should "request all stored flows from storage" in new WithEngineNode1  {
     startFlowManager(engine1System)
-    expectSomeEvents(ConfigStorageActor.RequestedAllMatchingEntries, 'PartialKey -> "flow/")
+    expectOneOrMoreEvents(ConfigStorageActor.RequestedAllMatchingEntries, 'PartialKey -> "flow/")
   }
 
   it should "respond to list subscription with an empty payload" in new WithFlowManager  {
     startMessageSubscriber1(engine1System)
     subscribeFrom1(engine1System, LocalSubj(flowManagerComponentKey, T_LIST))
-    expectSomeEvents(SubscribingComponentStub.UpdateReceived, 'Data -> "[]")
+    expectOneOrMoreEvents(SubscribingComponentStub.UpdateReceived, 'Data -> "[]")
   }
 
   it should "respond to configtpl subscription" in new WithFlowManager  {
     startMessageSubscriber1(engine1System)
     subscribeFrom1(engine1System, LocalSubj(flowManagerComponentKey, T_CONFIGTPL))
-    expectSomeEvents(SubscribingComponentStub.UpdateReceived, 'Data -> "Flow configuration".r)
+    expectOneOrMoreEvents(SubscribingComponentStub.UpdateReceived, 'Data -> "Flow configuration".r)
   }
 
 
@@ -64,42 +64,42 @@ class FlowsTest extends FlatSpec with EngineNodeTestContext with SharedActorSyst
   it should "create a flow actor in response to add command" in new WithFlowManager  {
     startMessageSubscriber1(engine1System)
     commandFrom1(engine1System, LocalSubj(flowManagerComponentKey, T_ADD), Some(validFlow1))
-    expectSomeEvents(FlowActor.PreStart)
-    expectSomeEvents(FlowActor.FlowConfigured, 'Name -> "flow1")
+    expectOneOrMoreEvents(FlowActor.PreStart)
+    expectOneOrMoreEvents(FlowActor.FlowConfigured, 'Name -> "flow1")
   }
 
   trait WithFlow1Created extends WithFlowManager {
     startMessageSubscriber1(engine1System)
     startGate1("gate1")
     commandFrom1(engine1System, LocalSubj(flowManagerComponentKey, T_ADD), Some(validFlow1))
-    expectSomeEvents(FlowActor.PreStart)
-    expectSomeEvents(FlowActor.FlowConfigured, 'Name -> "flow1")
+    expectOneOrMoreEvents(FlowActor.PreStart)
+    expectOneOrMoreEvents(FlowActor.FlowConfigured, 'Name -> "flow1")
     val flow1ComponentKey = ComponentKey(locateLastEventFieldValue(FlowActor.FlowConfigured, "ID").asInstanceOf[String])
   }
 
   "Flow" should "start in response to start command" in new WithFlow1Created  {
     commandFrom1(engine1System, LocalSubj(flow1ComponentKey, T_START), None)
-    expectSomeEvents(1, FlowActor.BecomingActive)
+    expectExactlyNEvents(1, FlowActor.BecomingActive)
   }
 
   it should "register with the gate" in new WithFlow1Created  {
-    expectSomeEvents(1, GateStubActor.RegisterSinkReceived)
+    expectOneOrMoreEvents(GateStubActor.RegisterSinkReceived)
   }
 
   it should "process event" in new WithFlow1Created  {
     commandFrom1(engine1System, LocalSubj(flow1ComponentKey, T_START), None)
-    expectSomeEvents(1, FlowActor.BecomingActive)
+    expectExactlyNEvents(1, FlowActor.BecomingActive)
     clearEvents()
     sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId"->"1", "abc1" -> "xyz"), 123))
-    expectSomeEvents(BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc1":"xyz"""".r)
+    expectOneOrMoreEvents(BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc1":"xyz"""".r)
   }
 
   it should "terminate in response to kill command" in new WithFlow1Created  {
     commandFrom1(engine1System, LocalSubj(flow1ComponentKey, T_START), None)
-    expectSomeEvents(1, FlowActor.BecomingActive)
+    expectExactlyNEvents(1, FlowActor.BecomingActive)
     clearEvents()
     commandFrom1(engine1System, LocalSubj(flow1ComponentKey, T_KILL), None)
-    expectSomeEvents(GateInputActor.PostStop)
+    expectOneOrMoreEvents(GateInputActor.PostStop)
   }
 
 

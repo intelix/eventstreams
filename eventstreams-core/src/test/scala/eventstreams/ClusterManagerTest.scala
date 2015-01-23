@@ -31,40 +31,40 @@ class ClusterManagerTest
     with WithDummyNode2 with WithDummyNode3 with WithDummyNode4 with WithDummyNode5 {
     expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> expectedPeersListInitial, 'Node -> "dummy1")
     expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy1")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy2")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy3")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy4")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy5")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy2")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy3")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy4")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy5")
   }
 
   it should "consistently" in new WithDummyNode1
     with WithDummyNode2 with WithDummyNode3 with WithDummyNode4 with WithDummyNode5 {
     expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> expectedPeersListInitial, 'Node -> "dummy1")
     expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy1")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy2")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy3")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy4")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy5")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy2")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy3")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy4")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy5")
   }
 
   it should "and again (testing SharedActorSystem)" in new WithDummyNode1
     with WithDummyNode2 with WithDummyNode3 with WithDummyNode4 with WithDummyNode5 {
     expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> expectedPeersListInitial, 'Node -> "dummy1")
     expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy1")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy2")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy3")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy4")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy5")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy2")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy3")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy4")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy5")
   }
 
   it should "and again ... (testing SharedActorSystem)"in new WithDummyNode1
     with WithDummyNode2 with WithDummyNode3 with WithDummyNode4 with WithDummyNode5 {
     expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> expectedPeersListInitial, 'Node -> "dummy1")
     expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy1")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy2")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy3")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy4")
-    expectSomeEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy5")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy2")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy3")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy4")
+    expectOneOrMoreEvents(ClusterStateChanged, 'Peers -> expectedPeersListComplete, 'Node -> "dummy5")
   }
 
   it should s"recover if one node fails" in new WithDummyNode1
