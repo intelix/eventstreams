@@ -19,14 +19,12 @@ define(
         'core_mixin',
         './gates/main',
         './flows/main',
-        './ds/main',
-        './plugins/main'],
+        './ds/main'],
     function (React,
               core_mixin,
               Gates,
               Flows,
-              Datasources,
-              Tools) {
+              Datasources) {
 
         return React.createClass({
             mixins: [core_mixin],
@@ -54,11 +52,14 @@ define(
 
                 var selection = false;
 
+                //var t = require(["/assets/javascripts/dn/plugins/main"]);
+
                 switch (this.state.selection) {
                     case 'gates': selection = <Gates />; break;
                     case 'flows': selection = <Flows />; break;
                     case 'datasources': selection = <Datasources />; break;
-                    case 'tools': selection = <Tools />; break;
+                    case 'tools': var Tool = require(("desktopnotif")); selection = <Tool />;
+                        break;
                     default: selection = "";
                 }
 

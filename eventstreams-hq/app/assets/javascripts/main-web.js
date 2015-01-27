@@ -47,6 +47,7 @@
             paginationMixin: "/assets/javascripts/tools/PaginationMixin",
             logging: "/assets/javascripts/tools/Logging",
             wsclient: "/assets/javascripts/tools/ServerClient"
+
         },
         packages: [
             'admin/app'
@@ -65,5 +66,8 @@
     });
 
     require(["admin/main"]);
+
+
+    require(["/assets/javascripts/desktopnotif/config.js"]);
 
 })();

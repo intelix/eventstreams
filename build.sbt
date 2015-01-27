@@ -132,6 +132,17 @@ lazy val eventStreamsHQ = Project(
   id = "eventstreams-hq",
   base = file("eventstreams-hq"),
   dependencies = Seq(
+    eventStreamsDesktopNotifications,
+    coreEvents  % "compile;test->test",
+    eventStreamsCore  % "compile;test->test"
+  )
+).enablePlugins(PlayScala,SbtWeb)
+
+
+lazy val eventStreamsDesktopNotifications = Project(
+  id = "eventstreams-desktop-notif",
+  base = file("eventstreams-desktop-notif"),
+  dependencies = Seq(
     coreEvents  % "compile;test->test",
     eventStreamsCore  % "compile;test->test"
   )
