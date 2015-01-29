@@ -172,6 +172,10 @@ object Dependencies {
     asyncHttpClient
   )
 
+  val eventStreamsPluginElasticsearch = eventStreamsCommon ++: Seq(
+    asyncHttpClient
+  )
+
   val eventStreamsPluginDSEssentials = eventStreamsCommon ++: Seq(
   )
 

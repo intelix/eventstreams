@@ -20,14 +20,12 @@ import akka.actor.{Actor, Address}
 import core.events.EventOps.stringToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
+import eventstreams.core.Tools.configHelper
 import eventstreams.core.agent.core.WireMessage
 import play.api.libs.json.{JsValue, Json}
 
 import scala.collection.mutable
 
-case class ClusterPeerHandshake() extends WireMessage
-
-case class ClusterPeerHandshakeResponse(map: JsValue) extends WireMessage
 
 trait ActorWithClusterPeersEvents extends ComponentWithBaseEvents {
   val ClusterHandshakingWith = "Cluster.HandshakingWith".trace
@@ -35,21 +33,26 @@ trait ActorWithClusterPeersEvents extends ComponentWithBaseEvents {
   val ClusterPeerHandshakeReceived = "Cluster.PeerHandshakeReceived".trace
 }
 
-trait ActorWithClusterPeers extends ActorWithClusterAwareness with ActorWithClusterPeersEvents with ActorWithTicks {
+case class ClusterPeerHandshake() extends WireMessage
+
+case class ClusterPeerHandshakeResponse(map: Any) extends WireMessage
+
+
+trait ActorWithClusterPeers[T] extends ActorWithClusterAwareness with ActorWithClusterPeersEvents with ActorWithTicks {
   _: WithEventPublisher =>
 
-  private val peers = mutable.Map[Address, JsValue]()
+  private val peers = mutable.Map[Address, T]()
   private var pendingPeers = Set[Address]()
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  def nodeName: String
-
-  def peerData: JsValue
+  def peerData: T
 
   def onConfirmedPeersChanged(): Unit = {}
 
-  def confirmedPeers = nodes.filter { info => peers.contains(info.address)}.map { each => (each, peers.getOrElse(each.address, Json.obj()))}
+  def confirmedPeers = nodes.filter { info => peers.contains(info.address)}.collect {
+    case next if peers.contains(next.address) => (next, peers.get(next.address))
+  }
 
   override def onClusterMemberUp(info: NodeInfo): Unit = {
     if (info.address == cluster.selfAddress) {
@@ -74,7 +77,7 @@ trait ActorWithClusterPeers extends ActorWithClusterAwareness with ActorWithClus
     onConfirmedPeersChanged()
   }
 
-  private def addPeer(address: Address, data: JsValue) = peers get address match {
+  private def addPeer(address: Address, data: T) = peers get address match {
     case Some(existingData) if existingData == data =>
       pendingPeers = pendingPeers - address
     case _ =>
@@ -94,8 +97,8 @@ trait ActorWithClusterPeers extends ActorWithClusterAwareness with ActorWithClus
       ClusterPeerHandshakeReceived >> ('Peer -> sender())
       sender() ! ClusterPeerHandshakeResponse(peerData)
     case ClusterPeerHandshakeResponse(response) =>
-      ClusterConfirmedPeer >> ('Peer -> sender(), 'Info -> Json.stringify(response))
-      addPeer(sender().path.address, response)
+        ClusterConfirmedPeer >> ('Peer -> sender(), 'Info -> response)
+        addPeer(sender().path.address, response.asInstanceOf[T])
   }
 
 }

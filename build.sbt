@@ -27,9 +27,18 @@ lazy val eventStreamsInstructionsEssentials = Project(
   )
 )
 
-lazy val eventStreamsPluginEndpointInfluxDB = Project(
-  id = "eventstreams-plugin-endpoint-influxdb",
-  base = file("eventstreams-plugin-endpoint-influxdb"),
+lazy val eventStreamsPluginSinkInfluxDB = Project(
+  id = "eventstreams-plugin-sink-influxdb",
+  base = file("eventstreams-plugin-sink-influxdb"),
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore % "compile;test->test"
+  )
+)
+
+lazy val eventStreamsPluginSinkElasticsearch = Project(
+  id = "eventstreams-plugin-sink-elasticsearch",
+  base = file("eventstreams-plugin-sink-elasticsearch"),
   dependencies = Seq(
     coreEvents  % "compile;test->test",
     eventStreamsCore % "compile;test->test"
@@ -62,7 +71,8 @@ lazy val eventStreamsEngines = Project(
     eventStreamsEngineGate % "compile;test->test",
     eventStreamsEngineFlow % "compile;test->test",
     eventStreamsInstructionsEssentials,
-    eventStreamsPluginEndpointInfluxDB
+    eventStreamsPluginSinkInfluxDB,
+    eventStreamsPluginSinkElasticsearch
   )
 ).enablePlugins(AkkaAppPackaging)
 
@@ -128,21 +138,67 @@ lazy val eventStreamsAgent = Project(
 )
 
 
-lazy val eventStreamsHQ = Project(
-  id = "eventstreams-hq",
-  base = file("eventstreams-hq"),
+lazy val eventStreamsCoreWeb = Project(
+  id = "eventstreams-core-web",
+  base = file("eventstreams-core-web"),
   dependencies = Seq(
-    eventStreamsDesktopNotifications,
+    coreEvents  % "compile;test->test",
+    eventStreamsCore  % "compile;test->test"
+  )
+).enablePlugins(PlayScala,SbtWeb)
+
+lazy val eventStreamsEngineFlowWeb = Project(
+  id = "eventstreams-engine-flow-web",
+  base = file("eventstreams-engine-flow-web"),
+  dependencies = Seq(
+    eventStreamsCoreWeb,
+    coreEvents  % "compile;test->test",
+    eventStreamsCore  % "compile;test->test"
+  )
+).enablePlugins(PlayScala,SbtWeb)
+
+lazy val eventStreamsEngineGateWeb = Project(
+  id = "eventstreams-engine-gate-web",
+  base = file("eventstreams-engine-gate-web"),
+  dependencies = Seq(
+    eventStreamsCoreWeb,
+    coreEvents  % "compile;test->test",
+    eventStreamsCore  % "compile;test->test"
+  )
+).enablePlugins(PlayScala,SbtWeb)
+
+lazy val eventStreamsAgentWeb = Project(
+  id = "eventstreams-agent-web",
+  base = file("eventstreams-agent-web"),
+  dependencies = Seq(
+    eventStreamsCoreWeb,
     coreEvents  % "compile;test->test",
     eventStreamsCore  % "compile;test->test"
   )
 ).enablePlugins(PlayScala,SbtWeb)
 
 
-lazy val eventStreamsDesktopNotifications = Project(
-  id = "eventstreams-desktop-notif",
-  base = file("eventstreams-desktop-notif"),
+
+lazy val eventStreamsHQ = Project(
+  id = "eventstreams-hq",
+  base = file("eventstreams-hq"),
   dependencies = Seq(
+    eventStreamsCoreWeb,
+    eventStreamsAgentWeb,
+    eventStreamsEngineFlowWeb,
+    eventStreamsEngineGateWeb,
+    eventStreamsPluginDesktopNotifications,
+    coreEvents  % "compile;test->test",
+    eventStreamsCore  % "compile;test->test"
+  )
+).enablePlugins(PlayScala,SbtWeb)
+
+
+lazy val eventStreamsPluginDesktopNotifications = Project(
+  id = "eventstreams-plugin-desktop-notif",
+  base = file("eventstreams-plugin-desktop-notif"),
+  dependencies = Seq(
+    eventStreamsCoreWeb,
     coreEvents  % "compile;test->test",
     eventStreamsCore  % "compile;test->test"
   )

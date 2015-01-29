@@ -50,10 +50,10 @@ object ClusterManagerActor extends ActorObjWithCluster with ClusterManagerActorE
 class ClusterManagerActor(implicit val cluster: Cluster, config: Config)
   extends ActorWithComposableBehavior
   with ClusterManagerActorEvents
-  with ActorWithClusterPeers
+  with ActorWithClusterPeers[JsValue]
   with RouteeActor {
 
-  override val nodeName = config.as[Option[String]]("eventstreams.node.name") | myAddress
+  val nodeName = config.as[Option[String]]("eventstreams.node.name") | myAddress
 
   val T_NODES = TopicKey("nodes")
 

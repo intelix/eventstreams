@@ -26,7 +26,7 @@ import eventstreams.core.components.routing.MessageRouterActor
 import eventstreams.core.storage.ConfigStorageActor
 import eventstreams.engine.agents.AgentsManagerActor
 import eventstreams.engine.flows.FlowManagerActor
-import eventstreams.engine.gate.{RetentionManagerActor, GateManagerActor}
+import eventstreams.engine.gate.{GateManagerActor, RetentionManagerActor}
 import eventstreams.engine.plugins.SignalSubscriptionManagerActor
 
 /**
