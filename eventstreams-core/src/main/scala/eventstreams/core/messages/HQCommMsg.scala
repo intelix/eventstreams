@@ -37,8 +37,12 @@ case class LocalSubj(component: ComponentKey, topic: TopicKey) extends Subj {
   override def toString: String = component.key + "#" + topic.key 
 }
 
-case class RemoteSubj(address: String, localSubj: LocalSubj) extends Subj {
+case class RemoteAddrSubj(address: String, localSubj: LocalSubj) extends Subj {
   override def toString: String = localSubj + "@" + address
+}
+
+case class RemoteRoleSubj(role: String, localSubj: LocalSubj) extends Subj {
+  override def toString: String = localSubj + "->" + role
 }
 
 

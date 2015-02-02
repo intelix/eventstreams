@@ -50,6 +50,8 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
   var nodes: List[NodeInfo] = List[NodeInfo]()
   private var refCache: Map[ClusterActorId, ActorRef] = new HashMap[ClusterActorId, ActorRef]()
 
+  def roleToAddress(role: String): Option[String] = nodes.find(_.roles.contains(role)).map(_.address.toString)
+
   def forwardToClusterNode(address: String, msg: Any): Unit = {
     if (nodeIsUp(address)) {
       locateRefFor(address, MessageRouterActor.id) match {

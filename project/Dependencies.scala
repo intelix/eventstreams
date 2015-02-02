@@ -53,7 +53,8 @@ object Dependencies {
     val webjarsReqjsTxtVersion = "2.0.10-1"
     val webjarsReactJsVersion = "0.12.1"
     val webjarsToastrVersion = "2.1.0"
-    
+    val webjarsCryptoJSVersion = "3.1.2"
+
     val kryoserVersion = "0.3.2"
     
   }
@@ -96,6 +97,7 @@ object Dependencies {
     val webjarsReqjsTxt = "org.webjars"                 %  "requirejs-text"                 % webjarsReqjsTxtVersion
     val webjarsToastr   = "org.webjars"                 %  "toastr"                         % webjarsToastrVersion
     val webjarsReactJs  = "org.webjars"                 %  "react"                          % webjarsReactJsVersion
+    val webjarsCryptoJs = "org.webjars"                 %  "cryptojs"                       % webjarsCryptoJSVersion
 
 
     val ficus           = "net.ceedubs"                 %% "ficus"                          % ficusVersion
@@ -195,7 +197,8 @@ object Dependencies {
     webjarsReactJs,
     webjarsReqjs,
     webjarsReqjsTxt,
-    webjarsToastr
+    webjarsToastr,
+    webjarsCryptoJs
   )
 
   val eventStreamsMultinodeTests = eventStreamsCommon ++: Seq(

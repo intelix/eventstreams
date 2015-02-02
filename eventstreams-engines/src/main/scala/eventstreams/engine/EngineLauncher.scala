@@ -16,11 +16,12 @@
 
 package eventstreams.engine
 
-import akka.actor.ActorSystem
+import akka.actor.{UntypedActorFactory, Actor, Props, ActorSystem}
 import akka.cluster.Cluster
 import akka.kernel.Bootable
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config._
 import core.events.{CtxSystemRef, EventPublisherRef, EvtSystem, LoggerEventPublisher}
+import eventstreams.auth.BasicAuthActor
 import eventstreams.core.components.cluster.ClusterManagerActor
 import eventstreams.core.components.routing.MessageRouterActor
 import eventstreams.core.storage.ConfigStorageActor
@@ -28,6 +29,7 @@ import eventstreams.engine.agents.AgentsManagerActor
 import eventstreams.engine.flows.FlowManagerActor
 import eventstreams.engine.gate.{GateManagerActor, RetentionManagerActor}
 import eventstreams.engine.plugins.SignalSubscriptionManagerActor
+import net.ceedubs.ficus.Ficus._
 
 /**
  * Created by maks on 18/09/14.
@@ -48,6 +50,16 @@ class EngineLauncher extends Bootable {
     ClusterManagerActor.start
     ConfigStorageActor.start
     MessageRouterActor.start
+
+    config.as[Option[Set[Config]]]("eventstreams.bootstrap").foreach(_.foreach { conf =>
+      for (
+        cl <- conf.as[Option[String]]("class");
+        id <- conf.as[Option[String]]("id")
+      ) system.actorOf(Props(Class.forName(cl), id, config, cluster), id)
+    })
+    
+//    BasicAuthActor.start
+
     GateManagerActor.start
     AgentsManagerActor.start
     FlowManagerActor.start

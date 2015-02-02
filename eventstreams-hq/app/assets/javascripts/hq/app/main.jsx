@@ -14,40 +14,49 @@
  * limitations under the License.
  */
 
-define(['toastr', 'react', 'core_mixin',
-        './navigation/main',
-        './content/main'],
+define(['toastr', 'react', 'core_mixin', 'common_login',
+        './SecuredContent'],
     function (toastr, React, core_mixin,
-              Navbar,
-              Content) {
+              Login,
+              SecureContent) {
 
         return React.createClass({
             mixins: [core_mixin],
 
-            componentName: function() { return "app/layout"; },
+            componentName: function () {
+                return "app/layout";
+            },
 
             subscriptionConfig: function (props) {
-                return [{
-                    address: 'local',
-                    route: "_",
-                    topic: 'cmd',
-                    onData: this.onData
-                }];
+                return [
+                    {
+                        address: 'local',
+                        route: "_",
+                        topic: 'cmd',
+                        onData: this.onCmdData
+                    },
+                    {
+                        address: 'local',
+                        route: ":auth",
+                        topic: 'permissions',
+                        onData: this.onAuthData
+                    }
+                ];
             },
 
             getInitialState: function () {
-                return {result: false}
+                return {token: false}
             },
 
-            onDisconnected: function() {
+            onDisconnected: function () {
                 this.popupWarn("Disconnected from the server  ... ");
             },
 
-            onConnected: function() {
+            onConnected: function () {
                 this.popupInfo("Connection established");
             },
 
-            popupError: function(msg) {
+            popupError: function (msg) {
                 toastr.options = {
                     "closeButton": false,
                     "debug": false,
@@ -66,7 +75,7 @@ define(['toastr', 'react', 'core_mixin',
                 toastr.error(msg, "Error");
             },
 
-            popupWarn: function(msg) {
+            popupWarn: function (msg) {
                 toastr.options = {
                     "closeButton": false,
                     "debug": false,
@@ -85,7 +94,7 @@ define(['toastr', 'react', 'core_mixin',
                 toastr.warning(msg);
             },
 
-            popupInfo: function(msg) {
+            popupInfo: function (msg) {
                 toastr.options = {
                     "closeButton": false,
                     "debug": false,
@@ -104,7 +113,7 @@ define(['toastr', 'react', 'core_mixin',
                 toastr.info(msg);
             },
 
-            onData: function (data) {
+            onCmdData: function (data) {
                 if (data) {
                     if (data.error) {
                         this.popupError(data.error.msg);
@@ -115,13 +124,24 @@ define(['toastr', 'react', 'core_mixin',
                 }
             },
 
+            onAuthData: function (data) {
+                alert("!>>>>> auth data: " + JSON.stringify(data));
+            },
+
+            componentWillMount: function () {
+                this.setState({token: this.readCookie("_eventstreams_token")});
+            },
+
             render: function () {
-                return (
-                    <span>
-                        <Navbar {...this.props} />
-                        <Content {...this.props} />
-                    </span>
-                )
+
+                var token = this.state.token;
+
+                if (token) {
+                    return <SecureContent {...this.props} />;
+
+                } else {
+                    return <Login {...this.props} />;
+                }
             }
         });
 

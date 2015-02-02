@@ -18,7 +18,7 @@ package eventstreams
 
 import eventstreams.core.components.cluster.ClusterManagerActor._
 import eventstreams.core.components.routing.MessageRouterActor
-import eventstreams.core.messages.{ComponentKey, LocalSubj, RemoteSubj, TopicKey}
+import eventstreams.core.messages.{ComponentKey, LocalSubj, RemoteAddrSubj, TopicKey}
 import eventstreams.support.RouteeComponentStubOps.{componentKeyForRouteeStub1, componentKeyForRouteeStub2, routeeIdFor}
 import eventstreams.support._
 import org.scalatest.FlatSpec
@@ -106,7 +106,7 @@ class MessageRouterTest
   }
 
   it should "not subscribe with provider on 2nd subscription (coming from the same subscriber but using remote subject) if already subscribed" in new WithOneSubscriber {
-    subscribeFrom1(dummy1System, RemoteSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
+    subscribeFrom1(dummy1System, RemoteAddrSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
     expectOneOrMoreEvents(MessageRouterActor.NewSubjectSubscription)
     waitAndCheck {
       expectNoEvents(MessageRouterActor.ForwardedToLocalProviders)
@@ -124,7 +124,7 @@ class MessageRouterTest
   }
 
   it should "not subscribe with provider on 2nd subscription (coming from the remote subscriber) if already subscribed" in new WithOneSubscriber {
-    subscribeFrom1(dummy2System, RemoteSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
+    subscribeFrom1(dummy2System, RemoteAddrSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
     expectOneOrMoreEvents(MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> dummy1Address)
     waitAndCheck {
       expectNoEvents(MessageRouterActor.ForwardedToLocalProviders, 'InstanceAddress -> dummy1Address)
@@ -147,36 +147,36 @@ class MessageRouterTest
   }
 
   it should "forward to the remote subscriber if subscribed to the info topic on remote host" in new WithTwoSubscribersToInfo {
-    subscribeFrom1(dummy1System, RemoteSubj(dummy3Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
+    subscribeFrom1(dummy1System, RemoteAddrSubj(dummy3Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
     expectOneOrMoreEvents(MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> dummy1Address)
     expectOneOrMoreEvents(MessageRouterActor.ForwardedToNode, 'InstanceAddress -> dummy1Address)
     expectOneOrMoreEvents(MessageRouterActor.FirstSubjectSubscriber, 'InstanceAddress -> dummy1Address)
   }
 
   it should "drop the message if it is sent to unknown component (correct component key but wrong address)" in new WithTwoSubscribersToInfo {
-    subscribeFrom1(dummy1System, RemoteSubj(dummy2Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
+    subscribeFrom1(dummy1System, RemoteAddrSubj(dummy2Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
     expectOneOrMoreEvents(MessageRouterActor.MessageDropped, 'InstanceAddress -> dummy2Address)
   }
 
   it should "drop the message if it is sent to unknown component (incorrect component key)" in new WithTwoSubscribersToInfo {
-    subscribeFrom1(dummy1System, RemoteSubj(dummy1Address, LocalSubj(ComponentKey("provider"), T_INFO)))
+    subscribeFrom1(dummy1System, RemoteAddrSubj(dummy1Address, LocalSubj(ComponentKey("provider"), T_INFO)))
     expectOneOrMoreEvents(MessageRouterActor.MessageDropped, 'InstanceAddress -> dummy1Address)
   }
 
   trait WithThreeSubscribersToInfoAndOneToList extends WithTwoSubscribersToInfo {
     subscribeFrom1(dummy1System, LocalSubj(componentKeyForRouteeStub1, T_LIST))
-    subscribeFrom1(dummy2System, RemoteSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
+    subscribeFrom1(dummy2System, RemoteAddrSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
     expectExactlyNEvents(2, MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> dummy1Address)
     clearEvents()
   }
 
   "... with two local one remote sub to info and one sub to list, message router" should "keep subscription for unknown component" in new WithThreeSubscribersToInfoAndOneToList {
-    subscribeFrom1(dummy1System, RemoteSubj(dummy2Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
+    subscribeFrom1(dummy1System, RemoteAddrSubj(dummy2Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
     expectExactlyNEvents(1, MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> dummy2Address)
   }
 
   it should "auto-subscribe to the registered component if there is a pending subscription" in new WithThreeSubscribersToInfoAndOneToList {
-    subscribeFrom1(dummy1System, RemoteSubj(dummy2Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
+    subscribeFrom1(dummy1System, RemoteAddrSubj(dummy2Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
     expectExactlyNEvents(1, MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> dummy2Address)
     clearEvents()
     startRouteeComponentStub1(dummy2System)
@@ -284,11 +284,11 @@ class MessageRouterTest
   }
 
   it should "drop any unsupported payload (not wraped in Option)" in new WithThreeSubscribersToInfoAndOneToList {
-    subscribeFrom1(dummy1System, RemoteSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, TopicKey("withunsupportedresponse"))))
+    subscribeFrom1(dummy1System, RemoteAddrSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, TopicKey("withunsupportedresponse"))))
   }
 
   it should "forward response to the client if there was any" in new WithThreeSubscribersToInfoAndOneToList {
-    subscribeFrom1(dummy1System, RemoteSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, TopicKey("withresponse"))))
+    subscribeFrom1(dummy1System, RemoteAddrSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, TopicKey("withresponse"))))
     expectExactlyNEvents(1, SubscribingComponentStub.UpdateReceived)
     expectOneOrMoreEvents(SubscribingComponentStub.UpdateReceived, 'Contents -> "response", 'Subject -> "provider/routeeStub1#withresponse@akka.tcp://engine@localhost:12521")
   }
@@ -307,7 +307,7 @@ class MessageRouterTest
   it should "use cached value for all new subscriptions (update on list followed by new subscriber to list)" in new WithThreeSubscribersToInfoAndOneToList {
     updateTopicFromRoutee1(dummy1System, T_LIST, "test")
     expectExactlyNEvents(1, SubscribingComponentStub.UpdateReceived, 'Contents -> "test", 'Subject -> "provider/routeeStub1#list@akka.tcp://engine@localhost:12521", 'InstanceId -> "subscriberStub1")
-    subscribeFrom2(dummy1System, RemoteSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, T_LIST)))
+    subscribeFrom2(dummy1System, RemoteAddrSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, T_LIST)))
     expectExactlyNEvents(1, SubscribingComponentStub.UpdateReceived, 'Contents -> "test", 'Subject -> "provider/routeeStub1#list@akka.tcp://engine@localhost:12521", 'InstanceId -> "subscriberStub2")
     expectExactlyNEvents(1, MessageRouterActor.RespondedWithCached)
   }

@@ -15,127 +15,197 @@
  */
 
 body {
-  padding-top: 70px;
-  padding-bottom: 30px;
+    padding-top: 70px;
+    padding-bottom: 30px;
 }
 
 .main-container .dropdown-menu {
-  position: static;
-  display: block;
-  margin-bottom: 20px;
+    position: static;
+    display: block;
+    margin-bottom: 20px;
 }
 
 .btn {
-  margin-right: 10px;
+    margin-right: 10px;
 }
+
 .label {
-  margin: 5px;
+    margin: 5px;
 }
 
 .main-container .navbar .container {
-  width: auto;
+    width: auto;
 }
 
 .bs-callout {
-  padding: 20px;
-  margin: 20px 0;
-  border: 1px solid #eee;
-  border-left-width: 5px;
-  border-radius: 3px;
+    padding: 20px;
+    margin: 20px 0;
+    border: 1px solid #eee;
+    border-left-width: 5px;
+    border-radius: 3px;
 }
+
 .bs-callout h4 {
-  margin-top: 0;
-  margin-bottom: 5px;
+    margin-top: 0;
+    margin-bottom: 5px;
 }
+
 .bs-callout p:last-child {
-  margin-bottom: 0;
+    margin-bottom: 0;
 }
+
 .bs-callout code {
-  border-radius: 3px;
+    border-radius: 3px;
 }
-.bs-callout+.bs-callout {
-  margin-top: -5px;
+
+.bs-callout + .bs-callout {
+    margin-top: -5px;
 }
+
 .bs-callout-default {
-  border-left-color: #777;
+    border-left-color: #777;
 }
+
 .bs-callout-default h4 {
-  color: #777;
+    color: #777;
 }
+
 .bs-callout-primary {
-  border-left-color: #428bca;
+    border-left-color: #428bca;
 }
+
 .bs-callout-primary h4 {
-  color: #428bca;
+    color: #428bca;
 }
+
 .bs-callout-success {
-  border-left-color: #5cb85c;
+    border-left-color: #5cb85c;
 }
+
 .bs-callout-success h4 {
-  color: #5cb85c;
+    color: #5cb85c;
 }
+
 .bs-callout-danger {
-  border-left-color: #d9534f;
+    border-left-color: #d9534f;
 }
+
 .bs-callout-danger h4 {
-  color: #d9534f;
+    color: #d9534f;
 }
+
 .bs-callout-warning {
-  border-left-color: #f0ad4e;
+    border-left-color: #f0ad4e;
 }
+
 .bs-callout-warning h4 {
-  color: #f0ad4e;
+    color: #f0ad4e;
 }
+
 .bs-callout-info {
-  border-left-color: #5bc0de;
+    border-left-color: #5bc0de;
 }
+
 .bs-callout-info h4 {
-  color: #5bc0de;
+    color: #5bc0de;
 }
 
-p{padding:20px;}
+p {
+    padding: 20px;
+}
 
-.withspace { margin-top: 30px; }
+.withspace {
+    margin-top: 30px;
+}
 
 table, th, td {
-  border: 2px solid white;
-  -webkit-border-radius:0px;
-  border-radius:0px;
-}
-.bootstrap-table .table {
-  margin-bottom: 0 !important;
-  border-bottom: 0px solid #dddddd;
-  border-collapse: collapse !important;
-  border-radius: 0px;
+    border: 2px solid white;
+    -webkit-border-radius: 0px;
+    border-radius: 0px;
 }
 
+.bootstrap-table .table {
+    margin-bottom: 0 !important;
+    border-bottom: 0px solid #dddddd;
+    border-collapse: collapse !important;
+    border-radius: 0px;
+}
 
 @media (min-width: 992px) {
-  ._col-md-2 > .panel > .panel-body {
-    min-height: 150px;
-  }
-  ._col-md-3 > .panel > .panel-body {
-    min-height: 150px;
-  }
+    ._col-md-2 > .panel > .panel-body {
+        min-height: 150px;
+    }
+
+    ._col-md-3 > .panel > .panel-body {
+        min-height: 150px;
+    }
 }
 
 tr.expanded {
-  background-color: #ffffff;
+    background-color: #ffffff;
 }
+
 td.expanded {
-  background-color: #ffffff;
+    background-color: #ffffff;
 }
 
 tr.clickable {
-  -webkit-user-select: none; /* webkit (safari, chrome) browsers */
-  -moz-user-select: none; /* mozilla browsers */
-  -khtml-user-select: none; /* webkit (konqueror) browsers */
-  -ms-user-select: none; /* IE10+ */
-  cursor: pointer;
+    -webkit-user-select: none; /* webkit (safari, chrome) browsers */
+    -moz-user-select: none; /* mozilla browsers */
+    -khtml-user-select: none; /* webkit (konqueror) browsers */
+    -ms-user-select: none; /* IE10+ */
+    cursor: pointer;
 }
 
-.nav-pills>li.active>a, .nav-pills>li.active>a:hover, .nav-pills>li.active>a:focus {
-  background-color: rgb(41, 41, 41);
-}.nav-pills>li>a, .nav-pills>li>a:hover, .nav-pills>li>a:focus {
-   color: #000000;
- }
+.nav-pills > li.active > a, .nav-pills > li.active > a:hover, .nav-pills > li.active > a:focus {
+    background-color: rgb(41, 41, 41);
+}
+
+.nav-pills > li > a, .nav-pills > li > a:hover, .nav-pills > li > a:focus {
+    color: #000000;
+}
+
+.form-signin {
+    max-width: 330px;
+    padding: 15px;
+    margin: 0 auto;
+}
+
+.form-signin .form-signin-heading,
+.form-signin .checkbox {
+    margin-bottom: 10px;
+}
+
+.form-signin .checkbox {
+    font-weight: normal;
+}
+
+.form-signin .form-control {
+    position: relative;
+    height: auto;
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+    padding: 10px;
+    font-size: 16px;
+}
+
+.form-signin .form-control:focus {
+    z-index: 2;
+}
+
+.form-signin input[type="email"] {
+    margin-bottom: -1px;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.form-signin input[type="password"] {
+    margin-bottom: 10px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.form-signin-heading {
+    text-align: center;
+}

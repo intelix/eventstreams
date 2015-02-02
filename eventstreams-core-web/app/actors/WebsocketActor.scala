@@ -22,11 +22,12 @@ import com.diogoduailibe.lzstring4j.LZString
 import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
+import eventstreams.core.Utils
 import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, BaseActorEvents}
 import eventstreams.core.messages._
 
 import scala.collection._
-import scala.concurrent.duration.{DurationLong, FiniteDuration}
+import scala.concurrent.duration._
 import scala.util.Try
 import scalaz.Scalaz._
 
@@ -77,6 +78,10 @@ class WebsocketActor(out: ActorRef)
   var clientSeed: Option[String] = None
   var cmdReplySubj: Option[LocalSubj] = None
 
+  val localToken = shortUUID
+  
+  val authComponent = localToken + ":auth"
+  
   override def tickInterval: FiniteDuration = 200.millis
 
   override def preStart(): Unit = {
@@ -85,6 +90,9 @@ class WebsocketActor(out: ActorRef)
     AcceptedConnection >>('ProxyActor -> out, 'ThisActor -> self)
 
     LocalClusterAwareActor.path ! InfoRequest()
+    
+    SecurityProxyActor.start(authComponent)
+    
   }
 
 
@@ -135,6 +143,7 @@ class WebsocketActor(out: ActorRef)
     case InfoResponse(address) =>
       SendingClusterAddress >> ('Address -> address)
       sendToSocket("fL" + address.toString)
+
     case Update(subj, data, _) =>
       path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(data))}
     case CommandErr(subj, data) =>
@@ -196,7 +205,7 @@ class WebsocketActor(out: ActorRef)
   }
 
   private def subj2path(subj: Any) = subj match {
-    case RemoteSubj(addr, LocalSubj(ComponentKey(compKey), TopicKey(topicKey))) =>
+    case RemoteAddrSubj(addr, LocalSubj(ComponentKey(compKey), TopicKey(topicKey))) =>
       mapComponents(compKey).map(segments2path(location2alias.getOrElse(addr, addr), _, topicKey)).getOrElse("invalid")
     case LocalSubj(ComponentKey(compKey), TopicKey(topicKey)) =>
       mapComponents(compKey).map(segments2path("_", _, topicKey)).getOrElse("invalid")
@@ -289,6 +298,8 @@ class WebsocketActor(out: ActorRef)
   private def mapComponents(comp: String): Option[String] = {
     comp match {
       case "_" => None
+      case x if x.startsWith(":") => Some(localToken + x)
+      case x if x.startsWith(localToken) => Some(x.substring(localToken.length))
       case x if clientSeed.isDefined && clientSeed.get == x => Some("_")
       case other => Some(other)
     }
@@ -305,8 +316,11 @@ class WebsocketActor(out: ActorRef)
           f(LocalSubj(ComponentKey(mappedComp), TopicKey(topic)), extractPayload(tail))
         }
       case addr :: comp :: topic :: tail => mapComponents(comp) foreach { mappedComp =>
-        alias2location.get(addr).foreach { loc =>
-          f(RemoteSubj(loc, LocalSubj(ComponentKey(mappedComp), TopicKey(topic))), extractPayload(tail))
+        alias2location.get(addr).foreach {
+          case loc if loc.startsWith("~") =>
+            f(RemoteRoleSubj(loc.tail, LocalSubj(ComponentKey(mappedComp), TopicKey(topic))), extractPayload(tail))
+          case loc =>
+            f(RemoteAddrSubj(loc, LocalSubj(ComponentKey(mappedComp), TopicKey(topic))), extractPayload(tail))
         }
       }
       case _ =>

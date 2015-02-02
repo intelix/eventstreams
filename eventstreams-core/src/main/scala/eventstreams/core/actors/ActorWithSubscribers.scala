@@ -20,6 +20,7 @@ import akka.actor.{Actor, ActorRef}
 import core.events.EventOps.stringToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
+import eventstreams.core.components.routing.MessageRouterActor
 import eventstreams.core.messages._
 import play.api.libs.json.{Json, JsValue}
 
@@ -34,6 +35,7 @@ trait SubjectSubscriptionEvents extends ComponentWithBaseEvents {
   val NoMoreSubjectSubscribers = "Routee.NoMoreSubjectSubscribers".trace
   val SubjectCmdOK = "Routee.SubjectCmdOK".trace
   val SubjectCmdError = "Routee.SubjectCmdError".trace
+  val SubjectCmd = "Routee.SubjectCmd".trace
 }
 
 trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSubscriptionEvents {
@@ -71,6 +73,12 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSu
   def cmdOkTo(subj: Any, ref: ActorRef, data: JsValue) = {
     SubjectCmdOK >>('Subject -> subj, 'Target -> ref)
     ref ! CommandOk(subj, Json.stringify(data))
+  }
+
+  def cmdTo(subj: Any, data: JsValue) = {
+    val dataStr = Json.stringify(data)
+    SubjectCmd >>('Subject -> subj, 'Data -> dataStr)
+    MessageRouterActor.path ! Command(subj, None, Some(dataStr))
   }
 
   def cmdErrTo(subj: Any, ref: ActorRef, data: JsValue) = {

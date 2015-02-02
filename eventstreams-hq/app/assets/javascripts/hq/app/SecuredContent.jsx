@@ -14,19 +14,26 @@
  * limitations under the License.
  */
 
-package eventstreams.core.actors
+define(['toastr', 'react', 'core_mixin',
+        './navigation/main',
+        './content/main'],
+    function (toastr, React, core_mixin,
+              Navbar,
+              Content) {
 
-import eventstreams.core.messages.{RemoteRoleSubj, LocalSubj, RemoteAddrSubj}
+        return React.createClass({
+            mixins: [core_mixin],
 
-trait ActorWithRemoteSubscribers
-  extends ActorWithSubscribers[RemoteAddrSubj]
-  with ActorWithClusterAwareness {
+            componentName: function() { return "app/secured"; },
 
-  override def convertSubject(subj: Any) : Option[RemoteAddrSubj] = subj match {
-    case local: LocalSubj => Some(RemoteAddrSubj(myAddress, local))
-    case remote: RemoteAddrSubj => Some(remote)
-    case remote: RemoteRoleSubj => roleToAddress(remote.role).map(RemoteAddrSubj(_, remote.localSubj))
-    case _ => None
-  }
+            render: function () {
+                return (
+                    <span>
+                        <Navbar {...this.props} />
+                        <Content {...this.props} />
+                    </span>
+                )
+            }
+        });
 
-}
+    });

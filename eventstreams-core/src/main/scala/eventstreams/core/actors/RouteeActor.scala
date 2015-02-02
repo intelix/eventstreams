@@ -64,7 +64,20 @@ trait RouteeActor
         case t => topicUpdate(key, Some(t.toString))
       }
       case None => topicUpdate(key, None)
-      case d => UnsupportedPayload >> ('Type -> d)
+      case t: JsValue => topicUpdate(key, Some(Json.stringify(t)))
+      case t => topicUpdate(key, Some(t.toString))
+//
+//      case d => UnsupportedPayload >> ('Type -> d)
+    }
+    def !!>(data: Any) = data match {
+      case Some(x) => x match {
+        case t: JsValue => topicUpdate(key, Some(Json.stringify(t)))
+        case t => topicUpdate(key, Some(t.toString))
+      }
+      case None => topicUpdate(key, None)
+      case t: JsValue => topicUpdate(key, Some(Json.stringify(t)))
+      case t => topicUpdate(key, Some(t.toString))
+//      case d => UnsupportedPayload >> ('Type -> d)
     }
   }
 

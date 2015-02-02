@@ -27,6 +27,16 @@ lazy val eventStreamsInstructionsEssentials = Project(
   )
 )
 
+lazy val eventStreamsAuthBasic = Project(
+  id = "eventstreams-auth-basic",
+  base = file("eventstreams-auth-basic"),
+  dependencies = Seq(
+    coreEvents % "compile;test->test",
+    eventStreamsCore % "compile;test->test"
+  )
+)
+
+
 lazy val eventStreamsPluginSinkInfluxDB = Project(
   id = "eventstreams-plugin-sink-influxdb",
   base = file("eventstreams-plugin-sink-influxdb"),
@@ -68,6 +78,7 @@ lazy val eventStreamsEngines = Project(
   dependencies = Seq(
     coreEvents  % "compile;test->test",
     eventStreamsCore % "compile;test->test",
+    eventStreamsAuthBasic % "compile;test->test",
     eventStreamsEngineGate % "compile;test->test",
     eventStreamsEngineFlow % "compile;test->test",
     eventStreamsInstructionsEssentials,
@@ -183,6 +194,7 @@ lazy val eventStreamsHQ = Project(
   id = "eventstreams-hq",
   base = file("eventstreams-hq"),
   dependencies = Seq(
+    eventStreamsAuthBasic,
     eventStreamsCoreWeb,
     eventStreamsAgentWeb,
     eventStreamsEngineFlowWeb,

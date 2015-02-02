@@ -23,6 +23,8 @@
         paths: {
             common: "../lib/common/javascripts",
             jquery: "../lib/jquery/jquery",
+            crypto_core: "../lib/cryptojs/components/core-min",
+            crypto_sha256: "../lib/cryptojs/components/sha256-min",
             react: "../lib/react/react-with-addons",
             bootstrap: "../lib/bootstrap/js/bootstrap",
             toastr: "../lib/toastr/toastr",
@@ -37,6 +39,9 @@
             common_yesno: ("commons/YesNo"),
             common_tabs: ("commons/Tabs"),
 
+
+            common_login: ("commons/Login"),
+
             lz: "/assets/javascripts/lz-string",
             core_mixin: "/assets/javascripts/core/CoreMixin",
             paginationMixin: "/assets/javascripts/core/PaginationMixin",
@@ -49,6 +54,9 @@
         shim: {
             bootstrap: {
                 deps: ["jquery"]
+            },
+            crypto_sha256: {
+                deps: ["crypto_core"]
             },
             toastr: {
                 deps: ["jquery"]

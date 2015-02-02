@@ -16,11 +16,9 @@
 
 package eventstreams.core
 
-import eventstreams.core.EventFrame
 import eventstreams.core.Tools.configHelper
 import play.api.libs.json._
 
-import scala.annotation.tailrec
 import scala.language.implicitConversions
 import scala.util.Try
 import scalaz.Scalaz._
@@ -247,7 +245,7 @@ object EventFrame {
   def apply(v: Tuple2[String, Any]*) = new EventFrame(v: _*)
 }
 case class EventFrame(v: Map[String, EventData]) extends EventData {
-  import EventFrameConverter._
+  import eventstreams.core.EventFrameConverter._
   def this(v: Tuple2[String, Any]*) = this(v.map { case (a,b) => a.toString -> EventFrameConverter.wrap(b) }.toMap)
 
   val naValue = "n/a"
@@ -318,8 +316,8 @@ private object EventValuePathTools {
 
 case class EventValuePath(infixPath: String) {
 
+  import eventstreams.core.EventFrameConverter._
   import eventstreams.core.EventValuePathTools._
-  import EventFrameConverter._
 
   private val accessor: FieldAccessor = infixPath match {
     case x if x.contains("/") || x.contains(".") =>

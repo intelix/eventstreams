@@ -79,7 +79,7 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
 
   val providerRemoveTimeout = sysconfig.as[Option[FiniteDuration]]("eventstreams.message-router.provider-remove-timeout") | 30.seconds
   
-  val updatesCache: mutable.Map[RemoteSubj, Any] = new mutable.HashMap[RemoteSubj, Any]()
+  val updatesCache: mutable.Map[RemoteAddrSubj, Any] = new mutable.HashMap[RemoteAddrSubj, Any]()
   implicit val ec = context.dispatcher
   var staticRoutes: Map[ComponentKey, ProviderState] = Map[ComponentKey, ProviderState]()
 
@@ -89,7 +89,11 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
 
   def myNodeIsTarget(subj: Any): Boolean = subj match {
     case LocalSubj(_, _) => true
-    case RemoteSubj(addr, _) => addr == myAddress
+    case RemoteAddrSubj(addr, _) => addr == myAddress
+    case RemoteRoleSubj(role, _) => roleToAddress(role) match {
+      case Some(a) if a == myAddress => true
+      case _ => false
+    }
     case _ => true
   }
 
@@ -113,7 +117,7 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
       }
   }
 
-  def forwardDownstream(subj: RemoteSubj, msg: Any): Unit = {
+  def forwardDownstream(subj: RemoteAddrSubj, msg: Any): Unit = {
     if (!myNodeIsTarget(subj)) {
       ForwardedToNode >> ('Subject -> subj)
       forwardToClusterNode(subj.address, msg)
@@ -146,17 +150,17 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
     }
   }
 
-  def remember(subj: RemoteSubj, update: Any) = {
+  def remember(subj: RemoteAddrSubj, update: Any) = {
     AddedToCache >> ('Subject -> subj)
     updatesCache += (subj -> update)
   }
 
-  def clearCacheFor(subject: RemoteSubj) = {
+  def clearCacheFor(subject: RemoteAddrSubj) = {
     RemovedFromCache >> ('Subject -> subject)
     updatesCache.remove(subject)
   }
 
-  def publishToClients(subj: Any, f: RemoteSubj => Any) =
+  def publishToClients(subj: Any, f: RemoteAddrSubj => Any) =
     convertSubject(subj) foreach { subj =>
       val msg = f(subj)
       remember(subj, msg)
@@ -184,24 +188,24 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
 
   def isProviderRef(ref: ActorRef) = staticRoutes.exists { case (_, provState) => provState.ref == ref}
 
-  override def firstSubscriber(subject: RemoteSubj) = forwardDownstream(subject, Subscribe(self, subject))
+  override def firstSubscriber(subject: RemoteAddrSubj) = forwardDownstream(subject, Subscribe(self, subject))
 
-  override def lastSubscriberGone(subject: RemoteSubj) = {
+  override def lastSubscriberGone(subject: RemoteAddrSubj) = {
     forwardDownstream(subject, Unsubscribe(self, subject))
     clearCacheFor(subject)
   }
 
-  override def processSubscribeRequest(ref: ActorRef, subject: RemoteSubj) = {
+  override def processSubscribeRequest(ref: ActorRef, subject: RemoteAddrSubj) = {
     updatesCache.get(subject) foreach { msg => 
       ref ! msg
       RespondedWithCached >> ('Subject -> subject, 'Target -> ref)
     }
   }
 
-  override def processUnsubscribeRequest(ref: ActorRef, subject: RemoteSubj) =
+  override def processUnsubscribeRequest(ref: ActorRef, subject: RemoteAddrSubj) =
     super.processUnsubscribeRequest(ref, subject)
 
-  override def processCommand(subject: RemoteSubj, replyToSubj: Option[Any], maybeData: Option[String]) =
+  override def processCommand(subject: RemoteAddrSubj, replyToSubj: Option[Any], maybeData: Option[String]) =
     forwardDownstream(subject, Command(subject, convertSubject(replyToSubj.getOrElse(None)), maybeData))
 
 
