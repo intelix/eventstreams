@@ -73,6 +73,8 @@ class SecurityProxyActor(token: String)
 
   def handler: Receive = {
     case Update(_, data, _) =>
+      val json = Json.parse(data)
+      TopicKey("permissions") !! Json.obj("token" -> (json ~> 'token | ""))
       logger.error(s"!>>>>>> update from auth $data")
   }
 

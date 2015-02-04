@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno', 'common_button_startstop', 'common_button_delete', './ReplayButton'],
-    function (React, core_mixin, StateLabel, Rate, YesNo, StartStopButton, DeleteButton, ReplayButton) {
+define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno', 'common_button_startstop', 'common_button_delete'],
+    function (React, core_mixin, StateLabel, Rate, YesNo, StartStopButton, DeleteButton) {
 
         return React.createClass({
             mixins: [core_mixin],
@@ -50,12 +50,6 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
                     mainLink = <a href="#" onClick={this.handleRowClick} >{mainLink}</a>;
                 }
 
-                var replayButton;
-                if (info.replaySupported) {
-                    replayButton = <ReplayButton {...self.props} enabled={info.state == 'active' || info.state == 'error'} />;
-                } else {
-                    replayButton = "";
-                }
 
                 return (
                     <tr ref='monitorVisibility' >
@@ -70,7 +64,6 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
                         <td>
                             <StartStopButton {...this.props} state={info.state}  />
                             <DeleteButton {...this.props} />
-                            {replayButton}
                         </td>
                     </tr>
                 );

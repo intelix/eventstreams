@@ -125,7 +125,7 @@ define(['toastr', 'react', 'core_mixin', 'common_login',
             },
 
             onAuthData: function (data) {
-                alert("!>>>>> auth data: " + JSON.stringify(data));
+                this.setState({token: data.token});
             },
 
             componentWillMount: function () {

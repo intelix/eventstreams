@@ -11,7 +11,7 @@
     "password": {
       "propertyOrder": 20,
       "title": "Password",
-      "type": "password"
+      "type": "string"
     },
     "passwordHash": {
       "propertyOrder": 21,
