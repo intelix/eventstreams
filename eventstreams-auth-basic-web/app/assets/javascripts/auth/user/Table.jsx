@@ -20,11 +20,11 @@ define(['react', 'core_mixin', './TableRow'],
         mixins: [core_mixin],
 
         componentName: function () {
-            return "app/content/userrole_management/Table";
+            return "app/content/user_management/Table";
         },
 
         subscriptionConfig: function (props) {
-            return [{address: props.addr, route: 'userroles', topic: 'list', dataKey: 'list'}];
+            return [{address: props.addr, route: 'users', topic: 'list', dataKey: 'list'}];
         },
         getInitialState: function () {
             return {
@@ -33,7 +33,7 @@ define(['react', 'core_mixin', './TableRow'],
         },
 
         handleAddNew: function () {
-            this.raiseEvent("addUserRole", {});
+            this.raiseEvent("addUser", {});
         },
 
         renderData: function () {

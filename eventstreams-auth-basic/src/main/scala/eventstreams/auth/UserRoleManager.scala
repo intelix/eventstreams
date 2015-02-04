@@ -79,9 +79,14 @@ class UserRoleManagerActor(sysconfig: Config)
           sysconfig.getString("eventstreams.auth.user-roles.main-schema"))).mkString)
     permissions.foldLeft[JsValue](template) {
       case (result, next) =>
-        result.set(__ \ "properties" \ next.domain.id -> Json.obj(
+        result.set(__ \ "properties" \ (next.domain.id + "_mode") -> Json.obj(
           "propertyOrder" -> 900,
           "title" -> next.domain.name,
+          "type" -> "string",
+          "enum" -> Json.arr("Allow selected", "Deny selected")
+        )).set(__ \ "properties" \ next.domain.id -> Json.obj(
+          "propertyOrder" -> 900,
+          "title" -> "Actions",
           "type" -> "array",
           "uniqueItems" -> true,
           "format" -> "checkbox",
@@ -93,6 +98,7 @@ class UserRoleManagerActor(sysconfig: Config)
     }
   }
 
+  
   override val key = ComponentKey(UserRoleManager.id)
   var entries: List[UserAvailable] = List()
 

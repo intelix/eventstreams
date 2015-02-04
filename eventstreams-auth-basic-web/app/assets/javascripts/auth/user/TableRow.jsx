@@ -21,7 +21,7 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
             mixins: [core_mixin],
 
             componentName: function () {
-                return "app/content/userrole_management/TableRow/" + this.props.ckey;
+                return "app/content/user_management/TableRow/" + this.props.ckey;
             },
 
             subscriptionConfig: function (props) {

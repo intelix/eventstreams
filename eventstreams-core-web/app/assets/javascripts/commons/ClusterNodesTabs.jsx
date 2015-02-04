@@ -77,6 +77,10 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
 
             var selected = this.state.selected;
 
+            if (self.props.hideIfSingle && filteredNodes.length == 1) {
+                return <span></span>;
+            }
+            
             return (
                 <div>
                     <ul className="nav nav-tabs" role="tablist">

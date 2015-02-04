@@ -20,16 +20,16 @@ define(['react', 'core_mixin', 'common_nodetabs', './Table', './Editor'],
         return React.createClass({
             mixins: [core_mixin],
 
-            componentName: function() { return "app/content/userrole_management/main"; },
+            componentName: function() { return "app/content/user_management/main"; },
 
             getInitialState: function () {
                 return {selected: false}
             },
 
             subscribeToEvents: function() { return [
-                ["addUserRole", this.openModal],
-                ["editUserRole", this.openEditModal],
-                ["userrolesModalClosed", this.closeModal],
+                ["addUser", this.openModal],
+                ["editUser", this.openEditModal],
+                ["usersModalClosed", this.closeModal],
                 ["nodeSelectorForAuth", this.handleSelectionEvent]
             ]},
 
@@ -40,10 +40,10 @@ define(['react', 'core_mixin', 'common_nodetabs', './Table', './Editor'],
                     "passwordHash": "",
                     "roles": ""
                 };
-                this.setState({editBlock: <Editor addr={this.state.selected} mgrRoute="userroles" title="User role configuration" defaults={defaults}  editorId="userroles"/>});
+                this.setState({editBlock: <Editor addr={this.state.selected} mgrRoute="users" title="User configuration" defaults={defaults}  editorId="users"/>});
             },
             openEditModal: function (evt) {
-                this.setState({editBlock: <Editor addr={this.state.selected} mgrRoute="userroles" ckey={evt.detail.ckey} title="User role configuration"  editorId="userroles"/>});
+                this.setState({editBlock: <Editor addr={this.state.selected} mgrRoute="users" ckey={evt.detail.ckey} title="User configuration"  editorId="users"/>});
             },
             closeModal: function () {
                 this.setState({editBlock: false});
