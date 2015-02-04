@@ -13,28 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package eventstreams.auth
 
-(function() {
+case class SecuredDomain(moduleId: String)
+case class FunctionPermission(id: String, topicPattern: String, allow: Boolean)
 
-    require(["/assets/javascripts/common-config.js"]);
-
-    require.config({
-
-        /*noinspection */
-        packages: [
-            'hq/app'
-        ]
-    });
-
-    require([
-        "/assets/javascripts/ds/config.js",
-        "/assets/javascripts/gates/config.js",
-        "/assets/javascripts/flows/config.js",
-        "/assets/javascripts/auth/config.js",
-        "hq/main"
-    ]);
-
-    /** Add plugins here **/
-    require(["/assets/javascripts/desktopnotif/config.js"]);
-
-})();
+case class RolePermissions(map: Map[SecuredDomain, Set[FunctionPermission]])

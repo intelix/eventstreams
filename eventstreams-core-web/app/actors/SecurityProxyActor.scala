@@ -44,16 +44,28 @@ class SecurityProxyActor(token: String)
 
 
   override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = topic match {
-    case TopicKey("login") =>
+    case TopicKey("auth_cred") =>
       for (
         user <- maybeData ~> 'u \/> Fail(message = Some("Invalid username or password"));
         passw <- maybeData ~> 'p \/> Fail(message = Some("Invalid username or password"))
       ) yield {
         proxy ! Command(
-          RemoteRoleSubj("auth", LocalSubj(ComponentKey("auth"), topic)), 
-          replyToSubj, 
+          RemoteRoleSubj("auth", LocalSubj(ComponentKey("auth"), topic)),
+          replyToSubj,
           Some(Json.stringify(Json.obj(
             "u" -> user, "p" -> passw, "routeKey" -> token
+          ))))
+        OK()
+      }
+    case TopicKey("auth_token") =>
+      for (
+        token <- maybeData ~> 't \/> Fail(message = Some("Invalid security token"))
+      ) yield {
+        proxy ! Command(
+          RemoteRoleSubj("auth", LocalSubj(ComponentKey("auth"), topic)),
+          replyToSubj,
+          Some(Json.stringify(Json.obj(
+            "t" -> token, "routeKey" -> token
           ))))
         OK()
       }

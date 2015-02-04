@@ -40,7 +40,7 @@ define(['react', 'core_mixin', 'crypto_sha256'], function (React, core_mixin, Cr
             var user = this.refs.formUser.getDOMNode().value;
             var passw = CryptoJS.SHA256(this.refs.formPassword.getDOMNode().value).toString(CryptoJS.enc.Hex);
 
-            this.sendCommand("local", ":auth", "login", {u:user, p:passw, r: remember});
+            this.sendCommand("local", ":auth", "auth_cred", {u:user, p:passw, r: remember});
 
         },
         

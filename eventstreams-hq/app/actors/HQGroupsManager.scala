@@ -78,7 +78,7 @@ class HQGroupsManagerActor(config: Config)
     }
     groups = availableServices.map { as =>
       val groupsSet = hqConfig.as[Set[String]]("groups")
-      val servicesConf = hqConfig.as[Config]("services")
+      val servicesConf = hqConfig.as[Config]("modules")
       val serviceIDsList = servicesConf
         .entrySet()
         .map(_.getKey.split('.').headOption)

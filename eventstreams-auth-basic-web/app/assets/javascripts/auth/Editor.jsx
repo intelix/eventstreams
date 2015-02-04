@@ -14,27 +14,15 @@
  * limitations under the License.
  */
 
-(function() {
+define(['react', 'core_mixin', 'common_editor_mixin'], function (React, core_mixin, editorMixin) {
 
-    require(["/assets/javascripts/common-config.js"]);
+    return React.createClass({
+        mixins: [core_mixin, editorMixin],
 
-    require.config({
+        componentName: function () {
+            return "app/content/user_management/Editor";
+        }
 
-        /*noinspection */
-        packages: [
-            'hq/app'
-        ]
     });
 
-    require([
-        "/assets/javascripts/ds/config.js",
-        "/assets/javascripts/gates/config.js",
-        "/assets/javascripts/flows/config.js",
-        "/assets/javascripts/auth/config.js",
-        "hq/main"
-    ]);
-
-    /** Add plugins here **/
-    require(["/assets/javascripts/desktopnotif/config.js"]);
-
-})();
+});

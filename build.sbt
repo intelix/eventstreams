@@ -35,6 +35,14 @@ lazy val eventStreamsAuthBasic = Project(
     eventStreamsCore % "compile;test->test"
   )
 )
+lazy val eventStreamsAuthBasicWeb = Project(
+  id = "eventstreams-auth-basic-web",
+  base = file("eventstreams-auth-basic-web"),
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore  % "compile;test->test"
+  )
+).enablePlugins(PlayScala,SbtWeb)
 
 
 lazy val eventStreamsPluginSinkInfluxDB = Project(
@@ -199,6 +207,7 @@ lazy val eventStreamsHQ = Project(
     eventStreamsAgentWeb,
     eventStreamsEngineFlowWeb,
     eventStreamsEngineGateWeb,
+    eventStreamsAuthBasicWeb,
     eventStreamsPluginDesktopNotifications,
     coreEvents  % "compile;test->test",
     eventStreamsCore  % "compile;test->test"

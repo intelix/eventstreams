@@ -45,6 +45,9 @@ class BasicAuthActor(id: String, config: Config, cluster: Cluster)
 
   override def preStart(): Unit = {
     super.preStart()
+    implicit val c = config
+    UserManager.start
+    UserRoleManager.start
   }
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {}
@@ -72,12 +75,12 @@ class BasicAuthActor(id: String, config: Config, cluster: Cluster)
   }
 
   override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = topic match {
-    case TopicKey("login") =>
+    case TopicKey("auth_cred") =>
       for (
         routeKey <- maybeData ~> 'routeKey \/> Fail(message = Some("Unable to process request"));
         user <- maybeData ~> 'u \/> Fail(message = Some("Invalid username or password"));
         passw <- maybeData ~> 'p \/> Fail(message = Some("Invalid username or password"));
-        expected <- config.as[Option[String]](s"eventstreams.auth.basic.$user.password") \/> Fail(message = Some("Invalid username or password"));
+        expected <- config.as[Option[String]](s"eventstreams.auth.basic.$user.master-password") \/> Fail(message = Some("Invalid username or password"));
         _ <- if (expected == passw) {
           LoginSuccessful >>('User -> user, 'Password -> passw)
           OK().right
@@ -90,7 +93,7 @@ class BasicAuthActor(id: String, config: Config, cluster: Cluster)
         updateAndPublishSessionState(meta.copy(routes = meta.routes + routeKey))
         OK()
       }
-    case TopicKey("validate_token") =>
+    case TopicKey("auth_token") =>
       for (
         routeKey <- maybeData ~> 'routeKey \/> Fail(message = Some("Unable to process request"));
         token <- maybeData ~> 't \/> Fail(message = Some("Invalid security token"));

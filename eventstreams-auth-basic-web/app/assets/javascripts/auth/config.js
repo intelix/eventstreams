@@ -16,25 +16,12 @@
 
 (function() {
 
-    require(["/assets/javascripts/common-config.js"]);
-
     require.config({
-
-        /*noinspection */
         packages: [
-            'hq/app'
+            'auth'
         ]
     });
 
-    require([
-        "/assets/javascripts/ds/config.js",
-        "/assets/javascripts/gates/config.js",
-        "/assets/javascripts/flows/config.js",
-        "/assets/javascripts/auth/config.js",
-        "hq/main"
-    ]);
-
-    /** Add plugins here **/
-    require(["/assets/javascripts/desktopnotif/config.js"]);
+    require(["auth"]);
 
 })();
