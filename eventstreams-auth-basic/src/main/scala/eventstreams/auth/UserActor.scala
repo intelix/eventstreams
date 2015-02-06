@@ -15,7 +15,12 @@
  */
 package eventstreams.auth
 
+import java.security.MessageDigest
+
 import akka.actor._
+import core.events.EventOps.symbolToEventOps
+import core.events._
+import core.events.ref.ComponentWithBaseEvents
 import eventstreams.core.Tools.configHelper
 import eventstreams.core._
 import eventstreams.core.actors._
@@ -29,6 +34,13 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scalaz.Scalaz._
 import scalaz.\/
 
+trait UserEvents extends ComponentWithBaseEvents with BaseActorEvents {
+
+  val PasswordChanged = 'PasswordChanged.info
+
+  override def componentId: String = "Actor.User"
+}
+
 object UserActor {
   def props(id: String) = Props(new UserActor(id))
 
@@ -41,18 +53,81 @@ class UserActor(id: String)
   with ActorWithConfigStore
   with RouteeActor
   with ActorWithTicks
-  with WithMetrics {
+  with WithMetrics
+  with UserEvents
+  with WithEventPublisher {
+
+  private val sha = MessageDigest.getInstance("SHA-256")
+  override def storageKey: Option[String] = Some(id)
 
   var name: Option[String] = None
+  var passwordHash: Option[String] = None
   var roles: Set[String] = Set()
+
+  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ComponentKey -> key.key, 'name -> name)
+
+  def sha256(s: String): String = {
+    sha.digest(s.getBytes)
+      .foldLeft("")((s: String, b: Byte) => s +
+      Character.forDigit((b & 0xf0) >> 4, 16) +
+      Character.forDigit(b & 0x0f, 16))
+  }
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {
     name = props ~> 'name
-    roles = (props ##> 'roles | Array[JsValue]()).map(_.as[String]).toSet
+    val password = props ~> 'password
+    passwordHash = props ~> 'passwordHash
+    roles = (props ~> 'roles | "").split(",").map(_.trim).filterNot(_.isEmpty).toSet
+
+    password.foreach { p =>
+      passwordHash = Some(sha256(p))
+      val newProps = props.delete(__ \ "password").set(__ \ "passwordHash" -> JsString(passwordHash.get))
+      updateWithoutApplyConfigProps(newProps)
+      PasswordChanged >> ('Hash -> passwordHash.get)
+    }
   }
 
-  override def onInitialConfigApplied(): Unit = context.parent ! UserAvailable(key, name.get, roles, self)
+  private def publishInfo() = T_INFO !! info
+  private def publishProps() = T_PROPS !! propsConfig
+
+  override def afterApplyConfig(): Unit = {
+    publishInfo()
+    publishProps()
+  }
+
+  def info = Some(Json.obj(
+    "name" -> (name | "n/a"),
+    "roles" -> (roles.mkString(", ") match {
+      case "" => "None"
+      case x => x
+    })
+  ))
+
+
+  override def onInitialConfigApplied(): Unit = context.parent ! UserAvailable(key, name | "n/a", roles, self)
 
 
   override def key = ComponentKey(id)
+
+
+  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = topic match {
+    case T_KILL =>
+      removeConfig()
+      self ! PoisonPill
+      OK().right
+    case T_UPDATE_PROPS =>
+      for (
+        data <- maybeData \/> Fail("Invalid request");
+        result <- updateAndApplyConfigProps(data)
+      ) yield result
+  }
+
+  override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
+    case T_INFO => publishInfo()
+    case T_PROPS => publishProps()
+    case TopicKey(x) => logger.debug(s"Unknown topic $x")
+  }
+
+
+
 }

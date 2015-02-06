@@ -317,8 +317,6 @@ class WebsocketActor(out: ActorRef)
         }
       case addr :: comp :: topic :: tail => mapComponents(comp) foreach { mappedComp =>
         alias2location.get(addr).foreach {
-          case loc if loc.startsWith("~") =>
-            f(RemoteRoleSubj(loc.tail, LocalSubj(ComponentKey(mappedComp), TopicKey(topic))), extractPayload(tail))
           case loc =>
             f(RemoteAddrSubj(loc, LocalSubj(ComponentKey(mappedComp), TopicKey(topic))), extractPayload(tail))
         }

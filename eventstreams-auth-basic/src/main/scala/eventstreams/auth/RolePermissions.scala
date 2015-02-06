@@ -16,6 +16,6 @@
 package eventstreams.auth
 
 case class SecuredDomain(moduleId: String)
-case class FunctionPermission(id: String, topicPattern: String, allow: Boolean)
+case class FunctionPermission(id: String, topicPattern: String)
 
-case class RolePermissions(map: Map[SecuredDomain, Set[FunctionPermission]])
+case class RolePermissions(allowSelected: Boolean, map: Map[SecuredDomain, Set[FunctionPermission]])

@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 
-define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno', 'common_button_startstop', 'common_button_delete'],
-    function (React, core_mixin, StateLabel, Rate, YesNo, StartStopButton, DeleteButton) {
+define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno', 'common_button_delete'],
+    function (React, core_mixin, StateLabel, Rate, YesNo, DeleteButton) {
 
         return React.createClass({
             mixins: [core_mixin],
 
             componentName: function () {
-                return "app/content/user_management/TableRow/" + this.props.ckey;
+                return "auth/users/TableRow/" + this.props.ckey;
             },
 
             subscriptionConfig: function (props) {
                 return [
-                    {address: props.addr, route: props.ckey, topic: 'info', dataKey: 'info'},
-                    {address: props.addr, route: props.ckey, topic: 'stats', dataKey: 'stats'}
+                    {address: props.addr, route: props.ckey, topic: 'info', dataKey: 'info'}
                 ];
             },
             getInitialState: function () {
@@ -35,14 +34,13 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
             },
 
             handleRowClick: function () {
-                this.raiseEvent("editGate", {ckey: this.props.ckey});
+                this.raiseEvent("editUser", {ckey: this.props.ckey});
             },
 
             renderData: function () {
                 var self = this;
 
                 var info = self.state.info;
-                var stats = self.state.stats;
 
 
                 var mainLink = info.name;
@@ -54,15 +52,8 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
                 return (
                     <tr ref='monitorVisibility' >
                         <td>{mainLink}</td>
-                        <td>{info.address}</td>
-                        <td>{stats.inflight}</td>
-                        <td><Rate value={stats.rate} /></td>
-                        <td><Rate value={stats.mrate} /></td>
-                        <td>{stats.activeDS}</td>
-                        <td>{info.sinks}</td>
-                        <td><StateLabel state={info.state} details={info.stateDetails} /></td>
+                        <td>{info.roles}</td>
                         <td>
-                            <StartStopButton {...this.props} state={info.state}  />
                             <DeleteButton {...this.props} />
                         </td>
                     </tr>

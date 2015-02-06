@@ -16,7 +16,7 @@
 
 package eventstreams.core.actors
 
-import eventstreams.core.messages.{RemoteRoleSubj, LocalSubj, RemoteAddrSubj}
+import eventstreams.core.messages.{LocalSubj, RemoteAddrSubj}
 
 trait ActorWithLocalSubscribers
   extends ActorWithSubscribers[LocalSubj] {
@@ -24,8 +24,9 @@ trait ActorWithLocalSubscribers
   override def convertSubject(subj: Any): Option[LocalSubj] = subj match {
     case local: LocalSubj => Some(local)
     case remote: RemoteAddrSubj => Some(remote.localSubj)
-    case remote: RemoteRoleSubj => Some(remote.localSubj)
     case _ => None
   }
+
+  override def subjectMatch(subj: LocalSubj, otherSubj: LocalSubj): Boolean = subj == otherSubj
 
 }

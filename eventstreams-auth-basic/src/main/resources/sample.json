@@ -1,0 +1,26 @@
+{
+  "name": "",
+  "defaultAccess": "Allow",
+  "allow": {
+    "mode": "allow",
+    "permissions": [
+      {
+        "module": "group2",
+        "permissions": [
+          "P5"
+        ]
+      }
+    ]
+  },
+  "deny": {
+    "mode": "deny",
+    "permissions": [
+      {
+        "module": "group1",
+        "permissions": [
+          "p2"
+        ]
+      }
+    ]
+  }
+}

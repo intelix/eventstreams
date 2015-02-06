@@ -16,17 +16,25 @@
 
 package eventstreams.core.actors
 
-import eventstreams.core.messages.{RemoteRoleSubj, LocalSubj, RemoteAddrSubj}
+import eventstreams.core.messages.{LocalSubj, RemoteAddrSubj}
 
 trait ActorWithRemoteSubscribers
   extends ActorWithSubscribers[RemoteAddrSubj]
   with ActorWithClusterAwareness {
 
-  override def convertSubject(subj: Any) : Option[RemoteAddrSubj] = subj match {
+  override def convertSubject(subj: Any): Option[RemoteAddrSubj] = subj match {
     case local: LocalSubj => Some(RemoteAddrSubj(myAddress, local))
     case remote: RemoteAddrSubj => Some(remote)
-    case remote: RemoteRoleSubj => roleToAddress(remote.role).map(RemoteAddrSubj(_, remote.localSubj))
     case _ => None
   }
+
+  override def subjectMatch(subj: RemoteAddrSubj, otherSubj: RemoteAddrSubj): Boolean =
+    subj.localSubj == otherSubj.localSubj && (roleToAddress(subj.address) match {
+      case Some(addr) => roleToAddress(otherSubj.address) match {
+        case Some(x) => x == addr
+        case _ => false
+      }
+      case _ => false
+    })
 
 }

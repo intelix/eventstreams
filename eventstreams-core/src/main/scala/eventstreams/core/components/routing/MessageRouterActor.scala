@@ -89,30 +89,31 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
 
   def myNodeIsTarget(subj: Any): Boolean = subj match {
     case LocalSubj(_, _) => true
-    case RemoteAddrSubj(addr, _) => addr == myAddress
-    case RemoteRoleSubj(role, _) => roleToAddress(role) match {
+    case RemoteAddrSubj(role, _) => roleToAddress(role) match {
       case Some(a) if a == myAddress => true
       case _ => false
     }
     case _ => true
   }
 
+  private def subjectsForAddress(addr: String) = collectSubjects { a => roleToAddress(a.address).map(_ == addr) | false }
+
   override def onClusterMemberUp(info: NodeInfo): Unit =
     if (info.address.toString != myAddress)
-      collectSubjects(_.address == info.address.toString).foreach { subj =>
+      subjectsForAddress(info.address.toString).foreach { subj =>
         NewPeerSubscription >> ('Subject -> subj)
         forwardToClusterNode(info.address.toString, Subscribe(self, subj))
       }
 
   override def onClusterMemberRemoved(info: NodeInfo): Unit =
     if (info.address.toString != myAddress)
-      collectSubjects(_.address == info.address.toString).foreach { subj =>
+      subjectsForAddress(info.address.toString).foreach { subj =>
         publishToClients(subj, Stale(_))
       }
 
   override def onClusterMemberUnreachable(info: NodeInfo): Unit = {
     if (info.address.toString != myAddress)
-      collectSubjects(_.address == info.address.toString).foreach { subj =>
+      subjectsForAddress(info.address.toString).foreach { subj =>
         publishToClients(subj, Stale(_))
       }
   }

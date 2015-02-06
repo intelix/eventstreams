@@ -1,13 +1,19 @@
 {
-"$schema": "http://json-schema.org/draft-04/schema#",
-"type": "object",
-"title": "User role configuration",
-"properties": {
-"name": {
-"propertyOrder": 10,
-"title": "Name",
-"type": "string"
-}
-},
-"additionalProperties": false
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "User role configuration",
+  "properties": {
+    "name": {
+      "propertyOrder": 10,
+      "title": "Name",
+      "type": "string"
+    },
+    "mode": {
+      "propertyOrder": 20,
+      "title": "Selected functions",
+      "type": "string",
+      "enum": ["Allow", "Deny"]
+    }
+  },
+  "additionalProperties": false
 }

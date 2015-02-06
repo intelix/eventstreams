@@ -37,6 +37,8 @@ import net.ceedubs.ficus.Ficus._
 class EngineLauncher extends Bootable {
 
   implicit val config = ConfigFactory.load(java.lang.System.getProperty("config", "hq.conf"))
+  
+  println("!>>>> " + java.lang.System.getProperty("config", "hq.conf"))
 
   EventPublisherRef.ref = LoggerEventPublisher
   CtxSystemRef.ref = EvtSystem("EventStreams.Engine")
@@ -58,8 +60,6 @@ class EngineLauncher extends Bootable {
       ) system.actorOf(Props(Class.forName(cl), id, config, cluster), id)
     })
     
-//    BasicAuthActor.start
-
     GateManagerActor.start
     AgentsManagerActor.start
     FlowManagerActor.start

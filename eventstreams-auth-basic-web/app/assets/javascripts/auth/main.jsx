@@ -14,53 +14,53 @@
  * limitations under the License.
  */
 
-define(['react', 'core_mixin', 'common_nodetabs', './Table', './Editor'],
-    function (React, core_mixin, Tabs, Table, Editor) {
+define(['react', 'core_mixin', 'common_nodetabs', './user/main', './roles/main'],
+    function (React, core_mixin, Tabs, Users, Roles) {
 
         return React.createClass({
             mixins: [core_mixin],
 
-            componentName: function() { return "app/content/userrole_management/main"; },
+            componentName: function () {
+                return "auth/main";
+            },
 
             getInitialState: function () {
-                return {selected: false}
+                return {selected: "users"}
             },
 
-            subscribeToEvents: function() { return [
-                ["addUserRole", this.openModal],
-                ["editUserRole", this.openEditModal],
-                ["userrolesModalClosed", this.closeModal],
-                ["nodeSelectorForAuth", this.handleSelectionEvent]
-            ]},
-
-            openModal: function (evt) {
-                var defaults = {
-                    "name": "",
-                    "password": "",
-                    "passwordHash": "",
-                    "roles": ""
-                };
-                this.setState({editBlock: <Editor addr={this.state.selected} mgrRoute="userroles" title="User role configuration" defaults={defaults}  editorId="userroles"/>});
-            },
-            openEditModal: function (evt) {
-                this.setState({editBlock: <Editor addr={this.state.selected} mgrRoute="userroles" ckey={evt.detail.ckey} title="User role configuration"  editorId="userroles"/>});
-            },
-            closeModal: function () {
-                this.setState({editBlock: false});
-            },
-
-            handleSelectionEvent: function (evt) {
-                this.setState({selected: evt.detail.address});
+            handleSelection: function (s) {
+                this.setState({selected: s});
             },
 
 
             render: function () {
 
-                return <div>
+                var self = this;
 
-                    <Tabs roles={["hq"]} selectorId="nodeSelectorForAuth" hideIfSingle="true"/>
-                    {this.state.editBlock ? this.state.editBlock : ""}
-                    {this.state.selected ? <Table addr={this.state.selected}/> : ""}
+                var rolesClasses = this.cx({
+                    'active': (self.state.selected == 'roles')
+                });
+                var usersClasses = this.cx({
+                    'active': (self.state.selected == 'users')
+                });
+                
+                var content = "";
+                if (self.state.selected == 'users') {
+                    content = <Users {...self.props} />;
+                } else {
+                    content = <Roles {...self.props} />;
+                }
+
+                return <div>
+                    <ul className="nav nav-pills">
+                        <li role="presentation" className={usersClasses}>
+                            <a href="#" onClick={self.handleSelection.bind(self, "users")}>Users</a>
+                        </li>
+                        <li role="presentation" className={rolesClasses}>
+                            <a href="#" onClick={self.handleSelection.bind(self, "roles")}>Roles</a>
+                        </li>
+                    </ul>
+                {content}
                 </div>;
             }
         });

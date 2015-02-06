@@ -20,7 +20,7 @@ define(['react', 'core_mixin', './TableRow'],
         mixins: [core_mixin],
 
         componentName: function () {
-            return "app/content/user_management/Table";
+            return "auth/users/Table";
         },
 
         subscriptionConfig: function (props) {
@@ -42,13 +42,7 @@ define(['react', 'core_mixin', './TableRow'],
 
             var header = <tr>
                     <th>Name</th>
-                    <th>Address</th>
-                    <th>In-flight</th>
-                    <th>Current</th>
-                    <th>Mean</th>
-                    <th>Sources</th>
-                    <th>Sinks</th>
-                    <th>State</th>
+                    <th>Roles</th>
                     <th></th>
                 </tr>;
 

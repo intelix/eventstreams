@@ -41,11 +41,6 @@ case class RemoteAddrSubj(address: String, localSubj: LocalSubj) extends Subj {
   override def toString: String = localSubj + "@" + address
 }
 
-case class RemoteRoleSubj(role: String, localSubj: LocalSubj) extends Subj {
-  override def toString: String = localSubj + "->" + role
-}
-
-
 case class Subscribe(sourceRef: ActorRef, subj: Any) extends HQCommMsg[Any]
 
 case class Unsubscribe(sourceRef: ActorRef, subj: Any) extends HQCommMsg[Any]

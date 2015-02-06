@@ -77,16 +77,11 @@ class UserRoleManagerActor(sysconfig: Config)
       Source.fromInputStream(
         getClass.getResourceAsStream(
           sysconfig.getString("eventstreams.auth.user-roles.main-schema"))).mkString)
-    permissions.foldLeft[JsValue](template) {
-      case (result, next) =>
-        result.set(__ \ "properties" \ (next.domain.id + "_mode") -> Json.obj(
-          "propertyOrder" -> 900,
+    permissions.foldLeft[(JsValue, Int)]((template, 0)) {
+      case ((result, c), next) =>
+        (result.set(__ \ "properties" \ next.domain.id -> Json.obj(
+          "propertyOrder" -> (500 + c ),
           "title" -> next.domain.name,
-          "type" -> "string",
-          "enum" -> Json.arr("Allow selected", "Deny selected")
-        )).set(__ \ "properties" \ next.domain.id -> Json.obj(
-          "propertyOrder" -> 900,
-          "title" -> "Actions",
           "type" -> "array",
           "uniqueItems" -> true,
           "format" -> "checkbox",
@@ -94,13 +89,13 @@ class UserRoleManagerActor(sysconfig: Config)
             "type" -> "string",
             "enum" -> Json.toJson(next.permissions.map(_.name).toSeq)
           )
-        ))
-    }
+        )), c + 1)
+    }._1
   }
 
   
   override val key = ComponentKey(UserRoleManager.id)
-  var entries: List[UserAvailable] = List()
+  var entries: List[UserRoleAvailable] = List()
 
   override def partialStorageKey: Option[String] = Some("userrole/")
 
@@ -111,8 +106,7 @@ class UserRoleManagerActor(sysconfig: Config)
   def list = Some(Json.toJson(entries.map { x =>
     Json.obj(
       "ckey" -> x.id.key,
-      "name" -> x.name,
-      "roles" -> Json.toJson(x.roles.toSeq)
+      "name" -> x.name
     )
   }.toSeq))
 
@@ -125,7 +119,7 @@ class UserRoleManagerActor(sysconfig: Config)
   }
 
   override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
-    case T_ADD => addUser(None, maybeData, None)
+    case T_ADD => addUserRole(None, maybeData, None)
   }
 
   override def onTerminated(ref: ActorRef): Unit = {
@@ -135,21 +129,22 @@ class UserRoleManagerActor(sysconfig: Config)
   }
 
   def handler: Receive = {
-    case x: UserAvailable =>
+    case x: UserRoleAvailable =>
+      logger.error("!>>> user role: " + x)
       entries = (entries :+ x).sortBy(_.name)
       listUpdate()
   }
 
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addUser(Some(key), Some(props), maybeState)
+  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addUserRole(Some(key), Some(props), maybeState)
 
-  private def addUser(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
+  private def addUserRole(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
     for (
       data <- maybeData \/> Fail("Invalid payload")
     ) yield {
-      val entryKey = key | "user/" + shortUUID
+      val entryKey = key | "userrole/" + shortUUID
       var json = data
       if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
-      val actor = UserActor.start(entryKey)
+      val actor = UserRoleActor.start(entryKey, permissions)
       context.watch(actor)
       actor ! InitialConfig(json, maybeState)
       OK("User role successfully created")

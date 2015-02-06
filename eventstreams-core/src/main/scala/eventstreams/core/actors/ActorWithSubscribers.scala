@@ -57,9 +57,9 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSu
 
   def collectSubjects(f: T => Boolean) = subscribers.collect { case (sub, set) if f(sub) => sub}
 
-  def collectSubscribers(f: T => Boolean) = subscribers.filter { case (sub, set) => f(sub)}
+//  def collectSubscribers(f: T => Boolean) = subscribers.filter { case (sub, set) => f(sub)}
 
-  def subscribersFor(subj: T) = subscribers.get(subj)
+  def subscribersFor(subj: T) = subscribers.collectFirst { case (sub, set) if subjectMatch(sub, subj) => set}
 
   def updateToAll(subj: T, data: Option[String]) = subscribersFor(subj).foreach(_.foreach(updateTo(subj, _, data)))
 
@@ -87,6 +87,7 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSu
   }
 
   def convertSubject(subj: Any): Option[T]
+  def subjectMatch(subj: T, otherSubj: T): Boolean
 
   private def isOneOfTheSubscribers(ref: ActorRef) = subscribers.values.exists(_.contains(ref))
 

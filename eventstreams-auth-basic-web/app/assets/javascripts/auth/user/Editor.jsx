@@ -20,7 +20,7 @@ define(['react', 'core_mixin', 'common_editor_mixin'], function (React, core_mix
         mixins: [core_mixin, editorMixin],
 
         componentName: function () {
-            return "app/content/user_management/Editor";
+            return "auth/users/Editor";
         }
 
     });

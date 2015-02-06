@@ -37,7 +37,7 @@ class SecurityProxyActor(token: String)
 
   override def preStart(): Unit = {
     super.preStart()
-    proxy ! Subscribe(self, RemoteRoleSubj("auth", LocalSubj(ComponentKey("auth"), TopicKey(token))))
+    proxy ! Subscribe(self, RemoteAddrSubj("~auth", LocalSubj(ComponentKey("auth"), TopicKey(token))))
   }
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
@@ -50,7 +50,7 @@ class SecurityProxyActor(token: String)
         passw <- maybeData ~> 'p \/> Fail(message = Some("Invalid username or password"))
       ) yield {
         proxy ! Command(
-          RemoteRoleSubj("auth", LocalSubj(ComponentKey("auth"), topic)),
+          RemoteAddrSubj("~auth", LocalSubj(ComponentKey("auth"), topic)),
           replyToSubj,
           Some(Json.stringify(Json.obj(
             "u" -> user, "p" -> passw, "routeKey" -> token
@@ -62,7 +62,7 @@ class SecurityProxyActor(token: String)
         token <- maybeData ~> 't \/> Fail(message = Some("Invalid security token"))
       ) yield {
         proxy ! Command(
-          RemoteRoleSubj("auth", LocalSubj(ComponentKey("auth"), topic)),
+          RemoteAddrSubj("~auth", LocalSubj(ComponentKey("auth"), topic)),
           replyToSubj,
           Some(Json.stringify(Json.obj(
             "t" -> token, "routeKey" -> token
