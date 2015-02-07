@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-define(['react','logging','wsclient'], function (React, logging, client) {
+define(['react','logging','wsclient', 'permissions'], function (React, logging, client, permissions) {
 
     var evtElement = window;
     window.onscroll = function (event) {
@@ -31,6 +31,13 @@ define(['react','logging','wsclient'], function (React, logging, client) {
         cx: function(v) {
             var cx = React.addons.classSet;
             return cx(v);
+        },
+
+        hasTopicPermission: function(component, topic) {
+            return permissions.hasTopicPermission(component, topic);
+        },
+        hasDomainPermission: function(domain) {
+            return permissions.hasDomainPermission(domain);
         },
 
         isDebug: function() { return logging.isDebug(); },

@@ -91,7 +91,8 @@ lazy val eventStreamsEngines = Project(
     eventStreamsEngineFlow % "compile;test->test",
     eventStreamsInstructionsEssentials,
     eventStreamsPluginSinkInfluxDB,
-    eventStreamsPluginSinkElasticsearch
+    eventStreamsPluginSinkElasticsearch,
+    eventStreamsPluginDesktopNotifications
   )
 ).enablePlugins(AkkaAppPackaging)
 

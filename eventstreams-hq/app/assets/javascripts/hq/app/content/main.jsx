@@ -21,32 +21,34 @@ define(
         return React.createClass({
             mixins: [core_mixin],
 
-            componentName: function() { return "app/content/ContentManager"; },
+            componentName: function () {
+                return "app/content/ContentManager";
+            },
 
 
             getInitialState: function () {
-                return { list: false, selection: false }
+                return {list: false, selection: false}
             },
 
             subscriptionConfig: function (props) {
                 return [{
                     address: 'local',
-                    route: "hqgroups",
+                    route: "unsecured_hqgroups",
                     topic: 'list',
                     dataKey: 'list'
                 }];
             },
 
 
-            componentDidMount: function() {
+            componentDidMount: function () {
                 this.addEventListener("navBarSelection", this.handleSelectionEvent);
             },
 
-            componentWillUnmount: function() {
+            componentWillUnmount: function () {
                 this.removeEventListener("navBarSelection", this.handleSelectionEvent);
             },
 
-            handleSelectionEvent: function(evt) {
+            handleSelectionEvent: function (evt) {
                 this.setState({selection: evt.detail.groupKey});
             },
 
@@ -56,13 +58,17 @@ define(
                 var content = "";
 
                 var services = (!self.state.list || !self.state.list.services ? [] : self.state.list.services)
-                    .filter(function(next) {return next.group == self.state.selection});
+                    .filter(function (next) {
+                        return next.group == self.state.selection && self.hasDomainPermission(next.id);
+                    });
 
                 if (services) {
                     content = <GroupContents services={services} {...this.props} />
                 }
 
-                return <div className="container-fluid main-container" role="main"><span>{content}</span></div>
+                return <div className="container-fluid main-container" role="main">
+                    <span>{content}</span>
+                </div>
             }
         });
 

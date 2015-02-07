@@ -23,6 +23,7 @@ import eventstreams.core.Tools.configHelper
 import eventstreams.core.{OK, Fail, WithMetrics}
 import eventstreams.core.actors.{ActorTools, ActorWithConfigStore, ActorWithTicks, RouteeActor, _}
 import eventstreams.core.messages.{TopicKey, ComponentKey}
+import eventstreams.model.{DomainPermissions, FunctionPermission, SecuredDomain, RolePermissions}
 import play.api.libs.json._
 
 import scalaz.Scalaz._
@@ -62,24 +63,20 @@ class UserRoleActor(id: String, availableDomains: List[SecuredDomainPermissions]
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {
     name = props ~> 'name
-    val allow = props ~> 'mode match {
-      case Some("Allow") => true
-      case _ => false
-    }
-    val map = availableDomains.flatMap { sdp =>
+    val seq = availableDomains.flatMap { sdp =>
       val domainId = sdp.domain.id
       val setOfFunctions = (props ##> domainId).map { arr =>
         arr.map { name =>
-          sdp.permissions.find { next => name.asOpt[String].contains(next.name) }.map { v => FunctionPermission(v.id, v.topic) }
+          sdp.permissions.find { next => name.asOpt[String].contains(next.name) }.map { v => FunctionPermission(v.topic) }
         }.collect { case Some(x) => x }
       }
       setOfFunctions.map { sof =>
-        List(SecuredDomain(domainId) -> sof.toSet)
+        List(DomainPermissions(SecuredDomain(domainId), sof))
       } | List()
 
-    }.toMap
+    }
 
-    permissions = Some(RolePermissions(allow, map))
+    permissions = Some(RolePermissions(seq))
 
   }
 
@@ -93,21 +90,19 @@ class UserRoleActor(id: String, availableDomains: List[SecuredDomainPermissions]
 
 
 
-  def permissionById(id: String) = availableDomains.collectFirst {
-    case x if x.permissions.exists(_.id == id) => x.permissions.find(_.id == id).get
+  def permissionByTopic(topic: String) = availableDomains.collectFirst {
+    case x if x.permissions.exists(_.topic == topic) => x.permissions.find(_.topic == topic).get
   }
   
   def info = Some(Json.obj(
     "name" -> (name | "n/a"),
     "permissions" -> permissions.map { p =>
-      val set = p.map.values.flatMap { l =>
-        l.map{ perm => permissionById(perm.id) }.toList.collect { case Some(x) => x.name}
+      val set = p.domainPermissions.flatMap { l =>
+        l.permissions.map{ perm => permissionByTopic(perm.topicPattern) }.toList.collect { case Some(x) => x.name}
       }
       set.mkString(", ") match {
-        case "" if p.allowSelected => "None allowed"
-        case "" if !p.allowSelected => "Full access"
-        case x if p.allowSelected => "Allowed only: " + x
-        case x if !p.allowSelected => "Allowed all except: " + x
+        case "" => "None allowed"
+        case x => x
       }
     }
   ))
@@ -122,7 +117,10 @@ class UserRoleActor(id: String, availableDomains: List[SecuredDomainPermissions]
       for (
         data <- maybeData \/> Fail("Invalid request");
         result <- updateAndApplyConfigProps(data)
-      ) yield result
+      ) yield {
+        publishAvailableUserRole()
+        result
+      }
   }
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
@@ -131,10 +129,11 @@ class UserRoleActor(id: String, availableDomains: List[SecuredDomainPermissions]
     case TopicKey(x) => logger.debug(s"Unknown topic $x")
   }
 
+  def publishAvailableUserRole() =
+    context.parent ! UserRoleAvailable(key, name | "n/a", permissions | RolePermissions(Seq()), self)
+  override def onInitialConfigApplied(): Unit = publishAvailableUserRole()
 
-  override def onInitialConfigApplied(): Unit = {
-    context.parent ! UserRoleAvailable(key, name | "n/a", permissions | RolePermissions(allowSelected = true, Map()), self)
-  }
+  
 
   override def key = ComponentKey(id)
 }

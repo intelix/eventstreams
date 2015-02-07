@@ -22,6 +22,10 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
             return {active: this.props.active}
         },
 
+        componentWillReceiveProps: function(nextProps) {
+          this.setState({active: nextProps.active});
+        },
+        
         componentDidMount: function() {
             this.addEventListener("sideBarSelection", this.handleSelectionEvent);
         },

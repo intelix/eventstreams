@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-define(['toastr', 'react', 'core_mixin', 'common_login',
+define(['permissions', 'toastr', 'react', 'core_mixin', 'common_login', 
         './SecuredContent'],
-    function (toastr, React, core_mixin,
-              Login,
+    function (permissions, toastr, React, core_mixin,
+              Login, 
               SecureContent) {
 
         return React.createClass({
@@ -125,7 +125,9 @@ define(['toastr', 'react', 'core_mixin', 'common_login',
             },
 
             onAuthData: function (data) {
+                permissions.updatePermissions(data.permissions);
                 this.setState({token: data.token});
+                this.forceUpdate();
             },
 
             componentWillMount: function () {

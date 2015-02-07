@@ -46,6 +46,7 @@
             core_mixin: "/assets/javascripts/core/CoreMixin",
             paginationMixin: "/assets/javascripts/core/PaginationMixin",
             logging: "/assets/javascripts/core/Logging",
+            permissions: "/assets/javascripts/core/Permissions",
             wsclient: "/assets/javascripts/core/ServerClient"
 
         },

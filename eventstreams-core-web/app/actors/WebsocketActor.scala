@@ -73,7 +73,7 @@ class WebsocketActor(out: ActorRef)
 
   val alias2location: mutable.Map[String, String] = new mutable.HashMap[String, String]()
   val location2alias: mutable.Map[String, String] = new mutable.HashMap[String, String]()
-  val proxy = RouterActor.path
+  var proxy: Option[ActorRef] = None
   var aggregator: mutable.Map[String, String] = new mutable.HashMap[String, String]()
   var clientSeed: Option[String] = None
   var cmdReplySubj: Option[LocalSubj] = None
@@ -91,7 +91,7 @@ class WebsocketActor(out: ActorRef)
 
     LocalClusterAwareActor.path ! InfoRequest()
     
-    SecurityProxyActor.start(authComponent)
+    proxy = Some(SecurityProxyActor.start(authComponent))
     
   }
 
@@ -186,7 +186,7 @@ class WebsocketActor(out: ActorRef)
               extractSubjectAndPayload(str,
                 processRequestByType(mtype, _, _) foreach { msg =>
                   MessageToDownstream >> ('Message -> msg)
-                  proxy ! msg
+                  proxy.foreach(_ ! Untrusted(msg))
                 }
               )
             }
@@ -248,7 +248,7 @@ class WebsocketActor(out: ActorRef)
       clientSeed = Some(value)
       cmdReplySubj = Some(LocalSubj(ComponentKey(value), TopicKey("cmd")))
 
-      proxy ! RegisterComponent(ComponentKey(value), self)
+      proxy.foreach(_ ! Trusted(RegisterComponent(ComponentKey(value), self)))
     }
 
   }

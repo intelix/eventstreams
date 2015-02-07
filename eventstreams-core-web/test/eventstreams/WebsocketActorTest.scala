@@ -311,7 +311,7 @@ class WebsocketActorTest
 
   it should "ignore invalid S message - unknown alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
-    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "unsecured_cluster", "nodes"))
     sendToWebsocketOn1(buildValidSubscribe("2"))
     waitAndCheck {
       expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
@@ -322,7 +322,7 @@ class WebsocketActorTest
 
   it should "ignore invalid S message - missing delimiter" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
-    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "unsecured_cluster", "nodes"))
     sendToWebsocketOn1("S1")
     waitAndCheck {
       expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
@@ -333,7 +333,7 @@ class WebsocketActorTest
 
   it should "ignore invalid S message - missing alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
-    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "unsecured_cluster", "nodes"))
     sendToWebsocketOn1(buildValidSubscribe(""))
     waitAndCheck {
       expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
@@ -344,7 +344,7 @@ class WebsocketActorTest
 
   it should "ignore invalid U message - unknown alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
-    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "unsecured_cluster", "nodes"))
     sendToWebsocketOn1(buildValidUnsubscribe("2"))
     waitAndCheck {
       expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
@@ -355,7 +355,7 @@ class WebsocketActorTest
 
   it should "ignore invalid U message - missing delimiter" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
-    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "unsecured_cluster", "nodes"))
     sendToWebsocketOn1("U1")
     waitAndCheck {
       expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
@@ -366,7 +366,7 @@ class WebsocketActorTest
 
   it should "ignore invalid U message - missing alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
-    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "unsecured_cluster", "nodes"))
     sendToWebsocketOn1(buildValidUnsubscribe(""))
     waitAndCheck {
       expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
@@ -377,7 +377,7 @@ class WebsocketActorTest
 
   it should "ignore invalid C message - unknown alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
-    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "unsecured_cluster", "nodes"))
     sendToWebsocketOn1(buildValidCommand("2", None))
     waitAndCheck {
       expectNoEvents(RouteeComponentStubOps.NewCommand)
@@ -389,7 +389,7 @@ class WebsocketActorTest
 
   it should "ignore invalid C message - missing delimiter" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
-    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "unsecured_cluster", "nodes"))
     sendToWebsocketOn1("C1")
     waitAndCheck {
       expectNoEvents(RouteeComponentStubOps.NewCommand)
@@ -401,7 +401,7 @@ class WebsocketActorTest
 
   it should "ignore invalid C message - missing alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
-    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "unsecured_cluster", "nodes"))
     sendToWebsocketOn1(buildValidCommand("", None))
     waitAndCheck {
       expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
@@ -415,7 +415,7 @@ class WebsocketActorTest
 
   "Websocket client" should "be able to subscribe to the node manager updates" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
-    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "cluster", "nodes"))
+    sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "unsecured_cluster", "nodes"))
     sendToWebsocketOn1(buildValidSubscribe("1"))
     expectOneOrMoreEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "1")
     val content = Json.parse(locateLastEventFieldValue(WebsocketClientStub.WebsocketUpdateReceived, "Payload")
@@ -425,7 +425,7 @@ class WebsocketActorTest
 
   it should "be able to subscribe to the node manager updates - regardless of the combination of the aliases used" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B2" + opSplitChar + localAddress1)
-    sendToWebsocketOn1("AABC" + opSplitChar + buildValidSubjectKey("2", "cluster", "nodes"))
+    sendToWebsocketOn1("AABC" + opSplitChar + buildValidSubjectKey("2", "unsecured_cluster", "nodes"))
     sendToWebsocketOn1(buildValidSubscribe("ABC"))
     expectOneOrMoreEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "ABC")
     val content = Json.parse(locateLastEventFieldValue(WebsocketClientStub.WebsocketUpdateReceived, "Payload")
@@ -435,7 +435,7 @@ class WebsocketActorTest
 
   it should "receive a cached update on the second subscription, if it comes from the same websocket" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B2" + opSplitChar + localAddress1)
-    sendToWebsocketOn1("AABC" + opSplitChar + buildValidSubjectKey("2", "cluster", "nodes"))
+    sendToWebsocketOn1("AABC" + opSplitChar + buildValidSubjectKey("2", "unsecured_cluster", "nodes"))
     sendToWebsocketOn1(buildValidSubscribe("ABC"))
     expectOneOrMoreEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "ABC")
     val content = Json.parse(locateLastEventFieldValue(WebsocketClientStub.WebsocketUpdateReceived, "Payload")
@@ -449,9 +449,9 @@ class WebsocketActorTest
 
   it should "receive a cached update on the second subscription, if it comes from the different websocket" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B2" + opSplitChar + localAddress1)
-    sendToWebsocketOn1("AABC" + opSplitChar + buildValidSubjectKey("2", "cluster", "nodes"))
+    sendToWebsocketOn1("AABC" + opSplitChar + buildValidSubjectKey("2", "unsecured_cluster", "nodes"))
     sendToWebsocketOn2("B2" + opSplitChar + localAddress1)
-    sendToWebsocketOn2("AABC" + opSplitChar + buildValidSubjectKey("2", "cluster", "nodes"))
+    sendToWebsocketOn2("AABC" + opSplitChar + buildValidSubjectKey("2", "unsecured_cluster", "nodes"))
     sendToWebsocketOn1(buildValidSubscribe("ABC"))
     expectOneOrMoreEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "ABC")
     val content = Json.parse(locateLastEventFieldValue(WebsocketClientStub.WebsocketUpdateReceived, "Payload")

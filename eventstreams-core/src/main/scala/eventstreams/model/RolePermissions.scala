@@ -13,9 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package eventstreams.auth
+package eventstreams.model
 
 case class SecuredDomain(moduleId: String)
-case class FunctionPermission(id: String, topicPattern: String)
+case class FunctionPermission(topicPattern: String)
+case class DomainPermissions(domain: SecuredDomain, permissions: Seq[FunctionPermission])
+case class RolePermissions(domainPermissions: Seq[DomainPermissions])
 
-case class RolePermissions(allowSelected: Boolean, map: Map[SecuredDomain, Set[FunctionPermission]])
+
+

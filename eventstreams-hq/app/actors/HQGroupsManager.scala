@@ -38,7 +38,7 @@ trait HQGroupsManagerEvents
 }
 
 object HQGroupsManager extends ActorObjWithCluster with HQGroupsManagerEvents with WithEventPublisher {
-  def id = "hqgroups"
+  def id = "unsecured_hqgroups"
 
   def props(implicit cluster: Cluster, config: Config) = Props(new HQGroupsManagerActor(config))
 }

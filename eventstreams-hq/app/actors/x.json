@@ -1,0 +1,35 @@
+{
+  "token": "hojUPX42HWzRFXnQroAR5A",
+  "allow": true,
+  "permissions": [
+    {
+      "a": false,
+      "p": [
+        {
+          "d": {"id": "gates"},
+          "p": []
+        },
+        {
+          "d": {"id": "ds"},
+          "p": [{"t": "agents#list"}]
+        }
+      ]
+    },
+    {
+      "a": true,
+      "p": [
+        {
+          "d": {"id": "gates"},
+          "p": [{"t": "gate/.+#start"}]
+        },
+        {
+          "d": {"id": "ds"},
+          "p": [
+            {"t": "agents#list"},
+            {"t": "agents/.+#kill"}
+          ]
+        }
+      ]
+    }
+  ]
+}

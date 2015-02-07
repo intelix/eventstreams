@@ -34,7 +34,7 @@ define(
             subscriptionConfig: function (props) {
                 return [{
                     address: 'local',
-                    route: "hqgroups",
+                    route: "unsecured_hqgroups",
                     topic: 'list',
                     dataKey: 'list'
                 }];
@@ -43,7 +43,14 @@ define(
 
 
             render: function () {
-                var list = !this.state.list || !this.state.list.groups ? [] : this.state.list.groups;
+                var self = this;
+                var servicesList = !this.state.list || !this.state.list.services ? [] : this.state.list.services;
+                var allowedList = servicesList.map(function(next) {
+                    return next.id && self.hasDomainPermission(next.id) ? next.group : false;
+                }).filter(function(next) {
+                    return next;
+                });
+                var list =  (!this.state.list || !this.state.list.groups ? [] : this.state.list.groups).filter(function(next) { return $.inArray(next, allowedList) > -1; });
 
                 var defaultActive = list.length > 0 ? list[0] : "";
 

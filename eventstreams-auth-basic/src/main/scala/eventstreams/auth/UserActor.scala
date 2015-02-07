@@ -104,7 +104,8 @@ class UserActor(id: String)
   ))
 
 
-  override def onInitialConfigApplied(): Unit = context.parent ! UserAvailable(key, name | "n/a", roles, self)
+  def publishAvailableUser() = context.parent ! UserAvailable(key, name | "n/a", passwordHash, roles, self)
+  override def onInitialConfigApplied(): Unit = publishAvailableUser()
 
 
   override def key = ComponentKey(id)
@@ -119,7 +120,10 @@ class UserActor(id: String)
       for (
         data <- maybeData \/> Fail("Invalid request");
         result <- updateAndApplyConfigProps(data)
-      ) yield result
+      ) yield {
+        publishAvailableUser()
+        result
+      }
   }
 
   override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {

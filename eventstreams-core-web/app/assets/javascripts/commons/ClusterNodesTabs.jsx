@@ -22,7 +22,7 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
         componentName: function() { return "app/content/commons/ClusterNodeTabs"; },
 
         subscriptionConfig: function (props) {
-            return [{address: 'local', route: 'cluster', topic: 'nodes', dataKey: 'nodes', onData: this.onData}];
+            return [{address: 'local', route: 'unsecured_cluster', topic: 'nodes', dataKey: 'nodes', onData: this.onData}];
         },
         getInitialState: function () {
             return {nodes: null, selected: false}

@@ -21,6 +21,7 @@ import com.typesafe.config.Config
 import eventstreams.core.actors.{ActorObjWithConfig, ActorWithComposableBehavior, ActorWithConfigStore, InitialConfig, RouteeActor}
 import eventstreams.core.messages.{ComponentKey, TopicKey}
 import eventstreams.core.{Fail, NowProvider, OK}
+import eventstreams.model.RolePermissions
 import net.ceedubs.ficus.Ficus._
 import play.api.libs.json._
 import play.api.libs.json.extensions._
@@ -70,7 +71,7 @@ class UserRoleManagerActor(sysconfig: Config)
             }.collect { case Some(x) => x}.toSet
         }
       ) yield SecuredDomainPermissions(SecuredDomainInfo(moduleId, name), set)
-    }.collect { case Some(x) => x}
+    }.collect { case Some(x) => x}.sortBy(_.domain.name)
   } | List()
   val configSchema = {
     val template = Json.parse(
@@ -101,7 +102,10 @@ class UserRoleManagerActor(sysconfig: Config)
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  def listUpdate() = T_LIST !! list
+  def listUpdate() = {
+    T_LIST !! list
+    context.parent ! AvailableUserRoles(entries)
+  }
 
   def list = Some(Json.toJson(entries.map { x =>
     Json.obj(
@@ -130,8 +134,7 @@ class UserRoleManagerActor(sysconfig: Config)
 
   def handler: Receive = {
     case x: UserRoleAvailable =>
-      logger.error("!>>> user role: " + x)
-      entries = (entries :+ x).sortBy(_.name)
+      entries = (entries.filter(_.id != x.id) :+ x).sortBy(_.name)
       listUpdate()
   }
 

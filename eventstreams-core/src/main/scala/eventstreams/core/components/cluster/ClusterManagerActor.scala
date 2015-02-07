@@ -42,7 +42,7 @@ trait ClusterManagerActorEvents
 }
 
 object ClusterManagerActor extends ActorObjWithCluster with ClusterManagerActorEvents with WithEventPublisher {
-  def id = "cluster"
+  def id = "unsecured_cluster"
 
   def props(implicit cluster: Cluster, config: Config) = Props(new ClusterManagerActor())
 }

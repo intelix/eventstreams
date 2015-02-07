@@ -18,17 +18,7 @@ package eventstreams.auth
 
 import akka.actor._
 import com.typesafe.config.Config
-import eventstreams.core.Fail
-import eventstreams.core.NowProvider
-import eventstreams.core.OK
-import eventstreams.core.actors.ActorObjWithConfig
-import eventstreams.core.actors.ActorWithComposableBehavior
-import eventstreams.core.actors.ActorWithConfigStore
-import eventstreams.core.actors.InitialConfig
-import eventstreams.core.actors.RouteeActor
-import eventstreams.core.actors._
-import eventstreams.core.messages.ComponentKey
-import eventstreams.core.messages.TopicKey
+import eventstreams.core.actors.{ActorObjWithConfig, ActorWithComposableBehavior, ActorWithConfigStore, InitialConfig, RouteeActor}
 import eventstreams.core.messages.{ComponentKey, TopicKey}
 import eventstreams.core.{Fail, NowProvider, OK}
 import play.api.libs.json._
@@ -44,7 +34,8 @@ object UserManager extends ActorObjWithConfig {
   def props(implicit config: Config) = Props(new UserManagerActor(config))
 }
 
-case class UserAvailable(id: ComponentKey, name: String, roles: Set[String], ref: ActorRef)
+case class UserAvailable(id: ComponentKey, name: String, hash: Option[String], roles: Set[String], ref: ActorRef)
+
 
 class UserManagerActor(sysconfig: Config)
   extends ActorWithComposableBehavior
@@ -64,7 +55,11 @@ class UserManagerActor(sysconfig: Config)
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  def listUpdate() = T_LIST !! list
+  def listUpdate() = {
+    T_LIST !! list
+    context.parent ! AvailableUsers(entries)
+
+  }
 
   def list = Some(Json.toJson(entries.map { x =>
     Json.obj(
@@ -94,7 +89,7 @@ class UserManagerActor(sysconfig: Config)
 
   def handler: Receive = {
     case x: UserAvailable =>
-      entries = (entries :+ x).sortBy(_.name)
+      entries = (entries.filter(_.id != x.id) :+ x).sortBy(_.name)
       listUpdate()
   }
 
