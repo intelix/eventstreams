@@ -14,62 +14,69 @@
  * limitations under the License.
  */
 
-define(['logging'], function (logging) {
+EventSecurityPermissionsUpdated = "EventSecurityPermissionsUpdated";
 
+define(['logging', 'eventing', 'comm_auth'], function (logging, eventing, auth) {
+
+    
+    var componentId = "security/Permissions";
 
     var allowedDomains = [];
     var permissionSets = [];
 
 
-    return {
-    
-        updatePermissions: function(newPermissions) {
-            var newAllowedDomains = [];
-            var newPermissionSets = [];
-            allDomainsAllowed = false;
+    function updatePermissions(e) {
+        
+        var newPermissions = e.detail ? e.detail : [];
+        
+        var newAllowedDomains = [];
+        var newPermissionSets = [];
 
-            if (logging.isDebug()) {
-                logging.logInfo("auth", "New permission set: " + JSON.stringify(newPermissions));
-            } else if (logging.isInfo()) {
-                logging.logInfo("auth", "New permission set");
-            }
+        if (logging.isDebug()) {
+            logging.logInfo(componentId, "New permission set: " + JSON.stringify(newPermissions));
+        } else if (logging.isInfo()) {
+            logging.logInfo(componentId, "New permission set");
+        }
 
-            newPermissions.forEach(function(rolePerm) {
-                var allowSelected = rolePerm.a;
-                var domainPerms = rolePerm.p;
-                
-                if (domainPerms && $.isArray(domainPerms) && domainPerms.length > 0) {
-                    domainPerms.forEach(function(domainPerm) {
-                        var nextDom = domainPerm.d;
+        newPermissions.forEach(function(rolePerm) {
+            var domainPerms = rolePerm.p;
 
-                        if (nextDom && nextDom.id) {
+            if (domainPerms && $.isArray(domainPerms) && domainPerms.length > 0) {
+                domainPerms.forEach(function(domainPerm) {
+                    var nextDom = domainPerm.d;
 
-                            var nextSet = domainPerm.p && $.isArray(domainPerm.p) ? domainPerm.p : [];
+                    if (nextDom && nextDom.id) {
 
-                            if ((nextSet.length > 0) && $.inArray(nextDom.id, newAllowedDomains) < 0) {
-                                newAllowedDomains.push(nextDom.id);
-                            }
+                        var nextSet = domainPerm.p && $.isArray(domainPerm.p) ? domainPerm.p : [];
 
-                            nextSet.forEach(function(nextPerm) {
-                                if (nextPerm && nextPerm.t && $.inArray(nextPerm.t, newPermissionSets) < 0) {
-                                    newPermissionSets.push(nextPerm.t);
-                                }
-                            });
+                        if ((nextSet.length > 0) && $.inArray(nextDom.id, newAllowedDomains) < 0) {
+                            newAllowedDomains.push(nextDom.id);
                         }
-                    });
-                }
 
-            });
-            
-            permissionSets = newPermissionSets.map(function(next) { return new RegExp(next);});
-            allowedDomains = newAllowedDomains;
-            
-            if (logging.isInfo()) {
-                logging.logInfo("auth", "Enabled permissions: " + newPermissionSets );
-                logging.logInfo("auth", "Enabled domains: " + newAllowedDomains);
+                        nextSet.forEach(function(nextPerm) {
+                            if (nextPerm && nextPerm.t && $.inArray(nextPerm.t, newPermissionSets) < 0) {
+                                newPermissionSets.push(nextPerm.t);
+                            }
+                        });
+                    }
+                });
             }
 
-        },
+        });
+
+        permissionSets = newPermissionSets.map(function(next) { return new RegExp(next);});
+        allowedDomains = newAllowedDomains;
+
+        if (logging.isInfo()) {
+            logging.logInfo(componentId, "Enabled permissions: " + newPermissionSets );
+            logging.logInfo(componentId, "Enabled domains: " + newAllowedDomains);
+        }
+        eventing.raiseEvent(EventSecurityPermissionsUpdated);
+    }
+    eventing.addEventListener(EventCommAuthAccessPermissionsChanged, updatePermissions);
+
+
+    return {
         
         hasDomainPermission: function(domain) {
           return $.inArray("*", allowedDomains) > -1 || $.inArray(domain, allowedDomains) > -1;
@@ -78,10 +85,7 @@ define(['logging'], function (logging) {
         hasTopicPermission: function(component, topic) {
             var combined = component + "#" + topic;
             return permissionSets.some(function(next) {
-                var hasMatch = next.set.some(function(nextPattern) {
-                    return nextPattern.test(combined);
-                });                
-                return hasMatch == next.allowSelected;
+                return next.test(combined);
             });
         }
 

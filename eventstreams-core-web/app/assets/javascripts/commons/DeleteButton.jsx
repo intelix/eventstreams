@@ -39,6 +39,8 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
         render: function () {
             var self = this;
 
+            if (!self.hasTopicPermission(this.props.ckey,"kill")) return <span/>;
+
             var buttonClasses = this.cx({
                 'disabled': (!self.state.connected),
                 'btn btn-primary btn-xs': true

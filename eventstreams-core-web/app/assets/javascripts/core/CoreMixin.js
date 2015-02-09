@@ -14,12 +14,7 @@
  * limitations under the License.
  */
 
-define(['react','logging','wsclient', 'permissions'], function (React, logging, client, permissions) {
-
-    var evtElement = window;
-    window.onscroll = function (event) {
-        evtElement.dispatchEvent(new CustomEvent("onscroll"));
-    };
+define(['react','logging','eventing','comm_subscriptions', 'permissions'], function (React, logging, eventing, client, permissions) {
 
 
     return {
@@ -28,21 +23,11 @@ define(['react','logging','wsclient', 'permissions'], function (React, logging, 
             return this.componentName ? this.componentName() : "";
         },
 
-        cx: function(v) {
-            var cx = React.addons.classSet;
-            return cx(v);
-        },
-
-        hasTopicPermission: function(component, topic) {
-            return permissions.hasTopicPermission(component, topic);
-        },
-        hasDomainPermission: function(domain) {
-            return permissions.hasDomainPermission(domain);
-        },
-
-        isDebug: function() { return logging.isDebug(); },
-        isInfo: function() { return logging.isInfo(); },
-        isWarn: function() { return logging.isWarn(); },
+        /* Logging */
+        
+        isDebug: logging.isDebug,
+        isInfo: logging.isInfo,
+        isWarn: logging.isWarn,
 
         logDebug: function (msg) {
             logging.logDebug(this.componentNamePrefix(), msg);
@@ -57,54 +42,26 @@ define(['react','logging','wsclient', 'permissions'], function (React, logging, 
             logging.logError(this.componentNamePrefix(), msg);
         },
 
-        createCookie: function (name, value, days) {
-            var expires = "";
-            if (days) {
-                var date = new Date();
-                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-                expires = "; expires=" + date.toGMTString();
-            }
-            document.cookie = name + "=" + value + expires + "; path=/";
-        },
+        /* eventing */
+        
+        addEventListener: eventing.addEventListener,
+        removeEventListener: eventing.removeEventListener,
+        raiseEvent: eventing.raiseEvent,
 
-        readCookie: function (name) {
-            var nameEQ = name + "=";
-            var ca = document.cookie.split(';');
-            for (var i = 0; i < ca.length; i++) {
-                var c = ca[i];
-                while (c.charAt(0) == ' ') c = c.substring(1, c.length);
-                if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
-            }
-            return null;
-        },
+        /* permissions */
+        
+        hasTopicPermission: permissions.hasTopicPermission,
+        hasDomainPermission: permissions.hasDomainPermission,
 
-        eraseCookie: function (name) {
-            createCookie(name, "", -1);
+        /* misc */
+        
+        cx: function(v) {
+            var cx = React.addons.classSet;
+            return cx(v);
         },
-
-
-        addEventListener: function (evt, func) {
-            if (logging.isDebug()) {
-                this.logDebug("Added event listener: " + evt );
-            }
-            evtElement.addEventListener(evt, func);
-        },
-        removeEventListener: function (evt, func) {
-            if (logging.isDebug()) {
-                this.logDebug("Removed event listener: " + evt );
-            }
-            evtElement.removeEventListener(evt, func);
-        },
-        raiseEvent: function (evt, data) {
-            if (logging.isDebug()) {
-                this.logDebug("Dispatched event: " + evt +" with data: " + JSON.stringify(data));
-            }
-            evtElement.dispatchEvent(new CustomEvent(evt, {detail: data}));
-        },
-
 
         subId2String: function (id) {
-            return id ? id.address + "/" + id.route + "[" + id.topic + "]" : "Nil";
+            return id ? id.route + "#" + id.topic + "@" + id.address : "Nil";
         },
 
 
@@ -211,7 +168,7 @@ define(['react','logging','wsclient', 'permissions'], function (React, logging, 
             this.handle.addWsClosedEventListener(wsClosedHandler);
 
 
-            if (this.handle.connected) {
+            if (this.handle.connected()) {
                 wsOpenHandler();
             } else {
                 wsClosedHandler();
@@ -277,6 +234,10 @@ define(['react','logging','wsclient', 'permissions'], function (React, logging, 
             }
         },
 
+        refresh: function() {
+            this.forceUpdate();
+        },
+        
         componentDidMount: function () {
             var self = this;
             self.componentAvailable = true;
@@ -287,7 +248,8 @@ define(['react','logging','wsclient', 'permissions'], function (React, logging, 
                 self.addEventListener("onscroll", self.checkVisibility);
                 self.checkVisibility();
             }
-
+            
+            self.addEventListener(EventSecurityPermissionsUpdated, self.refresh);
 
         },
 
@@ -317,6 +279,8 @@ define(['react','logging','wsclient', 'permissions'], function (React, logging, 
                 self.removeEventListener("resize", self.checkVisibility);
                 self.removeEventListener("onscroll", self.checkVisibility);
             }
+
+            self.removeEventListener(EventSecurityPermissionsUpdated, self.refresh);
         },
 
 

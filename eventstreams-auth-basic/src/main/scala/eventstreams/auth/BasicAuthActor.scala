@@ -14,6 +14,7 @@ import eventstreams.core.{Fail, NowProvider, OK}
 import net.ceedubs.ficus.Ficus._
 import play.api.libs.json.{JsValue, Json}
 
+import scala.concurrent.duration.DurationLong
 import scalaz.Scalaz._
 import scalaz._
 
@@ -27,7 +28,7 @@ trait BasicAuthEvents extends ComponentWithBaseEvents with BaseActorEvents with 
 
 }
 
-case class SessionMeta(token: String, user: String, routes: Set[String], createdTs: Long = System.currentTimeMillis())
+case class SessionMeta(token: String, user: String, routes: Set[String], createdTs: Long = System.currentTimeMillis(), inactiveSince: Option[Long] = None)
 
 case class AvailableUsers(list: List[UserAvailable])
 
@@ -117,7 +118,7 @@ class BasicAuthActor(id: String, config: Config, cluster: Cluster)
         ) yield result) match {
           case Some(user) =>
             val meta = sessionMap.getOrElse(user, SessionMeta(shortUUID, user, Set()))
-            val newMeta = meta.copy(routes = meta.routes + routeKey)
+            val newMeta = meta.copy(routes = meta.routes + routeKey, inactiveSince = None)
             sessionMap += newMeta.user -> newMeta
             allowSession(newMeta)
             LoginSuccessful >>()
@@ -137,7 +138,9 @@ class BasicAuthActor(id: String, config: Config, cluster: Cluster)
           meta <- sessionMap.collectFirst { case (k, v) if v.token == token => v}
         ) yield meta) match {
           case Some(meta) =>
-            allowSession(meta)
+            val newMeta = meta.copy(routes = meta.routes + routeKey, inactiveSince = None)
+            sessionMap += newMeta.user -> newMeta
+            allowSession(newMeta)
             LoginSuccessful >>()
             OK().right
           case _ =>
@@ -149,8 +152,14 @@ class BasicAuthActor(id: String, config: Config, cluster: Cluster)
   }
 
   override def processTick(): Unit = {
-    sessionMap = sessionMap.filter {
-      case (k, v) => v.routes.nonEmpty
+    sessionMap = sessionMap.map {
+      case (k,v) if v.routes.isEmpty => v.inactiveSince match {
+        case None => k -> v.copy(inactiveSince = Some(now))
+        case x => k -> v
+      }
+      case (k,v) => k -> v
+    }.filter {
+      case (k, v) => v.routes.nonEmpty || (v.inactiveSince.map(now - _ < 5.minutes.toMillis) | true)
     }
     super.processTick()
   }

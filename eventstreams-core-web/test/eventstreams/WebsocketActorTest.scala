@@ -14,22 +14,22 @@ import play.api.libs.json.{JsArray, JsValue, Json}
 import scalaz.Scalaz._
 
 class WebsocketActorTest
-  extends FlatSpec with WebNodeTestContext with DummyNodeTestContext with SharedActorSystem {
+  extends FlatSpec with WebNodeTestContext with DummyNodeTestContext with AuthNodeTestContext with SharedActorSystem {
 
-  trait WithFourNodes extends WithDummyNode1 with WithDummyNode2 with WithWebNode1 with WithWebNode2 with RouteeComponentStub
+  trait WithFourNodes extends WithDummyNode1 with WithDummyNode2 with WithWebNode1 with WithWebNode2 with WithAuthNode1 with RouteeComponentStub
 
   trait WithFourNodesStarted extends WithFourNodes {
-    expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> "dummy1,dummy2,web1,web2", 'Node -> "dummy1")
-    expectSomeEventsWithTimeout(10000, ClusterStateChanged, 'Peers -> "dummy1,dummy2,web1,web2", 'Node -> "dummy2")
-    expectSomeEventsWithTimeout(10000, ClusterStateChanged, 'Peers -> "dummy1,dummy2,web1,web2", 'Node -> "web1")
-    expectSomeEventsWithTimeout(10000, ClusterStateChanged, 'Peers -> "dummy1,dummy2,web1,web2", 'Node -> "web2")
+    expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> "auth1,dummy1,dummy2,web1,web2", 'Node -> "dummy1")
+    expectSomeEventsWithTimeout(10000, ClusterStateChanged, 'Peers -> "auth1,dummy1,dummy2,web1,web2", 'Node -> "dummy2")
+    expectSomeEventsWithTimeout(10000, ClusterStateChanged, 'Peers -> "auth1,dummy1,dummy2,web1,web2", 'Node -> "web1")
+    expectSomeEventsWithTimeout(10000, ClusterStateChanged, 'Peers -> "auth1,dummy1,dummy2,web1,web2", 'Node -> "web2")
     startRouteeComponentStub1(dummy1System)
     startRouteeComponentStub2(dummy1System)
     clearEvents()
   }
 
   "Three nodes with message router on each, Websocket Actor" should "start when accepting connection" in new WithFourNodes {
-    expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> "dummy1,dummy2,web1,web2", 'Node -> "dummy1")
+    expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> "auth1,dummy1,dummy2,web1,web2", 'Node -> "dummy1")
     startWebsocketActor1()
     expectOneOrMoreEvents(WebsocketActor.PreStart)
     expectOneOrMoreEvents(WebsocketActor.AcceptedConnection)
@@ -140,35 +140,6 @@ class WebsocketActorTest
       expectNoEvents(MessageRouterActor.RouteAdded)
     }
   }
-
-  it should "ignore invalid X message - blank payload" in new WithFourNodesStarted {
-    startWebsocketActor1()
-    expectOneOrMoreEvents(WebsocketClientStub.WebsocketAddressReceived, 'Value -> web1Address)
-    clearEvents()
-    sendToWebsocketRawOn1("fX")
-    waitAndCheck {
-      expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
-      expectNoEvents(WebsocketClientStub.PreRestart)
-      expectNoEvents(WebsocketActor.PreRestart)
-      expectNoEvents(MessageRouterActor.RouteAdded)
-    }
-  }
-
-
-  it should "recognise X message, uncompressed" in new WithTwoWebsocketActors {
-    sendToWebsocketOn1("X" + user1Uuid)
-    expectOneOrMoreEvents(WebsocketActor.UserUUID, 'UUID -> user1Uuid)
-  }
-  it should "recognise X message, compressed" in new WithTwoWebsocketActors {
-    sendToWebsocketOn1("X" + user1Uuid, compressed = true)
-    expectOneOrMoreEvents(WebsocketActor.UserUUID, 'UUID -> user1Uuid)
-  }
-
-  it should "react to X message by adding a new route" in new WithTwoWebsocketActors {
-    sendToWebsocketOn1("X" + user1Uuid, compressed = true)
-    expectOneOrMoreEvents(MessageRouterActor.RouteAdded, 'Route -> user1Uuid)
-  }
-
 
   it should "ignore invalid B message - blank address" in new WithFourNodesStarted {
     startWebsocketActor1()
@@ -420,7 +391,7 @@ class WebsocketActorTest
     expectOneOrMoreEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "1")
     val content = Json.parse(locateLastEventFieldValue(WebsocketClientStub.WebsocketUpdateReceived, "Payload")
       .asInstanceOf[String]).as[JsArray].value
-    content should have size 4
+    content should have size 5
   }
 
   it should "be able to subscribe to the node manager updates - regardless of the combination of the aliases used" in new WithTwoWebsocketActors {
@@ -430,7 +401,7 @@ class WebsocketActorTest
     expectOneOrMoreEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "ABC")
     val content = Json.parse(locateLastEventFieldValue(WebsocketClientStub.WebsocketUpdateReceived, "Payload")
       .asInstanceOf[String]).as[JsArray].value
-    content should have size 4
+    content should have size 5
   }
 
   it should "receive a cached update on the second subscription, if it comes from the same websocket" in new WithTwoWebsocketActors {
@@ -440,7 +411,7 @@ class WebsocketActorTest
     expectOneOrMoreEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "ABC")
     val content = Json.parse(locateLastEventFieldValue(WebsocketClientStub.WebsocketUpdateReceived, "Payload")
       .asInstanceOf[String]).as[JsArray].value
-    content should have size 4
+    content should have size 5
     clearEvents()
     sendToWebsocketOn1(buildValidSubscribe("ABC"))
     expectOneOrMoreEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "ABC")
@@ -456,7 +427,7 @@ class WebsocketActorTest
     expectOneOrMoreEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "ABC")
     val content = Json.parse(locateLastEventFieldValue(WebsocketClientStub.WebsocketUpdateReceived, "Payload")
       .asInstanceOf[String]).as[JsArray].value
-    content should have size 4
+    content should have size 5
     clearEvents()
     sendToWebsocketOn2(buildValidSubscribe("ABC"))
     expectOneOrMoreEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "ABC")
@@ -464,6 +435,9 @@ class WebsocketActorTest
   }
 
   it should "subscribe to updates from a component on dummy1" in new WithTwoWebsocketActors {
+    sendToWebsocketOn1("Xlogin" + opSplitChar + "password")
+    expectOneOrMoreEvents(WebsocketClientStub.WebsocketAuthUpdateReceived)
+    clearEvents()
     sendToWebsocketOn1("B1" + opSplitChar + dummy1Address)
     sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", RouteeComponentStubOps.componentKeyForRouteeStub1.key, "withresponse"))
     sendToWebsocketOn1(buildValidSubscribe("1"))
@@ -473,6 +447,9 @@ class WebsocketActorTest
   }
 
   trait WithOneSubscription extends WithTwoWebsocketActors {
+    sendToWebsocketOn1("Xlogin" + opSplitChar + "password")
+    expectOneOrMoreEvents(WebsocketClientStub.WebsocketAuthUpdateReceived)
+    clearEvents()
     sendToWebsocketOn1("B1" + opSplitChar + dummy1Address)
     sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", RouteeComponentStubOps.componentKeyForRouteeStub1.key, "withresponse"))
     sendToWebsocketOn1(buildValidSubscribe("1"))
@@ -493,6 +470,9 @@ class WebsocketActorTest
     Json.parse(locateLastEventFieldValue(WebsocketClientStub.WebsocketUpdateReceived, "Payload")
       .asInstanceOf[String]) ~> 'msg should be (Some("test1"))
     clearEvents()
+    sendToWebsocketOn2("Xlogin" + opSplitChar + "password")
+    expectOneOrMoreEvents(WebsocketClientStub.WebsocketAuthUpdateReceived)
+    clearEvents()
     sendToWebsocketOn2("B2" + opSplitChar + dummy1Address)
     sendToWebsocketOn2("A2" + opSplitChar + buildValidSubjectKey("2", RouteeComponentStubOps.componentKeyForRouteeStub1.key, "withresponse"))
     sendToWebsocketOn2(buildValidSubscribe("2"))
@@ -502,6 +482,9 @@ class WebsocketActorTest
   }
 
   trait WithTwoSubscriptions extends WithOneSubscription {
+    sendToWebsocketOn2("Xlogin" + opSplitChar + "password")
+    expectOneOrMoreEvents(WebsocketClientStub.WebsocketAuthUpdateReceived)
+    clearEvents()
     sendToWebsocketOn2("B2" + opSplitChar + dummy1Address)
     sendToWebsocketOn2("A2" + opSplitChar + buildValidSubjectKey("2", RouteeComponentStubOps.componentKeyForRouteeStub1.key, "withresponse"))
     sendToWebsocketOn2(buildValidSubscribe("2"))

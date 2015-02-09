@@ -40,12 +40,14 @@ trait WebsocketActorEvents
   val AcceptedConnection = 'AcceptedConnection.info
   val ClosedConnection = 'ClosedConnection.info
   val SendingClusterAddress = 'SendingClusterAddress.trace
+  val AuthorizationUpdateReceived = 'AuthorizationUpdateReceived.trace
   val WebsocketOut = 'WebsocketOut.trace
   val WebsocketIn = 'WebsocketIn.trace
   val MessageToDownstream = 'MessageToDownstream.trace
   val NewCmdAlias = 'NewCmdAlias.trace
   val NewLocationAlias = 'NewLocationAlias.trace
   val UserUUID = 'UserUUID.info
+  val ClientHandshaking = 'ClientHandshaking.trace
   val MessageScheduled = 'MessageScheduled.trace
   val SentToClient = 'SentToClient.trace
 
@@ -75,11 +77,12 @@ class WebsocketActor(out: ActorRef)
   val location2alias: mutable.Map[String, String] = new mutable.HashMap[String, String]()
   var proxy: Option[ActorRef] = None
   var aggregator: mutable.Map[String, String] = new mutable.HashMap[String, String]()
-  var clientSeed: Option[String] = None
-  var cmdReplySubj: Option[LocalSubj] = None
 
   val localToken = shortUUID
-  
+  val cmdReplySubj = Some(LocalSubj(ComponentKey(localToken), TopicKey("cmd")))
+
+
+
   val authComponent = localToken + ":auth"
   
   override def tickInterval: FiniteDuration = 200.millis
@@ -91,8 +94,10 @@ class WebsocketActor(out: ActorRef)
 
     LocalClusterAwareActor.path ! InfoRequest()
     
-    proxy = Some(SecurityProxyActor.start(authComponent))
-    
+    proxy = Some(SecurityProxyActor.start(authComponent, self))
+    proxy.foreach(_ ! Trusted(RegisterComponent(ComponentKey(localToken), self)))
+
+
   }
 
 
@@ -105,8 +110,20 @@ class WebsocketActor(out: ActorRef)
   override def commonBehavior: Actor.Receive = messageHandler orElse super.commonBehavior
 
 
-  override def commonFields: scala.Seq[(Symbol, Any)] = super.commonFields ++ Seq('ClientUUID -> (clientSeed | "n/a"))
+  override def commonFields: scala.Seq[(Symbol, Any)] = super.commonFields ++ Seq('ClientUUID -> localToken)
 
+  private def encode(str: String) = {
+    var msg = ""
+    if (str.length > 100) {
+      val comp = LZString.compressToUTF16(str)
+      if (comp.length < str.length) {
+        msg = "z" + comp
+      }
+    }
+    if (msg == "") msg = "f" + str
+    msg
+  }
+  
   override def processTick(): Unit = {
     val str = aggregator.values.foldRight("") { (value, aggr) =>
       if (aggr != "") {
@@ -116,16 +133,8 @@ class WebsocketActor(out: ActorRef)
       }
     }
 
-
     if (str.length > 0) {
-      var msg = ""
-      if (str.length > 100) {
-        val comp = LZString.compressToUTF16(str)
-        if (comp.length < str.length) {
-          msg = "z" + comp
-        }
-      }
-      if (msg == "") msg = "f" + str
+      val msg = encode(str)
       sendToSocket(msg)
       SentToClient >>('Count -> aggregator.size, 'UncompLen -> str.length, 'CompLen -> msg.length)
       aggregator.clear()
@@ -143,7 +152,12 @@ class WebsocketActor(out: ActorRef)
     case InfoResponse(address) =>
       SendingClusterAddress >> ('Address -> address)
       sendToSocket("fL" + address.toString)
-
+    case AuthorizationUpdate(v) =>
+      AuthorizationUpdateReceived >> ('Contents -> v)
+      sendToSocket(encode("A" + v))
+  
+      
+      
     case Update(subj, data, _) =>
       path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(data))}
     case CommandErr(subj, data) =>
@@ -179,9 +193,11 @@ class WebsocketActor(out: ActorRef)
           val data = msgContents.tail
 
           mtype match {
-            case 'X' => addUUID(data)
+            case 'H' => ClientHandshaking >> ()
             case 'A' => addOrReplaceAlias(data)
             case 'B' => addOrReplaceLocationAlias(data)
+            case 'T' => performTokenAuthentication(data)
+            case 'X' => performCredentialsAuthentication(data)
             case _ => extractByAlias(data) foreach { str =>
               extractSubjectAndPayload(str,
                 processRequestByType(mtype, _, _) foreach { msg =>
@@ -237,21 +253,33 @@ class WebsocketActor(out: ActorRef)
     }
   }
 
-  private def addUUID(value: String) = {
+  private def performCredentialsAuthentication(value: String) = {
+    val idx: Int = value.indexOf(opSplitChar)
 
-    if (value.isEmpty) {
-      Warning >> ('Message -> s"Invalid UUID - blank")
+    if (idx > 0) {
+      val u = value.substring(0, idx)
+      val p = value.substring(idx + 1)
+
+      proxy.foreach(_ ! CredentialsAuth(u, p))
+      
     } else {
-
-      UserUUID >> ('UUID -> value)
-
-      clientSeed = Some(value)
-      cmdReplySubj = Some(LocalSubj(ComponentKey(value), TopicKey("cmd")))
-
-      proxy.foreach(_ ! Trusted(RegisterComponent(ComponentKey(value), self)))
+      Warning >> ('Message -> s"Invalid cred auth - invalid payload: $value")
     }
-
   }
+
+  private def performTokenAuthentication(value: String) = {
+
+    val idx: Int = value.indexOf(opSplitChar)
+
+    if (idx > 0) {
+      val t = value.substring(0, idx)
+      proxy.foreach(_ ! TokenAuth(t))
+    } else {
+      Warning >> ('Message -> s"Invalid token auth - invalid payload: $value")
+    }
+  }
+
+
 
   private def addOrReplaceLocationAlias(value: String) = {
 
@@ -272,7 +300,6 @@ class WebsocketActor(out: ActorRef)
       }
     } else {
       Warning >> ('Message -> s"Invalid location alias - invalid payload: $value")
-
     }
   }
 
@@ -299,8 +326,8 @@ class WebsocketActor(out: ActorRef)
     comp match {
       case "_" => None
       case x if x.startsWith(":") => Some(localToken + x)
+      case x if localToken == x => Some("_")
       case x if x.startsWith(localToken) => Some(x.substring(localToken.length))
-      case x if clientSeed.isDefined && clientSeed.get == x => Some("_")
       case other => Some(other)
     }
   }

@@ -1,6 +1,6 @@
 package actors
 
-import akka.actor.{ActorRefFactory, Props}
+import akka.actor.{ActorRef, ActorRefFactory, Props}
 import core.events.EventOps.symbolToEventOps
 import core.events.WithEventPublisher
 import core.events.ref.ComponentWithBaseEvents
@@ -26,12 +26,15 @@ case class Untrusted(msg: Any)
 
 case class Trusted(msg: Any)
 
+case class TokenAuth(token: String)
+case class CredentialsAuth(user: String, passwordHash: String)
+case class AuthorizationUpdate(msg: String)
 
 object SecurityProxyActor extends SecurityProxyEvents {
-  def start(token: String)(implicit f: ActorRefFactory) = f.actorOf(Props(new SecurityProxyActor(token)), token)
+  def start(token: String, clientRef: ActorRef)(implicit f: ActorRefFactory) = f.actorOf(Props(new SecurityProxyActor(token, clientRef)), token)
 }
 
-class SecurityProxyActor(token: String)
+class SecurityProxyActor(token: String, clientRef: ActorRef)
   extends ActorWithComposableBehavior
   with RouteeActor
   with NowProvider
@@ -59,34 +62,6 @@ class SecurityProxyActor(token: String)
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
 
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = topic match {
-    case TopicKey("auth_cred") =>
-      for (
-        user <- maybeData ~> 'u \/> Fail(message = Some("Invalid username or passwordA"));
-        passw <- maybeData ~> 'p \/> Fail(message = Some("Invalid username or passwordB"))
-      ) yield {
-        proxy ! Command(
-          RemoteAddrSubj("~auth", LocalSubj(ComponentKey("auth"), topic)),
-          replyToSubj,
-          Some(Json.stringify(Json.obj(
-            "u" -> user, "p" -> passw, "routeKey" -> token
-          ))))
-        OK()
-      }
-    case TopicKey("auth_token") =>
-      for (
-        token <- maybeData ~> 't \/> Fail(message = Some("Invalid security token"))
-      ) yield {
-        proxy ! Command(
-          RemoteAddrSubj("~auth", LocalSubj(ComponentKey("auth"), topic)),
-          replyToSubj,
-          Some(Json.stringify(Json.obj(
-            "t" -> token, "routeKey" -> token
-          ))))
-        OK()
-      }
-  }
-
   private def localSubj(subj: Any) = subj match {
     case RemoteAddrSubj(_, local) => local
     case x: LocalSubj => x
@@ -104,6 +79,20 @@ class SecurityProxyActor(token: String)
 
 
   def handler: Receive = {
+    case CredentialsAuth(u,p) =>
+      proxy ! Command(
+        RemoteAddrSubj("~auth", LocalSubj(ComponentKey("auth"), TopicKey("auth_cred"))),
+        None,
+        Some(Json.stringify(Json.obj(
+          "u" -> u, "p" -> p, "routeKey" -> token
+        ))))
+    case TokenAuth(t) =>
+      proxy ! Command(
+        RemoteAddrSubj("~auth", LocalSubj(ComponentKey("auth"), TopicKey("auth_token"))),
+        None,
+        Some(Json.stringify(Json.obj(
+          "t" -> t, "routeKey" -> token
+        ))))
     case Trusted(msg) => proxy ! msg
     case Untrusted(msg) => if (allowed(msg)) proxy ! msg else SecurityViolation >> ('Message -> msg)
     case Update(_, data, _) =>
@@ -121,7 +110,7 @@ class SecurityProxyActor(token: String)
         PatternGroup(p.domainPermissions.flatMap { next => next.permissions.map(_.topicPattern.r)})
       }
 
-      TopicKey("permissions") !! Json.obj("token" -> (json ~> 'token | ""), "permissions" -> (json #> 'permissions | Json.arr()))
+      clientRef ! AuthorizationUpdate(Json.stringify(Json.obj("allow" -> (json ?> 'allow | false), "token" -> (json ~> 'token | ""), "permissions" -> (json #> 'permissions | Json.arr()))))
   }
 
 

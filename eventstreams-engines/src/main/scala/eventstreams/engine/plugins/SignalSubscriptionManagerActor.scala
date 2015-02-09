@@ -88,7 +88,6 @@ class SignalSubscriptionManagerActor(sysconfig: Config)
   def handler: Receive = {
     case m: Acknowledgeable[_] =>
       sender() ! AcknowledgeAsProcessed(m.id)
-      logger.debug(s"!>>>> Manager received signal ${m.msg}")
       entries.values.foreach(_ ! m.msg)
     case SignalSubscriptionAvailable(route) =>
       entries += route -> sender()

@@ -1,6 +1,6 @@
 package eventstreams.support
 
-import actors.WebsocketActor
+import actors.{AuthorizationUpdate, WebsocketActor}
 import akka.actor.{ActorRef, Props}
 import com.diogoduailibe.lzstring4j.LZString
 import core.events.EventOps.stringToEventOps
@@ -30,6 +30,7 @@ trait WebsocketClientStubEvents extends ComponentWithBaseEvents with BaseActorEv
 
   val WebsocketAddressReceived = "WebsocketAddressReceived".info
   val WebsocketUpdateReceived = "WebsocketUpdateReceived".info
+  val WebsocketAuthUpdateReceived = "WebsocketAuthUpdateReceived".info
   val WebsocketStaleReceived = "WebsocketStaleReceived".info
 
 
@@ -59,6 +60,7 @@ class WebsocketClientStubActor(instanceId: String)
       val arr = x.tail.split(WebsocketActor.opSplitChar)
       val alias = arr(0)
       x.head match {
+        case 'A' => WebsocketAuthUpdateReceived >> ()
         case 'U' => WebsocketUpdateReceived >> ('Alias -> alias, 'Payload -> arr(1))
         case 'D' => WebsocketStaleReceived >> ('Alias -> alias)
         case z => InvalidPayload >> ('InvalidType -> z)

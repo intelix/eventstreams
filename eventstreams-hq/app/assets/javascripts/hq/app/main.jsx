@@ -34,18 +34,12 @@ define(['permissions', 'toastr', 'react', 'core_mixin', 'common_login',
                         route: "_",
                         topic: 'cmd',
                         onData: this.onCmdData
-                    },
-                    {
-                        address: 'local',
-                        route: ":auth",
-                        topic: 'permissions',
-                        onData: this.onAuthData
                     }
                 ];
             },
 
             getInitialState: function () {
-                return {token: false}
+                return {access: false}
             },
 
             onDisconnected: function () {
@@ -124,23 +118,31 @@ define(['permissions', 'toastr', 'react', 'core_mixin', 'common_login',
                 }
             },
 
-            onAuthData: function (data) {
-                permissions.updatePermissions(data.permissions);
-                this.setState({token: data.token});
-                this.forceUpdate();
+            removeAccess: function() {
+                this.setState({access: false});
+            },
+            allowAccess: function() {
+                this.setState({access: true});
             },
 
-            componentWillMount: function () {
-                this.setState({token: this.readCookie("_eventstreams_token")});
+            componentDidMount: function() {
+                this.addEventListener(EventCommAuthLoginRequired, this.removeAccess);
+                this.addEventListener(EventCommAuthAccessDenied, this.removeAccess);
+                this.addEventListener(EventCommAuthAccessAllowed, this.allowAccess);
             },
+            componentWillUnmount: function() {
+                this.removeEventListener(EventCommAuthLoginRequired, this.removeAccess);
+                this.removeEventListener(EventCommAuthAccessDenied, this.removeAccess);
+                this.removeEventListener(EventCommAuthAccessAllowed, this.allowAccess);
+            },
+
 
             render: function () {
 
-                var token = this.state.token;
+                var access = this.state.access;
 
-                if (token) {
+                if (access) {
                     return <SecureContent {...this.props} />;
-
                 } else {
                     return <Login {...this.props} />;
                 }

@@ -28,6 +28,17 @@
             react: "../lib/react/react-with-addons",
             bootstrap: "../lib/bootstrap/js/bootstrap",
             toastr: "../lib/toastr/toastr",
+            lz: "/assets/javascripts/lz-string",
+
+            logging: "/assets/javascripts/core/Logging",
+            eventing: "/assets/javascripts/core/Eventing",
+            cookies: "/assets/javascripts/core/Cookies",
+            permissions: "/assets/javascripts/core/Permissions",
+            comm_connectivity: "/assets/javascripts/core/CommConnectivity",
+            comm_protocol: "/assets/javascripts/core/CommProtocol",
+            comm_auth: "/assets/javascripts/core/CommAuth",
+            comm_subscriptions: "/assets/javascripts/core/CommSubscriptions",
+
 
             common_nodetabs: ("commons/ClusterNodesTabs"),
             common_editor_mixin: ("commons/JSONEditorModalMixin"),
@@ -39,15 +50,10 @@
             common_yesno: ("commons/YesNo"),
             common_tabs: ("commons/Tabs"),
 
-
             common_login: ("commons/Login"),
 
-            lz: "/assets/javascripts/lz-string",
             core_mixin: "/assets/javascripts/core/CoreMixin",
-            paginationMixin: "/assets/javascripts/core/PaginationMixin",
-            logging: "/assets/javascripts/core/Logging",
-            permissions: "/assets/javascripts/core/Permissions",
-            wsclient: "/assets/javascripts/core/ServerClient"
+            paginationMixin: "/assets/javascripts/core/PaginationMixin"
 
         },
         packages: [

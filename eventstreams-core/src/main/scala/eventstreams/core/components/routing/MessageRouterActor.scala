@@ -132,7 +132,7 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
     val component = subj.component
     staticRoutes.get(component) match {
       case Some(ProviderState(ref, true)) =>
-        MessageForwarded >> ('Target -> ref, 'ComponentKey -> component.key)
+        MessageForwarded >> ('Subject -> subj, 'MessageType -> msg.getClass.getSimpleName, 'Target -> ref, 'ComponentKey -> component.key)
         ref ! msg
       case Some(ProviderState(ref, false)) =>
         MessageDropped >> ('Reason -> "Inactive route", 'Target -> component)

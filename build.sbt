@@ -162,6 +162,7 @@ lazy val eventStreamsCoreWeb = Project(
   id = "eventstreams-core-web",
   base = file("eventstreams-core-web"),
   dependencies = Seq(
+    eventStreamsAuthBasic  % "compile;test->test",
     coreEvents  % "compile;test->test",
     eventStreamsCore  % "compile;test->test"
   )
@@ -203,8 +204,8 @@ lazy val eventStreamsHQ = Project(
   id = "eventstreams-hq",
   base = file("eventstreams-hq"),
   dependencies = Seq(
-    eventStreamsAuthBasic,
-    eventStreamsCoreWeb,
+    eventStreamsAuthBasic  % "compile;test->test",
+    eventStreamsCoreWeb  % "compile;test->test",
     eventStreamsAgentWeb,
     eventStreamsEngineFlowWeb,
     eventStreamsEngineGateWeb,

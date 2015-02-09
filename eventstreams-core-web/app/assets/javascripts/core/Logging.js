@@ -38,6 +38,10 @@ define([], function () {
             return (this.logLevel && this.logLevel() <= INFO) || (!this.logLevel && defaultLogLevel <= INFO);
         },
 
+        isWarn: function () {
+            return (this.logLevel && this.logLevel() <= WARN) || (!this.logLevel && defaultLogLevel <= WARN);
+        },
+
         logDebug: function (prefix, msg) {
             if (this.isDebug()) {
                 console.debug(format(prefix, msg));

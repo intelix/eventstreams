@@ -19,7 +19,7 @@ object Dependencies {
 
     val groovyVersion = "2.3.8"
 
-    val akkaVersion = "2.3.8"
+    val akkaVersion = "2.3.9"
     val akkaStreamVersion = "1.0-M1"
 
     val scalaLoggingVersion = "3.1.0"
@@ -56,6 +56,8 @@ object Dependencies {
     val webjarsCryptoJSVersion = "3.1.2"
 
     val kryoserVersion = "0.3.2"
+    
+    val nettyVersion = "3.9.3.Final"
     
   }
 
@@ -110,6 +112,7 @@ object Dependencies {
     val commonsCodec    = "commons-codec"               %  "commons-codec"                  % commonsCodecVersion
     
     val kryoser         = "com.github.romix.akka"       %% "akka-kryo-serialization"        % kryoserVersion
+    val netty           = "io.netty"                    %   "netty"                         % nettyVersion
   }
   
   object Test {
@@ -141,6 +144,7 @@ object Dependencies {
   )
 
   val eventStreamsCommon = essentials ++: Seq(
+    netty,
     akkaActor,
     akkaAgent,
     akkaKernel,

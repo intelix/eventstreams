@@ -38,8 +38,6 @@ class EngineLauncher extends Bootable {
 
   implicit val config = ConfigFactory.load(java.lang.System.getProperty("config", "hq.conf"))
   
-  println("!>>>> " + java.lang.System.getProperty("config", "hq.conf"))
-
   EventPublisherRef.ref = LoggerEventPublisher
   CtxSystemRef.ref = EvtSystem("EventStreams.Engine")
 

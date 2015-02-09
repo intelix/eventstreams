@@ -28,28 +28,17 @@ define(['react', 'core_mixin', 'crypto_sha256'], function (React, core_mixin, Cr
             return {connected: false}
         },
 
-        handleKill: function (e) {
-            if (confirm("Are you sure?")) {
-                this.sendCommand(this.props.addr, this.props.ckey, "reset", {});
-            }
-        },
-
-
         handleSubmit: function() {
-            var remember = this.refs.formRemember.getDOMNode().checked;
             var user = this.refs.formUser.getDOMNode().value;
             var passw = CryptoJS.SHA256(this.refs.formPassword.getDOMNode().value).toString(CryptoJS.enc.Hex);
 
-            this.sendCommand("local", ":auth", "auth_cred", {u:user, p:passw, r: remember});
+            this.raiseEvent(EventCommAuthLoginRequest, {user: user, passwordHash: passw});
 
         },
         
         render: function () {
             var self = this;
 
-            //var x = this.readCookie('ppkcookie');
-            //this.createCookie('ppkcookie','testcookie',7);
-            
             var buttonClasses = this.cx({
                 'disabled': (!self.state.connected),
                 'btn btn-default btn-xs': true
@@ -61,12 +50,6 @@ define(['react', 'core_mixin', 'crypto_sha256'], function (React, core_mixin, Cr
                         <h2 className="form-signin-heading text-muted">eventstreams HQ</h2>
                         <input type="test" id="inputEmail" className="form-control" placeholder="Username" required="true" autofocus="true" ref="formUser"/>
                         <input type="password" id="inputPassword" className="form-control" placeholder="Password" required="true" ref="formPassword"/>
-                        <div className="checkbox">
-                            <label>
-                                <input type="checkbox" value="remember-me" ref="formRemember"/>
-                                Remember me for a week
-                            </label>
-                        </div>
                         <button className="btn btn-lg btn-primary btn-block" type="button" onClick={this.handleSubmit}>Sign in</button>
                     </form>
                 </div>
