@@ -229,6 +229,33 @@ lazy val eventStreamsPluginDesktopNotifications = Project(
 
 
 
+lazy val eventStreamsPluginSignals = Project(
+  id = "eventstreams-plugin-signals",
+  base = file("eventstreams-plugin-signals"),
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore % "compile;test->test"
+  )
+)
+
+
+lazy val eventStreamsPluginTransactions = Project(
+  id = "eventstreams-plugin-transactions",
+  base = file("eventstreams-plugin-transactions"),
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore % "compile;test->test"
+  )
+)
+
+lazy val eventStreamsPluginRetention = Project(
+  id = "eventstreams-plugin-retention",
+  base = file("eventstreams-plugin-retention"),
+  dependencies = Seq(
+    coreEvents  % "compile;test->test",
+    eventStreamsCore % "compile;test->test"
+  )
+)
 
 
 

@@ -27,8 +27,9 @@ import eventstreams.core.components.routing.MessageRouterActor
 import eventstreams.core.storage.ConfigStorageActor
 import eventstreams.engine.agents.AgentsManagerActor
 import eventstreams.engine.flows.FlowManagerActor
-import eventstreams.engine.gate.{GateManagerActor, RetentionManagerActor}
-import eventstreams.engine.plugins.SignalSubscriptionManagerActor
+import eventstreams.engine.gate.GateManagerActor
+import eventstreams.retention.RetentionManagerActor
+import eventstreams.signals.SignalSubscriptionManagerActor
 import net.ceedubs.ficus.Ficus._
 
 /**

@@ -22,6 +22,7 @@ import eventstreams.core._
 import eventstreams.core.actors._
 import eventstreams.core.agent.core._
 import eventstreams.core.messages.{ComponentKey, TopicKey}
+import eventstreams.retention.{InitiateReplay, RetentionManagerActor}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
