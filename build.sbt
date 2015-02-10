@@ -1,261 +1,429 @@
-import au.com.eventstreams.EventStreamsBuild
+import eventstreams.EventStreamsBuild
+
 
 EventStreamsBuild.coreSettings("eventstreams")
 
 parallelExecution in Global := false
 
 
-lazy val coreEvents = Project(
-  id = "core-events",
-  base = file("core-events")
+/* Core */
+
+lazy val sysevents = Project(
+  id = "es-sysevents",
+  base = file("es-core/es-sysevents")
 )
 
-
-lazy val eventStreamsCore = Project(
-  id = "eventstreams-core",
-  base = file("eventstreams-core"),
-  dependencies = Seq(coreEvents % "compile;test->test")
+lazy val model = Project(
+  id = "es-model",
+  base = file("es-core/es-model")
 )
 
-lazy val eventStreamsInstructionsEssentials = Project(
-  id = "eventstreams-plugin-instruction-essentials",
-  base = file("eventstreams-plugin-instruction-essentials"),
+lazy val core_components = Project(
+  id = "es-core-components",
+  base = file("es-core/es-core-components"),
   dependencies = Seq(
-    coreEvents % "compile;test->test",
-    eventStreamsCore % "compile;test->test",
-    eventStreamsEngineGate % "test->test"
+    sysevents  % "compile;test->test",
+    model
   )
 )
 
-lazy val eventStreamsAuthBasic = Project(
-  id = "eventstreams-auth-basic",
-  base = file("eventstreams-auth-basic"),
+
+/* Agents */
+
+lazy val agent_model = Project(
+  id = "es-agent-model",
+  base = file("es-agent/es-agent-model"),
   dependencies = Seq(
-    coreEvents % "compile;test->test",
-    eventStreamsCore % "compile;test->test"
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
   )
 )
-lazy val eventStreamsAuthBasicWeb = Project(
-  id = "eventstreams-auth-basic-web",
-  base = file("eventstreams-auth-basic-web"),
+
+lazy val agent_process = Project(
+  id = "es-agent-process",
+  base = file("es-agent/es-agent-process"),
   dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore  % "compile;test->test"
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test",
+    node_hub % "test->test",
+    agent_model,
+    source_file,
+    source_jmx,
+    source_statsd,
+    source_udp,
+    source_tcp
+  )
+)
+
+lazy val agent_mgr = Project(
+  id = "es-agent-mgr",
+  base = file("es-agent/es-agent-mgr"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test",
+    node_hub % "test->test",
+    agent_model
+  )
+)
+
+lazy val agent_hq = Project(
+  id = "es-agent-hq",
+  base = file("es-agent/es-agent-hq"),
+  dependencies = Seq(
+    web_core,
+    sysevents  % "compile;test->test",
+    model,
+    core_components  % "compile;test->test",
+    agent_model
   )
 ).enablePlugins(PlayScala,SbtWeb)
 
 
-lazy val eventStreamsPluginSinkInfluxDB = Project(
-  id = "eventstreams-plugin-sink-influxdb",
-  base = file("eventstreams-plugin-sink-influxdb"),
+
+
+/* Flow */
+
+lazy val flow_mgr = Project(
+  id = "es-flow-mgr",
+  base = file("es-flow/es-flow-mgr"),
   dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test"
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
   )
 )
 
-lazy val eventStreamsPluginSinkElasticsearch = Project(
-  id = "eventstreams-plugin-sink-elasticsearch",
-  base = file("eventstreams-plugin-sink-elasticsearch"),
+lazy val flow_hq = Project(
+  id = "es-flow-hq",
+  base = file("es-flow/es-flow-hq"),
   dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test"
+    web_core,
+    sysevents  % "compile;test->test",
+    model,
+    core_components  % "compile;test->test"
+  )
+).enablePlugins(PlayScala,SbtWeb)
+
+
+
+/* Gates */
+
+lazy val gate_mgr = Project(
+  id = "es-gate-mgr",
+  base = file("es-gate/es-gate-mgr"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
   )
 )
 
-lazy val eventStreamsEngineGate = Project(
-  id = "eventstreams-engine-gate",
-  base = file("eventstreams-engine-gate"),
+lazy val gate_hq = Project(
+  id = "es-gate-hq",
+  base = file("es-gate/es-gate-hq"),
   dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test"
+    web_core,
+    sysevents  % "compile;test->test",
+    model,
+    core_components  % "compile;test->test"
+  )
+).enablePlugins(PlayScala,SbtWeb)
+
+
+
+/* Security */
+
+lazy val auth_model = Project(
+  id = "es-auth-model",
+  base = file("es-security/es-auth-model"),
+  dependencies = Seq(
+    sysevents % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
   )
 )
-lazy val eventStreamsEngineFlow = Project(
-  id = "eventstreams-engine-flow",
-  base = file("eventstreams-engine-flow"),
+lazy val auth_mgr = Project(
+  id = "es-auth-mgr",
+  base = file("es-security/es-auth-mgr"),
   dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test"
+    sysevents % "compile;test->test",
+    core_components % "compile;test->test",
+    auth_model  % "compile;test->test"
+  )
+)
+lazy val auth_hq = Project(
+  id = "es-auth-hq",
+  base = file("es-security/es-auth-hq"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    model,
+    core_components  % "compile;test->test",
+    auth_model  % "compile;test->test"
+  )
+).enablePlugins(PlayScala,SbtWeb)
+
+
+
+
+/* Instructions */
+
+lazy val instructions_model = Project(
+  id = "es-instructions-model",
+  base = file("es-instructions/es-instructions-model"),
+  dependencies = Seq(
+    sysevents % "compile;test->test",
+    model,
+    core_components % "compile;test->test",
+    gate_mgr % "test->test"
+  )
+)
+lazy val instructions_set = Project(
+  id = "es-instructions-set",
+  base = file("es-instructions/es-instructions-set"),
+  dependencies = Seq(
+    sysevents % "compile;test->test",
+    model,
+    instructions_model % "compile;test->test",
+    core_components % "compile;test->test",
+    gate_mgr % "test->test"
   )
 )
 
-lazy val eventStreamsEngines = Project(
-  id = "eventstreams-engines",
-  base = file("eventstreams-engines"),
+
+
+
+
+
+
+
+/* Interface */
+
+lazy val web_core = Project(
+  id = "es-web-core",
+  base = file("es-iface/es-web-core"),
   dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test",
-    eventStreamsAuthBasic % "compile;test->test",
-    eventStreamsEngineGate % "compile;test->test",
-    eventStreamsEngineFlow % "compile;test->test",
-    eventStreamsInstructionsEssentials,
-    eventStreamsPluginSinkInfluxDB,
-    eventStreamsPluginSinkElasticsearch,
-    eventStreamsPluginDesktopNotifications
+    auth_model  % "compile;test->test",
+    sysevents  % "compile;test->test",
+    model,
+    core_components  % "compile;test->test"
+  )
+).enablePlugins(PlayScala,SbtWeb)
+
+
+
+
+
+
+/* Nodes */
+
+lazy val node_hub = Project(
+  id = "es-node-hub",
+  base = file("es-nodes/es-node-hub"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test",
+    auth_mgr % "compile;test->test",
+    gate_mgr % "compile;test->test",
+    flow_mgr % "compile;test->test",
+    instructions_set,
+    sink_influxdb_mgr,
+    sink_elasticsearch_mgr,
+    alerts_dn_mgr
   )
 ).enablePlugins(AkkaAppPackaging)
 
 
-lazy val eventStreamsPluginDSFile = Project(
-  id = "eventstreams-plugin-ds-file",
-  base = file("eventstreams-plugin-ds-file"),
+lazy val node_hq = Project(
+  id = "es-node-hq",
+  base = file("es-nodes/es-node-hq"),
   dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test"
-  )
-)
-
-lazy val eventStreamsPluginDSJMX = Project(
-  id = "eventstreams-plugin-ds-jmx",
-  base = file("eventstreams-plugin-ds-jmx"),
-  dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test"
-  )
-)
-
-lazy val eventStreamsPluginDSStatsd = Project(
-  id = "eventstreams-plugin-ds-statsd",
-  base = file("eventstreams-plugin-ds-statsd"),
-  dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test"
-  )
-)
-
-lazy val eventStreamsPluginDSUDP = Project(
-  id = "eventstreams-plugin-ds-udp",
-  base = file("eventstreams-plugin-ds-udp"),
-  dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test"
-  )
-)
-
-lazy val eventStreamsPluginDSTCP = Project(
-  id = "eventstreams-plugin-ds-tcp",
-  base = file("eventstreams-plugin-ds-tcp"),
-  dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test"
-  )
-)
-
-lazy val eventStreamsAgent = Project(
-  id = "eventstreams-agent",
-  base = file("eventstreams-agent"),
-  dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test",
-    eventStreamsEngines % "test->test",
-    eventStreamsPluginDSFile,
-    eventStreamsPluginDSJMX,
-    eventStreamsPluginDSStatsd,
-    eventStreamsPluginDSUDP,
-    eventStreamsPluginDSTCP
-  )
-)
-
-
-lazy val eventStreamsCoreWeb = Project(
-  id = "eventstreams-core-web",
-  base = file("eventstreams-core-web"),
-  dependencies = Seq(
-    eventStreamsAuthBasic  % "compile;test->test",
-    coreEvents  % "compile;test->test",
-    eventStreamsCore  % "compile;test->test"
-  )
-).enablePlugins(PlayScala,SbtWeb)
-
-lazy val eventStreamsEngineFlowWeb = Project(
-  id = "eventstreams-engine-flow-web",
-  base = file("eventstreams-engine-flow-web"),
-  dependencies = Seq(
-    eventStreamsCoreWeb,
-    coreEvents  % "compile;test->test",
-    eventStreamsCore  % "compile;test->test"
-  )
-).enablePlugins(PlayScala,SbtWeb)
-
-lazy val eventStreamsEngineGateWeb = Project(
-  id = "eventstreams-engine-gate-web",
-  base = file("eventstreams-engine-gate-web"),
-  dependencies = Seq(
-    eventStreamsCoreWeb,
-    coreEvents  % "compile;test->test",
-    eventStreamsCore  % "compile;test->test"
-  )
-).enablePlugins(PlayScala,SbtWeb)
-
-lazy val eventStreamsAgentWeb = Project(
-  id = "eventstreams-agent-web",
-  base = file("eventstreams-agent-web"),
-  dependencies = Seq(
-    eventStreamsCoreWeb,
-    coreEvents  % "compile;test->test",
-    eventStreamsCore  % "compile;test->test"
+    auth_hq  % "compile;test->test",
+    web_core  % "compile;test->test",
+    agent_hq,
+    flow_hq,
+    gate_hq,
+    alerts_dn_hq,
+    sysevents  % "compile;test->test",
+    model,
+    core_components  % "compile;test->test"
   )
 ).enablePlugins(PlayScala,SbtWeb)
 
 
 
-lazy val eventStreamsHQ = Project(
-  id = "eventstreams-hq",
-  base = file("eventstreams-hq"),
+
+
+/* Retention */
+
+lazy val retention_mgr = Project(
+  id = "es-retention-mgr",
+  base = file("es-retention/es-retention-mgr"),
   dependencies = Seq(
-    eventStreamsAuthBasic  % "compile;test->test",
-    eventStreamsCoreWeb  % "compile;test->test",
-    eventStreamsAgentWeb,
-    eventStreamsEngineFlowWeb,
-    eventStreamsEngineGateWeb,
-    eventStreamsAuthBasicWeb,
-    eventStreamsPluginDesktopNotifications,
-    coreEvents  % "compile;test->test",
-    eventStreamsCore  % "compile;test->test"
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
+  )
+)
+
+
+
+/* Signals */
+
+lazy val signals_mgr = Project(
+  id = "es-signals-mgr",
+  base = file("es-signals/es-signals-mgr"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
+  )
+)
+
+
+/* Transactions */
+
+lazy val tx_mgr = Project(
+  id = "es-tx-mgr",
+  base = file("es-tx/es-tx-mgr"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
+  )
+)
+
+
+
+/* Source - File */
+
+lazy val source_file = Project(
+  id = "es-source-file",
+  base = file("es-sources/es-source-file"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
+  )
+)
+
+/* Source - JMX */
+
+lazy val source_jmx = Project(
+  id = "es-source-jmx",
+  base = file("es-sources/es-source-jmx"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
+  )
+)
+
+/* Source - Statsd */
+
+lazy val source_statsd = Project(
+  id = "es-source-statsd",
+  base = file("es-sources/es-source-statsd"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
+  )
+)
+
+/* Source - UDP */
+
+lazy val source_udp = Project(
+  id = "es-source-udp",
+  base = file("es-sources/es-source-udp"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
+  )
+)
+
+/* Source - TCP */
+
+lazy val source_tcp = Project(
+  id = "es-source-tcp",
+  base = file("es-sources/es-source-tcp"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
+  )
+)
+
+
+
+
+
+/* Sink - InfluxDB */
+
+lazy val sink_influxdb_mgr = Project(
+  id = "es-sink-influxdb-mgr",
+  base = file("es-sink-influxdb/es-sink-influxdb-mgr"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
+  )
+)
+
+
+/* Sink - Elasticsearch */
+
+lazy val sink_elasticsearch_mgr = Project(
+  id = "es-sink-elasticsearch-mgr",
+  base = file("es-sink-elasticsearch/es-sink-elasticsearch-mgr"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
+  )
+)
+
+
+
+
+
+/* Alerts - Desktop notifications */
+
+lazy val alerts_dn_mgr = Project(
+  id = "es-alerts-dn-mgr",
+  base = file("es-alerts-dn/es-alerts-dn-mgr"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    model,
+    core_components % "compile;test->test"
+  )
+)
+
+lazy val alerts_dn_hq = Project(
+  id = "es-alerts-dn-hq",
+  base = file("es-alerts-dn/es-alerts-dn-hq"),
+  dependencies = Seq(
+    web_core,
+    sysevents  % "compile;test->test",
+    model,
+    core_components  % "compile;test->test"
   )
 ).enablePlugins(PlayScala,SbtWeb)
 
 
-lazy val eventStreamsPluginDesktopNotifications = Project(
-  id = "eventstreams-plugin-desktop-notif",
-  base = file("eventstreams-plugin-desktop-notif"),
-  dependencies = Seq(
-    eventStreamsCoreWeb,
-    coreEvents  % "compile;test->test",
-    eventStreamsCore  % "compile;test->test"
-  )
-).enablePlugins(PlayScala,SbtWeb)
 
 
 
-lazy val eventStreamsPluginSignals = Project(
-  id = "eventstreams-plugin-signals",
-  base = file("eventstreams-plugin-signals"),
-  dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test"
-  )
-)
 
 
-lazy val eventStreamsPluginTransactions = Project(
-  id = "eventstreams-plugin-transactions",
-  base = file("eventstreams-plugin-transactions"),
-  dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test"
-  )
-)
 
-lazy val eventStreamsPluginRetention = Project(
-  id = "eventstreams-plugin-retention",
-  base = file("eventstreams-plugin-retention"),
-  dependencies = Seq(
-    coreEvents  % "compile;test->test",
-    eventStreamsCore % "compile;test->test"
-  )
-)
+
+
+
 
 
 

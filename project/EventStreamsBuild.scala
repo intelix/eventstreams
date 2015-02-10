@@ -1,4 +1,4 @@
-package au.com.eventstreams
+package eventstreams
 
 import com.typesafe.sbt.SbtLicenseReport.autoImportImpl._
 import com.typesafe.sbt.digest.Import.digest
@@ -45,6 +45,7 @@ object EventStreamsBuild {
     javacOptions in doc ++= Seq("-encoding", "UTF-8", "-source", "1.7"),
     incOptions := incOptions.value.withNameHashing(nameHashing = true),
     evictionWarningOptions in update := EvictionWarningOptions.default.withWarnTransitiveEvictions(false).withWarnDirectEvictions(false).withWarnScalaVersionEviction(false)
+
   )
 
   lazy val sharedProjectSettings = Seq(

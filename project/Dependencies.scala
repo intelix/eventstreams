@@ -1,4 +1,4 @@
-package au.com.eventstreams
+package eventstreams
 
 import play.PlayImport._
 import sbt._
