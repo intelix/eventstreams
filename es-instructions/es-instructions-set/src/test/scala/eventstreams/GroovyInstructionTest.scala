@@ -16,10 +16,8 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.EventFrame
-import eventstreams.core.EventFrameConverter.optionsConverter
-import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.plugins.essentials.{GrokInstructionConstants, GroovyInstruction, GroovyInstructionConstants}
+import eventstreams.EventFrameConverter.optionsConverter
+import eventstreams.instructions.{GrokInstructionConstants, GroovyInstruction, GroovyInstructionConstants, SimpleInstructionBuilder}
 import eventstreams.support.TestHelpers
 import play.api.libs.json._
 

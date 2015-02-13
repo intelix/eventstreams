@@ -21,12 +21,12 @@ import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.util.zip.GZIPOutputStream
 
-import core.events.WithEventPublisher
-import core.events.EventOps.symbolToEventOps
-import core.events.ref.ComponentWithBaseEvents
+import core.sysevents.WithSyseventPublisher
+import core.sysevents.SyseventOps.symbolToSyseventOps
+import core.sysevents.ref.ComponentWithBaseSysevents
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Matchers}
 
-trait TempFolderEvents extends ComponentWithBaseEvents {
+trait TempFolderSysevents extends ComponentWithBaseSysevents {
   override def componentId: String = "Test.TempFolder"
 
   val FailedToDelete = 'FailedToDeleteFile.info
@@ -38,7 +38,7 @@ trait TempFolderEvents extends ComponentWithBaseEvents {
 
 }
 
-trait TempFolder extends BeforeAndAfterEach with BeforeAndAfterAll with Matchers with TempFolderEvents with WithEventPublisher {
+trait TempFolder extends BeforeAndAfterEach with BeforeAndAfterAll with Matchers with TempFolderSysevents with WithSyseventPublisher {
   this: org.scalatest.Suite =>
 
   case class OpenFile(f: java.io.File, charset: Charset = Charset.forName("UTF-8"), append: Boolean = false) {

@@ -17,4 +17,4 @@ maintainer in Windows := "Intelix Pty Ltd"
 
 maintainer in Debian := "Max Glukhovtsev <maks@intelix.com.au>"
 
-mainClass in Compile := Some("eventstreams.engine.EngineLauncher")
+mainClass in Compile := Some("eventstreams.hub.HubLauncher")

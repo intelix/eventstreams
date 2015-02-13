@@ -17,10 +17,9 @@
 package eventstreams
 
 import akka.actor._
-import eventstreams.core.Types._
-import eventstreams.core._
-import eventstreams.plugins.essentials.GateInstructionConstants._
-import eventstreams.plugins.essentials.{GateInstruction, GateInstructionConstants}
+import eventstreams.instructions.GateInstructionConstants._
+import eventstreams.instructions.Types._
+import eventstreams.instructions.{GateInstruction, GateInstructionConstants, Types}
 import eventstreams.support._
 import play.api.libs.json.{JsValue, Json}
 

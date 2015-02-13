@@ -27,7 +27,7 @@
     });
 
     require([
-        "/assets/javascripts/ds/config.js",
+        "/assets/javascripts/agents/config.js",
         "/assets/javascripts/gates/config.js",
         "/assets/javascripts/flows/config.js",
         "/assets/javascripts/auth/config.js",
@@ -35,6 +35,6 @@
     ]);
 
     /** Add plugins here **/
-    require(["/assets/javascripts/desktopnotif/config.js"]);
+    require(["/assets/javascripts/desktopnotifications/config.js"]);
 
 })();

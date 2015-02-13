@@ -3,10 +3,10 @@ package eventstreams.support
 import actors.{AuthorizationUpdate, WebsocketActor}
 import akka.actor.{ActorRef, Props}
 import com.diogoduailibe.lzstring4j.LZString
-import core.events.EventOps.stringToEventOps
-import core.events.WithEventPublisher
-import core.events.ref.ComponentWithBaseEvents
-import eventstreams.core.actors.{ActorWithComposableBehavior, BaseActorEvents}
+import core.sysevents.SyseventOps.stringToSyseventOps
+import core.sysevents.WithSyseventPublisher
+import core.sysevents.ref.ComponentWithBaseSysevents
+import eventstreams.core.actors.{ActorWithComposableBehavior, BaseActorSysevents}
 
 trait WebsocketActorTestContext extends WebsocketClientStub {
 
@@ -23,7 +23,7 @@ trait WebsocketActorTestContext extends WebsocketClientStub {
 }
 
 
-trait WebsocketClientStubEvents extends ComponentWithBaseEvents with BaseActorEvents {
+trait WebsocketClientStubSysevents extends ComponentWithBaseSysevents with BaseActorSysevents {
   val WebsocketMessageReceived = "WebsocketMessageReceived".info
   val PayloadDecompressed = "PayloadDecompressed".info
   val InvalidPayload = "InvalidPayload".error
@@ -37,7 +37,7 @@ trait WebsocketClientStubEvents extends ComponentWithBaseEvents with BaseActorEv
   override def componentId: String = "Test.WebsocketClientStub"
 }
 
-trait WebsocketClientStub extends WebsocketClientStubEvents {
+trait WebsocketClientStub extends WebsocketClientStubSysevents {
   def props(instanceId: String) = Props(new WebsocketClientStubActor(instanceId))
 
   def startWebsocketClientStub(sys: ActorSystemWrapper, id: String): ActorRef = {
@@ -48,7 +48,7 @@ trait WebsocketClientStub extends WebsocketClientStubEvents {
 object WebsocketClientStub extends WebsocketClientStub
 
 class WebsocketClientStubActor(instanceId: String)
-  extends ActorWithComposableBehavior with WebsocketClientStubEvents with WithEventPublisher {
+  extends ActorWithComposableBehavior with WebsocketClientStubSysevents with WithSyseventPublisher {
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
   override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('InstanceId -> instanceId)

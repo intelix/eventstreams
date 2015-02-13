@@ -16,15 +16,15 @@ package eventstreams.support
  * limitations under the License.
  */
 
-import core.events.support.EventAssertions
+import core.sysevents.support.EventAssertions
 import akka.actor.Props
 import akka.stream.actor.{OneByOneRequestStrategy, RequestStrategy, ZeroRequestStrategy}
 import akka.testkit.{TestKit, TestProbe}
 import com.typesafe.config.ConfigFactory
-import eventstreams.core.BuilderFromConfig
+import eventstreams.BuilderFromConfig
 import eventstreams.core.storage.ConfigStorageActor
-import eventstreams.ds.plugins.filetailer.FileTailerConstants._
-import eventstreams.ds.plugins.filetailer.{FileTailerConstants, FileTailerDatasource}
+import eventstreams.sources.filetailer.FileTailerConstants._
+import eventstreams.sources.filetailer.{FileTailerConstants, FileTailerEventsource}
 import org.scalatest.{BeforeAndAfterEach, Suite}
 import play.api.libs.json.{JsValue, Json}
 
@@ -40,7 +40,7 @@ trait FileTailerTestSupport
     super.beforeEach()
   }
 
-  trait WithDatasourceContext extends BuilderFromConfigTestContext {
+  trait WithEventsourceContext extends BuilderFromConfigTestContext {
     var flowCtx: Option[TestFlowCtx] = None
 
     def sinkRequestStrategy: RequestStrategy = OneByOneRequestStrategy
@@ -63,7 +63,7 @@ trait FileTailerTestSupport
 
     }
 
-    def withDatasourceFlow(f: => Unit) = {
+    def withEventsourceFlow(f: => Unit) = {
       shouldBuild { instr =>
         withConfigStorage {
           withFlow(instr, sinkRequestStrategy) { ctx =>
@@ -77,12 +77,12 @@ trait FileTailerTestSupport
 
   val testBlockSize = 32
 
-  trait WithBasicConfig extends WithDatasourceContext {
+  trait WithBasicConfig extends WithEventsourceContext {
 
 
-    override def id: Option[String] = Some("fileDatasource")
+    override def id: Option[String] = Some("fileEventsource")
 
-    override def builder: BuilderFromConfig[Props] = new FileTailerDatasource()
+    override def builder: BuilderFromConfig[Props] = new FileTailerEventsource()
 
     override def config: JsValue = Json.obj(
       CfgFDirectory -> tempDirPath,
@@ -94,7 +94,7 @@ trait FileTailerTestSupport
 
 
   trait EmptyDirWithDemand extends WithBasicConfig {
-    def runWithNewFile(f: OpenFile => Unit) = withDatasourceFlow {
+    def runWithNewFile(f: OpenFile => Unit) = withEventsourceFlow {
       withNewFile("current.log") { file =>
         flowCtx.foreach(activateFlow)
         expectOneOrMoreEvents(FileTailerConstants.BecomingActive)
@@ -102,7 +102,7 @@ trait FileTailerTestSupport
         f(file)
       }
     }
-    def runWithExistingFile(f: OpenFile => Unit) = withDatasourceFlow {
+    def runWithExistingFile(f: OpenFile => Unit) = withEventsourceFlow {
       withExistingFile("current.log") { file =>
         flowCtx.foreach(activateFlow)
         expectOneOrMoreEvents(FileTailerConstants.BecomingActive)
@@ -111,7 +111,7 @@ trait FileTailerTestSupport
       }
     }
 
-    def runBare(f: => Unit) = withDatasourceFlow {
+    def runBare(f: => Unit) = withEventsourceFlow {
       flowCtx.foreach(activateFlow)
       expectOneOrMoreEvents(FileTailerConstants.BecomingActive)
       clearEvents()
@@ -127,7 +127,7 @@ trait FileTailerTestSupport
       CfgFBlockSize -> testBlockSize
     )
 
-    def run(f: OpenFile => Unit) = withDatasourceFlow {
+    def run(f: OpenFile => Unit) = withEventsourceFlow {
       withNewFile("current.log") { file =>
         f(file)
       }
@@ -143,7 +143,7 @@ trait FileTailerTestSupport
       CfgFStartWith -> "first"
     )
 
-    def run(f: OpenFile => Unit) = withDatasourceFlow {
+    def run(f: OpenFile => Unit) = withEventsourceFlow {
       withNewFile("current.log") { file =>
         f(file)
       }
@@ -162,7 +162,7 @@ trait FileTailerTestSupport
 
     override def sinkRequestStrategy: RequestStrategy = ZeroRequestStrategy
 
-    def run(f: OpenFile => Unit) = withDatasourceFlow {
+    def run(f: OpenFile => Unit) = withEventsourceFlow {
       withNewFile("current.log") { file =>
         f(file)
       }

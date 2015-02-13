@@ -16,9 +16,7 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.EventFrame
-import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.plugins.essentials._
+import eventstreams.instructions.{SimpleInstructionBuilder, SplitInstruction, SplitInstructionConstants}
 import eventstreams.support.TestHelpers
 import play.api.libs.json._
 
@@ -35,7 +33,7 @@ class SplitInstructionTest extends TestHelpers {
     )
   }
   
-  import eventstreams.plugins.essentials.SplitInstructionConstants._
+  import eventstreams.instructions.SplitInstructionConstants._
 
   s"SplitInstruction" should s"not build without $CfgFSource" in new WithSimpleInstructionBuilder {
     override def builder: SimpleInstructionBuilder = new SplitInstruction()

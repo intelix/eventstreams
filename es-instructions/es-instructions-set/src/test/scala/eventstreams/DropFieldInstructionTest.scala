@@ -16,10 +16,8 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.{EventDataValueNil, EventFrame}
-import eventstreams.core.EventFrameConverter.optionsConverter
-import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.plugins.essentials.{DropFieldInstruction, DropFieldInstructionConstants}
+import eventstreams.EventFrameConverter.optionsConverter
+import eventstreams.instructions.{DropFieldInstruction, DropFieldInstructionConstants, SimpleInstructionBuilder}
 import eventstreams.support.TestHelpers
 import play.api.libs.json._
 

@@ -16,10 +16,7 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.EventFrame
-import eventstreams.core.Tools.configHelper
-import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.plugins.essentials.{AddTagInstruction, AddTagInstructionConstants}
+import eventstreams.instructions.{AddTagInstruction, AddTagInstructionConstants, SimpleInstructionBuilder}
 import eventstreams.support.TestHelpers
 import play.api.libs.json._
 

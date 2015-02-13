@@ -2,10 +2,9 @@ package eventstreams
 
 import actors.WebsocketActor
 import actors.WebsocketActor.{msgSplitChar, opSplitChar}
-import eventstreams.core.Tools.configHelper
+import eventstreams.JSONTools.configHelper
 import eventstreams.core.components.cluster.ClusterManagerActor._
 import eventstreams.core.components.routing.MessageRouterActor
-import eventstreams.core.messages.TopicKey
 import eventstreams.support.RouteeComponentStubOps._
 import eventstreams.support._
 import org.scalatest.FlatSpec

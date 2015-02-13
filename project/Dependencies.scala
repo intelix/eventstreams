@@ -179,6 +179,9 @@ object Dependencies {
   )
 
   val eventStreamsPluginElasticsearch = eventStreamsCommon ++: Seq(
+    commonsCodec,
+    metricsScala,
+    elastic4s,
     asyncHttpClient
   )
 

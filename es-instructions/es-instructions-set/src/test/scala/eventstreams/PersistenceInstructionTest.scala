@@ -16,10 +16,7 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.EventFrame
-import eventstreams.core.Tools.configHelper
-import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.plugins.essentials._
+import eventstreams.instructions.{PersistenceInstruction, PersistenceInstructionConstants, SimpleInstructionBuilder}
 import eventstreams.support.TestHelpers
 import play.api.libs.json._
 
@@ -37,7 +34,7 @@ class PersistenceInstructionTest extends TestHelpers {
     )
   }
 
-  import eventstreams.plugins.essentials.PersistenceInstructionConstants._
+  import eventstreams.instructions.PersistenceInstructionConstants._
 
   s"PersistenceInstruction" should s"not build if $CfgFIndex is missing" in new WithSimpleInstructionBuilder {
     override def builder: SimpleInstructionBuilder = new PersistenceInstruction()

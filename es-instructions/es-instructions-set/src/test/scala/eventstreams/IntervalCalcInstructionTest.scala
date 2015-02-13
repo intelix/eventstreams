@@ -16,9 +16,7 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.EventFrame
-import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.plugins.essentials._
+import eventstreams.instructions.{IntervalCalcInstruction, IntervalCalcInstructionConstants, SimpleInstructionBuilder}
 import eventstreams.support.TestHelpers
 import play.api.libs.json._
 

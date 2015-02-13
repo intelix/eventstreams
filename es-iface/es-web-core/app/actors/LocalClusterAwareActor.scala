@@ -18,7 +18,13 @@ package actors
 
 import akka.actor.{ActorRefFactory, Address, Props}
 import akka.cluster.Cluster
+import core.sysevents.WithSyseventPublisher
+import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.core.actors.{ActorObj, ActorWithComposableBehavior}
+
+trait LocalClusterAwarenessSysevents extends ComponentWithBaseSysevents {
+  override def componentId: String = "LocalClusterAwareness"
+}
 
 object LocalClusterAwareActor extends ActorObj {
   override def id: String = "cluster"
@@ -32,7 +38,10 @@ case class InfoRequest()
 
 case class InfoResponse(address: Address)
 
-class LocalClusterAwareActor(cluster: Cluster) extends ActorWithComposableBehavior {
+class LocalClusterAwareActor(cluster: Cluster)
+  extends ActorWithComposableBehavior
+  with LocalClusterAwarenessSysevents
+  with WithSyseventPublisher {
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 

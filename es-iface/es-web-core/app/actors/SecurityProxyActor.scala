@@ -1,21 +1,19 @@
 package actors
 
+import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
+import _root_.core.sysevents.WithSyseventPublisher
+import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.{ActorRef, ActorRefFactory, Props}
-import core.events.EventOps.symbolToEventOps
-import core.events.WithEventPublisher
-import core.events.ref.ComponentWithBaseEvents
-import eventstreams.core.Tools.configHelper
+import eventstreams.JSONTools.configHelper
+import eventstreams._
 import eventstreams.core.actors._
-import eventstreams.core.messages._
-import eventstreams.core.{Fail, NowProvider, OK}
-import eventstreams.model._
-import play.api.libs.json.{JsValue, Json}
+import eventstreams.auth._
+import play.api.libs.json.Json
 
 import scala.util.matching.Regex
 import scalaz.Scalaz._
-import scalaz._
 
-trait SecurityProxyEvents extends ComponentWithBaseEvents with BaseActorEvents with SubjectSubscriptionEvents {
+trait SecurityProxySysevents extends ComponentWithBaseSysevents with BaseActorSysevents with SubjectSubscriptionSysevents {
   override def componentId: String = "Actor.SecurityProxy"
 
   val SecurityViolation = 'SecurityViolation.warn
@@ -30,7 +28,7 @@ case class TokenAuth(token: String)
 case class CredentialsAuth(user: String, passwordHash: String)
 case class AuthorizationUpdate(msg: String)
 
-object SecurityProxyActor extends SecurityProxyEvents {
+object SecurityProxyActor extends SecurityProxySysevents {
   def start(token: String, clientRef: ActorRef)(implicit f: ActorRefFactory) = f.actorOf(Props(new SecurityProxyActor(token, clientRef)), token)
 }
 
@@ -38,8 +36,8 @@ class SecurityProxyActor(token: String, clientRef: ActorRef)
   extends ActorWithComposableBehavior
   with RouteeActor
   with NowProvider
-  with SecurityProxyEvents
-  with WithEventPublisher
+  with SecurityProxySysevents
+  with WithSyseventPublisher
   with ActorWithTicks {
 
   override def key: ComponentKey = ComponentKey(token)
@@ -68,7 +66,7 @@ class SecurityProxyActor(token: String, clientRef: ActorRef)
   }
 
   private def allowed(msg: Any) = msg match {
-    case x: HQCommMsg[_] => hasPermissionFor(localSubj(x.subj))
+    case x: ServiceSubscriptionMessage[_] => hasPermissionFor(localSubj(x.subj))
     case _ => true
   }
 

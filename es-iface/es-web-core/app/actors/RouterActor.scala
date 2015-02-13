@@ -19,6 +19,7 @@ package actors
 import akka.actor.{ActorRef, ActorRefFactory, Props}
 import eventstreams.core.actors.{ActorObj, ActorWithComposableBehavior}
 
+
 object RouterActor extends ActorObj {
   override def id: String = "router"
   def props(ref: ActorRef) =  Props(new RouterActor(ref))
@@ -33,4 +34,5 @@ class RouterActor(ref: ActorRef) extends ActorWithComposableBehavior {
     case m => ref.forward(m)
   }
 
+  override def componentId: String = "RouterActor"
 }

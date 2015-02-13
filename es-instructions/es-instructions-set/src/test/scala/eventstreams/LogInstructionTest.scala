@@ -16,17 +16,15 @@ package eventstreams
  * limitations under the License.
  */
 
-import _root_.core.events.EventOps.symbolToEventOps
-import eventstreams.core.EventFrame
-import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.plugins.essentials._
+import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
+import eventstreams.instructions.{LogInstruction, LogInstructionConstants, LogInstructionSysevents, SimpleInstructionBuilder}
 import eventstreams.support.TestHelpers
 import play.api.libs.json._
 
 class LogInstructionTest extends TestHelpers {
 
 
-  trait WithBasicConfig extends WithSimpleInstructionBuilder with LogInstructionConstants with LogInstructionEvents {
+  trait WithBasicConfig extends WithSimpleInstructionBuilder with LogInstructionConstants with LogInstructionSysevents {
     override def builder: SimpleInstructionBuilder = new LogInstruction()
 
     override def config: JsValue = Json.obj(
@@ -60,7 +58,7 @@ class LogInstructionTest extends TestHelpers {
     expectEvent(EventFrame("eventId" -> "id", "abc1" -> "bla", "tags" -> Seq("abc")))('eventname.info)
   }
 
-  trait WithWarnConfig extends WithSimpleInstructionBuilder with LogInstructionConstants with LogInstructionEvents {
+  trait WithWarnConfig extends WithSimpleInstructionBuilder with LogInstructionConstants with LogInstructionSysevents {
     override def builder: SimpleInstructionBuilder = new LogInstruction()
 
     override def config: JsValue = Json.obj(
@@ -74,7 +72,7 @@ class LogInstructionTest extends TestHelpers {
     expectEvent(EventFrame("eventId" -> "id", "abc1" -> "bla", "tags" -> Seq("abc")))('eventname.warn)
   }
 
-  trait WithErrorConfig extends WithSimpleInstructionBuilder with LogInstructionConstants with LogInstructionEvents {
+  trait WithErrorConfig extends WithSimpleInstructionBuilder with LogInstructionConstants with LogInstructionSysevents {
     override def builder: SimpleInstructionBuilder = new LogInstruction()
 
     override def config: JsValue = Json.obj(

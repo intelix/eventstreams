@@ -13,30 +13,24 @@ lazy val sysevents = Project(
   base = file("es-core/es-sysevents")
 )
 
-lazy val model = Project(
-  id = "es-model",
-  base = file("es-core/es-model")
-)
-
-lazy val core_components = Project(
-  id = "es-core-components",
-  base = file("es-core/es-core-components"),
+lazy val api = Project(
+  id = "es-api",
+  base = file("es-core/es-api"),
   dependencies = Seq(
-    sysevents  % "compile;test->test",
-    model
+    sysevents  % "compile;test->test"
   )
 )
 
 
+
 /* Agents */
 
-lazy val agent_model = Project(
-  id = "es-agent-model",
-  base = file("es-agent/es-agent-model"),
+lazy val agent_api = Project(
+  id = "es-agent-api",
+  base = file("es-agent/es-agent-api"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api % "compile;test->test"
   )
 )
 
@@ -45,27 +39,26 @@ lazy val agent_process = Project(
   base = file("es-agent/es-agent-process"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test",
+    api % "compile;test->test",
     node_hub % "test->test",
-    agent_model,
-    source_file,
-    source_jmx,
-    source_statsd,
-    source_udp,
-    source_tcp
+    gate_service % "compile;test->test",
+    agent_api % "compile;test->test",
+    agent_service % "compile;test->test",
+    source_file % "compile;test->test",
+    source_jmx % "compile;test->test",
+    source_statsd % "compile;test->test",
+    source_udp % "compile;test->test",
+    source_tcp % "compile;test->test"
   )
 )
 
-lazy val agent_mgr = Project(
-  id = "es-agent-mgr",
-  base = file("es-agent/es-agent-mgr"),
+lazy val agent_service = Project(
+  id = "es-agent-service",
+  base = file("es-agent/es-agent-service"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test",
-    node_hub % "test->test",
-    agent_model
+    api % "compile;test->test",
+    agent_api
   )
 )
 
@@ -75,9 +68,8 @@ lazy val agent_hq = Project(
   dependencies = Seq(
     web_core,
     sysevents  % "compile;test->test",
-    model,
-    core_components  % "compile;test->test",
-    agent_model
+    api % "compile;test->test",
+    agent_api
   )
 ).enablePlugins(PlayScala,SbtWeb)
 
@@ -86,13 +78,14 @@ lazy val agent_hq = Project(
 
 /* Flow */
 
-lazy val flow_mgr = Project(
-  id = "es-flow-mgr",
-  base = file("es-flow/es-flow-mgr"),
+lazy val flow_service = Project(
+  id = "es-flow-service",
+  base = file("es-flow/es-flow-service"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api % "compile;test->test",
+    gate_api,
+    instructions_api
   )
 )
 
@@ -102,8 +95,7 @@ lazy val flow_hq = Project(
   dependencies = Seq(
     web_core,
     sysevents  % "compile;test->test",
-    model,
-    core_components  % "compile;test->test"
+    api % "compile;test->test"
   )
 ).enablePlugins(PlayScala,SbtWeb)
 
@@ -111,13 +103,23 @@ lazy val flow_hq = Project(
 
 /* Gates */
 
-lazy val gate_mgr = Project(
-  id = "es-gate-mgr",
-  base = file("es-gate/es-gate-mgr"),
+lazy val gate_api = Project(
+  id = "es-gate-api",
+  base = file("es-gate/es-gate-api"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api
+  )
+)
+
+lazy val gate_service = Project(
+  id = "es-gate-service",
+  base = file("es-gate/es-gate-service"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    api % "compile;test->test",
+    gate_api,
+    retention_service % "compile;test->test" // TODO - remove
   )
 )
 
@@ -127,8 +129,8 @@ lazy val gate_hq = Project(
   dependencies = Seq(
     web_core,
     sysevents  % "compile;test->test",
-    model,
-    core_components  % "compile;test->test"
+    gate_api,
+    api % "compile;test->test"
   )
 ).enablePlugins(PlayScala,SbtWeb)
 
@@ -136,22 +138,21 @@ lazy val gate_hq = Project(
 
 /* Security */
 
-lazy val auth_model = Project(
-  id = "es-auth-model",
-  base = file("es-security/es-auth-model"),
+lazy val auth_api = Project(
+  id = "es-auth-api",
+  base = file("es-security/es-auth-api"),
   dependencies = Seq(
     sysevents % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api % "compile;test->test"
   )
 )
-lazy val auth_mgr = Project(
-  id = "es-auth-mgr",
-  base = file("es-security/es-auth-mgr"),
+lazy val auth_service = Project(
+  id = "es-auth-service",
+  base = file("es-security/es-auth-service"),
   dependencies = Seq(
     sysevents % "compile;test->test",
-    core_components % "compile;test->test",
-    auth_model  % "compile;test->test"
+    api % "compile;test->test",
+    auth_api  % "compile;test->test"
   )
 )
 lazy val auth_hq = Project(
@@ -159,9 +160,8 @@ lazy val auth_hq = Project(
   base = file("es-security/es-auth-hq"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components  % "compile;test->test",
-    auth_model  % "compile;test->test"
+    api % "compile;test->test",
+    auth_api  % "compile;test->test"
   )
 ).enablePlugins(PlayScala,SbtWeb)
 
@@ -170,14 +170,13 @@ lazy val auth_hq = Project(
 
 /* Instructions */
 
-lazy val instructions_model = Project(
-  id = "es-instructions-model",
-  base = file("es-instructions/es-instructions-model"),
+lazy val instructions_api = Project(
+  id = "es-instructions-api",
+  base = file("es-instructions/es-instructions-api"),
   dependencies = Seq(
     sysevents % "compile;test->test",
-    model,
-    core_components % "compile;test->test",
-    gate_mgr % "test->test"
+    api % "compile;test->test",
+    gate_service % "test->test"
   )
 )
 lazy val instructions_set = Project(
@@ -185,10 +184,10 @@ lazy val instructions_set = Project(
   base = file("es-instructions/es-instructions-set"),
   dependencies = Seq(
     sysevents % "compile;test->test",
-    model,
-    instructions_model % "compile;test->test",
-    core_components % "compile;test->test",
-    gate_mgr % "test->test"
+    api % "compile;test->test",
+    instructions_api % "compile;test->test",
+    gate_api % "compile;test->test",
+    gate_service % "test->test"
   )
 )
 
@@ -205,10 +204,10 @@ lazy val web_core = Project(
   id = "es-web-core",
   base = file("es-iface/es-web-core"),
   dependencies = Seq(
-    auth_model  % "compile;test->test",
     sysevents  % "compile;test->test",
-    model,
-    core_components  % "compile;test->test"
+    api  % "compile;test->test",
+    auth_api  % "compile;test->test",
+    auth_service  % "test->test"
   )
 ).enablePlugins(PlayScala,SbtWeb)
 
@@ -224,15 +223,17 @@ lazy val node_hub = Project(
   base = file("es-nodes/es-node-hub"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test",
-    auth_mgr % "compile;test->test",
-    gate_mgr % "compile;test->test",
-    flow_mgr % "compile;test->test",
-    instructions_set,
-    sink_influxdb_mgr,
-    sink_elasticsearch_mgr,
-    alerts_dn_mgr
+    api  % "compile;test->test",
+    auth_service % "compile;test->test",
+    gate_service % "compile;test->test",
+    flow_service % "compile;test->test",
+    agent_service % "compile;test->test",
+    signals_service % "compile;test->test",
+    tx_service % "compile;test->test",
+    instructions_set % "compile;test->test",
+    sink_influxdb_service % "compile;test->test",
+    sink_elasticsearch_service % "compile;test->test",
+    alerts_dn_service % "compile;test->test"
   )
 ).enablePlugins(AkkaAppPackaging)
 
@@ -241,15 +242,14 @@ lazy val node_hq = Project(
   id = "es-node-hq",
   base = file("es-nodes/es-node-hq"),
   dependencies = Seq(
-    auth_hq  % "compile;test->test",
+    sysevents  % "compile;test->test",
+    api  % "compile;test->test",
     web_core  % "compile;test->test",
+    auth_hq  % "compile;test->test",
     agent_hq,
     flow_hq,
     gate_hq,
-    alerts_dn_hq,
-    sysevents  % "compile;test->test",
-    model,
-    core_components  % "compile;test->test"
+    alerts_dn_hq
   )
 ).enablePlugins(PlayScala,SbtWeb)
 
@@ -257,15 +257,15 @@ lazy val node_hq = Project(
 
 
 
+
 /* Retention */
 
-lazy val retention_mgr = Project(
-  id = "es-retention-mgr",
-  base = file("es-retention/es-retention-mgr"),
+lazy val retention_service = Project(
+  id = "es-retention-service",
+  base = file("es-retention/es-retention-service"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api  % "compile;test->test"
   )
 )
 
@@ -273,26 +273,38 @@ lazy val retention_mgr = Project(
 
 /* Signals */
 
-lazy val signals_mgr = Project(
-  id = "es-signals-mgr",
-  base = file("es-signals/es-signals-mgr"),
+lazy val signals_api = Project(
+  id = "es-signals-api",
+  base = file("es-signals/es-signals-api"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api  % "compile;test->test"
+  )
+)
+
+lazy val signals_service = Project(
+  id = "es-signals-service",
+  base = file("es-signals/es-signals-service"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    api  % "compile;test->test",
+    signals_api,
+    instructions_api,
+    instructions_set
   )
 )
 
 
 /* Transactions */
 
-lazy val tx_mgr = Project(
-  id = "es-tx-mgr",
-  base = file("es-tx/es-tx-mgr"),
+lazy val tx_service = Project(
+  id = "es-tx-service",
+  base = file("es-tx/es-tx-service"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api  % "compile;test->test",
+    instructions_api  % "compile;test->test",
+    instructions_set
   )
 )
 
@@ -305,8 +317,8 @@ lazy val source_file = Project(
   base = file("es-sources/es-source-file"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api  % "compile;test->test",
+    agent_api  % "compile;test->test"
   )
 )
 
@@ -317,8 +329,8 @@ lazy val source_jmx = Project(
   base = file("es-sources/es-source-jmx"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api  % "compile;test->test",
+    agent_api  % "compile;test->test"
   )
 )
 
@@ -329,8 +341,8 @@ lazy val source_statsd = Project(
   base = file("es-sources/es-source-statsd"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api  % "compile;test->test",
+    agent_api  % "compile;test->test"
   )
 )
 
@@ -341,8 +353,8 @@ lazy val source_udp = Project(
   base = file("es-sources/es-source-udp"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api  % "compile;test->test",
+    agent_api  % "compile;test->test"
   )
 )
 
@@ -353,8 +365,8 @@ lazy val source_tcp = Project(
   base = file("es-sources/es-source-tcp"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api  % "compile;test->test",
+    agent_api  % "compile;test->test"
   )
 )
 
@@ -364,26 +376,26 @@ lazy val source_tcp = Project(
 
 /* Sink - InfluxDB */
 
-lazy val sink_influxdb_mgr = Project(
-  id = "es-sink-influxdb-mgr",
-  base = file("es-sink-influxdb/es-sink-influxdb-mgr"),
+lazy val sink_influxdb_service = Project(
+  id = "es-sink-influxdb-service",
+  base = file("es-sink-influxdb/es-sink-influxdb-service"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api  % "compile;test->test",
+    instructions_api  % "compile;test->test"
   )
 )
 
 
 /* Sink - Elasticsearch */
 
-lazy val sink_elasticsearch_mgr = Project(
-  id = "es-sink-elasticsearch-mgr",
-  base = file("es-sink-elasticsearch/es-sink-elasticsearch-mgr"),
+lazy val sink_elasticsearch_service = Project(
+  id = "es-sink-elasticsearch-service",
+  base = file("es-sink-elasticsearch/es-sink-elasticsearch-service"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api  % "compile;test->test",
+    instructions_api  % "compile;test->test"
   )
 )
 
@@ -393,13 +405,15 @@ lazy val sink_elasticsearch_mgr = Project(
 
 /* Alerts - Desktop notifications */
 
-lazy val alerts_dn_mgr = Project(
-  id = "es-alerts-dn-mgr",
-  base = file("es-alerts-dn/es-alerts-dn-mgr"),
+lazy val alerts_dn_service = Project(
+  id = "es-alerts-dn-service",
+  base = file("es-alerts-dn/es-alerts-dn-service"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
-    model,
-    core_components % "compile;test->test"
+    api  % "compile;test->test",
+    instructions_api % "compile;test->test",
+    signals_api % "compile;test->test",
+    signals_service % "test->test"
   )
 )
 
@@ -409,8 +423,7 @@ lazy val alerts_dn_hq = Project(
   dependencies = Seq(
     web_core,
     sysevents  % "compile;test->test",
-    model,
-    core_components  % "compile;test->test"
+    api  % "compile;test->test"
   )
 ).enablePlugins(PlayScala,SbtWeb)
 

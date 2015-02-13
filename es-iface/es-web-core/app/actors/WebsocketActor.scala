@@ -16,25 +16,22 @@
 
 package actors
 
+import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
+import _root_.core.sysevents.WithSyseventPublisher
+import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import actors.WebsocketActor.{msgSplitChar, opSplitChar}
 import akka.actor.{Actor, ActorRef, Props}
 import com.diogoduailibe.lzstring4j.LZString
-import core.events.EventOps.symbolToEventOps
-import core.events.WithEventPublisher
-import core.events.ref.ComponentWithBaseEvents
-import eventstreams.core.Utils
-import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, BaseActorEvents}
-import eventstreams.core.messages._
+import eventstreams._
+import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, BaseActorSysevents}
 
 import scala.collection._
 import scala.concurrent.duration._
 import scala.util.Try
-import scalaz.Scalaz._
 
-trait WebsocketActorEvents
-  extends ComponentWithBaseEvents
-  with BaseActorEvents
-  with WithWebEvents {
+trait WebsocketActorSysevents
+  extends ComponentWithBaseSysevents
+  with BaseActorSysevents {
 
 
   val AcceptedConnection = 'AcceptedConnection.info
@@ -54,7 +51,7 @@ trait WebsocketActorEvents
   override def componentId: String = "WebsocketActor"
 }
 
-object WebsocketActor extends WebsocketActorEvents {
+object WebsocketActor extends WebsocketActorSysevents {
 
   def props(out: ActorRef) = Props(new WebsocketActor(out))
 
@@ -67,8 +64,8 @@ object WebsocketActor extends WebsocketActorEvents {
 class WebsocketActor(out: ActorRef)
   extends ActorWithComposableBehavior
   with ActorWithTicks
-  with WebsocketActorEvents
-  with WithEventPublisher {
+  with WebsocketActorSysevents
+  with WithSyseventPublisher {
 
   val alias2path: mutable.Map[String, String] = new mutable.HashMap[String, String]()
   val path2alias: mutable.Map[String, String] = new mutable.HashMap[String, String]()

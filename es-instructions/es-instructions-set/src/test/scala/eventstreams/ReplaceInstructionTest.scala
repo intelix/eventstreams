@@ -16,10 +16,7 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.EventFrame
-import eventstreams.core.Tools.configHelper
-import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.plugins.essentials._
+import eventstreams.instructions.{ReplaceInstruction, ReplaceInstructionConstants, SimpleInstructionBuilder}
 import eventstreams.support.TestHelpers
 import play.api.libs.json._
 
@@ -37,7 +34,7 @@ class ReplaceInstructionTest extends TestHelpers {
     )
   }
   
-  import eventstreams.plugins.essentials.ReplaceInstructionConstants._
+  import eventstreams.instructions.ReplaceInstructionConstants._
 
   s"ReplaceInstruction" should s"not build without $CfgFFieldName" in new WithSimpleInstructionBuilder {
     override def builder: SimpleInstructionBuilder = new ReplaceInstruction()

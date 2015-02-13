@@ -19,16 +19,13 @@ package eventstreams.agent
 import akka.actor.{ActorRef, Props}
 import akka.stream.FlowMaterializer
 import com.typesafe.config.Config
-import core.events.EventOps.symbolToEventOps
-import core.events.WithEventPublisher
-import core.events.ref.ComponentWithBaseEvents
-import eventstreams.agent.datasource.DatasourceActor
+import core.sysevents.SyseventOps.symbolToSyseventOps
+import core.sysevents.WithSyseventPublisher
+import core.sysevents.ref.ComponentWithBaseSysevents
+import eventstreams.agent.AgentMessagesV1.{AgentEventsourceConfigs, AgentEventsources, AgentInfo}
 import eventstreams.core.actors._
-import eventstreams.core.agent.core.{CommunicationProxyRef, CreateDatasource, Handshake}
-import eventstreams.core.ds.AgentMessagesV1.{AgentDatasourceConfigs, AgentDatasources, AgentInfo}
-import eventstreams.core.ds.DatasourceRef
-import eventstreams.core.messages.ComponentKey
-import eventstreams.core.{Fail, NowProvider, Utils}
+import eventstreams.core.agent.core.{CommunicationProxyRef, CreateEventsource, Handshake}
+import eventstreams.{ComponentKey, Fail, NowProvider, UUIDTools}
 import net.ceedubs.ficus.Ficus._
 import play.api.libs.json.extensions._
 import play.api.libs.json.{JsValue, Json, _}
@@ -38,48 +35,48 @@ import scala.io
 import scalaz.Scalaz._
 import scalaz._
 
-trait AgentControllerEvents 
-  extends ComponentWithBaseEvents 
-  with BaseActorEvents 
-  with ReconnectingActorEvents {
+trait AgentControllerSysevents
+  extends ComponentWithBaseSysevents
+  with BaseActorSysevents
+  with ReconnectingActorSysevents {
 
-  val AvailableDatasources = 'AvailableDatasources.info
+  val AvailableEventsources = 'AvailableEventsources.info
   val AgentInstanceAvailable = 'AgentInstanceAvailable.info
-  val DatasourceInstanceAvailable = 'DatasourceInstanceAvailable.info
-  val DatasourceInstanceCreated = 'DatasourceInstanceCreated.info
+  val EventsourceInstanceAvailable = 'EventsourceInstanceAvailable.info
+  val EventsourceInstanceCreated = 'EventsourceInstanceCreated.info
   val MessageToAgentProxy = 'MessageToAgentProxy.trace
 
   override def componentId: String = "Actor.AgentController"
 }
 
-object AgentControllerActor extends ActorObjWithConfig with AgentControllerEvents {
+object AgentControllerActor extends ActorObjWithConfig with AgentControllerSysevents {
   override def id: String = "controller"
 
   override def props(implicit config: Config) = Props(new AgentControllerActor())
 }
 
-case class DatasourceAvailable(key: ComponentKey)
+case class EventsourceAvailable(key: ComponentKey)
 
 class AgentControllerActor(implicit sysconfig: Config)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
   with ReconnectingActor
   with NowProvider
-  with AgentControllerEvents with WithEventPublisher {
+  with AgentControllerSysevents with WithSyseventPublisher {
 
 
-  lazy val datasourcesConfigsList = {
-    val list = sysconfig.getConfigList("eventstreams.datasources.sources")
+  lazy val eventsourcesConfigsList = {
+    val list = sysconfig.getConfigList("eventstreams.eventsources.sources")
     (0 until list.size()).map(list.get).toList.sortBy[String](_.getString("name"))
   }
   lazy val configSchema = {
     var mainConfigSchema = Json.parse(
       io.Source.fromInputStream(
         getClass.getResourceAsStream(
-          sysconfig.getString("eventstreams.datasources.main-schema"))).mkString)
+          sysconfig.getString("eventstreams.eventsources.main-schema"))).mkString)
     var oneOf = (mainConfigSchema \ "properties" \ "source" \ "oneOf").asOpt[JsArray].map(_.value) | Array[JsValue]()
 
-    val datasourceSchemas = datasourcesConfigsList.map { cfg =>
+    val eventsourceSchemas = eventsourcesConfigsList.map { cfg =>
       val schemaResourceName = cfg.getString("config.schema")
       val resource = getClass.getResourceAsStream(schemaResourceName)
       val schemaContents = io.Source.fromInputStream(resource).mkString
@@ -87,7 +84,7 @@ class AgentControllerActor(implicit sysconfig: Config)
     }
 
     var counter = 0
-    datasourceSchemas.foreach { instruction =>
+    eventsourceSchemas.foreach { instruction =>
       counter = counter + 1
       val refName = "ref" + counter
       oneOf = oneOf :+ Json.obj("$ref" -> s"#/definitions/$refName")
@@ -105,9 +102,9 @@ class AgentControllerActor(implicit sysconfig: Config)
 
   implicit val mat = FlowMaterializer()
   var commProxy: Option[ActorRef] = None
-  var datasources: Map[ComponentKey, ActorRef] = Map()
+  var eventsources: Map[ComponentKey, ActorRef] = Map()
 
-  override def partialStorageKey: Option[String] = Some("ds/")
+  override def partialStorageKey: Option[String] = Some("esource/")
 
   override def commonBehavior: Receive = commonMessageHandler orElse super.commonBehavior
 
@@ -122,12 +119,12 @@ class AgentControllerActor(implicit sysconfig: Config)
     initiateReconnect()
     super.preStart()
 
-    val list = datasourcesConfigsList.map { next =>
+    val list = eventsourcesConfigsList.map { next =>
       next.getString("name") + "@" + next.getString("class")
     }.mkString(",")
 
     AgentInstanceAvailable >> ('Id -> uuid)
-    AvailableDatasources >> ('List -> list)
+    AvailableEventsources >> ('List -> list)
     
   }
 
@@ -144,24 +141,24 @@ class AgentControllerActor(implicit sysconfig: Config)
 
   override def afterApplyConfig(): Unit = sendToHQAll()
 
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addDatasource(Some(key), Some(props), maybeState)
+  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addEventsource(Some(key), Some(props), maybeState)
 
-  private def addDatasource(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
+  private def addEventsource(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
     for (
       data <- maybeData \/> Fail("Invalid payload")
     ) yield {
-      val datasourceKey = key | "ds/" + Utils.generateShortUUID
+      val eventsourceKey = key | "esource/" + UUIDTools.generateShortUUID
       var json = data
       if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
-      val actor = DatasourceActor.start(datasourceKey, datasourcesConfigsList)
+      val actor = EventsourceActor.start(eventsourceKey, eventsourcesConfigsList)
       context.watch(actor)
       actor ! InitialConfig(json, maybeState)
-      (actor, datasourceKey)
+      (actor, eventsourceKey)
     }
 
 
   override def onTerminated(ref: ActorRef): Unit = {
-    datasources = datasources.filter {
+    eventsources = eventsources.filter {
       case (route, otherRef) => otherRef != ref
     }
     sendToHQ(snapshot)
@@ -173,15 +170,15 @@ class AgentControllerActor(implicit sysconfig: Config)
     case CommunicationProxyRef(ref) =>
       commProxy = Some(ref)
       sendToHQAll()
-    case CreateDatasource(cfg) => addDatasource(None, Some(cfg), None) match {
+    case CreateEventsource(cfg) => addEventsource(None, Some(cfg), None) match {
       case \/-((actor, name)) =>
-        DatasourceInstanceCreated >> ('Name -> name, 'Actor -> actor, 'Config -> cfg)
+        EventsourceInstanceCreated >> ('Name -> name, 'Actor -> actor, 'Config -> cfg)
       case -\/(error) =>
-        Error >> ('Message -> "Unable to create datasource instance", 'Error -> error, 'Config -> cfg)
+        Error >> ('Message -> "Unable to create eventsource instance", 'Error -> error, 'Config -> cfg)
     }
-    case DatasourceAvailable(key) =>
-      DatasourceInstanceAvailable >> ('Key -> key, 'Actor -> sender())
-      datasources = datasources + (key -> sender())
+    case EventsourceAvailable(key) =>
+      EventsourceInstanceAvailable >> ('Key -> key, 'Actor -> sender())
+      eventsources = eventsources + (key -> sender())
       sendToHQ(snapshot)
   }
 
@@ -197,9 +194,9 @@ class AgentControllerActor(implicit sysconfig: Config)
       actor ! msg
     }
 
-  private def snapshot = AgentDatasources(
-    datasources.map {
-      case (key, ref) => DatasourceRef(key.key, ref)
+  private def snapshot = AgentEventsources(
+    eventsources.map {
+      case (key, ref) => EventsourceRef(key.key, ref)
     }.toList
   )
 
@@ -209,11 +206,11 @@ class AgentControllerActor(implicit sysconfig: Config)
     "location" -> sysconfig.as[String]("eventstreams.agent.location"),
     "address" -> context.self.path.address.toString,
     "state" -> "active",
-    "datasourceConfigSchema" -> configSchema
+    "eventsourceConfigSchema" -> configSchema
   ))
 
-  private def dsConfigs = AgentDatasourceConfigs(Json.obj(
-    "datasourceConfigSchema" -> configSchema
+  private def dsConfigs = AgentEventsourceConfigs(Json.obj(
+    "eventsourceConfigSchema" -> configSchema
   ))
 
 

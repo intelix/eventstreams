@@ -18,7 +18,6 @@ import akka.actor.ActorSystem
 import akka.cluster.Cluster
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging
-import eventstreams.auth.BasicAuthActor
 import eventstreams.core.components.cluster.ClusterManagerActor
 import eventstreams.core.components.routing.MessageRouterActor
 import play.api._

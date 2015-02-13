@@ -15,29 +15,29 @@
  */
 package actors
 
+import _root_.core.sysevents.WithSyseventPublisher
+import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.{ActorRef, Props}
 import akka.cluster.Cluster
 import com.typesafe.config.Config
-import core.events.WithEventPublisher
-import core.events.ref.ComponentWithBaseEvents
-import eventstreams.core.Tools.configHelper
+import eventstreams.JSONTools.configHelper
+import eventstreams._
 import eventstreams.core.actors.{ActorObjWithCluster, ActorWithComposableBehavior, RouteeActor}
 import eventstreams.core.components.cluster.ClusterManagerActor
 import eventstreams.core.components.routing.MessageRouterActor
-import eventstreams.core.messages._
 import net.ceedubs.ficus.Ficus._
-import play.api.libs.json.{JsValue, JsArray, Json}
+import play.api.libs.json.{JsArray, JsValue, Json}
 import play.twirl.api.TemplateMagic.javaCollectionToScala
 
 import scalaz.Scalaz._
 
-trait HQGroupsManagerEvents
-  extends ComponentWithBaseEvents {
+trait HQGroupsManagerSysevents
+  extends ComponentWithBaseSysevents {
 
   override def componentId: String = "Actor.HQGroupsManager"
 }
 
-object HQGroupsManager extends ActorObjWithCluster with HQGroupsManagerEvents with WithEventPublisher {
+object HQGroupsManager extends ActorObjWithCluster with HQGroupsManagerSysevents with WithSyseventPublisher {
   def id = "unsecured_hqgroups"
 
   def props(implicit cluster: Cluster, config: Config) = Props(new HQGroupsManagerActor(config))
@@ -45,9 +45,9 @@ object HQGroupsManager extends ActorObjWithCluster with HQGroupsManagerEvents wi
 
 class HQGroupsManagerActor(config: Config)
   extends ActorWithComposableBehavior
-  with HQGroupsManagerEvents
+  with HQGroupsManagerSysevents
   with RouteeActor
-  with WithEventPublisher {
+  with WithSyseventPublisher {
 
   def key = ComponentKey(HQGroupsManager.id)
 

@@ -16,17 +16,15 @@ package eventstreams
  * limitations under the License.
  */
 
-import eventstreams.core.EventFrame
-import eventstreams.core.EventFrameConverter.optionsConverter
-import eventstreams.core.instructions.SimpleInstructionBuilder
-import eventstreams.plugins.essentials.{EnrichInstruction, EnrichInstructionConstants, EnrichInstructionEvents}
+import eventstreams.EventFrameConverter.optionsConverter
+import eventstreams.instructions.{EnrichInstruction, EnrichInstructionConstants, EnrichInstructionSysevents, SimpleInstructionBuilder}
 import eventstreams.support.TestHelpers
 import play.api.libs.json.{JsNull, JsValue, Json}
 
 class EnrichInstructionTest extends TestHelpers {
 
 
-  trait WithBasicConfig extends WithSimpleInstructionBuilder with EnrichInstructionConstants with EnrichInstructionEvents {
+  trait WithBasicConfig extends WithSimpleInstructionBuilder with EnrichInstructionConstants with EnrichInstructionSysevents {
     override def builder: SimpleInstructionBuilder = new EnrichInstruction()
 
     override def config: JsValue = Json.obj(
@@ -93,7 +91,7 @@ class EnrichInstructionTest extends TestHelpers {
   }
 
 
-  trait WithComplexEnrich extends WithSimpleInstructionBuilder with EnrichInstructionConstants with EnrichInstructionEvents {
+  trait WithComplexEnrich extends WithSimpleInstructionBuilder with EnrichInstructionConstants with EnrichInstructionSysevents {
     override def builder: SimpleInstructionBuilder = new EnrichInstruction()
 
     override def config: JsValue = Json.obj(
@@ -140,7 +138,7 @@ class EnrichInstructionTest extends TestHelpers {
   }
 
 
-  trait WithNumericEnrich extends WithSimpleInstructionBuilder with EnrichInstructionConstants with EnrichInstructionEvents {
+  trait WithNumericEnrich extends WithSimpleInstructionBuilder with EnrichInstructionConstants with EnrichInstructionSysevents {
     override def builder: SimpleInstructionBuilder = new EnrichInstruction()
 
     override def config: JsValue = Json.obj(

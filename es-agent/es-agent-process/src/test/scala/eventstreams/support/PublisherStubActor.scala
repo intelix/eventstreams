@@ -2,20 +2,19 @@ package eventstreams.support
 
 import akka.actor.Props
 import akka.stream.actor.ActorPublisherMessage.Request
-import core.events.EventOps.symbolToEventOps
-import core.events.WithEventPublisher
-import core.events.ref.ComponentWithBaseEvents
-import eventstreams.core.EventFrame
-import eventstreams.core.Tools.configHelper
+import core.sysevents.SyseventOps.symbolToSyseventOps
+import core.sysevents.WithSyseventPublisher
+import core.sysevents.ref.ComponentWithBaseSysevents
+import eventstreams.{ProducedMessage, JSONTools, EventFrame}
+import JSONTools.configHelper
 import eventstreams.core.actors._
-import eventstreams.core.agent.core.ProducedMessage
 import play.api.libs.json.{JsValue, Json}
 
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scalaz.Scalaz._
 
-trait PublisherStubActorEvents extends ComponentWithBaseEvents with StateChangeEvents with BaseActorEvents {
+trait PublisherStubActorSysevents extends ComponentWithBaseSysevents with StateChangeSysevents with BaseActorSysevents {
 
   val PublisherStubStarted = 'PublisherStubStarted.trace
   val MessageQueuedAtStub = 'MessageQueuedAtStub.trace
@@ -26,7 +25,7 @@ trait PublisherStubActorEvents extends ComponentWithBaseEvents with StateChangeE
   override def componentId: String = "Test.PublisherStubActor"
 }
 
-object PublisherStubActor extends PublisherStubActorEvents {
+object PublisherStubActor extends PublisherStubActorSysevents {
   def props(maybeState: Option[JsValue]) = Props(new PublisherStubActor(maybeState))
 }
 
@@ -34,8 +33,8 @@ class PublisherStubActor(maybeState: Option[JsValue])
   extends ActorWithComposableBehavior
   with StoppablePublisherActor[ProducedMessage]
   with PipelineWithStatesActor
-  with PublisherStubActorEvents
-  with WithEventPublisher
+  with PublisherStubActorSysevents
+  with WithSyseventPublisher
   with ActorWithTicks {
 
   private var replayList = List[ProducedMessage]()

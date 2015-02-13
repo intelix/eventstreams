@@ -32,14 +32,14 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
 
         handleKill: function (e) {
             if (confirm("Are you sure?")) {
-                this.sendCommand(this.props.addr, this.props.ckey, "kill", {});
+                this.sendCommand(this.props.addr, this.props.ckey, "remove", {});
             }
         },
 
         render: function () {
             var self = this;
 
-            if (!self.hasTopicPermission(this.props.ckey,"kill")) return <span/>;
+            if (!self.hasTopicPermission(this.props.ckey,"remove")) return <span/>;
 
             var buttonClasses = this.cx({
                 'disabled': (!self.state.connected),
