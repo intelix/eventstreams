@@ -31,7 +31,7 @@ import scalaz.Scalaz._
 import scalaz.\/
 
 trait GateSysevents extends ComponentWithBaseSysevents {
-  override def componentId: String = "Gate"
+  override def componentId: String = "Gate.Gate"
 }
 
 object GateActor {

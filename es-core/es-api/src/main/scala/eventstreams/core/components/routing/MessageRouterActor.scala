@@ -33,7 +33,7 @@ import scalaz._
 
 
 trait MessageRouterSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with SubjectSubscriptionSysevents{
-  override def componentId: String = "Actor.MessageRouter"
+  override def componentId: String = "MessageRouter"
 
   val ForwardedToClient = 'ForwardedToClient.trace
 

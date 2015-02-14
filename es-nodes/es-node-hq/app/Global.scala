@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import actors.{HQGroupsManager, LocalClusterAwareActor, RouterActor}
+import actors.{HQGroupsManager, LocalClusterAwareActor, BridgeActor}
 import akka.actor.ActorSystem
 import akka.cluster.Cluster
 import com.typesafe.config.ConfigFactory
@@ -54,7 +54,7 @@ object Global extends GlobalSettings with scalalogging.StrictLogging {
     HQGroupsManager.start
 
     LocalClusterAwareActor.start(cluster)(localSystem)
-    RouterActor.start(messageRouter)(localSystem)
+    BridgeActor.start(messageRouter)(localSystem)
 
   }
 

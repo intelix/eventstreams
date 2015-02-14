@@ -38,7 +38,7 @@ trait ClusterManagerActorSysevents
   val ClusterMemberUp = "Cluster.MemberUp".trace
   val ClusterMemberDown = "Cluster.MemberDown".trace
 
-  override def componentId: String = "Actor.ClusterManager"
+  override def componentId: String = "ClusterManager"
 }
 
 object ClusterManagerActor extends ActorObjWithCluster with ClusterManagerActorSysevents with WithSyseventPublisher {

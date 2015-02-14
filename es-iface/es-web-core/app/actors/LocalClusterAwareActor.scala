@@ -23,7 +23,7 @@ import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.core.actors.{ActorObj, ActorWithComposableBehavior}
 
 trait LocalClusterAwarenessSysevents extends ComponentWithBaseSysevents {
-  override def componentId: String = "LocalClusterAwareness"
+  override def componentId: String = "Private.ClusterAwareness"
 }
 
 object LocalClusterAwareActor extends ActorObj {

@@ -31,7 +31,7 @@ import scalaz._
 
 
 trait FlowManagerActorSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with RouteeSysevents {
-  override def componentId: String = "Actor.FlowManager"
+  override def componentId: String = "Flow.Manager"
 
   val FlowBecomeAvailable = 'FlowBecomeAvailable.info
 

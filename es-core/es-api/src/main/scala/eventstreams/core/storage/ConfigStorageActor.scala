@@ -25,7 +25,7 @@ import eventstreams.core.actors.{ActorObjWithConfig, ActorWithComposableBehavior
 import play.api.libs.json.{JsValue, Json}
 
 trait ConfigStorageActorSysevents extends ComponentWithBaseSysevents with BaseActorSysevents {
-  override def componentId: String = "ConfigStorage"
+  override def componentId: String = "Storage"
 
   val PropsAndStateStored = 'PropsAndStateStored.info
   val StateStored = 'StateStored.info

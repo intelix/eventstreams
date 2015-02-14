@@ -17,7 +17,7 @@ import scalaz.Scalaz._
 import scalaz._
 
 trait AuthSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with SubjectSubscriptionSysevents {
-  override def componentId: String = "Actor.BasicAuth"
+  override def componentId: String = "Auth.Manager"
 
   val LoginAttempt = 'LoginAttempt.info
   val LoginSuccessful = 'LoginSuccessful.info

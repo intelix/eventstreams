@@ -16,7 +16,7 @@ package eventstreams.support
  * limitations under the License.
  */
 
-import actors.{RouterActor, LocalClusterAwareActor}
+import actors.{BridgeActor, LocalClusterAwareActor}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.Suite
 
@@ -54,7 +54,7 @@ trait WebNodeTestContext extends MultiNodeTestingSupport {
             startClusterManager(sys, cluster)
 
             localSys.start(LocalClusterAwareActor.props(cluster), LocalClusterAwareActor.id)
-            localSys.start(RouterActor.props(Await.result(messageRouterActorSelection(sys).resolveOne(5.seconds), 5.seconds)), RouterActor.id)
+            localSys.start(BridgeActor.props(Await.result(messageRouterActorSelection(sys).resolveOne(5.seconds), 5.seconds)), BridgeActor.id)
           }
         }
       }

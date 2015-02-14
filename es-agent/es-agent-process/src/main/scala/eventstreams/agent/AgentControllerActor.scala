@@ -46,7 +46,7 @@ trait AgentControllerSysevents
   val EventsourceInstanceCreated = 'EventsourceInstanceCreated.info
   val MessageToAgentProxy = 'MessageToAgentProxy.trace
 
-  override def componentId: String = "Actor.AgentController"
+  override def componentId: String = "Agent.Controller"
 }
 
 object AgentControllerActor extends ActorObjWithConfig with AgentControllerSysevents {

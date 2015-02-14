@@ -34,7 +34,7 @@ import scalaz.Scalaz._
 import scalaz.\/
 
 trait InfluxDBInstructionSysevents extends ComponentWithBaseSysevents {
-  override def componentId: String = "InfluxDBInstruction"
+  override def componentId: String = "Instruction.InfluxDB"
 }
 
 class InfluxDBInstruction extends BuilderFromConfig[InstructionType] {

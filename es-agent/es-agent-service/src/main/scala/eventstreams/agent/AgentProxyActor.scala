@@ -31,7 +31,7 @@ import play.api.libs.json.{JsValue, Json}
 import scalaz.Scalaz._
 
 trait AgentProxyActorSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with RouteeSysevents {
-  override def componentId: String = "Actor.AgentProxy"
+  override def componentId: String = "Agent.Proxy"
 
   val InfoUpdate = 'InfoUpdate.info
   val AvailableEventsourcesUpdate = 'AvailableEventsourcesUpdate.info

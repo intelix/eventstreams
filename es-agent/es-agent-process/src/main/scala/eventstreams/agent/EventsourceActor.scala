@@ -37,7 +37,7 @@ import scalaz.Scalaz._
 import scalaz._
 
 trait EventsourceActorSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with StateChangeSysevents {
-  override def componentId: String = "Actor.Eventsource"
+  override def componentId: String = "Agent.Eventsource"
 
   val EventsourceReady = 'EventsourceReady.info
 

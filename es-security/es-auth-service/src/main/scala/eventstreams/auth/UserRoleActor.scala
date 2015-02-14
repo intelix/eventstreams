@@ -31,7 +31,7 @@ trait UserRoleSysevents extends ComponentWithBaseSysevents with BaseActorSyseven
 
   val RolePermissionsChanged = 'RolePermissionsChanged.info
 
-  override def componentId: String = "Actor.UserRole"
+  override def componentId: String = "Auth.UserRole"
 }
 
 

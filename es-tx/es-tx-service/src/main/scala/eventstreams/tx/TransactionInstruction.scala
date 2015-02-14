@@ -31,7 +31,7 @@ import scalaz.Scalaz._
 import scalaz._
 
 trait TransactionInstructionSysevents extends ComponentWithBaseSysevents {
-  override def componentId: String = "TransactionInstruction"
+  override def componentId: String = "Instruction.Tx"
 }
 
 class TransactionInstruction extends BuilderFromConfig[InstructionType] {

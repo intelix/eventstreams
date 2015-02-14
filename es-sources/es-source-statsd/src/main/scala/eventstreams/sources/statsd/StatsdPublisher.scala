@@ -34,7 +34,7 @@ import scalaz.Scalaz._
 import scalaz._
 
 trait StatsdPublisherEvents extends ComponentWithBaseSysevents {
-  override def componentId: String = "Actor.StatsdPublisher"
+  override def componentId: String = "Eventsource.Statsd"
 }
 
 object StatsdPublisher {

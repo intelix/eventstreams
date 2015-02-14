@@ -26,7 +26,7 @@ import eventstreams.{ComponentKey, TopicKey}
 import play.api.libs.json.Json
 
 trait AgentManagerActorSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with RouteeSysevents {
-    override def componentId: String = "Actor.AgentsManager"
+    override def componentId: String = "Agent.ProxyManager"
 
   val AgentsManagerAvailable = 'AgentsManagerAvailable.info
   val HandshakeReceived = 'HandshakeReceived.info

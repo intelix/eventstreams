@@ -34,7 +34,7 @@ trait UserSysevents extends ComponentWithBaseSysevents with BaseActorSysevents {
 
   val PasswordChanged = 'PasswordChanged.info
 
-  override def componentId: String = "Actor.User"
+  override def componentId: String = "Auth.User"
 }
 
 object UserActor {

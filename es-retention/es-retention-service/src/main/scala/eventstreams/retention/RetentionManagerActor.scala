@@ -34,6 +34,8 @@ import play.api.libs.json.extensions._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
+// TODO refactor
+
 trait RetentionManagerSysevents extends ComponentWithBaseSysevents {
   override def componentId: String = "Actor.RetentionManager"
 }

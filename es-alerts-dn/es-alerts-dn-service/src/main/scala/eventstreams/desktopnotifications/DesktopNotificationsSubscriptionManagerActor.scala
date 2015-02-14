@@ -31,7 +31,7 @@ import scalaz.Scalaz._
 import scalaz.\/
 
 trait DesktopNotificationsSubscriptionManagerSysevents extends ComponentWithBaseSysevents {
-  override def componentId: String = "DesktopNotificationsSubscriptionManager"
+  override def componentId: String = "DesktopNotifications.Manager"
 }
 
 object DesktopNotificationsSubscriptionManagerActor extends ActorObjWithConfig {

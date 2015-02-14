@@ -34,7 +34,7 @@ import scalaz.Scalaz._
 trait HQGroupsManagerSysevents
   extends ComponentWithBaseSysevents {
 
-  override def componentId: String = "Actor.HQGroupsManager"
+  override def componentId: String = "HQ.GroupsManager"
 }
 
 object HQGroupsManager extends ActorObjWithCluster with HQGroupsManagerSysevents with WithSyseventPublisher {

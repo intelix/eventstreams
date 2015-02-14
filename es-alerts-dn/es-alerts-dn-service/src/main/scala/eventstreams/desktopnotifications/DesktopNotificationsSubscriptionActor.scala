@@ -30,7 +30,7 @@ import scalaz.Scalaz._
 import scalaz.{-\/, \/-}
 
 trait DesktopNotificationsSubscriptionSysevents extends ComponentWithBaseSysevents {
-  override def componentId: String = "DesktopNotificationsSubscription"
+  override def componentId: String = "DesktopNotifications.Subscription"
 }
 
 object DesktopNotificationsSubscriptionActor {

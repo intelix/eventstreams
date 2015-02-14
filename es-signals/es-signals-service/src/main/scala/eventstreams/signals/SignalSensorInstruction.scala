@@ -34,7 +34,7 @@ import scalaz.Scalaz._
 import scalaz._
 
 trait SignalSensorInstructionSysevents extends ComponentWithBaseSysevents {
-  override def componentId: String = "SignalSensorInstruction"
+  override def componentId: String = "Instruction.SignalSensor"
 }
 
 class SignalSensorInstruction extends BuilderFromConfig[InstructionType] {

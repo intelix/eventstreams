@@ -29,7 +29,7 @@ import scala.io.Source
 import scalaz.Scalaz._
 
 trait UserManagerSysevents extends ComponentWithBaseSysevents {
-  override def componentId: String = "UserManager"
+  override def componentId: String = "Auth.UserManager"
 }
 
 object UserManager extends ActorObjWithConfig {

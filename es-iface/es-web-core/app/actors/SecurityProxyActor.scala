@@ -14,7 +14,7 @@ import scala.util.matching.Regex
 import scalaz.Scalaz._
 
 trait SecurityProxySysevents extends ComponentWithBaseSysevents with BaseActorSysevents with SubjectSubscriptionSysevents {
-  override def componentId: String = "Actor.SecurityProxy"
+  override def componentId: String = "Private.SecurityProxy"
 
   val SecurityViolation = 'SecurityViolation.warn
   val Permissions = 'Permissions.info
@@ -46,7 +46,7 @@ class SecurityProxyActor(token: String, clientRef: ActorRef)
     def permitted(key: String) = patterns.exists(_.findFirstMatchIn(key).isDefined)
   }
 
-  val proxy = RouterActor.path
+  val proxy = BridgeActor.path
 
   val privateAllowedPattern: Seq[PatternGroup] =
     List(PatternGroup(List(token.r, "unsecured_".r)))

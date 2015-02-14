@@ -20,13 +20,13 @@ import akka.actor.{ActorRef, ActorRefFactory, Props}
 import eventstreams.core.actors.{ActorObj, ActorWithComposableBehavior}
 
 
-object RouterActor extends ActorObj {
+object BridgeActor extends ActorObj {
   override def id: String = "router"
-  def props(ref: ActorRef) =  Props(new RouterActor(ref))
+  def props(ref: ActorRef) =  Props(new BridgeActor(ref))
   def start(ref: ActorRef)(implicit f: ActorRefFactory) = f.actorOf(props(ref), id)
 }
 
-class RouterActor(ref: ActorRef) extends ActorWithComposableBehavior {
+class BridgeActor(ref: ActorRef) extends ActorWithComposableBehavior {
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
@@ -34,5 +34,5 @@ class RouterActor(ref: ActorRef) extends ActorWithComposableBehavior {
     case m => ref.forward(m)
   }
 
-  override def componentId: String = "RouterActor"
+  override def componentId: String = "Private.Bridge"
 }

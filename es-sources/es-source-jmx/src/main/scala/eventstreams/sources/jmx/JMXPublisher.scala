@@ -29,7 +29,7 @@ import scala.math.BigDecimal
 import scalaz.Scalaz._
 
 trait JMXPublisherSysevents extends ComponentWithBaseSysevents {
-  override def componentId: String = "Actor.JMXPublisher"
+  override def componentId: String = "Eventsource.JMX"
 }
 
 object JMXPublisher {

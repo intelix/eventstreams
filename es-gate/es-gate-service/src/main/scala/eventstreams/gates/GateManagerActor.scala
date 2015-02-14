@@ -29,7 +29,7 @@ import scala.io.Source
 import scalaz.Scalaz._
 
 trait GateManagerSysevents extends ComponentWithBaseSysevents {
-  override def componentId: String = "GateManager"
+  override def componentId: String = "Gate.GateManager"
 }
 
 object GateManagerActor extends ActorObjWithConfig {

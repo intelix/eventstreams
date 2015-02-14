@@ -31,7 +31,7 @@ import scala.io.Source
 import scalaz.Scalaz._
 
 trait UserRoleManagerSysevents extends ComponentWithBaseSysevents {
-  override def componentId: String = "UserRoleManager"
+  override def componentId: String = "Auth.UserRoleManager"
 }
 
 object UserRoleManager extends ActorObjWithConfig {

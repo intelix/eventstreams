@@ -36,7 +36,7 @@ import scalaz.Scalaz._
 import scalaz.\/
 
 trait ElasticsearchInstructionSysevents extends ComponentWithBaseSysevents {
-  override def componentId: String = "ElasticsearchInstruction"
+  override def componentId: String = "Instruction.Elasticsearch"
 }
 
 class ElasticsearchInstruction extends BuilderFromConfig[InstructionType] {

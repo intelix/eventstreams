@@ -31,7 +31,7 @@ import scalaz.Scalaz._
 import scalaz.\/
 
 trait DesktopNotificationsSinkInstructionSysevents extends ComponentWithBaseSysevents {
-  override def componentId: String = "DesktopNotificationsSinkInstruction"
+  override def componentId: String = "DesktopNotifications.Instruction.Sink"
 }
 
 class DesktopNotificationsSinkInstruction extends BuilderFromConfig[InstructionType] {

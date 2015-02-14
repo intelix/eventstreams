@@ -45,7 +45,7 @@ trait FlowActorSysevents
   val FlowStarted = 'FlowStarted.trace
   val FlowConfigured = 'FlowConfigured.trace
 
-  override def componentId: String = "Actor.Flow"
+  override def componentId: String = "Flow.Flow"
 }
 object FlowActorSysevents extends FlowActorSysevents
 

@@ -23,6 +23,8 @@ import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.EventFrame
 import eventstreams.core.actors._
 
+// TODO refactor
+
 trait AutoPersistenceActorSysevents extends ComponentWithBaseSysevents {
   override def componentId: String = "Actor.AutoPersistenceActor"
 }

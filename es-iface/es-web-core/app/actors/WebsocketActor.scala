@@ -48,7 +48,7 @@ trait WebsocketActorSysevents
   val MessageScheduled = 'MessageScheduled.trace
   val SentToClient = 'SentToClient.trace
 
-  override def componentId: String = "WebsocketActor"
+  override def componentId: String = "Private.Websocket"
 }
 
 object WebsocketActor extends WebsocketActorSysevents {
