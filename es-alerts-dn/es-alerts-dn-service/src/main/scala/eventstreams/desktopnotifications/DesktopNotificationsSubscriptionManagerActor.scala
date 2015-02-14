@@ -19,6 +19,7 @@ package eventstreams.desktopnotifications
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor._
+import akka.cluster.Cluster
 import com.typesafe.config.Config
 import eventstreams._
 import eventstreams.core.actors._
@@ -34,15 +35,9 @@ trait DesktopNotificationsSubscriptionManagerSysevents extends ComponentWithBase
   override def componentId: String = "DesktopNotifications.Manager"
 }
 
-object DesktopNotificationsSubscriptionManagerActor extends ActorObjWithConfig {
-  def id = "desktopnotifications"
-
-  def props(implicit config: Config) = Props(new DesktopNotificationsSubscriptionManagerActor(config))
-}
-
 case class DesktopNotificationsSubscriptionAvailable(id: ComponentKey)
 
-class DesktopNotificationsSubscriptionManagerActor(sysconfig: Config)
+class DesktopNotificationsSubscriptionManagerActor(id: String, sysconfig: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
   with RouteeActor
@@ -56,7 +51,7 @@ class DesktopNotificationsSubscriptionManagerActor(sysconfig: Config)
         sysconfig.getString("eventstreams.desktopnotifications.main-schema"))).mkString)
 
 
-  override val key = ComponentKey("desktopnotifications")
+  override val key = ComponentKey(id)
 
   var entries = mutable.Map[ComponentKey, ActorRef]()
 

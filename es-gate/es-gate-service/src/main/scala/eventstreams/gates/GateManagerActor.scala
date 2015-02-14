@@ -19,6 +19,7 @@ package eventstreams.gates
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor._
+import akka.cluster.Cluster
 import com.typesafe.config.Config
 import eventstreams._
 import eventstreams.core.actors._
@@ -32,15 +33,9 @@ trait GateManagerSysevents extends ComponentWithBaseSysevents {
   override def componentId: String = "Gate.GateManager"
 }
 
-object GateManagerActor extends ActorObjWithConfig {
-  def id = "gates"
-
-  def props(implicit config: Config) = Props(new GateManagerActor(config))
-}
-
 case class GateAvailable(id: ComponentKey)
 
-class GateManagerActor(sysconfig: Config)
+class GateManagerActor(id: String, sysconfig: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
   with RouteeActor
@@ -55,7 +50,7 @@ class GateManagerActor(sysconfig: Config)
 
   type GatesMap = Map[ComponentKey, ActorRef]
 
-  override val key = ComponentKey("gates")
+  override val key = ComponentKey(id)
   var gates: GatesMap = Map()
 
   override def partialStorageKey: Option[String] = Some("gate/")

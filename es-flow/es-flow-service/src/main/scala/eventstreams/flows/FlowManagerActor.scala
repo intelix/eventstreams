@@ -20,6 +20,7 @@ import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor._
+import akka.cluster.Cluster
 import com.typesafe.config.Config
 import eventstreams._
 import eventstreams.core.actors._
@@ -38,15 +39,9 @@ trait FlowManagerActorSysevents extends ComponentWithBaseSysevents with BaseActo
 }
 
 
-object FlowManagerActor extends ActorObjWithConfig with FlowManagerActorSysevents {
-  def id = "flows"
-
-  def props(implicit config: Config) = Props(new FlowManagerActor(config))
-}
-
 case class FlowAvailable(id: ComponentKey)
 
-class FlowManagerActor(sysconfig: Config)
+class FlowManagerActor(id: String, sysconfig: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
   with RouteeActor
@@ -90,7 +85,7 @@ class FlowManagerActor(sysconfig: Config)
   }
 
   type FlowMap = Map[ComponentKey, ActorRef]
-  override val key = ComponentKey("flows")
+  override val key = ComponentKey(id)
 
   var flows: FlowMap = Map()
 

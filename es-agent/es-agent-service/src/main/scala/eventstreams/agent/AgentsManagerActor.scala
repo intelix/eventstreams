@@ -17,6 +17,8 @@
 package eventstreams.agent
 
 import akka.actor._
+import akka.cluster.Cluster
+import com.typesafe.config.Config
 import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
@@ -35,16 +37,11 @@ trait AgentManagerActorSysevents extends ComponentWithBaseSysevents with BaseAct
   
 }
 
-object AgentsManagerActor extends ActorObjWithoutConfig with AgentManagerActorSysevents {
-  def id = "agents"
-
-  def props = Props(new AgentsManagerActor())
-}
 
 case class AgentProxyAvailable(id: ComponentKey)
 
 
-class AgentsManagerActor
+class AgentsManagerActor(id: String, config: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
   with RouteeActor
   with ActorWithDisassociationMonitor
@@ -52,11 +49,11 @@ class AgentsManagerActor
 
   var agents: Map[ComponentKey, ActorRef] = Map()
 
-  def key = ComponentKey("agents")
+  def key = ComponentKey(id)
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('ComponentKey -> AgentsManagerActor.id)
+  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('ComponentKey -> id)
 
   override def preStart(): Unit = {
     super.preStart()

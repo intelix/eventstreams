@@ -44,6 +44,7 @@ class HubLauncher extends Bootable {
 
 
   override def startup(): Unit = {
+    
     ClusterManagerActor.start
     ConfigStorageActor.start
     MessageRouterActor.start
@@ -54,12 +55,6 @@ class HubLauncher extends Bootable {
         id <- conf.as[Option[String]]("id")
       ) system.actorOf(Props(Class.forName(cl), id, config, cluster), id)
     })
-    
-    GateManagerActor.start
-    AgentsManagerActor.start
-    FlowManagerActor.start
-    RetentionManagerActor.start
-    DesktopNotificationsSubscriptionManagerActor.start
   }
 
   override def shutdown(): Unit = {

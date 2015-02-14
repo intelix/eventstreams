@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import actors.{HQGroupsManager, LocalClusterAwareActor, BridgeActor}
+import actors.{BridgeActor, HQGroupsManager, LocalClusterAwareActor}
 import akka.actor.ActorSystem
 import akka.cluster.Cluster
 import com.typesafe.config.ConfigFactory
@@ -52,7 +52,6 @@ object Global extends GlobalSettings with scalalogging.StrictLogging {
     ClusterManagerActor.start
 
     HQGroupsManager.start
-
     LocalClusterAwareActor.start(cluster)(localSystem)
     BridgeActor.start(messageRouter)(localSystem)
 
@@ -65,24 +64,18 @@ object Global extends GlobalSettings with scalalogging.StrictLogging {
   }
 
 
-  // 404 - page not found error
   override def onHandlerNotFound(request: RequestHeader) = Future.successful(
     NotFound(views.html.errors.onHandlerNotFound(request))
   )
 
-  // 500 - internal server error
   override def onError(request: RequestHeader, throwable: Throwable) = Future.successful(
     InternalServerError(views.html.errors.onError(throwable))
   )
 
-  // called when a route is found, but it was not possible to bind the request parameters
   override def onBadRequest(request: RequestHeader, error: String) = Future.successful(
     BadRequest("Bad Request: " + error)
   )
   
-//  override def onRouteRequest(request: RequestHeader) = {
-//    Routes.routes.lift(request)
-//  }
 
 
 

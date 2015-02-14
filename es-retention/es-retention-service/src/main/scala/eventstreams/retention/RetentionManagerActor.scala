@@ -20,6 +20,7 @@ import java.util.Calendar
 
 import akka.actor.{ActorRef, Props}
 import akka.agent.Agent
+import akka.cluster.Cluster
 import com.sksamuel.elastic4s.ElasticClient
 import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.source.StringDocumentSource
@@ -41,11 +42,7 @@ trait RetentionManagerSysevents extends ComponentWithBaseSysevents {
 }
 
 
-object RetentionManagerActor extends ActorObjWithConfig {
-  override def props(implicit config: Config): Props = Props(new RetentionManagerActor(config))
 
-  override def id: String = "storage"
-}
 
 case class ScheduleStorage(ref: ActorRef, index: String, etype: String, id: String, v: JsValue)
 
@@ -69,7 +66,7 @@ private case class BatchSuccessful(bulkSize: Int)
 
 private case class BatchFailed()
 
-class RetentionManagerActor(config: Config)
+class RetentionManagerActor(id: String, config: Config, c: Cluster)
   extends ActorWithComposableBehavior
   with RetentionManagerSysevents
   with ComponentWithBaseSysevents
@@ -78,10 +75,10 @@ class RetentionManagerActor(config: Config)
   implicit val ec = context.dispatcher
   val bulkSize = 100
   private val host = config.getString("eventstreams.gates.retention.elastic.host")
-  private val cluster = config.getString("eventstreams.gates.retention.elastic.cluster")
+  private val escluster = config.getString("eventstreams.gates.retention.elastic.cluster")
   private val port = config.getInt("eventstreams.gates.retention.elastic.port")
   private val cal = Calendar.getInstance()
-  private val settings = ImmutableSettings.settingsBuilder().put("cluster.name", cluster).build()
+  private val settings = ImmutableSettings.settingsBuilder().put("cluster.name", escluster).build()
   private val queue = collection.mutable.Queue[EventFrame]()
   private val clientAgent = Agent[Option[ElasticClient]](Some(ElasticClient.remote(settings, (host, port))))
   private var insertSequence = now
@@ -136,7 +133,7 @@ class RetentionManagerActor(config: Config)
           val targetIndex = next.index + "/" + next.etype
           val json = next.v.set(__ \ 'insertSequence -> JsNumber(insertSequence))
           insertSequence = insertSequence + 1
-          logger.debug(s"ES Batch $batchCounter Delivering ${next.id} -> $targetIndex : $json to $clientAgent  $settings at $host:$port  into $cluster")
+          logger.debug(s"ES Batch $batchCounter Delivering ${next.id} -> $targetIndex : $json to $clientAgent  $settings at $host:$port  into $escluster")
           update(next.id) in targetIndex docAsUpsert true doc StringDocumentSource(Json.stringify(json))
         }: _*
       )
