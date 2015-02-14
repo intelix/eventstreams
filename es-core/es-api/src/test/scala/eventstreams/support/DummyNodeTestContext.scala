@@ -23,7 +23,7 @@ import org.scalatest.Suite
 trait DummyNodeTestContext extends MultiNodeTestingSupport {
   _: Suite with ActorSystemManagement =>
 
-  val DummySystemPrefix = "engine"
+  val DummySystemPrefix = "hub"
 
   override def configs: Map[String, Config] = super.configs ++ Map(
     DummySystemPrefix + "1" -> ConfigFactory.load("dummy1-proc-test.conf"),
@@ -62,7 +62,7 @@ trait DummyNodeTestContext extends MultiNodeTestingSupport {
   }
 
   trait WithDummyNode1 extends WithDummyNode {
-    def dummy1Address = "akka.tcp://engine@localhost:12521"
+    def dummy1Address = "akka.tcp://hub@localhost:12521"
 
     def dummy1System = getSystem(DummySystemPrefix + "1")
 
@@ -74,7 +74,7 @@ trait DummyNodeTestContext extends MultiNodeTestingSupport {
   }
 
   trait WithDummyNode2 extends WithDummyNode {
-    def dummy2Address = "akka.tcp://engine@localhost:12522"
+    def dummy2Address = "akka.tcp://hub@localhost:12522"
 
     def dummy2System = getSystem(DummySystemPrefix + "2")
 
@@ -86,7 +86,7 @@ trait DummyNodeTestContext extends MultiNodeTestingSupport {
   }
 
   trait WithDummyNode3 extends WithDummyNode {
-    def dummy3Address = "akka.tcp://engine@localhost:12523"
+    def dummy3Address = "akka.tcp://hub@localhost:12523"
 
     def dummy3System = getSystem(DummySystemPrefix + "3")
 
@@ -98,7 +98,7 @@ trait DummyNodeTestContext extends MultiNodeTestingSupport {
   }
 
   trait WithDummyNode4 extends WithDummyNode {
-    def dummy4Address = "akka.tcp://engine@localhost:12524"
+    def dummy4Address = "akka.tcp://hub@localhost:12524"
 
     def dummy4System = getSystem(DummySystemPrefix + "4")
 
@@ -110,7 +110,7 @@ trait DummyNodeTestContext extends MultiNodeTestingSupport {
   }
 
   trait WithDummyNode5 extends WithDummyNode {
-    def dummy5Address = "akka.tcp://engine@localhost:12525"
+    def dummy5Address = "akka.tcp://hub@localhost:12525"
 
     def dummy5System = getSystem(DummySystemPrefix + "5")
 

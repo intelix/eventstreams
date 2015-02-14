@@ -38,6 +38,11 @@ trait FlowManagerActorSysevents extends ComponentWithBaseSysevents with BaseActo
 
 }
 
+object FlowManagerActor extends ActorObj with FlowManagerActorSysevents {
+  def id = "flows"
+  def props(config: Config, cluster: Cluster) = Props(new FlowManagerActor(id, config, cluster))
+}
+
 
 case class FlowAvailable(id: ComponentKey)
 

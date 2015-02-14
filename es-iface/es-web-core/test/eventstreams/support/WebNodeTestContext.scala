@@ -80,7 +80,7 @@ trait WebNodeTestContext extends MultiNodeTestingSupport {
   }
 
   trait WithWebNode1 extends WithWebNode {
-    def web1Address = "akka.tcp://engine@localhost:12541"
+    def web1Address = "akka.tcp://hub@localhost:12541"
 
     def web1System = getSystem(WebSystemPrefix + "1")
 
@@ -103,7 +103,7 @@ trait WebNodeTestContext extends MultiNodeTestingSupport {
   }
 
   trait WithWebNode2 extends WithWebNode {
-    def web2Address = "akka.tcp://engine@localhost:12542"
+    def web2Address = "akka.tcp://hub@localhost:12542"
 
     def web2System = getSystem(WebSystemPrefix + "2")
 

@@ -39,7 +39,7 @@ object Global extends GlobalSettings with scalalogging.StrictLogging {
 
     implicit val config = ConfigFactory.load("eventstreams.conf")
 
-    implicit val newClusterSystem = ActorSystem("engine", config)
+    implicit val newClusterSystem = ActorSystem("hub", config)
 
     clusterSystem = Some(newClusterSystem)
 

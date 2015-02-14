@@ -5,38 +5,38 @@ import eventstreams.core.storage.ConfigStorageActor
 import eventstreams.flows.internal.{BlackholeAutoAckSinkActor, GateInputActor}
 import eventstreams.flows.{FlowActor, FlowManagerActor}
 import eventstreams.instructions.{EnrichInstructionConstants, LogInstructionConstants}
-import eventstreams.support.{EngineNodeTestContext, GateStubActor, SharedActorSystem, SubscribingComponentStub}
+import eventstreams.support.{HubNodeTestContext, GateStubActor, SharedActorSystem, SubscribingComponentStub}
 import org.scalatest.FlatSpec
 import play.api.libs.json.Json
 
 
-class FlowsTest extends FlatSpec with EngineNodeTestContext with SharedActorSystem with LogInstructionConstants with EnrichInstructionConstants {
+class FlowsTest extends FlatSpec with HubNodeTestContext with SharedActorSystem with LogInstructionConstants with EnrichInstructionConstants {
 
-   trait WithFlowManager extends WithEngineNode1 {
-     startFlowManager(engine1System)
+   trait WithFlowManager extends WithHubNode1 {
+     startFlowManager(hub1System)
      val flowManagerComponentKey = ComponentKey(FlowManagerActor.id)
      expectOneOrMoreEvents(MessageRouterActor.RouteAdded, 'Route -> FlowManagerActor.id)
    }
 
-   "FlowManager" should "start" in new WithEngineNode1  {
-     startFlowManager(engine1System)
+   "FlowManager" should "start" in new WithHubNode1  {
+     startFlowManager(hub1System)
      expectOneOrMoreEvents(FlowManagerActor.PreStart)
    }
 
-   it should "request all stored flows from storage" in new WithEngineNode1  {
-     startFlowManager(engine1System)
+   it should "request all stored flows from storage" in new WithHubNode1  {
+     startFlowManager(hub1System)
      expectOneOrMoreEvents(ConfigStorageActor.RequestedAllMatchingEntries, 'PartialKey -> "flow/")
    }
 
    it should "respond to list subscription with an empty payload" in new WithFlowManager  {
-     startMessageSubscriber1(engine1System)
-     subscribeFrom1(engine1System, LocalSubj(flowManagerComponentKey, T_LIST))
+     startMessageSubscriber1(hub1System)
+     subscribeFrom1(hub1System, LocalSubj(flowManagerComponentKey, T_LIST))
      expectOneOrMoreEvents(SubscribingComponentStub.UpdateReceived, 'Data -> "[]")
    }
 
    it should "respond to configtpl subscription" in new WithFlowManager  {
-     startMessageSubscriber1(engine1System)
-     subscribeFrom1(engine1System, LocalSubj(flowManagerComponentKey, T_CONFIGTPL))
+     startMessageSubscriber1(hub1System)
+     subscribeFrom1(hub1System, LocalSubj(flowManagerComponentKey, T_CONFIGTPL))
      expectOneOrMoreEvents(SubscribingComponentStub.UpdateReceived, 'Data -> "Flow configuration".r)
    }
 
@@ -59,23 +59,23 @@ class FlowsTest extends FlatSpec with EngineNodeTestContext with SharedActorSyst
    )
 
    it should "create a flow actor in response to add command" in new WithFlowManager  {
-     startMessageSubscriber1(engine1System)
-     commandFrom1(engine1System, LocalSubj(flowManagerComponentKey, T_ADD), Some(validFlow1))
+     startMessageSubscriber1(hub1System)
+     commandFrom1(hub1System, LocalSubj(flowManagerComponentKey, T_ADD), Some(validFlow1))
      expectOneOrMoreEvents(FlowActor.PreStart)
      expectOneOrMoreEvents(FlowActor.FlowConfigured, 'Name -> "flow1")
    }
 
    trait WithFlow1Created extends WithFlowManager {
-     startMessageSubscriber1(engine1System)
+     startMessageSubscriber1(hub1System)
      startGate1("gate1")
-     commandFrom1(engine1System, LocalSubj(flowManagerComponentKey, T_ADD), Some(validFlow1))
+     commandFrom1(hub1System, LocalSubj(flowManagerComponentKey, T_ADD), Some(validFlow1))
      expectOneOrMoreEvents(FlowActor.PreStart)
      expectOneOrMoreEvents(FlowActor.FlowConfigured, 'Name -> "flow1")
      val flow1ComponentKey = ComponentKey(locateLastEventFieldValue(FlowActor.FlowConfigured, "ID").asInstanceOf[String])
    }
 
    "Flow" should "start in response to start command" in new WithFlow1Created  {
-     commandFrom1(engine1System, LocalSubj(flow1ComponentKey, T_START), None)
+     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
      expectExactlyNEvents(1, FlowActor.BecomingActive)
    }
 
@@ -84,7 +84,7 @@ class FlowsTest extends FlatSpec with EngineNodeTestContext with SharedActorSyst
    }
 
    it should "process event" in new WithFlow1Created  {
-     commandFrom1(engine1System, LocalSubj(flow1ComponentKey, T_START), None)
+     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
      expectExactlyNEvents(1, FlowActor.BecomingActive)
      clearEvents()
      sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId"->"1", "abc1" -> "xyz"), 123))
@@ -92,10 +92,10 @@ class FlowsTest extends FlatSpec with EngineNodeTestContext with SharedActorSyst
    }
 
    it should "terminate in response to remove command" in new WithFlow1Created  {
-     commandFrom1(engine1System, LocalSubj(flow1ComponentKey, T_START), None)
+     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
      expectExactlyNEvents(1, FlowActor.BecomingActive)
      clearEvents()
-     commandFrom1(engine1System, LocalSubj(flow1ComponentKey, T_REMOVE), None)
+     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_REMOVE), None)
      expectOneOrMoreEvents(GateInputActor.PostStop)
    }
 

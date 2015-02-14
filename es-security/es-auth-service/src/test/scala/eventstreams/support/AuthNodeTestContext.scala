@@ -57,7 +57,7 @@ trait AuthNodeTestContext extends MultiNodeTestingSupport {
   }
 
   trait WithAuthNode1 extends WithAuthNode {
-    def auth1Address = "akka.tcp://engine@localhost:12621"
+    def auth1Address = "akka.tcp://hub@localhost:12621"
 
     def auth1System = getSystem(AuthSystemPrefix + "1")
 

@@ -20,18 +20,18 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.Suite
 
 
-trait EngineNodeTestContext extends MultiNodeTestingSupport {
+trait HubNodeTestContext extends MultiNodeTestingSupport {
   _: Suite with ActorSystemManagement =>
 
-  val EngineSystemPrefix = "engine"
+  val HubSystemPrefix = "hub"
 
   override def configs: Map[String, Config] = super.configs ++ Map(
-    EngineSystemPrefix + "1" -> ConfigFactory.load("engine1-proc-test.conf"),
-    EngineSystemPrefix + "2" -> ConfigFactory.load("engine2-proc-test.conf")
+    HubSystemPrefix + "1" -> ConfigFactory.load("hub1-proc-test.conf"),
+    HubSystemPrefix + "2" -> ConfigFactory.load("hub2-proc-test.conf")
   )
 
 
-  trait WithEngineNode
+  trait WithHubNode
     extends ConfigStorageActorTestContext
     with MessageRouterActorTestContext
     with GateStubTestContext
@@ -41,57 +41,57 @@ trait EngineNodeTestContext extends MultiNodeTestingSupport {
     with ClusterManagerActorTestContext
     with FlowManagerActorTestContext {
 
-    def startEngineNode(systemIndex: Int) =
-      withSystem(EngineSystemPrefix, systemIndex) { implicit sys =>
+    def startHubNode(systemIndex: Int) =
+      withSystem(HubSystemPrefix, systemIndex) { implicit sys =>
 
         withCluster(sys) { cluster =>
           startMessageRouter(sys, cluster)
           startClusterManager(sys, cluster)
+          withAgentManager(sys, cluster)
         }
 
 
         withConfigStorage(20 + systemIndex, sys)
-        withAgentManager(sys)
 
       }
 
-    def startGate(systemIndex: Int, name: String) = withSystem(EngineSystemPrefix, systemIndex) { sys =>
+    def startGate(systemIndex: Int, name: String) = withSystem(HubSystemPrefix, systemIndex) { sys =>
       withGateStub(sys, name)
     }
 
-    def restartEngineNode(systemIndex: Int) = {
-      destroySystem(EngineSystemPrefix + systemIndex.toString)
-      startEngineNode(systemIndex)
+    def restartHubNode(systemIndex: Int) = {
+      destroySystem(HubSystemPrefix + systemIndex.toString)
+      startHubNode(systemIndex)
     }
 
   }
 
-  trait WithEngineNode1 extends WithEngineNode {
-    def engine1Address = "akka.tcp://engine@localhost:12521"
+  trait WithHubNode1 extends WithHubNode {
+    def hub1Address = "akka.tcp://hub@localhost:12521"
 
-    def engine1System = getSystem(EngineSystemPrefix + "1")
+    def hub1System = getSystem(HubSystemPrefix + "1")
 
-    def startEngineNode1(): Unit = startEngineNode(1)
+    def startHubNode1(): Unit = startHubNode(1)
 
     def startGate1(name: String): Unit = startGate(1, name)
 
-    def restartEngineNode1(): Unit = restartEngineNode(1)
+    def restartHubNode1(): Unit = restartHubNode(1)
 
-    startEngineNode1()
+    startHubNode1()
   }
 
-  trait WithEngineNode2 extends WithEngineNode {
-    def engine2Address = "akka.tcp://engine@localhost:12522"
+  trait WithHubNode2 extends WithHubNode {
+    def hub2Address = "akka.tcp://hub@localhost:12522"
 
-    def engine2System = getSystem(EngineSystemPrefix + "2")
+    def hub2System = getSystem(HubSystemPrefix + "2")
 
-    def startEngineNode2(): Unit = startEngineNode(2)
+    def startHubNode2(): Unit = startHubNode(2)
 
     def startGate2(name: String): Unit = startGate(2, name)
 
-    def restartEngineNode2(): Unit = restartEngineNode(2)
+    def restartHubNode2(): Unit = restartHubNode(2)
 
-    startEngineNode2()
+    startHubNode2()
   }
 
 

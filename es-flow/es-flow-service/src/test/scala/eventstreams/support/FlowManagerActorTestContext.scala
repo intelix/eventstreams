@@ -16,13 +16,16 @@ package eventstreams.support
  * limitations under the License.
  */
 
+import akka.cluster.Cluster
 import eventstreams.core.actors.DefaultTopicKeys
 import eventstreams.flows.FlowManagerActor
 
-trait FlowManagerActorTestContext extends DefaultTopicKeys {
+trait FlowManagerActorTestContext extends DefaultTopicKeys with ClusterTestContext {
 
   def startFlowManager(system: ActorSystemWrapper) =
-    system.start(FlowManagerActor.props(system.config), FlowManagerActor.id)
+    withCluster(system) { cluster =>
+      system.start(FlowManagerActor.props(system.config, cluster), FlowManagerActor.id)
+    }
 
   def flowManagerActorSelection(system: ActorSystemWrapper) = system.rootUserActorSelection(FlowManagerActor.id)
   

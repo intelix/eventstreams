@@ -9,25 +9,25 @@ import org.scalatest.FlatSpec
 import play.api.libs.json.{JsArray, Json}
 
 class AgentsTest
-  extends FlatSpec with AgentNodeTestContext with EngineNodeTestContext with IsolatedActorSystems {
+  extends FlatSpec with AgentNodeTestContext with HubNodeTestContext with IsolatedActorSystems {
 
 
-  "AgentManager" should "start" in new WithAgentNode1 with WithEngineNode1  {
+  "AgentManager" should "start" in new WithAgentNode1 with WithHubNode1  {
     expectOneOrMoreEvents(AgentsManagerActor.PreStart)
   }
 
-  it should "receive a handshake from the agent" in new WithAgentNode1 with WithEngineNode1  {
+  it should "receive a handshake from the agent" in new WithAgentNode1 with WithHubNode1  {
     expectOneOrMoreEvents(AgentsManagerActor.HandshakeReceived)
   }
 
-  it should "create an agent proxy" in new WithAgentNode1 with WithEngineNode1  {
+  it should "create an agent proxy" in new WithAgentNode1 with WithHubNode1  {
     expectOneOrMoreEvents(AgentsManagerActor.AgentProxyInstanceAvailable)
   }
 
-  trait WithSubscriberForAgentManager extends WithAgentNode1 with WithEngineNode1  {
+  trait WithSubscriberForAgentManager extends WithAgentNode1 with WithHubNode1  {
     expectOneOrMoreEvents(AgentsManagerActor.PreStart)
     val agentManagerRoute = ComponentKey(locateLastEventFieldValue(AgentsManagerActor.PreStart, "ComponentKey").asInstanceOf[String])
-    withSystem(EngineSystemPrefix, 1) { sys =>
+    withSystem(HubSystemPrefix, 1) { sys =>
       startMessageSubscriber1(sys)
       subscribeFrom1(sys, LocalSubj(agentManagerRoute, T_LIST))
     }
@@ -49,7 +49,7 @@ class AgentsTest
     expectOneOrMoreEvents(AgentControllerActor.PreStart)
   }
 
-  it should "attempt connect to the engine" in new WithAgentNode1 {
+  it should "attempt connect to the hub" in new WithAgentNode1 {
     expectOneOrMoreEvents(AgentControllerActor.AssociationAttempt)
   }
 
@@ -57,30 +57,30 @@ class AgentsTest
     expectOneOrMoreEvents(AgentControllerActor.AvailableEventsources, 'List -> ("Stub1@" + classOf[EventsourceStub].getName))
   }
 
-  it should "connect to the engine" in new WithAgentNode1 with WithEngineNode1 {
+  it should "connect to the hub" in new WithAgentNode1 with WithHubNode1 {
     expectOneOrMoreEvents(AgentControllerActor.AssociatedWithRemoteActor)
   }
 
-  it should "send a handshake" in new WithAgentNode1 with WithEngineNode1  {
+  it should "send a handshake" in new WithAgentNode1 with WithHubNode1  {
     val uuid = locateFirstEventFieldValue(AgentControllerActor.AgentInstanceAvailable, "Id")
     expectOneOrMoreEvents(AgentsManagerActor.HandshakeReceived, 'AgentID -> uuid)
   }
 
-  it should "reconnect to the engine if disconnected" in new WithAgentNode1 with WithEngineNode1  {
+  it should "reconnect to the hub if disconnected" in new WithAgentNode1 with WithHubNode1  {
     expectOneOrMoreEvents(AgentsManagerActor.HandshakeReceived)
     clearEvents()
-    restartEngineNode1()
+    restartHubNode1()
     expectOneOrMoreEvents(AgentControllerActor.AssociationAttempt)
     expectOneOrMoreEvents(AgentControllerActor.AssociatedWithRemoteActor)
   }
 
-  it should "not create a eventsource instance yet" in new WithAgentNode1 with WithEngineNode1  {
+  it should "not create a eventsource instance yet" in new WithAgentNode1 with WithHubNode1  {
     waitAndCheck {
       expectNoEvents(AgentControllerActor.EventsourceInstanceAvailable)
     }
   }
 
-  it should "create a eventsource actor on demand" in new WithAgentNode1 with WithEngineNode1  {
+  it should "create a eventsource actor on demand" in new WithAgentNode1 with WithHubNode1  {
     sendToAgentController1(CreateEventsource(Json.obj()))
     expectExactlyNEvents(1, AgentControllerActor.EventsourceInstanceAvailable)
   }
@@ -89,62 +89,62 @@ class AgentsTest
     expectOneOrMoreEvents(AgentsManagerActor.UpdateForSubject)
   }
 
-  "Agent Controller with eventsource actor" should "not have eventsource instance if config is blank" in new WithAgentNode1 with WithEngineNode1  {
+  "Agent Controller with eventsource actor" should "not have eventsource instance if config is blank" in new WithAgentNode1 with WithHubNode1  {
     sendToAgentController1(CreateEventsource(Json.obj()))
     waitAndCheck {
       expectNoEvents(EventsourceActor.EventsourceReady)
     }
   }
 
-  it should "not have eventsource instance if class is missing" in new WithAgentNode1 with WithEngineNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj(), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
+  it should "not have eventsource instance if class is missing" in new WithAgentNode1 with WithHubNode1  {
+    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj(), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
     waitAndCheck {
       expectNoEvents(EventsourceActor.EventsourceReady)
     }
   }
 
-  it should "not have eventsource instance if class is wrong" in new WithAgentNode1 with WithEngineNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "xx"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
+  it should "not have eventsource instance if class is wrong" in new WithAgentNode1 with WithHubNode1  {
+    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "xx"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
     waitAndCheck {
       expectNoEvents(EventsourceActor.EventsourceReady)
     }
   }
 
-  it should "not have eventsource instance if targetGate is missing" in new WithAgentNode1 with WithEngineNode1  {
+  it should "not have eventsource instance if targetGate is missing" in new WithAgentNode1 with WithHubNode1  {
     sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"))))
     waitAndCheck {
       expectNoEvents(EventsourceActor.EventsourceReady)
     }
   }
 
-  it should "not have eventsource instance if targetGate is blank" in new WithAgentNode1 with WithEngineNode1  {
+  it should "not have eventsource instance if targetGate is blank" in new WithAgentNode1 with WithHubNode1  {
     sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "")))
     waitAndCheck {
       expectNoEvents(EventsourceActor.EventsourceReady)
     }
   }
 
-  it should "have eventsource instance if config is valid" in new WithAgentNode1 with WithEngineNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
+  it should "have eventsource instance if config is valid" in new WithAgentNode1 with WithHubNode1  {
+    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
     expectExactlyNEvents(1, EventsourceActor.EventsourceReady)
   }
 
 
-  "Eventsource Proxy" should "start when eventsource is created" in new WithAgentNode1 with WithEngineNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
+  "Eventsource Proxy" should "start when eventsource is created" in new WithAgentNode1 with WithHubNode1  {
+    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
     expectExactlyNEvents(1, AgentProxyActor.EventsourceProxyUp)
   }
 
-  "Eventsource" should "communicate the current state (passive)" in new WithAgentNode1 with WithEngineNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
+  "Eventsource" should "communicate the current state (passive)" in new WithAgentNode1 with WithHubNode1  {
+    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
     expectOneOrMoreEvents(EventsourceProxyActor.InfoUpdate)
     val infoUpdate = locateFirstEventFieldValue(EventsourceProxyActor.InfoUpdate, "Data").asInstanceOf[String]
     Json.parse(infoUpdate) ~> 'state should be(Some("passive"))
   }
 
 
-  trait WithEventsourceStarted extends WithAgentNode1 with WithEngineNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
+  trait WithEventsourceStarted extends WithAgentNode1 with WithHubNode1  {
+    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
     expectExactlyNEvents(1, AgentProxyActor.EventsourceProxyUp)
     expectOneOrMoreEvents(EventsourceProxyActor.PreStart)
     expectOneOrMoreEvents(PublisherStubActor.PreStart)
@@ -158,7 +158,7 @@ class AgentsTest
   }
 
   trait WithEventsourceActivated extends WithEventsourceStarted {
-    sendCommand(engine1System, eventsourceProxyRoute, T_START, None)
+    sendCommand(hub1System, eventsourceProxyRoute, T_START, None)
     expectExactlyNEvents(1, SubscriberBoundaryInitiatingActor.AssociationAttempt)
     expectExactlyNEvents(1, EventsourceActor.BecomingActive)
     expectExactlyNEvents(1, PublisherStubActor.BecomingActive)
@@ -177,7 +177,7 @@ class AgentsTest
   }
 
   "when eventsource is started, Eventsource" should "attempt connecting to the gate when eventsource is started" in new WithEventsourceStarted {
-    sendCommand(engine1System, eventsourceProxyRoute, T_START, None)
+    sendCommand(hub1System, eventsourceProxyRoute, T_START, None)
     expectExactlyNEvents(1, SubscriberBoundaryInitiatingActor.AssociationAttempt)
     expectExactlyNEvents(2, SubscriberBoundaryInitiatingActor.AssociationAttempt)
   }
@@ -276,7 +276,7 @@ class AgentsTest
   }
 
   "when eventsource is up gate is closed and 1 event available, Eventsource" should "reconnect to the gate if connection drops" in new WithOneSyseventsAvailAndClosedGate {
-    restartEngineNode1()
+    restartHubNode1()
     startGate1("gate1")
     expectOneOrMoreEvents(AgentProxyActor.EventsourceProxyUp)
     expectOneOrMoreEvents(GateStubActor.GateStatusCheckReceived)
@@ -287,7 +287,7 @@ class AgentsTest
 
   it should "communicate the current state once reconnected" in new WithOneSyseventsAvailAndClosedGate {
     clearEvents()
-    restartEngineNode1()
+    restartHubNode1()
     startGate1("gate1")
     expectOneOrMoreEvents(AgentProxyActor.EventsourceProxyUp)
     expectOneOrMoreEvents(GateStubActor.GateStatusCheckReceived)
@@ -322,14 +322,14 @@ class AgentsTest
       expectOneOrMoreEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString)
     }
   }
-  it should "deliver all messages even if engine restarts in between" in new With100Sysevents {
+  it should "deliver all messages even if hub restarts in between" in new With100Sysevents {
     autoCloseGateAfter("gate1", 25)
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
     (1 to 25).foreach { i =>
       expectOneOrMoreEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString)
     }
-    restartEngineNode1()
+    restartHubNode1()
     startGate1("gate1")
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
@@ -338,14 +338,14 @@ class AgentsTest
     }
   }
 
-  it should "deliver all messages even if engine restarts multiple times in between" in new With100Sysevents {
+  it should "deliver all messages even if hub restarts multiple times in between" in new With100Sysevents {
     autoCloseGateAfter("gate1", 25)
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
     (1 to 25).foreach { i =>
       expectOneOrMoreEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString)
     }
-    restartEngineNode1()
+    restartHubNode1()
     autoCloseGateAfter("gate1", 25)
     startGate1("gate1")
     openGate("gate1")
@@ -353,7 +353,7 @@ class AgentsTest
     (26 to 50).foreach { i =>
       expectOneOrMoreEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString)
     }
-    restartEngineNode1()
+    restartHubNode1()
     startGate1("gate1")
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
@@ -390,43 +390,43 @@ class AgentsTest
     }
   }
 
-  "AgentProxy" should "create eventsource on command" in new WithAgentNode1 with WithEngineNode1  {
-    implicit val sys = engine1System
+  "AgentProxy" should "create eventsource on command" in new WithAgentNode1 with WithHubNode1  {
+    implicit val sys = hub1System
     val route = locateFirstEventFieldValue(AgentProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
-    sendCommand(engine1System, route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
+    sendCommand(hub1System, route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
     expectExactlyNEvents(1, AgentProxyActor.EventsourceProxyUp)
   }
 
-  it should "create be able to create multiple eventsources" in new WithAgentNode1 with WithEngineNode1  {
-    implicit val sys = engine1System
+  it should "create be able to create multiple eventsources" in new WithAgentNode1 with WithHubNode1  {
+    implicit val sys = hub1System
     val route = locateFirstEventFieldValue(AgentProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
-    sendCommand(engine1System, route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
+    sendCommand(hub1System, route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
     expectExactlyNEvents(1, AgentProxyActor.EventsourceProxyUp)
     val dsProxy1Route = locateFirstEventFieldValue(EventsourceProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
     clearEvents()
-    sendCommand(engine1System, route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate2")))
+    sendCommand(hub1System, route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate2")))
     expectExactlyNEvents(1, AgentProxyActor.EventsourceProxyUp)
     val dsProxy2Route = locateFirstEventFieldValue(EventsourceProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
     dsProxy1Route should not be dsProxy2Route
   }
 
 
-  trait WithSubscriberForAgentProxy extends WithAgentNode1 with WithEngineNode1  {
-    implicit val sys = engine1System
+  trait WithSubscriberForAgentProxy extends WithAgentNode1 with WithHubNode1  {
+    implicit val sys = hub1System
     val agentProxyRoute = ComponentKey(locateLastEventFieldValue(AgentProxyActor.PreStart, "ComponentKey").asInstanceOf[String])
-    withSystem(EngineSystemPrefix, 1) { sys =>
+    withSystem(HubSystemPrefix, 1) { sys =>
       startMessageSubscriber1(sys)
     }
   }
 
   it should "accept a subscriber for the list" in new WithSubscriberForAgentProxy {
-    subscribeFrom1(engine1System, LocalSubj(agentProxyRoute, T_LIST))
+    subscribeFrom1(hub1System, LocalSubj(agentProxyRoute, T_LIST))
     expectOneOrMoreEvents(AgentProxyActor.NewSubjectSubscription)
     expectOneOrMoreEvents(AgentProxyActor.FirstSubjectSubscriber)
   }
 
   it should "respond to the list subscriber"  in new WithSubscriberForAgentProxy {
-    subscribeFrom1(engine1System, LocalSubj(agentProxyRoute, T_LIST))
+    subscribeFrom1(hub1System, LocalSubj(agentProxyRoute, T_LIST))
     expectOneOrMoreEvents(AgentProxyActor.UpdateForSubject)
     val data = Json.parse(locateFirstEventFieldValue(AgentProxyActor.UpdateForSubject, "Data").asInstanceOf[String])
     data.as[JsArray].value should be(empty)
@@ -434,18 +434,18 @@ class AgentsTest
 
 
   it should "send updates to the list subscriber when eventsources are created"  in new WithSubscriberForAgentProxy {
-    subscribeFrom1(engine1System, LocalSubj(agentProxyRoute, T_LIST))
+    subscribeFrom1(hub1System, LocalSubj(agentProxyRoute, T_LIST))
     val route = locateFirstEventFieldValue(AgentProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
     expectOneOrMoreEvents(AgentProxyActor.UpdateForSubject)
     clearEvents()
-    sendCommand(engine1System, route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
+    sendCommand(hub1System, route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
     expectExactlyNEvents(1, AgentProxyActor.EventsourceProxyUp)
     waitAndCheck {
       expectOneOrMoreEvents(AgentProxyActor.UpdateForSubject)
     }
     Json.parse(locateLastEventFieldValue(AgentProxyActor.UpdateForSubject, "Data").asInstanceOf[String]).as[JsArray].value should have size 1
     clearEvents()
-    sendCommand(engine1System, route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate2")))
+    sendCommand(hub1System, route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate2")))
     expectExactlyNEvents(1, AgentProxyActor.EventsourceProxyUp)
     waitAndCheck {
       expectOneOrMoreEvents(AgentProxyActor.UpdateForSubject)
@@ -455,34 +455,34 @@ class AgentsTest
 
 
   it should "accept a subscriber for the info" in new WithSubscriberForAgentProxy {
-    subscribeFrom1(engine1System, LocalSubj(agentProxyRoute, T_INFO))
+    subscribeFrom1(hub1System, LocalSubj(agentProxyRoute, T_INFO))
     expectOneOrMoreEvents(AgentProxyActor.NewSubjectSubscription)
     expectOneOrMoreEvents(AgentProxyActor.FirstSubjectSubscriber)
   }
 
   it should "respond to the info subscriber"  in new WithSubscriberForAgentProxy {
-    subscribeFrom1(engine1System, LocalSubj(agentProxyRoute, T_INFO))
+    subscribeFrom1(hub1System, LocalSubj(agentProxyRoute, T_INFO))
     expectOneOrMoreEvents(AgentProxyActor.UpdateForSubject)
     Json.parse(locateLastEventFieldValue(AgentProxyActor.UpdateForSubject, "Data").asInstanceOf[String]) ~> 'name should be (Some("agent1"))
   }
 
   it should "accept a subscriber for the configtpl" in new WithSubscriberForAgentProxy {
-    subscribeFrom1(engine1System, LocalSubj(agentProxyRoute, T_CONFIGTPL))
+    subscribeFrom1(hub1System, LocalSubj(agentProxyRoute, T_CONFIGTPL))
     expectOneOrMoreEvents(AgentProxyActor.NewSubjectSubscription)
     expectOneOrMoreEvents(AgentProxyActor.FirstSubjectSubscriber)
   }
 
   it should "respond to the configtpl subscriber" in new WithSubscriberForAgentProxy {
-    subscribeFrom1(engine1System, LocalSubj(agentProxyRoute, T_CONFIGTPL))
+    subscribeFrom1(hub1System, LocalSubj(agentProxyRoute, T_CONFIGTPL))
     expectOneOrMoreEvents(AgentProxyActor.UpdateForSubject)
     Json.parse(locateLastEventFieldValue(AgentProxyActor.UpdateForSubject, "Data").asInstanceOf[String]) ~> "title" should not be None
   }
 
 
 
-  trait WithTwoEventsources extends WithAgentNode1 with WithEngineNode1  {
+  trait WithTwoEventsources extends WithAgentNode1 with WithHubNode1  {
     val route = locateFirstEventFieldValue(AgentProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
-    sendCommand(engine1System, route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate1")))
+    sendCommand(hub1System, route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
     expectExactlyNEvents(1, AgentProxyActor.EventsourceProxyUp)
     val dsProxy1Route = locateFirstEventFieldValue(EventsourceProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
     var ds1PublisherActorRef = withSystem[ActorSelection](AgentSystemPrefix, 1) { sys =>
@@ -491,7 +491,7 @@ class AgentsTest
     var ds1ComponentKey = locateFirstEventFieldValue(EventsourceActor.PreStart, "ComponentKey").asInstanceOf[String]
 
     clearEvents()
-    sendCommand(engine1System, route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate2")))
+    sendCommand(hub1System, route, T_ADD, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate2")))
     expectExactlyNEvents(1, AgentProxyActor.EventsourceProxyUp)
     val dsProxy2Route = locateFirstEventFieldValue(EventsourceProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
     var ds2PublisherActorRef = withSystem[ActorSelection](AgentSystemPrefix, 1) { sys =>
@@ -515,7 +515,7 @@ class AgentsTest
   }
 
   "when two eventsources created, and both gates available, AgentProxy" should "be able to activate one" in new WithTwoEventsources {
-    sendCommand(engine1System, dsProxy2Route, T_START, None)
+    sendCommand(hub1System, dsProxy2Route, T_START, None)
     waitAndCheck {
       expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived, 'GateName -> "gate2")
     }
@@ -528,7 +528,7 @@ class AgentsTest
   }
 
   it should "be able to activate another" in new WithTwoEventsources {
-    sendCommand(engine1System, dsProxy1Route, T_START, None)
+    sendCommand(hub1System, dsProxy1Route, T_START, None)
     waitAndCheck {
       expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived, 'GateName -> "gate1")
     }
@@ -540,8 +540,8 @@ class AgentsTest
 
   }
   it should "be able to activate both" in new WithTwoEventsources {
-    sendCommand(engine1System, dsProxy1Route, T_START, None)
-    sendCommand(engine1System, dsProxy2Route, T_START, None)
+    sendCommand(hub1System, dsProxy1Route, T_START, None)
+    sendCommand(hub1System, dsProxy2Route, T_START, None)
     waitAndCheck {
       expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived, 'GateName -> "gate2")
       expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived, 'GateName -> "gate1")
@@ -555,8 +555,8 @@ class AgentsTest
   }
 
   it should "be able to activate both and then stop one" in new WithTwoEventsources {
-    sendCommand(engine1System, dsProxy1Route, T_START, None)
-    sendCommand(engine1System, dsProxy2Route, T_START, None)
+    sendCommand(hub1System, dsProxy1Route, T_START, None)
+    sendCommand(hub1System, dsProxy2Route, T_START, None)
     waitAndCheck {
       expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived, 'GateName -> "gate2")
       expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived, 'GateName -> "gate1")
@@ -568,7 +568,7 @@ class AgentsTest
     expectExactlyNEvents(2, SubscriberBoundaryInitiatingActor.BecomingActive)
     clearEvents()
 
-    sendCommand(engine1System, dsProxy1Route, T_STOP, None)
+    sendCommand(hub1System, dsProxy1Route, T_STOP, None)
     expectOneOrMoreEvents(SubscriberBoundaryInitiatingActor.GateStateMonitorStopped)
     expectExactlyNEvents(1, EventsourceActor.BecomingPassive, 'ComponentKey -> ds1ComponentKey)
     waitAndCheck {
@@ -578,8 +578,8 @@ class AgentsTest
   }
 
   it should "be able to activate both and then remove one" in new WithTwoEventsources {
-    sendCommand(engine1System, dsProxy1Route, T_START, None)
-    sendCommand(engine1System, dsProxy2Route, T_START, None)
+    sendCommand(hub1System, dsProxy1Route, T_START, None)
+    sendCommand(hub1System, dsProxy2Route, T_START, None)
     waitAndCheck {
       expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived, 'GateName -> "gate2")
       expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived, 'GateName -> "gate1")
@@ -591,20 +591,20 @@ class AgentsTest
     expectExactlyNEvents(2, SubscriberBoundaryInitiatingActor.BecomingActive)
     clearEvents()
 
-    sendCommand(engine1System, dsProxy1Route, T_REMOVE, None)
+    sendCommand(hub1System, dsProxy1Route, T_REMOVE, None)
     expectExactlyNEvents(1, EventsourceActor.PostStop, 'ComponentKey -> ds1ComponentKey)
     expectExactlyNEvents(1, EventsourceProxyActor.PostStop)
     waitAndCheck {
       expectNoEvents(EventsourceActor.BecomingPassive, 'ComponentKey -> ds2ComponentKey)
     }
-    sendCommand(engine1System, dsProxy2Route, T_STOP, None)
+    sendCommand(hub1System, dsProxy2Route, T_STOP, None)
     expectOneOrMoreEvents(SubscriberBoundaryInitiatingActor.GateStateMonitorStopped)
 
   }
 
   it should "be able to activate both and then remove both" in new WithTwoEventsources {
-    sendCommand(engine1System, dsProxy1Route, T_START, None)
-    sendCommand(engine1System, dsProxy2Route, T_START, None)
+    sendCommand(hub1System, dsProxy1Route, T_START, None)
+    sendCommand(hub1System, dsProxy2Route, T_START, None)
     waitAndCheck {
       expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived, 'GateName -> "gate2")
       expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived, 'GateName -> "gate1")
@@ -616,8 +616,8 @@ class AgentsTest
     expectExactlyNEvents(2, SubscriberBoundaryInitiatingActor.BecomingActive)
     clearEvents()
 
-    sendCommand(engine1System, dsProxy1Route, T_REMOVE, None)
-    sendCommand(engine1System, dsProxy2Route, T_REMOVE, None)
+    sendCommand(hub1System, dsProxy1Route, T_REMOVE, None)
+    sendCommand(hub1System, dsProxy2Route, T_REMOVE, None)
     expectExactlyNEvents(1, EventsourceActor.PostStop, 'ComponentKey -> ds1ComponentKey)
     expectExactlyNEvents(1, EventsourceActor.PostStop, 'ComponentKey -> ds2ComponentKey)
     expectExactlyNEvents(2, EventsourceProxyActor.PostStop)
@@ -625,8 +625,8 @@ class AgentsTest
   }
 
   it should "be able to remove both" in new WithTwoEventsources {
-    sendCommand(engine1System, dsProxy1Route, T_REMOVE, None)
-    sendCommand(engine1System, dsProxy2Route, T_REMOVE, None)
+    sendCommand(hub1System, dsProxy1Route, T_REMOVE, None)
+    sendCommand(hub1System, dsProxy2Route, T_REMOVE, None)
     expectExactlyNEvents(1, EventsourceActor.PostStop, 'ComponentKey -> ds1ComponentKey)
     expectExactlyNEvents(1, EventsourceActor.PostStop, 'ComponentKey -> ds2ComponentKey)
     expectExactlyNEvents(2, EventsourceProxyActor.PostStop)
@@ -634,8 +634,8 @@ class AgentsTest
   }
 
   it should "be able to activate both and then stop both" in new WithTwoEventsources {
-    sendCommand(engine1System, dsProxy1Route, T_START, None)
-    sendCommand(engine1System, dsProxy2Route, T_START, None)
+    sendCommand(hub1System, dsProxy1Route, T_START, None)
+    sendCommand(hub1System, dsProxy2Route, T_START, None)
     waitAndCheck {
       expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived, 'GateName -> "gate2")
       expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived, 'GateName -> "gate1")
@@ -647,8 +647,8 @@ class AgentsTest
     expectExactlyNEvents(2, SubscriberBoundaryInitiatingActor.BecomingActive)
     clearEvents()
 
-    sendCommand(engine1System, dsProxy1Route, T_STOP, None)
-    sendCommand(engine1System, dsProxy2Route, T_STOP, None)
+    sendCommand(hub1System, dsProxy1Route, T_STOP, None)
+    sendCommand(hub1System, dsProxy2Route, T_STOP, None)
     expectExactlyNEvents(2,SubscriberBoundaryInitiatingActor.GateStateMonitorStopped)
     expectExactlyNEvents(1, EventsourceActor.BecomingPassive, 'ComponentKey -> ds1ComponentKey)
     expectExactlyNEvents(1, EventsourceActor.BecomingPassive, 'ComponentKey -> ds2ComponentKey)
@@ -687,7 +687,7 @@ class AgentsTest
 
   "when two eventsources created, both gates available, and 10 events available for publishing, Eventsource" should
     "publish 10 messages to gate1 when first activated, gate2 sould receive nothing"  in new WithTwoEventsourcesAnd10SyseventsForEach {
-    sendCommand(engine1System, dsProxy1Route, T_START, None)
+    sendCommand(hub1System, dsProxy1Route, T_START, None)
     (1 to 10).foreach { i =>
       expectOneOrMoreEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString, 'GateName -> "gate1")
     }
@@ -696,7 +696,7 @@ class AgentsTest
   }
 
   it should "publish 10 messages to gate2 when second activated, gate1 sould receive nothing" in new WithTwoEventsourcesAnd10SyseventsForEach {
-    sendCommand(engine1System, dsProxy2Route, T_START, None)
+    sendCommand(hub1System, dsProxy2Route, T_START, None)
     (1 to 10).foreach { i =>
       expectOneOrMoreEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString, 'GateName -> "gate2")
     }
@@ -705,8 +705,8 @@ class AgentsTest
   }
 
   it should "publish 10 messages each to gate1 and gate2 when both activated"  in new WithTwoEventsourcesAnd10SyseventsForEach {
-    sendCommand(engine1System, dsProxy1Route, T_START, None)
-    sendCommand(engine1System, dsProxy2Route, T_START, None)
+    sendCommand(hub1System, dsProxy1Route, T_START, None)
+    sendCommand(hub1System, dsProxy2Route, T_START, None)
     (1 to 10).foreach { i =>
       expectOneOrMoreEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString, 'GateName -> "gate1")
       expectOneOrMoreEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString, 'GateName -> "gate2")
@@ -717,8 +717,8 @@ class AgentsTest
 
   "when two eventsources created, both gates available, and 10 events available for publishing, AgentProxy" should
     "be able to activate both and then reset one once all messages are published" in new WithTwoEventsourcesAnd10SyseventsForEach {
-    sendCommand(engine1System, dsProxy1Route, T_START, None)
-    sendCommand(engine1System, dsProxy2Route, T_START, None)
+    sendCommand(hub1System, dsProxy1Route, T_START, None)
+    sendCommand(hub1System, dsProxy2Route, T_START, None)
 
     (1 to 10).foreach { i =>
       expectOneOrMoreEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString, 'GateName -> "gate1")
@@ -726,7 +726,7 @@ class AgentsTest
     }
     clearEvents()
 
-    sendCommand(engine1System, dsProxy1Route, T_RESET, None)
+    sendCommand(hub1System, dsProxy1Route, T_RESET, None)
     expectExactlyNEvents(1, SubscriberBoundaryInitiatingActor.PostStop)
     expectExactlyNEvents(1, PublisherStubActor.PostStop)
     expectExactlyNEvents(1, PublisherStubActor.PublisherStubStarted, 'InitialState -> "None")
@@ -741,8 +741,8 @@ class AgentsTest
   }
 
   trait WithBothActivated10MsgPublishedAndOneReconfiguredForGate3 extends WithTwoEventsourcesAnd10SyseventsForEach {
-    sendCommand(engine1System, dsProxy1Route, T_START, None)
-    sendCommand(engine1System, dsProxy2Route, T_START, None)
+    sendCommand(hub1System, dsProxy1Route, T_START, None)
+    sendCommand(hub1System, dsProxy2Route, T_START, None)
 
     clearEvents()
 
@@ -758,7 +758,7 @@ class AgentsTest
     openGate("gate3")
 
 
-    sendCommand(engine1System, dsProxy1Route, T_UPDATE_PROPS, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://engine@localhost:12521/user/gate3")))
+    sendCommand(hub1System, dsProxy1Route, T_UPDATE_PROPS, Some(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate3")))
     expectExactlyNEvents(1, SubscriberBoundaryInitiatingActor.PostStop)
     expectExactlyNEvents(1, PublisherStubActor.PostStop)
     expectExactlyNEvents(1, PublisherStubActor.BecomingActive)

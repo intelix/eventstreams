@@ -261,25 +261,25 @@ class MessageRouterTest
     }
     expectOneOrMoreEvents(MessageRouterActor.ForwardedToLocalProviders, 'InstanceAddress -> dummy1Address)
     expectExactlyNEvents(2, MessageRouterActor.NewSubscription)
-    expectExactlyNEvents(1, MessageRouterActor.NewSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#list@akka.tcp://engine@localhost:12521")
-    expectExactlyNEvents(1, MessageRouterActor.NewSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://engine@localhost:12521")
+    expectExactlyNEvents(1, MessageRouterActor.NewSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#list@akka.tcp://hub@localhost:12521")
+    expectExactlyNEvents(1, MessageRouterActor.NewSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://hub@localhost:12521")
   }
 
   it should s"resubscribe with restarted component on another node" in new WithThreeSubscribersToInfoAndOneToList {
     restartDummyNode1()
-    expectSomeEventsWithTimeout(30000, 1, MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://engine@localhost:12521")
+    expectSomeEventsWithTimeout(30000, 1, MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://hub@localhost:12521")
     expectExactlyNEvents(1, MessageRouterActor.NewSubjectSubscription)
   }
 
   it should s"resubscribe with restarted component on another node - eventually subscribe to providers" taggedAs OnlyThisTest in new WithThreeSubscribersToInfoAndOneToList {
     restartDummyNode1()
-    expectSomeEventsWithTimeout(30000, 1, MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://engine@localhost:12521")
+    expectSomeEventsWithTimeout(30000, 1, MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://hub@localhost:12521")
     duringPeriodInMillis(2000) {
       expectNoEvents(MessageRouterActor.NewSubscription)
     }
     startRouteeComponentStub1(dummy1System)
     expectExactlyNEvents(1, MessageRouterActor.NewSubscription)
-    expectExactlyNEvents(1, MessageRouterActor.NewSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://engine@localhost:12521")
+    expectExactlyNEvents(1, MessageRouterActor.NewSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://hub@localhost:12521")
   }
 
   it should "drop any unsupported payload (not wraped in Option)" in new WithThreeSubscribersToInfoAndOneToList {
@@ -289,25 +289,25 @@ class MessageRouterTest
   it should "forward response to the client if there was any" in new WithThreeSubscribersToInfoAndOneToList {
     subscribeFrom1(dummy1System, RemoteAddrSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, TopicKey("withresponse"))))
     expectExactlyNEvents(1, SubscribingComponentStub.UpdateReceived)
-    expectOneOrMoreEvents(SubscribingComponentStub.UpdateReceived, 'Contents -> "response", 'Subject -> "provider/routeeStub1#withresponse@akka.tcp://engine@localhost:12521")
+    expectOneOrMoreEvents(SubscribingComponentStub.UpdateReceived, 'Contents -> "response", 'Subject -> "provider/routeeStub1#withresponse@akka.tcp://hub@localhost:12521")
   }
 
   it should "forward updates to the client (topic info)" in new WithThreeSubscribersToInfoAndOneToList {
     updateTopicFromRoutee1(dummy1System, T_INFO, "test")
     expectExactlyNEvents(3, SubscribingComponentStub.UpdateReceived)
-    expectExactlyNEvents(2, SubscribingComponentStub.UpdateReceived, 'Contents -> "test", 'Subject -> "provider/routeeStub1#info@akka.tcp://engine@localhost:12521", 'InstanceId -> "subscriberStub1")
-    expectExactlyNEvents(1, SubscribingComponentStub.UpdateReceived, 'Contents -> "test", 'Subject -> "provider/routeeStub1#info@akka.tcp://engine@localhost:12521", 'InstanceId -> "subscriberStub2")
+    expectExactlyNEvents(2, SubscribingComponentStub.UpdateReceived, 'Contents -> "test", 'Subject -> "provider/routeeStub1#info@akka.tcp://hub@localhost:12521", 'InstanceId -> "subscriberStub1")
+    expectExactlyNEvents(1, SubscribingComponentStub.UpdateReceived, 'Contents -> "test", 'Subject -> "provider/routeeStub1#info@akka.tcp://hub@localhost:12521", 'InstanceId -> "subscriberStub2")
   }
   it should "forward updates to the client (topic list)" in new WithThreeSubscribersToInfoAndOneToList {
     updateTopicFromRoutee1(dummy1System, T_LIST, "test")
     expectExactlyNEvents(1, SubscribingComponentStub.UpdateReceived)
-    expectExactlyNEvents(1, SubscribingComponentStub.UpdateReceived, 'Contents -> "test", 'Subject -> "provider/routeeStub1#list@akka.tcp://engine@localhost:12521", 'InstanceId -> "subscriberStub1")
+    expectExactlyNEvents(1, SubscribingComponentStub.UpdateReceived, 'Contents -> "test", 'Subject -> "provider/routeeStub1#list@akka.tcp://hub@localhost:12521", 'InstanceId -> "subscriberStub1")
   }
   it should "use cached value for all new subscriptions (update on list followed by new subscriber to list)" in new WithThreeSubscribersToInfoAndOneToList {
     updateTopicFromRoutee1(dummy1System, T_LIST, "test")
-    expectExactlyNEvents(1, SubscribingComponentStub.UpdateReceived, 'Contents -> "test", 'Subject -> "provider/routeeStub1#list@akka.tcp://engine@localhost:12521", 'InstanceId -> "subscriberStub1")
+    expectExactlyNEvents(1, SubscribingComponentStub.UpdateReceived, 'Contents -> "test", 'Subject -> "provider/routeeStub1#list@akka.tcp://hub@localhost:12521", 'InstanceId -> "subscriberStub1")
     subscribeFrom2(dummy1System, RemoteAddrSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, T_LIST)))
-    expectExactlyNEvents(1, SubscribingComponentStub.UpdateReceived, 'Contents -> "test", 'Subject -> "provider/routeeStub1#list@akka.tcp://engine@localhost:12521", 'InstanceId -> "subscriberStub2")
+    expectExactlyNEvents(1, SubscribingComponentStub.UpdateReceived, 'Contents -> "test", 'Subject -> "provider/routeeStub1#list@akka.tcp://hub@localhost:12521", 'InstanceId -> "subscriberStub2")
     expectExactlyNEvents(1, MessageRouterActor.RespondedWithCached)
   }
   it should "not forward updates to the client if there are no subscribers for the topic (topic abc)" in new WithThreeSubscribersToInfoAndOneToList {

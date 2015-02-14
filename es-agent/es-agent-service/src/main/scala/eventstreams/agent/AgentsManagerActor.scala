@@ -37,6 +37,12 @@ trait AgentManagerActorSysevents extends ComponentWithBaseSysevents with BaseAct
   
 }
 
+object AgentsManagerActor extends ActorObj with AgentManagerActorSysevents {
+  def id = "agents"
+
+  def props(config: Config, cluster: Cluster) = Props(new AgentsManagerActor(id, config, cluster))
+}
+
 
 case class AgentProxyAvailable(id: ComponentKey)
 

@@ -26,7 +26,7 @@ import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.source.StringDocumentSource
 import com.typesafe.config.Config
 import core.sysevents.ref.ComponentWithBaseSysevents
-import eventstreams.core.actors.{ActorObjWithConfig, ActorWithComposableBehavior, ActorWithTicks}
+import eventstreams.core.actors.{ActorObj, ActorObjWithConfig, ActorWithComposableBehavior, ActorWithTicks}
 import eventstreams.{AcknowledgeAsProcessed, Acknowledgeable, EventFrame, NowProvider}
 import org.elasticsearch.common.settings.ImmutableSettings
 import play.api.libs.json._
@@ -41,7 +41,9 @@ trait RetentionManagerSysevents extends ComponentWithBaseSysevents {
   override def componentId: String = "Actor.RetentionManager"
 }
 
-
+object RetentionManagerActor extends ActorObj {
+  override def id: String = "retention"
+}
 
 
 case class ScheduleStorage(ref: ActorRef, index: String, etype: String, id: String, v: JsValue)

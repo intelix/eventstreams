@@ -16,12 +16,13 @@ package eventstreams.support
  * limitations under the License.
  */
 
+import akka.cluster.Cluster
 import eventstreams.agent.AgentsManagerActor
 
 trait AgentManagerActorTestContext {
 
-  def withAgentManager(system: ActorSystemWrapper) =
-    system.start(AgentsManagerActor.props, AgentsManagerActor.id)
+  def withAgentManager(system: ActorSystemWrapper, cluster: Cluster) =
+    system.start(AgentsManagerActor.props(system.config, cluster), AgentsManagerActor.id)
 
   
 }

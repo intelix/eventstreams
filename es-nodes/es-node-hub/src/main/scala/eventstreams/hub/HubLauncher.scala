@@ -38,7 +38,7 @@ class HubLauncher extends Bootable {
   SyseventPublisherRef.ref = LoggerSyseventPublisher
   SyseventSystemRef.ref = SEvtSystem("EventStreams.Engine")
 
-  implicit val system = ActorSystem("engine", config)
+  implicit val system = ActorSystem("hub", config)
 
   implicit val cluster = Cluster(system)
 

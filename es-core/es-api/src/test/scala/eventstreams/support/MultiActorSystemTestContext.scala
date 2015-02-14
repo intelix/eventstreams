@@ -132,8 +132,8 @@ trait MultiActorSystemTestContext extends BeforeAndAfterEach with MultiActorSyst
   def getSystem(configName: String) = systems.get(configName) match {
     case None =>
       val config = configs.get(configName).get
-      val sys = Wrapper(config, ActorSystem("engine", config), "engine", configName)
-      ActorSystemCreated >> ('Name -> "engine", 'ConfigName -> configName)
+      val sys = Wrapper(config, ActorSystem("hub", config), "hub", configName)
+      ActorSystemCreated >> ('Name -> "hub", 'ConfigName -> configName)
       systems = systems + (configName -> sys)
       sys
     case Some(x) => x

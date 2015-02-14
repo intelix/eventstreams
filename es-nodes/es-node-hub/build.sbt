@@ -7,9 +7,9 @@ libraryDependencies ++= Dependencies.eventStreamsEngines
 
 packageArchetype.akka_application
 
-packageSummary in Linux := "EventStreams Engine"
+packageSummary in Linux := "EventStreams Hub"
 
-packageSummary in Windows := "EventStreams Engine"
+packageSummary in Windows := "EventStreams Hub"
 
 packageDescription := " EventStreams: http://eventstreams.io"
 

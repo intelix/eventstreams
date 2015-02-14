@@ -39,7 +39,7 @@ define(['react', 'core_mixin', './AgentsTabs', './EventsourcesTable', './Eventso
                     "desc": "",
                     "sourceId": "",
                     "tags": "",
-                    "targetGate": "akka.tcp://engine@localhost:12345/user/GATENAME"
+                    "targetGate": "akka.tcp://hub@localhost:12345/user/GATENAME"
                 };
                 this.setState({editBlock: <EditBlock addr={this.props.addr} mgrRoute={this.state.agentSelected}  title="Eventsource configuration" defaults={defaults} editorId="esource"/>});
             },

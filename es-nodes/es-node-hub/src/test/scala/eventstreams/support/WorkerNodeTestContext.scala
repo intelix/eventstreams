@@ -55,7 +55,7 @@ trait WorkerNodeTestContext extends MultiNodeTestingSupport {
   }
 
   trait WithWorkerNode1 extends WithWorkerNode {
-    def worker1Address = "akka.tcp://engine@localhost:12531"
+    def worker1Address = "akka.tcp://hub@localhost:12531"
 
     def worker1System = getSystem(WorkerSystemPrefix + "1")
 
@@ -67,7 +67,7 @@ trait WorkerNodeTestContext extends MultiNodeTestingSupport {
   }
 
   trait WithWorkerNode2 extends WithWorkerNode {
-    def worker2Address = "akka.tcp://engine@localhost:12532"
+    def worker2Address = "akka.tcp://hub@localhost:12532"
 
     def worker2System = getSystem(WorkerSystemPrefix + "2")
 
@@ -79,7 +79,7 @@ trait WorkerNodeTestContext extends MultiNodeTestingSupport {
   }
 
   trait WithWorkerNode3 extends WithWorkerNode {
-    def worker3Address = "akka.tcp://engine@localhost:12533"
+    def worker3Address = "akka.tcp://hub@localhost:12533"
 
     def worker3System = getSystem(WorkerSystemPrefix + "3")
 
