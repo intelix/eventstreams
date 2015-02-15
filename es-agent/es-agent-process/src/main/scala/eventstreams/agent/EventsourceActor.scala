@@ -126,7 +126,7 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
       commProxy = Some(ref)
       sendToHQAll()
     case ReconfigureEventsource(data) =>
-      updateAndApplyConfigProps(data)
+      updateAndApplyConfigProps(Json.parse(data))
     case ResetEventsourceState() =>
       updateAndApplyConfigState(None)
     case RemoveEventsource() =>

@@ -81,7 +81,7 @@ class AgentsTest
   }
 
   it should "create a eventsource actor on demand" in new WithAgentNode1 with WithHubNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj()))
+    sendToAgentController1(CreateEventsource(Json.stringify(Json.obj())))
     expectExactlyNEvents(1, AgentControllerActor.EventsourceInstanceAvailable)
   }
 
@@ -90,53 +90,53 @@ class AgentsTest
   }
 
   "Agent Controller with eventsource actor" should "not have eventsource instance if config is blank" in new WithAgentNode1 with WithHubNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj()))
+    sendToAgentController1(CreateEventsource(Json.stringify(Json.obj())))
     waitAndCheck {
       expectNoEvents(EventsourceActor.EventsourceReady)
     }
   }
 
   it should "not have eventsource instance if class is missing" in new WithAgentNode1 with WithHubNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj(), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
+    sendToAgentController1(CreateEventsource(Json.stringify(Json.obj("source" -> Json.obj(), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1"))))
     waitAndCheck {
       expectNoEvents(EventsourceActor.EventsourceReady)
     }
   }
 
   it should "not have eventsource instance if class is wrong" in new WithAgentNode1 with WithHubNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "xx"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
+    sendToAgentController1(CreateEventsource(Json.stringify(Json.obj("source" -> Json.obj("class" -> "xx"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1"))))
     waitAndCheck {
       expectNoEvents(EventsourceActor.EventsourceReady)
     }
   }
 
   it should "not have eventsource instance if targetGate is missing" in new WithAgentNode1 with WithHubNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"))))
+    sendToAgentController1(CreateEventsource(Json.stringify(Json.obj("source" -> Json.obj("class" -> "stub")))))
     waitAndCheck {
       expectNoEvents(EventsourceActor.EventsourceReady)
     }
   }
 
   it should "not have eventsource instance if targetGate is blank" in new WithAgentNode1 with WithHubNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "")))
+    sendToAgentController1(CreateEventsource(Json.stringify(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> ""))))
     waitAndCheck {
       expectNoEvents(EventsourceActor.EventsourceReady)
     }
   }
 
   it should "have eventsource instance if config is valid" in new WithAgentNode1 with WithHubNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
+    sendToAgentController1(CreateEventsource(Json.stringify(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1"))))
     expectExactlyNEvents(1, EventsourceActor.EventsourceReady)
   }
 
 
   "Eventsource Proxy" should "start when eventsource is created" in new WithAgentNode1 with WithHubNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
+    sendToAgentController1(CreateEventsource(Json.stringify(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1"))))
     expectExactlyNEvents(1, AgentProxyActor.EventsourceProxyUp)
   }
 
   "Eventsource" should "communicate the current state (passive)" in new WithAgentNode1 with WithHubNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
+    sendToAgentController1(CreateEventsource(Json.stringify(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1"))))
     expectOneOrMoreEvents(EventsourceProxyActor.InfoUpdate)
     val infoUpdate = locateFirstEventFieldValue(EventsourceProxyActor.InfoUpdate, "Data").asInstanceOf[String]
     Json.parse(infoUpdate) ~> 'state should be(Some("passive"))
@@ -144,7 +144,7 @@ class AgentsTest
 
 
   trait WithEventsourceStarted extends WithAgentNode1 with WithHubNode1  {
-    sendToAgentController1(CreateEventsource(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1")))
+    sendToAgentController1(CreateEventsource(Json.stringify(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1"))))
     expectExactlyNEvents(1, AgentProxyActor.EventsourceProxyUp)
     expectOneOrMoreEvents(EventsourceProxyActor.PreStart)
     expectOneOrMoreEvents(PublisherStubActor.PreStart)

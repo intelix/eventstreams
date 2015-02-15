@@ -170,7 +170,7 @@ class AgentControllerActor(implicit sysconfig: Config)
     case CommunicationProxyRef(ref) =>
       commProxy = Some(ref)
       sendToHQAll()
-    case CreateEventsource(cfg) => addEventsource(None, Some(cfg), None) match {
+    case CreateEventsource(cfg) => addEventsource(None, Some(Json.parse(cfg)), None) match {
       case \/-((actor, name)) =>
         EventsourceInstanceCreated >> ('Name -> name, 'Actor -> actor, 'Config -> cfg)
       case -\/(error) =>

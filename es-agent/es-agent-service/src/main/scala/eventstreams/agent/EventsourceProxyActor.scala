@@ -25,7 +25,7 @@ import eventstreams._
 import eventstreams.agent.AgentMessagesV1.{EventsourceConfig, EventsourceInfo}
 import eventstreams.core.actors.{ActorWithDisassociationMonitor, BaseActorSysevents, PipelineWithStatesActor, RouteeActor}
 import eventstreams.core.agent.core.{CommunicationProxyRef, ReconfigureEventsource, RemoveEventsource, ResetEventsourceState}
-import play.api.libs.json.JsValue
+import play.api.libs.json.{Json, JsValue}
 
 import scalaz.\/-
 
@@ -84,7 +84,7 @@ class EventsourceProxyActor(val key: ComponentKey, ref: ActorRef)
       ref ! ResetEventsourceState()
       \/-(OK())
     case T_UPDATE_PROPS =>
-      maybeData.foreach { data => ref ! ReconfigureEventsource(data)}
+      maybeData.foreach { data => ref ! ReconfigureEventsource(Json.stringify(data))}
       \/-(OK(message = Some("Successfully reconfigured")))
   }
 

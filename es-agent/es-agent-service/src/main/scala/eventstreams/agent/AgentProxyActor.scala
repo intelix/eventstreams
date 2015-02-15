@@ -84,7 +84,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
 
   override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
     case T_ADD =>
-      maybeData.foreach(ref ! CreateEventsource(_))
+      maybeData.foreach { j => ref ! CreateEventsource(Json.stringify(j)) }
       OK().right
   }
 
