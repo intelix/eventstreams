@@ -132,13 +132,13 @@ class FlowManagerActor(id: String, sysconfig: Config, cluster: Cluster)
       listUpdate()
   }
 
-  private def startActor(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]): \/[Fail, OK] =
+  private def startActor(k: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]): \/[Fail, OK] =
     for (
       data <- maybeData \/> Fail("Invalid payload", Some("Invalid configuration"))
     ) yield {
-      val flowKey = key | "flow/" + UUIDTools.generateShortUUID
+      val flowKey = k | (key / UUIDTools.generateShortUUID).key
       var json = data
-      if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
+      if (k.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
       val actor = FlowActor.start(flowKey, instructionsConfigsList)
       context.watch(actor)
       actor ! InitialConfig(json, maybeState)

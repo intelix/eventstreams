@@ -42,7 +42,7 @@ trait AtLeastOnceDeliveryActor[T]
   with WithSyseventPublisher {
 
   private var list = Vector[InFlight[T]]()
-  private var counter = new Random().nextLong() // TODO replace counter with uuid + seq
+  private var counter = new Random().nextLong()
 
   override def commonBehavior: Receive = handleRedeliveryMessages orElse super.commonBehavior
 

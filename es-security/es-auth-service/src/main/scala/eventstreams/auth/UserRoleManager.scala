@@ -145,13 +145,13 @@ class UserRoleManagerActor(sysconfig: Config)
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addUserRole(Some(key), Some(props), maybeState)
 
-  private def addUserRole(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
+  private def addUserRole(k: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
     for (
       data <- maybeData \/> Fail("Invalid payload")
     ) yield {
-      val entryKey = key | "userrole/" + shortUUID
+      val entryKey = k | (key / shortUUID).key
       var json = data
-      if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
+      if (k.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
       val actor = UserRoleActor.start(entryKey, permissions)
       context.watch(actor)
       actor ! InitialConfig(json, maybeState)

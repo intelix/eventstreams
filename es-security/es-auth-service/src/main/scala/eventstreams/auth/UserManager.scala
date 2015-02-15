@@ -101,13 +101,13 @@ class UserManagerActor(sysconfig: Config)
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addUser(Some(key), Some(props), maybeState)
 
-  private def addUser(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
+  private def addUser(k: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
     for (
       data <- maybeData \/> Fail("Invalid payload")
     ) yield {
-      val entryKey = key | "user/" + shortUUID
+      val entryKey = k | (key / shortUUID).key
       var json = data
-      if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
+      if (k.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
       val actor = UserActor.start(entryKey)
       context.watch(actor)
       actor ! InitialConfig(json, maybeState)
