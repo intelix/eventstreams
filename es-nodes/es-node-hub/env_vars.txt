@@ -1,0 +1,8 @@
+ES_SEED_NODE1="akka.tcp://hub@localhost:2551"
+ES_SEED_NODE2=..
+up to 5
+
+ES_HUB_HOME
+ES_STORAGE_HOME
+
+ES_NODE

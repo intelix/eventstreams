@@ -25,7 +25,6 @@ import eventstreams.core.actors.{ActorTools, ActorWithConfigStore, ActorWithTick
 import play.api.libs.json._
 
 import scalaz.Scalaz._
-import scalaz.\/
 
 trait UserRoleSysevents extends ComponentWithBaseSysevents with BaseActorSysevents {
 
@@ -48,6 +47,7 @@ class UserRoleActor(id: String, availableDomains: List[SecuredDomainPermissions]
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
   with RouteeActor
+  with RouteeModelInstance
   with ActorWithTicks
   with WithMetrics
   with UserRoleSysevents
@@ -78,21 +78,11 @@ class UserRoleActor(id: String, availableDomains: List[SecuredDomainPermissions]
 
   }
 
-  private def publishInfo() = T_INFO !! info
-  private def publishProps() = T_PROPS !! propsConfig
-
-  override def afterApplyConfig(): Unit = {
-    publishInfo()
-    publishProps()
-  }
-
-
-
   def permissionByTopic(topic: String) = availableDomains.collectFirst {
     case x if x.permissions.exists(_.topic == topic) => x.permissions.find(_.topic == topic).get
   }
   
-  def info = Some(Json.obj(
+  override def info = Some(Json.obj(
     "name" -> (name | "n/a"),
     "permissions" -> permissions.map { p =>
       val set = p.domainPermissions.flatMap { l =>
@@ -106,30 +96,8 @@ class UserRoleActor(id: String, availableDomains: List[SecuredDomainPermissions]
   ))
 
 
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = topic match {
-    case T_REMOVE =>
-      removeConfig()
-      self ! PoisonPill
-      OK().right
-    case T_UPDATE_PROPS =>
-      for (
-        data <- maybeData \/> Fail("Invalid request");
-        result <- updateAndApplyConfigProps(data)
-      ) yield {
-        publishAvailableUserRole()
-        result
-      }
-  }
-
-  override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
-    case T_INFO => publishInfo()
-    case T_PROPS => publishProps()
-    case TopicKey(x) => logger.debug(s"Unknown topic $x")
-  }
-
-  def publishAvailableUserRole() =
+  override def publishAvailable() =
     context.parent ! UserRoleAvailable(key, name | "n/a", permissions | RolePermissions(Seq()), self)
-  override def onInitialConfigApplied(): Unit = publishAvailableUserRole()
 
   
 

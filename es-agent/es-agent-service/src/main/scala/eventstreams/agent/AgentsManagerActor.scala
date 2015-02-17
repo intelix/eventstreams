@@ -23,7 +23,6 @@ import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.core.actors._
-import eventstreams.core.agent.core.Handshake
 import eventstreams.{ComponentKey, TopicKey}
 import play.api.libs.json.Json
 
@@ -40,18 +39,20 @@ trait AgentManagerActorSysevents extends ComponentWithBaseSysevents with BaseAct
 object AgentsManagerActor extends ActorObj with AgentManagerActorSysevents {
   def id = "agents"
 
-  def props(config: Config, cluster: Cluster) = Props(new AgentsManagerActor(id, config, cluster))
+  def props(config: Config, cluster: Cluster) = Props(new AgentsManagerActor(config, cluster))
 }
 
 
 case class AgentProxyAvailable(id: ComponentKey)
 
 
-class AgentsManagerActor(id: String, config: Config, cluster: Cluster)
+class AgentsManagerActor(config: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
   with RouteeActor
   with ActorWithDisassociationMonitor
   with AgentManagerActorSysevents with WithSyseventPublisher {
+
+  val id = AgentsManagerActor.id
 
   var agents: Map[ComponentKey, ActorRef] = Map()
 
@@ -66,7 +67,7 @@ class AgentsManagerActor(id: String, config: Config, cluster: Cluster)
     AgentsManagerAvailable >> ('Path -> self )
   }
 
-  override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
+  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
     case T_LIST => publishList()
   }
 

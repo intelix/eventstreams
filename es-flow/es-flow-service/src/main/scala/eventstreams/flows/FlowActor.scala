@@ -73,7 +73,8 @@ class FlowActor(id: String, instructions: List[Config])
   extends PipelineWithStatesActor
   with FlowActorSysevents
   with ActorWithConfigStore
-  with RouteeActor
+  with RouteeWithStartStopHandler
+  with RouteeModelInstance
   with ActorWithPeriodicalBroadcasting
   with WithMetrics {
 
@@ -105,17 +106,7 @@ class FlowActor(id: String, instructions: List[Config])
 
   override def key = ComponentKey(id)
 
-  override def onInitialConfigApplied(): Unit = context.parent ! FlowAvailable(key)
-
-  override def commonBehavior: Actor.Receive = super.commonBehavior
-
-
-  def publishInfo() = {
-    T_INFO !! info
-    T_STATS !! infoDynamic
-  }
-
-  def publishProps() = T_PROPS !! propsConfig
+  override def publishAvailable(): Unit = context.parent ! FlowAvailable(key, self, name)
 
   def stateDetailsAsString = currentState.details match {
     case Some(v) => stateAsString + " - " + v
@@ -130,7 +121,7 @@ class FlowActor(id: String, instructions: List[Config])
   }
 
 
-  def info = Some(Json.obj(
+  override def info = Some(Json.obj(
     "name" -> name,
     "initial" -> initialState,
     "sinceStateChange" -> prettyTimeSinceStateChange,
@@ -158,43 +149,9 @@ class FlowActor(id: String, instructions: List[Config])
     publishInfo()
   }
 
-  override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
-    case T_INFO => publishInfo()
-    case T_PROPS => publishProps()
-    case T_STATS => publishInfo()
-  }
-
   override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
     (T_STATS, 5, () => infoDynamic, T_STATS !! _)
   )
-
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
-    case T_STOP =>
-      lastRequestedState match {
-        case Some(Active()) =>
-          self ! BecomePassive()
-          \/-(OK())
-        case _ =>
-          -\/(Fail("Already stopped"))
-      }
-    case T_START =>
-      lastRequestedState match {
-        case Some(Active()) =>
-          -\/(Fail("Already started"))
-        case _ =>
-          self ! BecomeActive()
-          \/-(OK())
-      }
-    case T_REMOVE =>
-      removeConfig()
-      self ! PoisonPill
-      \/-(OK())
-    case T_UPDATE_PROPS =>
-      for (
-        data <- maybeData \/> Fail("No data");
-        result <- updateAndApplyConfigProps(data)
-      ) yield result
-  }
 
   def closeFlow() = {
     currentState = FlowStatePassive()
@@ -221,11 +178,6 @@ class FlowActor(id: String, instructions: List[Config])
     }
   }
 
-
-  override def afterApplyConfig(): Unit = {
-    publishProps()
-    publishInfo()
-  }
 
   private def terminateFlow(reason: Option[String]) = {
     closeFlow()

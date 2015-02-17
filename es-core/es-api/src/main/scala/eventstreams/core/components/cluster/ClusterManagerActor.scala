@@ -50,7 +50,7 @@ object ClusterManagerActor extends ActorObjWithCluster with ClusterManagerActorS
 class ClusterManagerActor(implicit val cluster: Cluster, config: Config)
   extends ActorWithComposableBehavior
   with ClusterManagerActorSysevents
-  with ActorWithClusterPeers[JsValue]
+  with ActorWithClusterPeers
   with RouteeActor {
 
   val nodeName = config.as[Option[String]]("eventstreams.node.name") | myAddress
@@ -100,7 +100,7 @@ class ClusterManagerActor(implicit val cluster: Cluster, config: Config)
   }
 
 
-  override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
+  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
     case T_NODES =>
       T_NODES !! nodesList
   }

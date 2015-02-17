@@ -3,7 +3,6 @@ package eventstreams
 import akka.actor.ActorSelection
 import eventstreams.JSONTools.configHelper
 import eventstreams.agent._
-import eventstreams.core.agent.core.CreateEventsource
 import eventstreams.support.{EventsourceStub, _}
 import org.scalatest.FlatSpec
 import play.api.libs.json.{JsArray, Json}

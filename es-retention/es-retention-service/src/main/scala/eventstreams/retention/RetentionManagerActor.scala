@@ -68,11 +68,13 @@ private case class BatchSuccessful(bulkSize: Int)
 
 private case class BatchFailed()
 
-class RetentionManagerActor(id: String, config: Config, c: Cluster)
+class RetentionManagerActor(config: Config, c: Cluster)
   extends ActorWithComposableBehavior
   with RetentionManagerSysevents
   with ComponentWithBaseSysevents
   with NowProvider with ActorWithTicks {
+
+  val id = RetentionManagerActor.id
 
   implicit val ec = context.dispatcher
   val bulkSize = 100

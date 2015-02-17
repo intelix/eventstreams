@@ -217,7 +217,7 @@ class GateActor(id: String)
   }
 
 
-  override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
+  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
     case T_INFO => publishInfo()
     case T_PROPS => publishProps()
     case TopicKey(x) => logger.debug(s"Unknown topic $x")
@@ -226,7 +226,7 @@ class GateActor(id: String)
 
   def messageAllowance = if (maxInFlight - correlationToOrigin.size < 1) 1 else maxInFlight - correlationToOrigin.size
 
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
+  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
     case T_REPLAY =>
       lastRequestedState match {
         case Some(Passive()) =>

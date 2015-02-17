@@ -29,7 +29,7 @@ class AuthActorStub(id: String)
   override def key: ComponentKey = ComponentKey(id)
 
 
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = topic match {
+  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
     case TopicKey("auth_cred") =>
       (maybeData ~> 'routeKey).map { routeKey =>
         TopicKey(routeKey) !! Json.obj(

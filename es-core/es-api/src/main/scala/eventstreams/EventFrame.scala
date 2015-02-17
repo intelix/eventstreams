@@ -300,6 +300,10 @@ case class EventFrame(v: Map[String, EventData]) extends EventData {
 
   def eventId = ~>('eventId)
 
+  def streamKey = ~>('streamKey)
+  
+  def streamSeed = ~>('streamSeed)
+
 }
 
 private object EventValuePathTools {

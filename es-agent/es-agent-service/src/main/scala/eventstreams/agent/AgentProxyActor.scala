@@ -25,7 +25,6 @@ import eventstreams.JSONTools.configHelper
 import eventstreams._
 import eventstreams.agent.AgentMessagesV1.{AgentEventsourceConfigs, AgentEventsources, AgentInfo}
 import eventstreams.core.actors._
-import eventstreams.core.agent.core.{CommunicationProxyRef, CreateEventsource}
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
@@ -76,13 +75,13 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
     super.preStart()
   }
 
-  override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
+  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
     case T_INFO => publishInfo()
     case T_LIST => publishEventsources()
     case T_CONFIGTPL => publishConfigs()
   }
 
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
+  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
     case T_ADD =>
       maybeData.foreach { j => ref ! CreateEventsource(Json.stringify(j)) }
       OK().right

@@ -37,7 +37,11 @@ trait DesktopNotificationsSubscriptionManagerSysevents extends ComponentWithBase
 
 case class DesktopNotificationsSubscriptionAvailable(id: ComponentKey)
 
-class DesktopNotificationsSubscriptionManagerActor(id: String, sysconfig: Config, cluster: Cluster)
+object DesktopNotificationsSubscriptionManagerActor extends DesktopNotificationsSubscriptionManagerSysevents {
+  val id = "desktopnotifications"
+}
+
+class DesktopNotificationsSubscriptionManagerActor(sysconfig: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
   with RouteeActor
@@ -48,8 +52,9 @@ class DesktopNotificationsSubscriptionManagerActor(id: String, sysconfig: Config
   val configSchema = Json.parse(
     Source.fromInputStream(
       getClass.getResourceAsStream(
-        sysconfig.getString("eventstreams.desktopnotifications.main-schema"))).mkString)
+        sysconfig.getString("eventstreams.desktopnotifications.signalsub-schema"))).mkString)
 
+  val id = DesktopNotificationsSubscriptionManagerActor.id
 
   override val key = ComponentKey(id)
 
@@ -67,13 +72,13 @@ class DesktopNotificationsSubscriptionManagerActor(id: String, sysconfig: Config
 
   def publishConfigTpl(): Unit = T_CONFIGTPL !! Some(configSchema)
 
-  override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
+  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
     case T_LIST => publishList()
     case T_CONFIGTPL => publishConfigTpl()
   }
 
 
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
+  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
     case T_ADD => startActor(None, maybeData, None)
   }
 

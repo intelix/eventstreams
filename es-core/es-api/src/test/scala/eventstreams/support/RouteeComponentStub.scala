@@ -69,23 +69,25 @@ class RouteeComponentStubActor(instanceId: String)
   }
 
 
-  override def processTopicSubscribe(sourceRef: ActorRef, topic: TopicKey): Unit = topic match {
-    case TopicKey("withresponse") => topic !! Some(Json.obj("msg" -> "response"))
-    case TopicKey("withunsupportedresponse") => topic !! "response"
-    case _ => ()
+  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
+    case topic @ TopicKey("withresponse") => topic !! Some(Json.obj("msg" -> "response"))
+    case topic @ TopicKey("withunsupportedresponse") => topic !! "response"
   }
 
 
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = {
-    RouteeComponentCommandReceived >> ('Command -> topic.key, 'Data -> maybeData)
-
-    topic match {
-      case TopicKey("okwithmessage") =>
-        \/-(OK(message = Some("message")))
-      case TopicKey("ok") => \/-(OK())
-      case TopicKey("failwithmessage") => -\/(Fail(message = Some("message")))
-      case TopicKey("fail") => -\/(Fail())
-    }
+  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
+    case topic @ TopicKey("okwithmessage") =>
+      RouteeComponentCommandReceived >> ('Command -> topic.key, 'Data -> maybeData)
+      \/-(OK(message = Some("message")))
+    case topic @ TopicKey("ok") =>
+      RouteeComponentCommandReceived >> ('Command -> topic.key, 'Data -> maybeData)
+      \/-(OK())
+    case topic @ TopicKey("failwithmessage") =>
+      RouteeComponentCommandReceived >> ('Command -> topic.key, 'Data -> maybeData)
+      -\/(Fail(message = Some("message")))
+    case topic @ TopicKey("fail") =>
+      RouteeComponentCommandReceived >> ('Command -> topic.key, 'Data -> maybeData)
+      -\/(Fail())
   }
 
   override def key: ComponentKey = RouteeComponentStubOps.componentKeyForRouteeStub(instanceId)

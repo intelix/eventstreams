@@ -48,6 +48,7 @@ class UserActor(id: String)
   extends PipelineWithStatesActor
   with ActorWithConfigStore
   with RouteeActor
+  with RouteeModelInstance
   with ActorWithTicks
   with WithMetrics
   with UserSysevents
@@ -83,15 +84,8 @@ class UserActor(id: String)
     }
   }
 
-  private def publishInfo() = T_INFO !! info
-  private def publishProps() = T_PROPS !! propsConfig
 
-  override def afterApplyConfig(): Unit = {
-    publishInfo()
-    publishProps()
-  }
-
-  def info = Some(Json.obj(
+  override def info = Some(Json.obj(
     "name" -> (name | "n/a"),
     "roles" -> (roles.mkString(", ") match {
       case "" => "None"
@@ -100,34 +94,10 @@ class UserActor(id: String)
   ))
 
 
-  def publishAvailableUser() = context.parent ! UserAvailable(key, name | "n/a", passwordHash, roles, self)
-  override def onInitialConfigApplied(): Unit = publishAvailableUser()
+  override def publishAvailable() = context.parent ! UserAvailable(key, name | "n/a", passwordHash, roles, self)
 
 
   override def key = ComponentKey(id)
-
-
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = topic match {
-    case T_REMOVE =>
-      removeConfig()
-      self ! PoisonPill
-      OK().right
-    case T_UPDATE_PROPS =>
-      for (
-        data <- maybeData \/> Fail("Invalid request");
-        result <- updateAndApplyConfigProps(data)
-      ) yield {
-        publishAvailableUser()
-        result
-      }
-  }
-
-  override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
-    case T_INFO => publishInfo()
-    case T_PROPS => publishProps()
-    case TopicKey(x) => logger.debug(s"Unknown topic $x")
-  }
-
 
 
 }

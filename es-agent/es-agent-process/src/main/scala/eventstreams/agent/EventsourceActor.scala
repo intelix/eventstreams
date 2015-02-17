@@ -30,7 +30,6 @@ import eventstreams.JSONTools.configHelper
 import eventstreams._
 import eventstreams.agent.AgentMessagesV1.{EventsourceConfig, EventsourceInfo}
 import eventstreams.core.actors._
-import eventstreams.core.agent.core._
 import play.api.libs.json._
 
 import scalaz.Scalaz._

@@ -53,11 +53,14 @@ trait RouteeActor
   extends ActorWithLocalSubscribers
   with DefaultTopicKeys with RouteeSysevents {
 
+  type SubscribeHandler = PartialFunction[TopicKey, Unit]
+  type UnsubscribeHandler = PartialFunction[TopicKey, Unit]
+  type CommandHandler = PartialFunction[TopicKey, \/[Fail, OK]]
 
   def key: ComponentKey
 
   case class Publisher(key: TopicKey) {
-    def !!(data: Any) = data match {
+    final def !!(data: Any) = data match {
       case Some(x) => x match {
         case t: JsValue => topicUpdate(key, Some(Json.stringify(t)))
         case t => topicUpdate(key, Some(t.toString))
@@ -65,10 +68,8 @@ trait RouteeActor
       case None => topicUpdate(key, None)
       case t: JsValue => topicUpdate(key, Some(Json.stringify(t)))
       case t => topicUpdate(key, Some(t.toString))
-//
-//      case d => UnsupportedPayload >> ('Type -> d)
     }
-    def !!>(data: Any) = data match {
+    final def !!>(data: Any) = data match {
       case Some(x) => x match {
         case t: JsValue => topicUpdate(key, Some(Json.stringify(t)))
         case t => topicUpdate(key, Some(t.toString))
@@ -76,7 +77,6 @@ trait RouteeActor
       case None => topicUpdate(key, None)
       case t: JsValue => topicUpdate(key, Some(Json.stringify(t)))
       case t => topicUpdate(key, Some(t.toString))
-//      case d => UnsupportedPayload >> ('Type -> d)
     }
   }
 
@@ -87,13 +87,13 @@ trait RouteeActor
     super.preStart()
   }
 
-  def topicUpdate(topic: TopicKey, data: Option[String], singleTarget: Option[ActorRef] = None): Unit =
+  final def topicUpdate(topic: TopicKey, data: Option[String], singleTarget: Option[ActorRef] = None): Unit =
     singleTarget match {
       case Some(ref) => updateTo(LocalSubj(key, topic), ref, data)
       case None => updateToAll(LocalSubj(key, topic), data)
     }
 
-  def genericCommandError(cmdTopicKey: TopicKey, replyToSubj: Option[Any], errorMessage: String, singleTarget: ActorRef = sender()) = {
+  final def genericCommandError(cmdTopicKey: TopicKey, replyToSubj: Option[Any], errorMessage: String, singleTarget: ActorRef = sender()) = {
     replyToSubj.foreach(
       cmdErrTo(_, singleTarget, Json.obj(
         "error" -> Json.obj(
@@ -102,7 +102,7 @@ trait RouteeActor
         ))))
   }
 
-  def genericCommandSuccess(cmdTopicKey: TopicKey, replyToSubj: Option[Any], message: Option[String], singleTarget: ActorRef = sender()) = {
+  final def genericCommandSuccess(cmdTopicKey: TopicKey, replyToSubj: Option[Any], message: Option[String], singleTarget: ActorRef = sender()) = {
     replyToSubj.foreach(
       cmdOkTo(_, singleTarget, Json.obj(
         "ok" -> Json.obj(
@@ -111,28 +111,51 @@ trait RouteeActor
         ))))
   }
 
-  def processTopicSubscribe(sourceRef: ActorRef, topic: TopicKey): Unit = {}
+  def onSubscribe: SubscribeHandler = PartialFunction.empty
 
-  def processTopicUnsubscribe(sourceRef: ActorRef, topic: TopicKey): Unit = {}
+  def onUnsubscribe: UnsubscribeHandler = PartialFunction.empty
 
-  def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = \/-(OK())
+  def onCommand(maybeData: Option[JsValue]): CommandHandler = PartialFunction.empty
 
-  override def processSubscribeRequest(sourceRef: ActorRef, subject: LocalSubj): Unit = Try(processTopicSubscribe(sourceRef, subject.topic)) match {
+  override final def processSubscribeRequest(sourceRef: ActorRef, subject: LocalSubj): Unit = Try {
+    if (onSubscribe.isDefinedAt(subject.topic)) {
+      onSubscribe(subject.topic)
+    } else {
+      Warning >> ('Message -> s"Unhandled topic subscribe", 'Topic -> subject.topic.key)
+    }
+  } match {
     case Failure(failure) =>
       Error >> ('Message -> s"Error while subscribing to $subject", 'Details -> failure)
     case Success(_) => ()
   }
 
-  override def processUnsubscribeRequest(sourceRef: ActorRef, subject: LocalSubj): Unit = Try(processTopicUnsubscribe(sourceRef, subject.topic)) match {
+  override final def processUnsubscribeRequest(sourceRef: ActorRef, subject: LocalSubj): Unit = Try {
+    if (onUnsubscribe.isDefinedAt(subject.topic)) {
+      onUnsubscribe(subject.topic)
+    } else {
+      Warning >> ('Message -> s"Unhandled topic unsubscribe", 'Topic -> subject.topic.key)
+    }
+  } match {
     case Failure(failure) =>
       Error >> ('Message -> s"Error while unsubscribing from $subject", 'Details -> failure)
     case Success(_) => ()
   }
 
-  override def processCommand(subject: LocalSubj, replyToSubj: Option[Any], maybeData: Option[String]): Unit = {
+  override final def processCommand(subject: LocalSubj, replyToSubj: Option[Any], maybeData: Option[String]): Unit = {
     NewCommand >> ('Topic -> subject.topic.key, 'ReplyTo -> replyToSubj)
 
-    Try(processTopicCommand(subject.topic, replyToSubj, maybeData.map(Json.parse))) match {
+    Try{
+
+      val func = onCommand(maybeData.map(Json.parse))
+
+      if (func.isDefinedAt(subject.topic)) {
+        func(subject.topic)
+      } else {
+        Warning >> ('Message -> s"Unhandled topic command", 'Topic -> subject.topic.key, 'Data -> maybeData)
+        \/-(OK())
+      }
+
+    } match {
       case Failure(failure) =>
         genericCommandError(subject.topic, replyToSubj, "Invalid operation")
         CommandFailed >> ('Topic -> subject.topic.key, 'Error -> "Invalid operation")

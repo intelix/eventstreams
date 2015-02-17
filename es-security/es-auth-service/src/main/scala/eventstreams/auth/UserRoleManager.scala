@@ -21,7 +21,7 @@ import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor._
 import com.typesafe.config.Config
 import eventstreams._
-import eventstreams.core.actors.{ActorObjWithConfig, ActorWithComposableBehavior, ActorWithConfigStore, InitialConfig, RouteeActor}
+import eventstreams.core.actors._
 import net.ceedubs.ficus.Ficus._
 import play.api.libs.json._
 import play.api.libs.json.extensions._
@@ -46,12 +46,12 @@ case class FunctionPermissionInfo(id: String, topic: String, name: String)
 
 case class SecuredDomainPermissions(domain: SecuredDomainInfo, permissions: Set[FunctionPermissionInfo])
 
-case class UserRoleAvailable(id: ComponentKey, name: String, permissions: RolePermissions, ref: ActorRef)
+case class UserRoleAvailable(id: ComponentKey, name: String, permissions: RolePermissions, ref: ActorRef) extends Model
 
 class UserRoleManagerActor(sysconfig: Config)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
-  with RouteeActor
+  with RouteeModelManager[UserRoleAvailable]
   with NowProvider
   with UserRoleManagerSysevents
   with WithSyseventPublisher {
@@ -78,7 +78,7 @@ class UserRoleManagerActor(sysconfig: Config)
       ) yield SecuredDomainPermissions(SecuredDomainInfo(moduleId, name), set)
     }.collect { case Some(x) => x}.sortBy(_.domain.name)
   } | List()
-  val configSchema = {
+  override val configSchema = Some({
     val template = Json.parse(
       Source.fromInputStream(
         getClass.getResourceAsStream(
@@ -97,66 +97,30 @@ class UserRoleManagerActor(sysconfig: Config)
           )
         )), c + 1)
     }._1
-  }
+  })
 
   
   override val key = ComponentKey(UserRoleManager.id)
-  var entries: List[UserRoleAvailable] = List()
 
-  override def partialStorageKey: Option[String] = Some("userrole/")
-
-  override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
-
-  def listUpdate() = {
-    T_LIST !! list
+  override def publishList(): Unit = {
+    super.publishList()
     context.parent ! AvailableUserRoles(entries)
   }
 
-  def list = Some(Json.toJson(entries.map { x =>
+  override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
+  
+  def handler: Receive = {
+    case x : UserRoleAvailable => addEntry(x)
+  }
+
+
+
+  override def list = Some(Json.toJson(entries.map { x =>
     Json.obj(
       "ckey" -> x.id.key,
       "name" -> x.name
     )
   }.toSeq))
 
-
-  def publishConfigTpl(): Unit = T_CONFIGTPL !! Some(configSchema)
-
-  override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
-    case T_LIST => listUpdate()
-    case T_CONFIGTPL => publishConfigTpl()
-  }
-
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
-    case T_ADD => addUserRole(None, maybeData, None)
-  }
-
-  override def onTerminated(ref: ActorRef): Unit = {
-    entries = entries.filter(_.ref != ref)
-    listUpdate()
-    super.onTerminated(ref)
-  }
-
-  def handler: Receive = {
-    case x: UserRoleAvailable =>
-      entries = (entries.filter(_.id != x.id) :+ x).sortBy(_.name)
-      listUpdate()
-  }
-
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addUserRole(Some(key), Some(props), maybeState)
-
-  private def addUserRole(k: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
-    for (
-      data <- maybeData \/> Fail("Invalid payload")
-    ) yield {
-      val entryKey = k | (key / shortUUID).key
-      var json = data
-      if (k.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
-      val actor = UserRoleActor.start(entryKey, permissions)
-      context.watch(actor)
-      actor ! InitialConfig(json, maybeState)
-      OK("User role successfully created")
-    }
-
-
+  override def startModelActor(key: String): ActorRef = UserRoleActor.start(key, permissions)
 }

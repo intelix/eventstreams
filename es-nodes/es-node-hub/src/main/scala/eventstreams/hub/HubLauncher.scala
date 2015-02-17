@@ -52,8 +52,8 @@ class HubLauncher extends Bootable {
     config.as[Option[Set[Config]]]("eventstreams.bootstrap").foreach(_.foreach { conf =>
       for (
         cl <- conf.as[Option[String]]("class");
-        id <- conf.as[Option[String]]("id")
-      ) system.actorOf(Props(Class.forName(cl), id, config, cluster), id)
+        id <- conf.as[Option[String]]("actor-id")
+      ) system.actorOf(Props(Class.forName(cl), config, cluster), id)
     })
   }
 

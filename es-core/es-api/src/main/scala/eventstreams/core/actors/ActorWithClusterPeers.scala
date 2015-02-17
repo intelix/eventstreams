@@ -21,6 +21,7 @@ import core.sysevents.SyseventOps.stringToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.CommMessage
+import play.api.libs.json.{JsValue, Json}
 
 import scala.collection.mutable
 
@@ -33,18 +34,18 @@ trait ActorWithClusterPeersSysevents extends ComponentWithBaseSysevents {
 
 case class ClusterPeerHandshake() extends CommMessage
 
-case class ClusterPeerHandshakeResponse(map: Any) extends CommMessage
+case class ClusterPeerHandshakeResponse(map: String) extends CommMessage
 
 
-trait ActorWithClusterPeers[T] extends ActorWithClusterAwareness with ActorWithClusterPeersSysevents with ActorWithTicks {
+trait ActorWithClusterPeers extends ActorWithClusterAwareness with ActorWithClusterPeersSysevents with ActorWithTicks {
   _: WithSyseventPublisher =>
 
-  private val peers = mutable.Map[Address, T]()
+  private val peers = mutable.Map[Address, JsValue]()
   private var pendingPeers = Set[Address]()
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  def peerData: T
+  def peerData: JsValue
 
   def onConfirmedPeersChanged(): Unit = {}
 
@@ -75,7 +76,7 @@ trait ActorWithClusterPeers[T] extends ActorWithClusterAwareness with ActorWithC
     onConfirmedPeersChanged()
   }
 
-  private def addPeer(address: Address, data: T) = peers get address match {
+  private def addPeer(address: Address, data: JsValue) = peers get address match {
     case Some(existingData) if existingData == data =>
       pendingPeers = pendingPeers - address
     case _ =>
@@ -93,10 +94,10 @@ trait ActorWithClusterPeers[T] extends ActorWithClusterAwareness with ActorWithC
   private def handler: Receive = {
     case ClusterPeerHandshake() =>
       ClusterPeerHandshakeReceived >> ('Peer -> sender())
-      sender() ! ClusterPeerHandshakeResponse(peerData)
+      sender() ! ClusterPeerHandshakeResponse(Json.stringify(peerData))
     case ClusterPeerHandshakeResponse(response) =>
         ClusterConfirmedPeer >> ('Peer -> sender(), 'Info -> response)
-        addPeer(sender().path.address, response.asInstanceOf[T])
+        addPeer(sender().path.address, Json.parse(response))
   }
 
 }

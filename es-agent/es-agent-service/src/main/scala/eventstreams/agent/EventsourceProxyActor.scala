@@ -24,8 +24,7 @@ import akka.remote.DisassociatedEvent
 import eventstreams._
 import eventstreams.agent.AgentMessagesV1.{EventsourceConfig, EventsourceInfo}
 import eventstreams.core.actors.{ActorWithDisassociationMonitor, BaseActorSysevents, PipelineWithStatesActor, RouteeActor}
-import eventstreams.core.agent.core.{CommunicationProxyRef, ReconfigureEventsource, RemoveEventsource, ResetEventsourceState}
-import play.api.libs.json.{Json, JsValue}
+import play.api.libs.json.{JsValue, Json}
 
 import scalaz.\/-
 
@@ -65,12 +64,12 @@ class EventsourceProxyActor(val key: ComponentKey, ref: ActorRef)
     super.preStart()
   }
 
-  override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
+  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
     case T_INFO => publishInfo()
     case T_PROPS => publishProps()
   }
 
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
+  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
     case T_START =>
       ref ! BecomeActive()
       \/-(OK())

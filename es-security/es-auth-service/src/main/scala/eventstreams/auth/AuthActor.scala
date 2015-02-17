@@ -26,13 +26,17 @@ trait AuthSysevents extends ComponentWithBaseSysevents with BaseActorSysevents w
 
 }
 
+object AuthActor extends AuthSysevents {
+  val id = "auth"
+}
+
 case class SessionMeta(token: String, user: String, routes: Set[String], createdTs: Long = System.currentTimeMillis(), inactiveSince: Option[Long] = None)
 
 case class AvailableUsers(list: List[UserAvailable])
 
 case class AvailableUserRoles(list: List[UserRoleAvailable])
 
-class AuthActor(id: String, config: Config, cluster: Cluster)
+class AuthActor(config: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
   with RouteeActor
@@ -58,14 +62,15 @@ class AuthActor(id: String, config: Config, cluster: Cluster)
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {}
 
-  override def key: ComponentKey = ComponentKey(id)
+  override def key: ComponentKey = ComponentKey(AuthActor.id)
 
 
-  override def processTopicUnsubscribe(sourceRef: ActorRef, topic: TopicKey): Unit = {
-    sessionMap = sessionMap.map {
-      case (k, v) if v.routes.contains(topic.key) => (k, v.copy(routes = v.routes - topic.key))
-      case (k, v) => (k, v)
-    }
+  override def onUnsubscribe: UnsubscribeHandler = super.onUnsubscribe orElse {
+    case topic if sessionMap.exists(_._2.routes.contains(topic.key)) =>
+      sessionMap = sessionMap.map {
+        case (k, v) if v.routes.contains(topic.key) => (k, v.copy(routes = v.routes - topic.key))
+        case (k, v) => (k, v)
+      }
   }
 
 
@@ -104,7 +109,7 @@ class AuthActor(id: String, config: Config, cluster: Cluster)
     case None => config.as[Option[String]](s"eventstreams.auth.basic.$user.master-password")
   }
 
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]): \/[Fail, OK] = topic match {
+  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
     case TopicKey("auth_cred") =>
       (maybeData ~> 'routeKey).map { routeKey =>
         LoginAttempt >>('User -> (maybeData ~> 'u | "n/a"), 'Password -> (maybeData ~> 'p | "n/a"))
@@ -151,11 +156,11 @@ class AuthActor(id: String, config: Config, cluster: Cluster)
 
   override def processTick(): Unit = {
     sessionMap = sessionMap.map {
-      case (k,v) if v.routes.isEmpty => v.inactiveSince match {
+      case (k, v) if v.routes.isEmpty => v.inactiveSince match {
         case None => k -> v.copy(inactiveSince = Some(now))
         case x => k -> v
       }
-      case (k,v) => k -> v
+      case (k, v) => k -> v
     }.filter {
       case (k, v) => v.routes.nonEmpty || (v.inactiveSince.map(now - _ < 5.minutes.toMillis) | true)
     }

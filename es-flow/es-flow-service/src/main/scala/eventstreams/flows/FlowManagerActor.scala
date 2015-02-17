@@ -16,19 +16,19 @@
 
 package eventstreams.flows
 
-import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
-import _root_.core.sysevents.WithSyseventPublisher
-import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor._
 import akka.cluster.Cluster
 import com.typesafe.config.Config
+import core.sysevents.SyseventOps.symbolToSyseventOps
+import core.sysevents.WithSyseventPublisher
+import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams._
 import eventstreams.core.actors._
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
+import scala.io.Source
 import scalaz.Scalaz._
-import scalaz._
 
 
 trait FlowManagerActorSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with RouteeSysevents {
@@ -40,28 +40,31 @@ trait FlowManagerActorSysevents extends ComponentWithBaseSysevents with BaseActo
 
 object FlowManagerActor extends ActorObj with FlowManagerActorSysevents {
   def id = "flows"
-  def props(config: Config, cluster: Cluster) = Props(new FlowManagerActor(id, config, cluster))
+
+  def props(config: Config, cluster: Cluster) = Props(new FlowManagerActor(config, cluster))
 }
 
 
-case class FlowAvailable(id: ComponentKey)
+case class FlowAvailable(id: ComponentKey, ref: ActorRef, name: String) extends Model
 
-class FlowManagerActor(id: String, sysconfig: Config, cluster: Cluster)
+class FlowManagerActor(sysconfig: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
-  with RouteeActor
+  with RouteeModelManager[FlowAvailable]
   with NowProvider
   with FlowManagerActorSysevents
   with WithSyseventPublisher {
 
+  val id = FlowManagerActor.id
+
   val instructionsConfigsList = {
-    val list = sysconfig.getConfigList("eventstreams.flows.instructions")
+    val list = sysconfig.getConfigList("eventstreams.instructions")
     (0 until list.size()).map(list.get).toList.sortBy[String](_.getString("name"))
   }
 
-  val configSchema = {
+  override val configSchema = Some({
     var mainConfigSchema = Json.parse(
-      io.Source.fromInputStream(
+      Source.fromInputStream(
         getClass.getResourceAsStream(
           sysconfig.getString("eventstreams.flows.main-schema"))).mkString)
     var oneOf = (mainConfigSchema \ "properties" \ "pipeline" \ "items" \ "oneOf").asOpt[JsArray].map(_.value) | Array[JsValue]()
@@ -69,7 +72,7 @@ class FlowManagerActor(id: String, sysconfig: Config, cluster: Cluster)
     val instructionSchemas = instructionsConfigsList.map { cfg =>
       val schemaResourceName = cfg.getString("config.schema")
       val resource = getClass.getResourceAsStream(schemaResourceName)
-      val schemaContents = io.Source.fromInputStream(resource).mkString
+      val schemaContents = Source.fromInputStream(resource).mkString
       Json.parse(schemaContents)
     }
 
@@ -87,63 +90,18 @@ class FlowManagerActor(id: String, sysconfig: Config, cluster: Cluster)
     mainConfigSchema.set(
       __ \ "properties" \ "pipeline" \ "items" \ "oneOf" -> Json.toJson(oneOf.toArray)
     )
-  }
+  })
 
-  type FlowMap = Map[ComponentKey, ActorRef]
   override val key = ComponentKey(id)
-
-  var flows: FlowMap = Map()
-
-  def publishConfigTpl(): Unit = T_CONFIGTPL !! Some(configSchema)
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  override def partialStorageKey = Some("flow/")
+  def list = Some(Json.toJson(entries.map { x => Json.obj("ckey" -> x.id.key)}.toArray))
 
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = startActor(Some(key), Some(props), maybeState)
-
-
-  def listUpdate() = T_LIST !! list
-
-  def list = Some(Json.toJson(flows.keys.map { x => Json.obj("ckey" -> x.key)}.toArray))
-
-
-  override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
-    case T_LIST => listUpdate()
-    case T_CONFIGTPL => publishConfigTpl()
-  }
-
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
-    case T_ADD => startActor(None, maybeData, None)
-  }
-
-
-  override def onTerminated(ref: ActorRef): Unit = {
-    flows = flows.filter {
-      case (route, otherRef) => otherRef != ref
-    }
-    listUpdate()
-    super.onTerminated(ref)
-  }
 
   def handler: Receive = {
-    case FlowAvailable(route) =>
-      flows = flows + (route -> sender())
-      listUpdate()
+    case e: FlowAvailable => addEntry(e)
   }
 
-  private def startActor(k: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]): \/[Fail, OK] =
-    for (
-      data <- maybeData \/> Fail("Invalid payload", Some("Invalid configuration"))
-    ) yield {
-      val flowKey = k | (key / UUIDTools.generateShortUUID).key
-      var json = data
-      if (k.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
-      val actor = FlowActor.start(flowKey, instructionsConfigsList)
-      context.watch(actor)
-      actor ! InitialConfig(json, maybeState)
-      OK("Flow successfully created")
-    }
-
-
+  override def startModelActor(key: String): ActorRef = FlowActor.start(key, instructionsConfigsList)
 }

@@ -33,9 +33,13 @@ trait GateManagerSysevents extends ComponentWithBaseSysevents {
   override def componentId: String = "Gate.GateManager"
 }
 
+object GateManagerActor extends  GateManagerSysevents {
+  val id = "gates"
+}
+
 case class GateAvailable(id: ComponentKey)
 
-class GateManagerActor(id: String, sysconfig: Config, cluster: Cluster)
+class GateManagerActor(sysconfig: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
   with RouteeActor
@@ -43,10 +47,12 @@ class GateManagerActor(id: String, sysconfig: Config, cluster: Cluster)
   with GateManagerSysevents
   with WithSyseventPublisher {
 
+  val id = GateManagerActor.id
+
   val configSchema = Json.parse(
     Source.fromInputStream(
       getClass.getResourceAsStream(
-        sysconfig.getString("eventstreams.gates.main-schema"))).mkString)
+        sysconfig.getString("eventstreams.gates.gate-schema"))).mkString)
 
   type GatesMap = Map[ComponentKey, ActorRef]
 
@@ -64,14 +70,13 @@ class GateManagerActor(id: String, sysconfig: Config, cluster: Cluster)
 
   def publishConfigTpl(): Unit = T_CONFIGTPL !! Some(configSchema)
 
-  override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
+  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
     case T_LIST => listUpdate()
     case T_CONFIGTPL => publishConfigTpl()
   }
 
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
+  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
     case T_ADD => addGate(None, maybeData, None)
-
   }
 
 

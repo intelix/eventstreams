@@ -64,7 +64,7 @@ class HQGroupsManagerActor(config: Config)
   }
 
 
-  override def processTopicSubscribe(sourceRef: ActorRef, topic: TopicKey): Unit = topic match {
+  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
     case T_LIST => T_LIST !! groups
   }
 

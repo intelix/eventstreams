@@ -129,14 +129,14 @@ class DesktopNotificationsSubscriptionActor(id: String)
     publishInfo()
   }
 
-  override def processTopicSubscribe(ref: ActorRef, topic: TopicKey) = topic match {
+  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
     case T_INFO => publishInfo()
     case T_PROPS => publishProps()
     case T_SIGNAL => None
   }
 
 
-  override def processTopicCommand(topic: TopicKey, replyToSubj: Option[Any], maybeData: Option[JsValue]) = topic match {
+  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
     case T_STOP =>
       lastRequestedState match {
         case Some(Active()) =>

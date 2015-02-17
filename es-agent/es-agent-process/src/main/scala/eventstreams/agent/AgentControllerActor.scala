@@ -24,7 +24,6 @@ import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.agent.AgentMessagesV1.{AgentEventsourceConfigs, AgentEventsources, AgentInfo}
 import eventstreams.core.actors._
-import eventstreams.core.agent.core.{CommunicationProxyRef, CreateEventsource, Handshake}
 import eventstreams.{ComponentKey, Fail, NowProvider, UUIDTools}
 import net.ceedubs.ficus.Ficus._
 import play.api.libs.json.extensions._

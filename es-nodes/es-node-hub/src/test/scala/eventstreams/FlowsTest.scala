@@ -25,7 +25,7 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with SharedActorSystem 
 
    it should "request all stored flows from storage" in new WithHubNode1  {
      startFlowManager(hub1System)
-     expectOneOrMoreEvents(ConfigStorageActor.RequestedAllMatchingEntries, 'PartialKey -> "flow/")
+     expectOneOrMoreEvents(ConfigStorageActor.RequestedAllMatchingEntries, 'PartialKey -> "flows/")
    }
 
    it should "respond to list subscription with an empty payload" in new WithFlowManager  {
