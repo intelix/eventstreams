@@ -27,7 +27,6 @@ import play.api.libs.json.{JsValue, Json}
 
 import scala.util.matching.Regex
 import scalaz.Scalaz._
-import scalaz.{-\/, \/-}
 
 trait DesktopNotificationsSubscriptionSysevents extends ComponentWithBaseSysevents {
   override def componentId: String = "DesktopNotifications.Subscription"
@@ -56,7 +55,8 @@ case class DesktopNotificationsSubscriptionStateError(details: Option[String] = 
 class DesktopNotificationsSubscriptionActor(id: String)
   extends PipelineWithStatesActor
   with ActorWithConfigStore
-  with RouteeActor
+  with RouteeModelInstance
+  with RouteeWithStartStopHandler
   with NowProvider
   with DesktopNotificationsSubscriptionSysevents
   with WithSyseventPublisher {
@@ -78,20 +78,10 @@ class DesktopNotificationsSubscriptionActor(id: String)
 
   override def key = ComponentKey(id)
 
-  override def onInitialConfigApplied(): Unit = context.parent ! DesktopNotificationsSubscriptionAvailable(key)
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-
-  override def preStart(): Unit = {
-    super.preStart()
-  }
-
-  def publishInfo() = {
-    T_INFO !! info
-  }
-
-  def publishProps() = T_PROPS !! propsConfig
+  override def publishAvailable(): Unit = context.parent ! DesktopNotificationsSubscriptionAvailable(key, self, name)
 
   def stateDetailsAsString = currentState.details match {
     case Some(v) => stateAsString + " - " + v
@@ -105,7 +95,7 @@ class DesktopNotificationsSubscriptionActor(id: String)
     case DesktopNotificationsSubscriptionStateError(_) => "error"
   }
 
-  def info = Some(Json.obj(
+  override def info = Some(Json.obj(
     "name" -> name,
     "sinceStateChange" -> prettyTimeSinceStateChange,
     "created" -> created,
@@ -129,49 +119,8 @@ class DesktopNotificationsSubscriptionActor(id: String)
     publishInfo()
   }
 
-  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
-    case T_INFO => publishInfo()
-    case T_PROPS => publishProps()
+  override def onSubscribe: SubscribeHandler = super.onSubscribe orElse {
     case T_SIGNAL => None
-  }
-
-
-  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
-    case T_STOP =>
-      lastRequestedState match {
-        case Some(Active()) =>
-          logger.info("Stopping the subscription")
-          self ! BecomePassive()
-          \/-(OK())
-        case _ =>
-          logger.info("Already stopped")
-          -\/(Fail("Already stopped"))
-      }
-    case T_START =>
-      lastRequestedState match {
-        case Some(Active()) =>
-          logger.info("Already started")
-          -\/(Fail("Already started"))
-        case _ =>
-          logger.info("Starting the subscription " + self.toString())
-          self ! BecomeActive()
-          \/-(OK())
-      }
-    case T_REMOVE =>
-      terminateSubscription(Some("Subscription being deleted"))
-      removeConfig()
-      self ! PoisonPill
-      \/-(OK())
-    case T_UPDATE_PROPS =>
-      for (
-        data <- maybeData \/> Fail("No data");
-        result <- updateAndApplyConfigProps(data)
-      ) yield result
-  }
-
-  def goPassive() = {
-    currentState = DesktopNotificationsSubscriptionStatePassive()
-    logger.debug(s"Subscription stopped")
   }
 
   override def applyConfig(key: String, config: JsValue, maybeState: Option[JsValue]): Unit = {
@@ -200,7 +149,6 @@ class DesktopNotificationsSubscriptionActor(id: String)
     publishInfo()
   }
 
-
   def checkMatch(s: String, r: Option[Regex]) = r match {
     case None => true
     case Some(r) => r.findFirstMatchIn(s) match {
@@ -210,7 +158,6 @@ class DesktopNotificationsSubscriptionActor(id: String)
   }
 
   def checkLevel(l: Int, required: SignalLevel) = required.code <= l
-
 
   def forward(value: EventFrame) = {
     val expiry = value ++> 'expiryTs | 0
@@ -226,12 +173,22 @@ class DesktopNotificationsSubscriptionActor(id: String)
       val sSubclass = signal ~> 'signalSubclass | ""
       val sLevel = signal +> 'level | 0
 
-      if (checkMatch(sClass, signalClassR) && checkMatch(sSubclass,  signalSubclassR) && checkLevel(sLevel, level)) {
+      if (checkMatch(sClass, signalClassR) && checkMatch(sSubclass, signalSubclassR) && checkLevel(sLevel, level)) {
         forward(signal)
       }
 
     }
 
+  }
+
+  private def goPassive() = {
+    currentState = DesktopNotificationsSubscriptionStatePassive()
+    logger.debug(s"Subscription stopped")
+  }
+
+  private def goActive() = {
+    logger.debug(s"Subscription started")
+    currentState = DesktopNotificationsSubscriptionStateActive(Some("ok"))
   }
 
   private def handler: Receive = {
@@ -242,10 +199,6 @@ class DesktopNotificationsSubscriptionActor(id: String)
     goPassive()
   }
 
-  private def goActive() = {
-    logger.debug(s"Subscription started")
-    currentState = DesktopNotificationsSubscriptionStateActive(Some("ok"))
-  }
 
 }
 

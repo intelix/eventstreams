@@ -22,13 +22,11 @@ import akka.actor._
 import eventstreams.JSONTools.configHelper
 import eventstreams._
 import eventstreams.core.actors._
-import eventstreams.retention._
 import play.api.libs.json._
 
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scalaz.Scalaz._
-import scalaz.\/
 
 trait GateSysevents extends ComponentWithBaseSysevents {
   override def componentId: String = "Gate.Gate"
@@ -39,8 +37,6 @@ object GateActor {
 
   def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id), ActorTools.actorFriendlyId(id))
 }
-
-private case class InflightMessage(originalCorrelationId: Long, originator: ActorRef, retentionPending: Boolean, deliveryPending: Boolean)
 
 sealed trait InternalGateState {
   def details: Option[String]
@@ -61,7 +57,8 @@ class GateActor(id: String)
   extends PipelineWithStatesActor
   with AtLeastOnceDeliveryActor[EventFrame]
   with ActorWithConfigStore
-  with RouteeActor
+  with RouteeModelInstance
+  with RouteeWithStartStopHandler
   with ActorWithDupTracking
   with ActorWithPeriodicalBroadcasting
   with ActorWithTicks
@@ -70,21 +67,14 @@ class GateActor(id: String)
   with WithSyseventPublisher {
 
 
-  private val correlationToOrigin: mutable.Map[Long, InflightMessage] = mutable.Map()
   var name = "default"
   var address = uuid.toString
   var initialState = "Closed"
-  var retentionStorageKey = "default"
   var created = prettyTimeFormat(now)
   var maxInFlight = 1000
   var acceptWithoutSinks = false
 
-  var replayIndexPattern = "default-${eventts:yyyy-MM}"
-  var replayEventType = "event"
-
   var eventSequenceCounter = now
-
-  var retainedDataCount: Option[Long] = None
 
   var currentState: InternalGateState = GateStateUnknown(Some("Initialising"))
 
@@ -116,15 +106,6 @@ class GateActor(id: String)
 
   }
 
-
-  private def publishInfo() = {
-    T_INFO !! info
-    T_STATS !! stats
-  }
-
-  private def publishProps() = T_PROPS !! propsConfig
-
-
   override def processTick(): Unit = {
     super.processTick()
     clearActiveEventsourceList()
@@ -145,8 +126,8 @@ class GateActor(id: String)
     super.postStop()
   }
 
-  override def onInitialConfigApplied(): Unit = context.parent ! GateAvailable(key)
 
+  override def publishAvailable(): Unit = context.parent ! GateAvailable(key, self, name)
 
   override def commonBehavior: Actor.Receive = messageHandler orElse super.commonBehavior
 
@@ -173,12 +154,7 @@ class GateActor(id: String)
     case _ => stateAsString
   }
 
-  def retainedDataAsString = retainedDataCount match {
-    case Some(v) => "~" + v
-    case _ => "N/A"
-  }
-
-  def info = Some(Json.obj(
+  override def info = Some(Json.obj(
     "name" -> name,
     "address" -> address,
     "addressFull" -> (forwarderActor.map(_.toString) | "N/A"),
@@ -192,89 +168,24 @@ class GateActor(id: String)
     "sinks" -> sinks.size
   ))
 
-  def stats = currentState match {
+  override def stats = currentState match {
     case GateStateOpen(_) | GateStateReplay(_) => Some(Json.obj(
       "rate" -> ("%.2f" format _rateMeter.oneMinuteRate),
       "mrate" -> ("%.2f" format _rateMeter.meanRate),
       "activeDS" -> activeEventsources.size,
-      "inflight" -> correlationToOrigin.size,
-      "retained" -> retainedDataAsString
+      "inflight" -> inFlightCount
     ))
     case _ => Some(Json.obj(
       "activeDS" -> activeEventsources.size,
-      "inflight" -> correlationToOrigin.size,
-      "retained" -> retainedDataAsString
+      "inflight" -> inFlightCount
     ))
   }
 
 
-  def initiateReplay(ref: ActorRef, limit: Int): \/[Fail, OK] = {
-    val idx = JSONTools.macroReplacement(EventFrame(), replayIndexPattern)
-    RetentionManagerActor.path ! InitiateReplay(ref, idx, replayEventType, limit)
-    currentState = GateStateReplay(Some("awaiting"))
-    publishInfo()
-    OK().right
-  }
-
-
-  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
-    case T_INFO => publishInfo()
-    case T_PROPS => publishProps()
-    case TopicKey(x) => logger.debug(s"Unknown topic $x")
-  }
-
-
-  def messageAllowance = if (maxInFlight - correlationToOrigin.size < 1) 1 else maxInFlight - correlationToOrigin.size
-
-  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
-    case T_REPLAY =>
-      lastRequestedState match {
-        case Some(Passive()) =>
-          Fail(message = Some("Gate must be started")).left
-        case _ =>
-          logger.info("Initiating replay ")
-          initiateReplay(self, messageAllowance)
-          OK().right
-      }
-    case T_STOP =>
-      lastRequestedState match {
-        case Some(Active()) =>
-          logger.info("Stopping the gate")
-          self ! BecomePassive()
-          OK().right
-        case _ =>
-          logger.info("Already stopped")
-          Fail(message = Some("Already stopped")).left
-      }
-    case T_START =>
-      lastRequestedState match {
-        case Some(Active()) =>
-          logger.info("Already started")
-          Fail(message = Some("Already started")).left
-        case _ =>
-          logger.info("Starting the gate " + self.toString())
-          self ! BecomeActive()
-          OK().right
-      }
-    case T_REMOVE =>
-      removeConfig()
-      self ! PoisonPill
-      OK().right
-    case T_UPDATE_PROPS =>
-      for (
-        data <- maybeData \/> Fail("Invalid request");
-        result <- updateAndApplyConfigProps(data)
-      ) yield result
-  }
-
   override def canDeliverDownstreamRightNow: Boolean = isComponentActive
 
-  override def fullyAcknowledged(correlationId: Long, msg: EventFrame): Unit = {
+  override def fullyAcknowledged(correlationId: Long, msg: Batch[EventFrame]): Unit = {
     logger.info(s"Delivered to all active sinks $correlationId ")
-    correlationToOrigin.get(correlationId).foreach { origin =>
-      correlationToOrigin += correlationId -> origin.copy(deliveryPending = false)
-      checkCompleteness(correlationId)
-    }
   }
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = sinks
@@ -296,23 +207,24 @@ class GateActor(id: String)
     frame + ('eventId -> eventId) + ('eventSeq -> eventSeq) + ('ts -> timestamp)
   }
 
-  def convertInboundPayload(id: Long, message: Any): Option[EventFrame] = message match {
-    case m: EventFrame => Some(enrichInboundJsonFrame(id, m))
+  def convertInboundPayload(id: Long, message: Any): Seq[EventFrame] = message match {
+    case Batch(e) => e.flatMap(convertInboundPayload(id, _))
+    case m: EventFrame => Seq(enrichInboundJsonFrame(id, m))
     case x =>
       logger.warn(s"Unsupported message type at the gate  $id: $x")
-      None
+      Seq()
   }
 
   override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {
     name = props ~> 'name | "default"
     initialState = props ~> 'initialState | "Closed"
+
+    // TODO rename maxInFlight to inFlightThreshold
     maxInFlight = props +> 'maxInFlight | 1000
+
     acceptWithoutSinks = props ?> 'acceptWithoutSinks | false
     address = props ~> 'address | key
     created = prettyTimeFormat(props ++> 'created | now)
-
-    replayIndexPattern = props #> 'retentionPolicy ~> 'replayIndexPattern | "default-*"
-    replayEventType = props #> 'retentionPolicy ~> 'replayEventType | "event"
 
     val newForwarderId = ActorTools.actorFriendlyId(address)
     forwarderId match {
@@ -321,11 +233,6 @@ class GateActor(id: String)
       case x => ()
     }
 
-  }
-
-  override def afterApplyConfig(): Unit = {
-    publishInfo()
-    publishProps()
   }
 
   private def reopenForwarder(newForwarderId: String) = {
@@ -342,13 +249,7 @@ class GateActor(id: String)
   }
 
   private def canAcceptAnotherMessage = currentState match {
-    case GateStateOpen(_) => correlationToOrigin.size < maxInFlight
-    case _ => false
-  }
-
-  private def canAcceptAnotherReplayMessage = currentState match {
-    case GateStateOpen(_) => correlationToOrigin.size < maxInFlight
-    case GateStateReplay(_) => correlationToOrigin.size < maxInFlight
+    case GateStateOpen(_) => inFlightCount < maxInFlight
     case _ => false
   }
 
@@ -362,60 +263,25 @@ class GateActor(id: String)
     case m: Acknowledgeable[_] =>
       updateActiveEventsourceListWith(sender())
       if (canAcceptAnotherMessage) {
-        forwarderActor.foreach(_ ! RouteTo(sender(), AcknowledgeAsReceived(m.id)))
+        forwarderActor.foreach(_ ! RouteTo(sender(), AcknowledgeAsProcessed(m.id)))
         if (!isDup(sender(), m.id)) {
           logger.info(s"New unique message arrived at the gate $id ... ${m.id}")
-          convertInboundPayload(m.id, m.msg) foreach { msg =>
-            val correlationId = if (sinks.isEmpty && acceptWithoutSinks) generateCorrelationId(msg) else deliverMessage(msg)
-            correlationToOrigin += correlationId ->
-              InflightMessage(
-                m.id,
-                sender(),
-                retentionPending = false,
-                deliveryPending = sinks.nonEmpty || !acceptWithoutSinks)
+          if (sinks.nonEmpty || !acceptWithoutSinks) {
+            val seq = convertInboundPayload(m.id, m.msg)
+            seq foreach { msg =>
+              // TODO rename acceptWithoutSinks
+              deliverMessage(msg)
+            }
+            if (seq.nonEmpty) _rateMeter.mark(seq.size)
           }
         } else {
           logger.info(s"Received duplicate message at $id ${m.id}")
         }
       } else {
-        logger.debug(s"Unable to accept another message, in flight count " + correlationToOrigin.size)
+        logger.debug(s"Unable to accept another message, in flight count " + inFlightCount)
       }
-    case ReplayedEvent(originalCId, msg) =>
-      if (canAcceptAnotherReplayMessage) {
-        logger.info(s"New replayed message arrived at the gate $id ... $originalCId")
-        val frame = EventFrameConverter.fromJson(Json.parse(msg))
-        val correlationId = if (sinks.isEmpty && acceptWithoutSinks) generateCorrelationId(frame) else deliverMessage(frame)
-        correlationToOrigin += correlationId ->
-          InflightMessage(
-            originalCId,
-            sender(),
-            retentionPending = false,
-            deliveryPending = sinks.nonEmpty || !acceptWithoutSinks)
-      } else {
-        logger.debug(s"Unable to accept another replayed message, in flight count " + correlationToOrigin.size)
-      }
-    case ReplayEnd() =>
-      currentState = GateStateOpen()
-      publishInfo()
-    case ReplayFailed(error) =>
-      currentState = GateStateError()
-      publishInfo()
-    case ReplayStart() =>
-      currentState = GateStateReplay(Some("in progress"))
-      publishInfo()
 
   }
-
-  private def checkCompleteness(correlationId: Long) = correlationToOrigin.get(correlationId).foreach { m =>
-    if (!m.deliveryPending && !m.retentionPending) {
-      logger.info(s"Fully acknowledged $correlationId ")
-      logger.info(s"Ack ${m.originalCorrelationId} with tap at ${m.originator}")
-      forwarderActor.foreach(_ ! RouteTo(m.originator, AcknowledgeAsProcessed(m.originalCorrelationId)))
-      correlationToOrigin -= correlationId
-      _rateMeter.mark()
-    }
-  }
-
 
   override def onTerminated(ref: ActorRef): Unit = {
     if (sinks.contains(ref)) {
@@ -427,7 +293,6 @@ class GateActor(id: String)
   }
 
   private def messageHandler: Receive = {
-    case RetainedCount(count) => retainedDataCount = Some(count)
     case GateStateCheck(ref) =>
       logger.debug(s"Received state check from $ref, our state: $isComponentActive")
       if (isComponentActive) {

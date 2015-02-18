@@ -247,7 +247,7 @@ object EventFrameConverter {
 object EventFrame {
   def apply(v: Tuple2[String, Any]*) = new EventFrame(v: _*)
 }
-case class EventFrame(v: Map[String, EventData]) extends EventData {
+case class EventFrame(v: Map[String, EventData]) extends EventData with WithID {
   def this(v: Tuple2[String, Any]*) = this(v.map { case (a,b) => a.toString -> EventFrameConverter.wrap(b) }.toMap)
 
   val naValue = "n/a"
@@ -304,6 +304,7 @@ case class EventFrame(v: Map[String, EventData]) extends EventData {
   
   def streamSeed = ~>('streamSeed)
 
+  override def entityId: Any = eventId
 }
 
 private object EventValuePathTools {

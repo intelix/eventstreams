@@ -118,8 +118,7 @@ lazy val gate_service = Project(
   dependencies = Seq(
     sysevents  % "compile;test->test",
     api % "compile;test->test",
-    gate_api,
-    retention_service % "compile;test->test" // TODO - remove
+    gate_api
   )
 )
 

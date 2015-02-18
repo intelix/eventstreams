@@ -33,9 +33,6 @@ define(['react', 'core_mixin', 'common_button_startstop', 'common_button_delete'
             return {info: false, stats: false}
         },
 
-        handleClick: function() {
-            this.raiseEvent("editFlow", {ckey: this.props.ckey});
-        },
 
         renderData: function () {
             var self = this;
@@ -52,19 +49,16 @@ define(['react', 'core_mixin', 'common_button_startstop', 'common_button_delete'
                 default: state = <span className="label label-warning">unknown - {info.state}</span>; break;
             }
 
-            var mainLink = info.name;
-            if (self.state.connected) {
-                mainLink = <a href="#" onClick={this.handleClick} >{mainLink}</a>;
-            }
 
             var inRate = "N/A";
             if (stats.inrate) inRate = stats.inrate +"/s";
             var outRate = "N/A";
             if (stats.outrate) outRate = stats.outrate +"/s";
 
+            var EditLink = require('common_link_edit');
 
             return <tr>
-                <td>{mainLink}</td>
+                <td><EditLink editEvent="editFlow" text={info.name} {...this.props} /></td>
                 <td>{inRate}</td>
                 <td>{outRate}</td>
                 <td>{info.created}</td>
@@ -78,7 +72,7 @@ define(['react', 'core_mixin', 'common_button_startstop', 'common_button_delete'
         },
         renderLoading: function () {
             return (
-                <tr><td colSpan="7">loading...</td></tr>
+                <tr><td colSpan="100%">loading...</td></tr>
             );
         },
 

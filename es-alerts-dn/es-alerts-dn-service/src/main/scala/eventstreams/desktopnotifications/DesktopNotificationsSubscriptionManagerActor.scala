@@ -35,7 +35,7 @@ trait DesktopNotificationsSubscriptionManagerSysevents extends ComponentWithBase
   override def componentId: String = "DesktopNotifications.Manager"
 }
 
-case class DesktopNotificationsSubscriptionAvailable(id: ComponentKey)
+case class DesktopNotificationsSubscriptionAvailable(id: ComponentKey, ref: ActorRef, name: String) extends Model
 
 object DesktopNotificationsSubscriptionManagerActor extends DesktopNotificationsSubscriptionManagerSysevents {
   val id = "desktopnotifications"
@@ -44,72 +44,38 @@ object DesktopNotificationsSubscriptionManagerActor extends DesktopNotifications
 class DesktopNotificationsSubscriptionManagerActor(sysconfig: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
-  with RouteeActor
+  with RouteeModelManager[DesktopNotificationsSubscriptionAvailable]
   with NowProvider
   with DesktopNotificationsSubscriptionManagerSysevents
   with WithSyseventPublisher {
 
-  val configSchema = Json.parse(
+  override val configSchema = Some(Json.parse(
     Source.fromInputStream(
       getClass.getResourceAsStream(
-        sysconfig.getString("eventstreams.desktopnotifications.signalsub-schema"))).mkString)
+        sysconfig.getString("eventstreams.desktopnotifications.signalsub-schema"))).mkString))
 
   val id = DesktopNotificationsSubscriptionManagerActor.id
 
   override val key = ComponentKey(id)
 
-  var entries = mutable.Map[ComponentKey, ActorRef]()
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  override def partialStorageKey = Some("desktopnotification/")
+  def list = Some(Json.toJson(entries.map { x => Json.obj("ckey" -> x.id.key)}.toArray))
 
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = startActor(Some(key), Some(props), maybeState)
+  def forward(m: Any) = entries.foreach(_.ref ! m)
 
-  def publishList() = T_LIST !! list
-
-  def list = Some(Json.toJson(entries.keys.map { x => Json.obj("ckey" -> x.key)}.toArray))
-
-  def publishConfigTpl(): Unit = T_CONFIGTPL !! Some(configSchema)
-
-  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
-    case T_LIST => publishList()
-    case T_CONFIGTPL => publishConfigTpl()
-  }
-
-
-  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
-    case T_ADD => startActor(None, maybeData, None)
-  }
-
-
-  override def onTerminated(ref: ActorRef): Unit = {
-    entries.collect { case (k, v) if v == ref => k} foreach entries.remove
-    publishList()
-
-    super.onTerminated(ref)
-  }
-
-  def handler: Receive = {
+  private def handler: Receive = {
     case m: Acknowledgeable[_] =>
       sender() ! AcknowledgeAsProcessed(m.id)
-      entries.values.foreach(_ ! m.msg)
-    case DesktopNotificationsSubscriptionAvailable(route) =>
-      entries += route -> sender()
-      publishList()
+
+      m.msg match {
+        case x: Batch[_] => x.entries.foreach(forward)
+        case x => forward(x)
+      }
+
+    case m: DesktopNotificationsSubscriptionAvailable => addEntry(m)
   }
 
-  private def startActor(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]): \/[Fail, OK] =
-    for (
-      data <- maybeData \/> Fail("Invalid payload", Some("Invalid configuration"))
-    ) yield {
-      val entryKey = key | "desktopnotification/" + shortUUID
-      var json = data
-      if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
-      val actor = DesktopNotificationsSubscriptionActor.start(entryKey)
-      context.watch(actor)
-      actor ! InitialConfig(json, maybeState)
-      OK("Desktop notification subscription successfully created")
-    }
-
+  override def startModelActor(key: String): ActorRef = DesktopNotificationsSubscriptionActor.start(key)
 }

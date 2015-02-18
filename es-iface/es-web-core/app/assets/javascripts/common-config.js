@@ -42,6 +42,7 @@
 
             common_nodetabs: ("commons/ClusterNodesTabs"),
             common_editor_mixin: ("commons/JSONEditorModalMixin"),
+            common_link_edit: ("commons/EditLink"),
             common_button_startstop: ("commons/StartStopButton"),
             common_button_delete: ("commons/DeleteButton"),
             common_button_reset: ("commons/ResetButton"),

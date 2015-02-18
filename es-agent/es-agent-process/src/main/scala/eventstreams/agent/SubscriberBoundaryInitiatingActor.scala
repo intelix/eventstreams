@@ -22,9 +22,9 @@ import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import com.typesafe.config.Config
 import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.WithSyseventPublisher
-import eventstreams.gates.GateState
-import eventstreams.{ProducedMessage, EventFrame}
 import eventstreams.core.actors._
+import eventstreams.gates.GateState
+import eventstreams.{Batch, EventFrame, ProducedMessage}
 import net.ceedubs.ficus.Ficus._
 import play.api.libs.json.JsValue
 
@@ -41,11 +41,11 @@ trait EventsourceSinkSysevents
 }
 
 object SubscriberBoundaryInitiatingActor extends EventsourceSinkSysevents {
-  def props(endpoint: String, maxInFlight: Int)(implicit sysconfig: Config) =
-    Props(new SubscriberBoundaryInitiatingActor(endpoint, maxInFlight))
+  def props(endpoint: String, maxInFlight: Int, maxBatchSize: Int)(implicit sysconfig: Config) =
+    Props(new SubscriberBoundaryInitiatingActor(endpoint, maxInFlight, maxBatchSize))
 }
 
-class SubscriberBoundaryInitiatingActor(endpoint: String, maxInFlight: Int)(implicit sysconfig: Config)
+class SubscriberBoundaryInitiatingActor(endpoint: String, maxInFlight: Int, maxBatchSize: Int)(implicit sysconfig: Config)
   extends PipelineWithStatesActor
   with StoppableSubscriberActor
   with ReconnectingActor
@@ -61,6 +61,9 @@ class SubscriberBoundaryInitiatingActor(endpoint: String, maxInFlight: Int)(impl
   override def commonBehavior: Receive = handleOnNext orElse super.commonBehavior
 
   override def connectionEndpoint: String = endpoint
+
+
+  override def configMaxBatchSize: Int = maxBatchSize
 
   val correlationToCursor = mutable.Map[Long, JsValue]()
 
@@ -94,7 +97,7 @@ class SubscriberBoundaryInitiatingActor(endpoint: String, maxInFlight: Int)(impl
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
-  override def fullyAcknowledged(correlationId: Long, msg: EventFrame): Unit = {
+  override def fullyAcknowledged(correlationId: Long, msg: Batch[EventFrame]): Unit = {
     MessageAcknowledged >> ('CorrelationId -> correlationId)
     context.parent ! Acknowledged(correlationId, correlationToCursor.get(correlationId))
     correlationToCursor -= correlationId

@@ -37,13 +37,26 @@ define(['react', 'core_mixin', 'common_nodetabs', './user/main', './roles/main']
 
                 var self = this;
 
+                var selected = self.state.selected;
+
+                function hasAccessToRoles() {
+                    return self.hasTopicPermission("userroles", "list");
+                }
+
+                function hasAccessToUsers() {
+                    return self.hasTopicPermission("users", "list");
+                }
+
+                if (!hasAccessToRoles() && selected == "roles") selected = "users";
+                if (!hasAccessToUsers() && selected == "users") selected = "roles";
+
                 var rolesClasses = this.cx({
                     'active': (self.state.selected == 'roles')
                 });
                 var usersClasses = this.cx({
                     'active': (self.state.selected == 'users')
                 });
-                
+
                 var content = "";
                 if (self.state.selected == 'users') {
                     content = <Users {...self.props} />;
@@ -51,16 +64,25 @@ define(['react', 'core_mixin', 'common_nodetabs', './user/main', './roles/main']
                     content = <Roles {...self.props} />;
                 }
 
-                return <div>
-                    <ul className="nav nav-pills">
+                var tabs = "";
+                if (hasAccessToUsers) {
+                    tabs +=
                         <li role="presentation" className={usersClasses}>
                             <a href="#" onClick={self.handleSelection.bind(self, "users")}>Users</a>
-                        </li>
+                        </li>;
+                }
+                if (hasAccessToRoles) {
+                    tabs +=
                         <li role="presentation" className={rolesClasses}>
                             <a href="#" onClick={self.handleSelection.bind(self, "roles")}>Roles</a>
                         </li>
+                }
+
+                return <div>
+                    <ul className="nav nav-pills">
+                        {tabs}
                     </ul>
-                {content}
+                    {content}
                 </div>;
             }
         });

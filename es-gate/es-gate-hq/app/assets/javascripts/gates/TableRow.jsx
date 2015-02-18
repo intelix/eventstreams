@@ -34,21 +34,12 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
                 return {info: false, stats: false}
             },
 
-            handleRowClick: function () {
-                this.raiseEvent("editGate", {ckey: this.props.ckey});
-            },
-
             renderData: function () {
                 var self = this;
 
                 var info = self.state.info;
                 var stats = self.state.stats;
 
-
-                var mainLink = info.name;
-                if (self.state.connected) {
-                    mainLink = <a href="#" onClick={this.handleRowClick} >{mainLink}</a>;
-                }
 
                 var replayButton;
                 if (info.replaySupported) {
@@ -57,9 +48,11 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
                     replayButton = "";
                 }
 
+                var EditLink = require('common_link_edit');
+
                 return (
                     <tr ref='monitorVisibility' >
-                        <td>{mainLink}</td>
+                        <td><EditLink editEvent="editGate" text={info.name} {...this.props} /></td>
                         <td>{info.address}</td>
                         <td>{stats.inflight}</td>
                         <td><Rate value={stats.rate} /></td>

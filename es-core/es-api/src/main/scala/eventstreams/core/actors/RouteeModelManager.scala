@@ -46,7 +46,7 @@ trait RouteeModelManager[T <: Model]
   }
 
   override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
-    case T_ADD => addEntity(None, maybeData, None)
+    case T_ADD => createModelInstance(None, maybeData, None)
   }
 
   override def onTerminated(ref: ActorRef): Unit = {
@@ -60,9 +60,9 @@ trait RouteeModelManager[T <: Model]
     publishList()
   }
   
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addEntity(Some(key), Some(props), maybeState)
+  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = createModelInstance(Some(key), Some(props), maybeState)
 
-  private def addEntity(k: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
+  private def createModelInstance(k: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
     for (
       data <- maybeData \/> Fail("Invalid payload")
     ) yield {

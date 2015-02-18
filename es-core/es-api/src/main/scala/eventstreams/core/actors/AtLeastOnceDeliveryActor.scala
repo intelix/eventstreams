@@ -17,15 +17,13 @@
 package eventstreams.core.actors
 
 import akka.actor.ActorRef
-import core.sysevents.SyseventOps.symbolToSyseventOps
-import core.sysevents.WithSyseventPublisher
-import core.sysevents.ref.ComponentWithBaseSysevents
-import eventstreams.{AcknowledgeAsReceived, AcknowledgeAsProcessed, Acknowledgeable, NowProvider}
+import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
+import _root_.core.sysevents.WithSyseventPublisher
+import _root_.core.sysevents.ref.ComponentWithBaseSysevents
+import eventstreams._
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
-
-case class Acknowledged[T](correlationId: Long, msg: T)
 
 trait AtLeastOnceDeliveryActorSysevents extends ComponentWithBaseSysevents {
   val ScheduledForDelivery = 'ScheduledForDelivery.info
@@ -35,40 +33,50 @@ trait AtLeastOnceDeliveryActorSysevents extends ComponentWithBaseSysevents {
   val DeliveringToActor = 'DeliveringToActor.trace
 }
 
-trait AtLeastOnceDeliveryActor[T]
+trait AtLeastOnceDeliveryActor[T <: WithID]
   extends ActorWithTicks
   with NowProvider
   with AtLeastOnceDeliveryActorSysevents
   with WithSyseventPublisher {
 
-  private var list = Vector[InFlight[T]]()
+  private var unscheduledBatch: List[T] = List()
+  private var batchId: Long = generateCorrelationId()
+
+  private var list = Vector[InFlight[Batch[T]]]()
   private var counter = new Random().nextLong()
+
+  var inFlightCount: Int = 0
 
   override def commonBehavior: Receive = handleRedeliveryMessages orElse super.commonBehavior
 
-  final def inFlightCount = list.size
-
   def configUnacknowledgedMessagesResendInterval = 1.seconds
+
+  def configMaxBatchSize = 100
 
   def canDeliverDownstreamRightNow: Boolean
 
   def getSetOfActiveEndpoints: Set[ActorRef]
 
-  def fullyAcknowledged(correlationId: Long, msg: T)
+  def fullyAcknowledged(correlationId: Long, msg: Batch[T])
 
-  def deliverMessage(msg: T) = {
-    val nextCorrelationId = generateCorrelationId(msg)
-    list = list :+ InFlight[T](0, msg, nextCorrelationId, getSetOfActiveEndpoints, Set(), Set(), 0)
-    val depth = list.size
-    ScheduledForDelivery >>('CorrelationId -> nextCorrelationId, 'DeliveryQueueDepth -> depth)
+  def deliverMessage(msg: T): Long = {
+    addToBatch(msg)
+
+    val deliveryQueueDepth = list.size
+
+    ScheduledForDelivery >>(
+      'EntityId -> msg.entityId, 'CorrelationId -> batchId, 'EntityQueueDepth -> inFlightCount, 'DeliveryQueueDepth -> deliveryQueueDepth)
+
     deliverIfPossible()
-    nextCorrelationId
+
+    batchId
   }
 
 
   private def filter() =
     list = list.filter {
       case m: InFlight[_] if m.endpoints.isEmpty && m.processedAck.nonEmpty =>
+        inFlightCount = inFlightCount - m.msg.entries.size
         fullyAcknowledged(m.correlationId, m.msg)
         false
       case _ => true
@@ -80,7 +88,7 @@ trait AtLeastOnceDeliveryActor[T]
 
     list = list.map {
       case m: InFlight[_] if m.correlationId == correlationId =>
-        m.copy[T](
+        m.copy[Batch[T]](
           endpoints = m.endpoints.filter(_ != ackedByRef),
           processedAck = m.processedAck + ackedByRef,
           receivedAck = m.receivedAck + ackedByRef
@@ -97,7 +105,7 @@ trait AtLeastOnceDeliveryActor[T]
 
     list = list.map {
       case m: InFlight[_] if m.correlationId == correlationId =>
-        m.copy[T](
+        m.copy[Batch[T]](
           receivedAck = m.receivedAck + ackedByRef
         )
       case other => other
@@ -116,26 +124,41 @@ trait AtLeastOnceDeliveryActor[T]
     case AcknowledgeAsReceived(x) => acknowledgeReceived(x, sender())
   }
 
-  def generateCorrelationId(m: T): Long = {
+  private def generateCorrelationId(): Long = {
     counter = counter + 1
     counter
   }
 
+  private def rollBatch() = {
+    list = list :+ InFlight[Batch[T]](0, Batch(unscheduledBatch), batchId, getSetOfActiveEndpoints, Set(), Set(), 0)
+    unscheduledBatch = List()
+    batchId = generateCorrelationId()
+  }
+
+
+  private def addToBatch(msg: T) = {
+    unscheduledBatch = unscheduledBatch :+ msg
+    inFlightCount = inFlightCount + 1
+    if (unscheduledBatch.size >= configMaxBatchSize) rollBatch()
+  }
+
   def deliverIfPossible(forceResend: Boolean = false) =
-    if (canDeliverDownstreamRightNow && list.nonEmpty) {
-      list.find { m => m.endpoints.isEmpty || m.endpoints.exists(!m.receivedAck.contains(_))} foreach { toDeliver =>
-        val newInflight = resend(toDeliver, forceResend)
-        list = list.map {
-          case m if m.correlationId == newInflight.correlationId => newInflight
-          case other => other
+    if (canDeliverDownstreamRightNow) {
+      if (list.isEmpty && unscheduledBatch.nonEmpty) rollBatch()
+      if (list.nonEmpty) {
+        list.find { m => m.endpoints.isEmpty || m.endpoints.exists(!m.receivedAck.contains(_))} foreach { toDeliver =>
+          val newInFlight = resend(toDeliver, forceResend)
+          list = list.map {
+            case m if m.correlationId == newInFlight.correlationId => newInFlight
+            case other => other
+          }
         }
+        filter()
       }
-      filter()
     }
 
 
-
-  private def resend(m: InFlight[T], forceResend: Boolean = false): InFlight[T] =
+  private def resend(m: InFlight[Batch[T]], forceResend: Boolean = false): InFlight[Batch[T]] =
     if (canDeliverDownstreamRightNow && (forceResend || now - m.sentTime > configUnacknowledgedMessagesResendInterval.toMillis)) {
       val inflight = send(m)
       DeliveryAttempt >>('CorrelationId -> inflight.correlationId, 'Attempt -> m.sendAttempts, 'Forced -> forceResend)
@@ -143,7 +166,7 @@ trait AtLeastOnceDeliveryActor[T]
     } else m
 
 
-  private def send(m: InFlight[T]): InFlight[T] = canDeliverDownstreamRightNow match {
+  private def send(m: InFlight[Batch[T]]): InFlight[Batch[T]] = canDeliverDownstreamRightNow match {
     case true =>
       val activeEndpoints = getSetOfActiveEndpoints
 
@@ -152,7 +175,7 @@ trait AtLeastOnceDeliveryActor[T]
       if (remainingEndpoints.isEmpty && m.processedAck.isEmpty) remainingEndpoints = activeEndpoints
 
       remainingEndpoints.filter(!m.receivedAck.contains(_)).foreach { actor =>
-        DeliveringToActor >>('CorrelationId -> m.correlationId, 'Target -> actor)
+        DeliveringToActor >>('CorrelationId -> m.correlationId, 'Target -> actor, 'BatchSize -> m.msg.entries.size)
         actor ! Acknowledgeable(m.msg, m.correlationId)
       }
 

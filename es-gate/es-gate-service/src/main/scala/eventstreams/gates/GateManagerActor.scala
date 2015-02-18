@@ -24,10 +24,8 @@ import com.typesafe.config.Config
 import eventstreams._
 import eventstreams.core.actors._
 import play.api.libs.json._
-import play.api.libs.json.extensions._
 
 import scala.io.Source
-import scalaz.Scalaz._
 
 trait GateManagerSysevents extends ComponentWithBaseSysevents {
   override def componentId: String = "Gate.GateManager"
@@ -37,78 +35,32 @@ object GateManagerActor extends  GateManagerSysevents {
   val id = "gates"
 }
 
-case class GateAvailable(id: ComponentKey)
+case class GateAvailable(id: ComponentKey, ref: ActorRef, name: String) extends Model
 
 class GateManagerActor(sysconfig: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
   with ActorWithConfigStore
-  with RouteeActor
+  with RouteeModelManager[GateAvailable]
   with NowProvider
   with GateManagerSysevents
   with WithSyseventPublisher {
 
   val id = GateManagerActor.id
 
-  val configSchema = Json.parse(
+  override val configSchema = Some(Json.parse(
     Source.fromInputStream(
       getClass.getResourceAsStream(
-        sysconfig.getString("eventstreams.gates.gate-schema"))).mkString)
-
-  type GatesMap = Map[ComponentKey, ActorRef]
+        sysconfig.getString("eventstreams.gates.gate-schema"))).mkString))
 
   override val key = ComponentKey(id)
-  var gates: GatesMap = Map()
-
-  override def partialStorageKey: Option[String] = Some("gate/")
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  def listUpdate() = T_LIST !! list
-
-  def list = Some(Json.toJson(gates.keys.map { x => Json.obj("ckey" -> x.key)}.toArray))
-
-
-  def publishConfigTpl(): Unit = T_CONFIGTPL !! Some(configSchema)
-
-  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
-    case T_LIST => listUpdate()
-    case T_CONFIGTPL => publishConfigTpl()
-  }
-
-  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
-    case T_ADD => addGate(None, maybeData, None)
-  }
-
-
-  override def onTerminated(ref: ActorRef): Unit = {
-    gates = gates.filter {
-      case (route, otherRef) => otherRef != ref
-    }
-    listUpdate()
-    super.onTerminated(ref)
-  }
+  def list = Some(Json.toJson(entries.map { x => Json.obj("ckey" -> x.id.key)}.toArray))
 
   def handler: Receive = {
-    case GateAvailable(route) =>
-      gates = gates + (route -> sender())
-      listUpdate()
-
+    case x: GateAvailable => addEntry(x)
   }
 
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addGate(Some(key), Some(props), maybeState)
-
-  private def addGate(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
-    for (
-      data <- maybeData \/> Fail("Invalid payload")
-    ) yield {
-      val gateKey = key | "gate/" + shortUUID
-      var json = data
-      if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
-      val actor = GateActor.start(gateKey)
-      context.watch(actor)
-      actor ! InitialConfig(json, maybeState)
-      OK("Gate successfully created")
-    }
-
-
+  override def startModelActor(key: String): ActorRef = GateActor.start(key)
 }

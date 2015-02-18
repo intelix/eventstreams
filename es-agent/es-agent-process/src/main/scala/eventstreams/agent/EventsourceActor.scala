@@ -184,7 +184,7 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
 
       for (
         endpoint <- props ~> 'targetGate \/> Fail("Invalid eventsource config: missing 'targetGate' value");
-        impl <- SubscriberBoundaryInitiatingActor.props(endpoint, props +> 'maxInFlight | 1000).right
+        impl <- SubscriberBoundaryInitiatingActor.props(endpoint, props +> 'maxInFlight | 1000, props +> 'maxBatchSize | 100).right
       ) yield {
         endpointDetails = endpoint
         impl

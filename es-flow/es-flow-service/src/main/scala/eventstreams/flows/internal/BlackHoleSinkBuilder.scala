@@ -72,15 +72,15 @@ private class BlackholeAutoAckSinkActor(maybeId: Option[String])
     case OnNext(ProducedMessage(v, c)) =>
       MessageArrived >>('EventId -> v.eventIdOrNA, 'Contents -> Json.stringify(v.asJson))
       _rate.mark()
-      context.parent ! Acknowledged[Option[JsValue]](-1, c)
+//      context.parent ! Acknowledged[Option[JsValue]](-1, c)
     case OnNext(EventFrame(v)) =>
       MessageArrived >>('EventId -> EventFrame(v).eventIdOrNA, 'Contents -> Json.stringify(EventFrame(v).asJson))
       _rate.mark()
-      context.parent ! Acknowledged[Option[JsValue]](-1, None)
+//      context.parent ! Acknowledged[Option[JsValue]](-1, None)
     case OnNext(msg) =>
       MessageArrived >>('Contents -> msg)
       _rate.mark()
-      context.parent ! Acknowledged[Option[JsValue]](-1, None)
+//      context.parent ! Acknowledged[Option[JsValue]](-1, None)
   }
 
   override protected def requestStrategy: RequestStrategy = lastRequestedState match {

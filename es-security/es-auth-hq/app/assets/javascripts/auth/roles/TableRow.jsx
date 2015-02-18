@@ -33,9 +33,6 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
                 return {info: false}
             },
 
-            handleRowClick: function () {
-                this.raiseEvent("editUserRole", {ckey: this.props.ckey});
-            },
 
             renderData: function () {
                 var self = this;
@@ -43,15 +40,11 @@ define(['react', 'core_mixin', 'common_statelabel', 'common_rate', 'common_yesno
                 var info = self.state.info;
 
 
-                var mainLink = info.name;
-                if (self.state.connected) {
-                    mainLink = <a href="#" onClick={this.handleRowClick} >{mainLink}</a>;
-                }
-
+                var EditLink = require('common_link_edit');
 
                 return (
                     <tr ref='monitorVisibility' >
-                        <td>{mainLink}</td>
+                        <td><EditLink editEvent="editUserRole" text={info.name} {...this.props} /></td>
                         <td>{info.permissions}</td>
                         <td>
                             <DeleteButton {...this.props} />

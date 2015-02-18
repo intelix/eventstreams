@@ -20,8 +20,8 @@ import akka.actor.{ActorRef, ActorSelection, Props}
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
-import eventstreams.EventFrame
 import eventstreams.core.actors._
+import eventstreams.{Batch, EventFrame}
 
 // TODO refactor
 
@@ -65,12 +65,12 @@ class AutoPersistenceActor(id: String)
     logger.info(s"AutoPersistenceActor becoming passive")
   }
 
-  override def canDeliverDownstreamRightNow = isActive && isComponentActive && !retentionManagerActor.isEmpty
+  override def canDeliverDownstreamRightNow = isActive && isComponentActive && retentionManagerActor.nonEmpty
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = retentionManagerActor
 
-  override def fullyAcknowledged(correlationId: Long, msg: ScheduleStorage): Unit = {
-    logger.info(s"Stored $correlationId id ${msg.id}")
+  override def fullyAcknowledged(correlationId: Long, msg: Batch[ScheduleStorage]): Unit = {
+    logger.info(s"Stored $correlationId")
   }
 
   override def execute(value: EventFrame): Option[Seq[EventFrame]] = {

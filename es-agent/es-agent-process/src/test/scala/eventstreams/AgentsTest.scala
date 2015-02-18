@@ -143,7 +143,11 @@ class AgentsTest
 
 
   trait WithEventsourceStarted extends WithAgentNode1 with WithHubNode1  {
-    sendToAgentController1(CreateEventsource(Json.stringify(Json.obj("source" -> Json.obj("class" -> "stub"), "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1"))))
+    sendToAgentController1(CreateEventsource(Json.stringify(Json.obj(
+      "source" -> Json.obj("class" -> "stub"),
+      "targetGate" -> "akka.tcp://hub@localhost:12521/user/gate1",
+      "maxBatchSize" -> 5
+    ))))
     expectExactlyNEvents(1, AgentProxyActor.EventsourceProxyUp)
     expectOneOrMoreEvents(EventsourceProxyActor.PreStart)
     expectOneOrMoreEvents(PublisherStubActor.PreStart)
@@ -236,7 +240,7 @@ class AgentsTest
     openGate("gate1")
     publishEventFromEventsource(EventFrame("eventId" -> "3"))
     waitAndCheck {
-      expectExactlyNEvents(1, GateStubActor.MessageReceivedAtGate)
+      expectExactlyNEvents(3, GateStubActor.MessageReceivedAtGate)
     }
     expectExactlyNEvents(1, GateStubActor.MessageReceivedAtGate, 'EventId -> "1")
   }
@@ -249,7 +253,7 @@ class AgentsTest
     expectOneOrMoreEvents(SubscriberBoundaryInitiatingActor.DeliveryAttempt, 'Attempt -> 1)
     expectOneOrMoreEvents(SubscriberBoundaryInitiatingActor.DeliveryAttempt, 'Attempt -> 2)
     expectExactlyNEvents(3, GateStubActor.MessageReceivedAtGate, 'EventId -> "1")
-    expectNoEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> "2")
+    expectExactlyNEvents(3, GateStubActor.MessageReceivedAtGate, 'EventId -> "2")
   }
 
   it should "not attempt redelivery if gate acked as received" in new WithThreeSyseventsAvailAndOpenNotAckingGate {

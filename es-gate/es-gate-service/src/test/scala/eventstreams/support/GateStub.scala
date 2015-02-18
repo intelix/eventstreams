@@ -34,21 +34,27 @@ trait GateStubTestContext {
   }
 
   def openGate(name: String): Unit = gates.get(name).foreach(openGate)
+
   def openGate(f: ActorRef): Unit = f ! OpenGateStub()
 
   def closeGate(name: String): Unit = gates.get(name).foreach(closeGate)
+
   def closeGate(f: ActorRef): Unit = f ! CloseGateStub()
 
   def autoAckAsReceivedAtGate(name: String): Unit = gates.get(name).foreach(autoAckAsReceivedAtGate)
+
   def autoAckAsReceivedAtGate(f: ActorRef): Unit = f ! GateStubConfigDoAcknowledgeAsReceived()
 
   def autoAckAsProcessedAtGate(name: String): Unit = gates.get(name).foreach(autoAckAsProcessedAtGate)
+
   def autoAckAsProcessedAtGate(f: ActorRef): Unit = f ! GateStubConfigDoAcknowledgeAsProcessed()
 
   def autoCloseGateAfter(name: String, messagesCount: Int): Unit = gates.get(name).foreach(autoCloseGateAfter(_, messagesCount))
+
   def autoCloseGateAfter(f: ActorRef, messagesCount: Int): Unit = f ! GateStubAutoCloseAfter(messagesCount)
 
   def sendFromGateToSinks(name: String, m: Any): Unit = gates.get(name).foreach(sendFromGateToSinks(_, m))
+
   def sendFromGateToSinks(f: ActorRef, m: Any): Unit = f ! SendToSinks(m)
 
 }
@@ -76,7 +82,9 @@ trait GateStub {
       f(mockGate)
     } finally {
       system.stop(mockGate)
-      Try { probe.expectTerminated(mockGate) }
+      Try {
+        probe.expectTerminated(mockGate)
+      }
     }
   }
 
@@ -111,7 +119,7 @@ class GateStubActor(name: String)
 
   var state: GateState = GateClosed()
   var ackFlags: Set[Any] = Set()
-  var autoCloseCounter: Option[Int] =  None
+  var autoCloseCounter: Option[Int] = None
   var sinks: Set[ActorRef] = Set()
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
@@ -120,24 +128,38 @@ class GateStubActor(name: String)
   override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('GateName -> name)
 
   def handler: Receive = {
-    case x : GateStubConfigDoAcknowledgeAsProcessed => ackFlags = ackFlags + x
-    case x : GateStubConfigDoAcknowledgeAsReceived => ackFlags = ackFlags + x
+    case x: GateStubConfigDoAcknowledgeAsProcessed => ackFlags = ackFlags + x
+    case x: GateStubConfigDoAcknowledgeAsReceived => ackFlags = ackFlags + x
     case OpenGateStub() =>
-      OpeningGate >> ()
+      OpeningGate >>()
       state = GateOpen()
-    case CloseGateStub() => 
-      ClosingGate >> ()
+    case CloseGateStub() =>
+      ClosingGate >>()
       state = GateClosed()
     case GateStateCheck(ref) =>
-      GateStatusCheckReceived >>('State -> state)
+      GateStatusCheckReceived >> ('State -> state)
       ref ! GateStateUpdate(state)
     case Acknowledgeable(msg, id) =>
-      val eId = msg match {
-        case m: EventFrame => m.eventIdOrNA
-//        case m: JsValue => EventFrame(m, Map()).eventIdOrNA
-        case m: ProducedMessage => m.value.eventIdOrNA
+      val eventsReceived = msg match {
+        case m: Batch[_] =>
+          m.entries.foreach {
+            case x: EventFrame =>
+              val eId = x.eventIdOrNA
+              MessageReceivedAtGate >>('CorrelationId -> id, 'EventId -> eId)
+            case x: ProducedMessage =>
+              val eId = x.value.eventIdOrNA
+              MessageReceivedAtGate >>('CorrelationId -> id, 'EventId -> eId)
+          }
+          m.entries.size
+        case m: EventFrame =>
+          val eId = m.eventIdOrNA
+          MessageReceivedAtGate >>('CorrelationId -> id, 'EventId -> eId)
+          1
+        case m: ProducedMessage =>
+          val eId = m.value.eventIdOrNA
+          MessageReceivedAtGate >>('CorrelationId -> id, 'EventId -> eId)
+          1
       }
-      MessageReceivedAtGate >>('CorrelationId -> id, 'EventId -> eId)
 
       state match {
         case GateClosed() =>
@@ -146,11 +168,11 @@ class GateStubActor(name: String)
           if (ackFlags.contains(GateStubConfigDoAcknowledgeAsReceived())) sender ! AcknowledgeAsReceived(id)
           if (ackFlags.contains(GateStubConfigDoAcknowledgeAsProcessed())) sender ! AcknowledgeAsProcessed(id)
           autoCloseCounter = autoCloseCounter match {
-            case Some(c) if c -1 == 0 =>
-              AutoClosingGate >> ()
+            case Some(c) if c - eventsReceived <= 0 =>
+              AutoClosingGate >>()
               state = GateClosed()
               None
-            case Some(c) => Some(c-1)
+            case Some(c) => Some(c - eventsReceived)
             case None => None
           }
       }

@@ -92,22 +92,32 @@ private class GateInputActor(id: String, address: String)
     super.becomePassive()
   }
 
+  def forward(m: Any) = m match {
+    case m: EventFrame => forwardToFlow(m)
+    case _ => ()
+  }
+
   def handlerWhenActive: Receive = {
-    case m @ Acknowledgeable(f:EventFrame,i) =>
+    case Acknowledgeable(m,id) =>
       if (pendingToDownstreamCount < buffer || pendingToDownstreamCount < totalDemand) {
-        if (!isDup(sender(), m.id)) {
-          sender() ! AcknowledgeAsReceived(i)
+        if (!isDup(sender(), id)) {
+          sender() ! AcknowledgeAsReceived(id)
+          sender() ! AcknowledgeAsProcessed(id)
           _rate.mark()
-          forwardToFlow(f)
-          sender() ! AcknowledgeAsProcessed(i)
+
+          m match {
+            case x: Batch[_] => x.entries.foreach(forward)
+            case x => forward(x)
+          }
+
         } else {
-          sender() ! AcknowledgeAsReceived(i)
+          sender() ! AcknowledgeAsProcessed(id)
         }
       }
   }
 
   def handlerWhenPassive: Receive = {
-    case m @ Acknowledgeable(f:EventFrame,i) => ()
+    case m: Acknowledgeable[_] => ()
   }
 
   override def connectionEndpoint: String = address

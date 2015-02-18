@@ -142,9 +142,9 @@ private class GateInstructionActor(instructionId: String, address: String, confi
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
-  override def fullyAcknowledged(correlationId: Long, msg: EventFrame): Unit = {
+  override def fullyAcknowledged(correlationId: Long, msg: Batch[EventFrame]): Unit = {
     FullAcknowledgement >> ('CorrelationId -> correlationId)
-    if (blockingDelivery) forwardToFlow(msg)
+    if (blockingDelivery) msg.entries.foreach(forwardToFlow)
   }
 
   override def execute(value: EventFrame): Option[Seq[EventFrame]] = {

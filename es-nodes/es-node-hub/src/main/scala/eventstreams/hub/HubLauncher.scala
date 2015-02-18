@@ -21,14 +21,9 @@ import akka.cluster.Cluster
 import akka.kernel.Bootable
 import com.typesafe.config._
 import core.sysevents.{LoggerSyseventPublisher, SEvtSystem, SyseventPublisherRef, SyseventSystemRef}
-import eventstreams.agent.AgentsManagerActor
 import eventstreams.core.components.cluster.ClusterManagerActor
 import eventstreams.core.components.routing.MessageRouterActor
 import eventstreams.core.storage.ConfigStorageActor
-import eventstreams.desktopnotifications.DesktopNotificationsSubscriptionManagerActor
-import eventstreams.flows.FlowManagerActor
-import eventstreams.gates.GateManagerActor
-import eventstreams.retention.RetentionManagerActor
 import net.ceedubs.ficus.Ficus._
 
 class HubLauncher extends Bootable {
