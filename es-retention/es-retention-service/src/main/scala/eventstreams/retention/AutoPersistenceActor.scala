@@ -17,6 +17,7 @@
 package eventstreams.retention
 
 import akka.actor.{ActorRef, ActorSelection, Props}
+import akka.cluster.Cluster
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
@@ -44,18 +45,19 @@ class AutoPersistenceActor(id: String)
 
   val maxInFlight = 1000
 
-  var retentionManagerActor: Set[ActorRef] = Set()
-
+  val storageManagerId = ActorWithRoleId(RetentionManagerActor.id, "eventstorage")
+  var endpoint: Set[ActorRef] = Set.empty
+  
   override def preStart(): Unit = {
     super.preStart()
-    self ! RetryResolution(RetentionManagerActor.path)
+    self ! Resolve(storageManagerId)
   }
 
 
-  override def onPathResolved(path: ActorSelection, ref: ActorRef): Unit = {
-    retentionManagerActor = Set(ref)
-    logger.debug(s"Retention manager resolved at $ref")
-  }
+
+  override def onActorResolved(actorId: ActorWithRoleId, ref: ActorRef): Unit = endpoint = Set(ref)
+
+  override def onActorTerminated(actorId: ActorWithRoleId, ref: ActorRef): Unit = endpoint = Set.empty
 
   override def becomeActive(): Unit = {
     logger.info(s"AutoPersistenceActor becoming active")
@@ -65,9 +67,9 @@ class AutoPersistenceActor(id: String)
     logger.info(s"AutoPersistenceActor becoming passive")
   }
 
-  override def canDeliverDownstreamRightNow = isActive && isComponentActive && retentionManagerActor.nonEmpty
+  override def canDeliverDownstreamRightNow = isActive && isComponentActive && endpoint.nonEmpty
 
-  override def getSetOfActiveEndpoints: Set[ActorRef] = retentionManagerActor
+  override def getSetOfActiveEndpoints: Set[ActorRef] = endpoint
 
   override def fullyAcknowledged(correlationId: Long, msg: Batch[ScheduleStorage]): Unit = {
     logger.info(s"Stored $correlationId")
@@ -92,4 +94,5 @@ class AutoPersistenceActor(id: String)
     override def inFlightInternally: Int = inFlightCount + pendingToDownstreamCount
   }
 
+  override implicit val cluster: Cluster = Cluster(context.system)
 }

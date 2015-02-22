@@ -18,25 +18,29 @@
       "title": "Source branch",
       "type": "string"
     },
+    "idTemplate": {
+      "propertyOrder": 25,
+      "title": "Event ID Template",
+      "type": "string",
+      "default": "${eventId}"
+    },
     "index": {
+      "propertyOrder": 30,
+      "title": "Index",
+      "type": "string",
+      "default": "default-${eventts:yyyy-MM}"
+    },
+    "table": {
+      "propertyOrder": 35,
+      "title": "Table",
+      "type": "string",
+      "default": "event"
+    },
+    "ttl": {
       "propertyOrder": 40,
-      "title": "Target index",
-      "type": "string"
-    },
-    "cluster": {
-      "propertyOrder": 50,
-      "title": "Cluster name",
-      "type": "string"
-    },
-    "host": {
-      "propertyOrder": 70,
-      "title": "Host name",
-      "type": "string"
-    },
-    "port": {
-      "propertyOrder": 80,
-      "title": "Port",
-      "type": "integer"
+      "title": "Time to live",
+      "type": "string",
+      "default": "30d"
     },
     "simpleCondition": {
       "propertyOrder": 110,

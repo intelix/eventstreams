@@ -16,29 +16,58 @@
 
 package eventstreams.core.actors
 
-import akka.actor.{ActorRef, ActorSelection}
+import akka.actor.{ActorPath, ActorRef, ActorSelection}
 
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success}
 
-trait ActorWithResolver extends ActorWithComposableBehavior {
+case class ActorWithRoleId(actorId: String, role: String)
+
+case class Resolved(actorId: ActorWithRoleId, ref: ActorRef)
+
+case class Resolve(actorId: ActorWithRoleId)
+
+
+
+trait ActorWithResolver extends ActorWithClusterAwareness {
 
   implicit val ec = context.dispatcher
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
-  def onPathResolved(path: ActorSelection, ref: ActorRef)
+  private var resolved: Map[ActorWithRoleId, ActorRef] = Map.empty
 
-  private def handler: Receive = {
-    case RetryResolution(path) => path.resolveOne(5.seconds).onComplete {
-      case Success(ref) => self ! Resolved(path, ref)
-      case Failure(ref) => context.system.scheduler.scheduleOnce(2.seconds, self, RetryResolution(path))
+  def onActorResolved(actorId: ActorWithRoleId, ref: ActorRef) = {}
+  def onActorTerminated(actorId: ActorWithRoleId, ref: ActorRef) = {}
+
+  def getResolvedActorRef(actorId: ActorWithRoleId) = resolved.get(actorId)
+  
+  override def onTerminated(ref: ActorRef): Unit = {
+    resolved = resolved.filter {
+      case (k,v) if v == ref =>
+        onActorTerminated(k, v)
+        initiate(k)
+        false
+      case _ => true
     }
-    case Resolved(path, ref) => onPathResolved(path, ref)
+    super.onTerminated(ref)
   }
 
-  case class Resolved(path: ActorSelection, ref: ActorRef)
+  private def initiate(m: ActorWithRoleId) = roleToAddress(m.role) match {
+    case None => context.system.scheduler.scheduleOnce(4.seconds, self, Resolve(m))
+    case Some(a) => selectionFor(a, m.actorId).resolveOne(5.seconds).onComplete {
+      case Success(ref) =>
+        context.watch(ref)
+        resolved = resolved + (m -> ref)
+        self ! Resolved(m, ref)
+      case Failure(ref) => context.system.scheduler.scheduleOnce(2.seconds, self, Resolve(m))
+    }
+  }
 
-  case class RetryResolution(path: ActorSelection)
+  
+  private def handler: Receive = {
+    case Resolve(req) => initiate(req)
+    case Resolved(id, ref) => onActorResolved(id, ref)
+  }
 
 }

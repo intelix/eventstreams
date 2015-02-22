@@ -85,11 +85,21 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
 
   def onClusterChangeEvent(): Unit = {}
 
+
+  override def onTerminated(ref: ActorRef): Unit = {
+    refCache = refCache.filter {
+      case (k,v) => v != ref
+    }
+    super.onTerminated(ref)
+  }
+
   def resolveActorInCluster(address: String, id: String) = {
     implicit val timeout = Timeout(5.seconds)
     implicit val ec = context.dispatcher
     selectionFor(address, id).resolveOne() onComplete {
-      case Success(result) => refCache += ClusterActorId(address, id) -> result
+      case Success(result) =>
+        refCache += ClusterActorId(address, id) -> result
+        context.watch(result)
       case Failure(failure) =>
         context.system.scheduler.scheduleOnce(5.seconds, self, ResolveRetry(address, id))
     }
@@ -111,7 +121,7 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
 
   private def commonMessagesHandler: Actor.Receive = {
     case ResolveRetry(address, id) =>
-      if (nodeIsUp(address)) resolveActorInCluster(address, id)
+      resolveActorInCluster(address, id)
     case MemberUp(member) =>
       val newNode = NodeInfo(Up(), member.address, member.roles)
       nodes = (nodes.filter(_.address != member.address) :+ newNode).sorted
