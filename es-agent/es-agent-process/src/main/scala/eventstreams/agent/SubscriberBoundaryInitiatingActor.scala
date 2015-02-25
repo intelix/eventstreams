@@ -24,7 +24,7 @@ import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import eventstreams.core.actors._
 import eventstreams.gates.GateState
-import eventstreams.{Batch, EventFrame, ProducedMessage}
+import eventstreams.{Batch, EventFrame, EventAndCursor}
 import net.ceedubs.ficus.Ficus._
 import play.api.libs.json.JsValue
 
@@ -66,6 +66,8 @@ class SubscriberBoundaryInitiatingActor(endpoint: String, maxInFlight: Int, maxB
   override def configMaxBatchSize: Int = maxBatchSize
 
   val correlationToCursor = mutable.Map[Long, JsValue]()
+  
+  var streamClosure: Option[Option[Throwable]] = None
 
   override def onConnectedToEndpoint(): Unit = {
     super.onConnectedToEndpoint()
@@ -78,11 +80,11 @@ class SubscriberBoundaryInitiatingActor(endpoint: String, maxInFlight: Int, maxB
     if (isComponentActive) initiateReconnect()
   }
 
-  override def becomeActive(): Unit = {
+  override def onBecameActive(): Unit = {
     initiateReconnect()
   }
 
-  override def becomePassive(): Unit = {
+  override def onBecamePassive(): Unit = {
     stopGateStateMonitoring()
     disconnect()
   }
@@ -101,15 +103,30 @@ class SubscriberBoundaryInitiatingActor(endpoint: String, maxInFlight: Int, maxB
     MessageAcknowledged >> ('CorrelationId -> correlationId)
     context.parent ! Acknowledged(correlationId, correlationToCursor.get(correlationId))
     correlationToCursor -= correlationId
+    checkClosure()
   }
 
+  private def checkClosure() = if (inFlightCount == 0) streamClosure match {
+    case Some(Some(cause)) => context.parent ! StreamClosedWithError(Some(cause.getMessage))
+    case Some(None) => context.parent ! StreamClosed()
+    case _ => ()
+  }
 
   override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(maxInFlight) {
     override def inFlightInternally: Int = inFlightCount
   }
 
+  override def onStreamCompletedSuccessfully(): Unit = {
+    streamClosure = Some(None)
+    checkClosure()
+  }
+  override def onStreamCompletedWithError(cause: Throwable): Unit = {
+    streamClosure = Some(Some(cause))
+    checkClosure()
+  }
+
   private def handleOnNext: Actor.Receive = {
-    case OnNext(ProducedMessage(value, cursor)) =>
+    case OnNext(EventAndCursor(value, cursor)) =>
       val correlationId = deliverMessage(value)
       cursor.foreach(correlationToCursor += correlationId -> _)
     case OnNext(x) =>

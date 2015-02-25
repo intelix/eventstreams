@@ -71,7 +71,7 @@ private class ElasticsearchInstructionActor(config: JsValue)
 
   val maxInFlight = 1000
 
-  val elasticSearchEndpointId = ActorWithRoleId(ElasticsearchEntpointActor.id, "ep-elasticsearch")
+  val elasticSearchEndpointId = ActorWithRoleId(ElasticsearchEndpointActor.id, "epelasticsearch")
   var endpoint: Set[ActorRef] = Set.empty
 
   val idTemplate = config ~> CfgFIdTemplate | "${eventId}"

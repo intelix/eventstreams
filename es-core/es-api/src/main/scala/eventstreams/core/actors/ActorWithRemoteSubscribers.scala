@@ -29,8 +29,8 @@ trait ActorWithRemoteSubscribers
   }
 
   override def subjectMatch(subj: RemoteAddrSubj, otherSubj: RemoteAddrSubj): Boolean =
-    subj.localSubj == otherSubj.localSubj && (roleToAddress(subj.address) match {
-      case Some(addr) => roleToAddress(otherSubj.address) match {
+    subj.localSubj == otherSubj.localSubj && (aliasToFullAddress(subj.address) match {
+      case Some(addr) => aliasToFullAddress(otherSubj.address) match {
         case Some(x) => x == addr
         case _ => false
       }

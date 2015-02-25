@@ -40,10 +40,9 @@ trait AtLeastOnceDeliveryActor[T <: WithID]
   with WithSyseventPublisher {
 
   private var unscheduledBatch: List[T] = List()
-  private var batchId: Long = generateCorrelationId()
+  private var batchId = new Random().nextLong().abs
 
   private var list = Vector[InFlight[Batch[T]]]()
-  private var counter = new Random().nextLong()
 
   var inFlightCount: Int = 0
 
@@ -125,8 +124,8 @@ trait AtLeastOnceDeliveryActor[T <: WithID]
   }
 
   private def generateCorrelationId(): Long = {
-    counter = counter + 1
-    counter
+    batchId = batchId + 1
+    batchId
   }
 
   private def rollBatch() = {

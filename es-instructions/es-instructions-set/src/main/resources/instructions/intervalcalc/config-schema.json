@@ -24,11 +24,11 @@
       "type": "string",
       "default": "date_ts"
     },
-    "streamIdTemplate": {
+    "streamKeyTemplate": {
       "propertyOrder": 32,
-      "title": "Stream Id template",
+      "title": "Stream Key template",
       "type": "string",
-      "default": "${streamdId}"
+      "default": "${streamdKey}"
     },
    "simpleCondition": {
       "propertyOrder": 110,

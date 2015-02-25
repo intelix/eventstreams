@@ -75,4 +75,6 @@
         }
     });
 
+    require(['common_link_edit']);
+
 })();

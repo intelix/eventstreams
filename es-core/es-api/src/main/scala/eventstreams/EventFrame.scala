@@ -304,6 +304,10 @@ case class EventFrame(v: Map[String, EventData]) extends EventData with WithID {
   
   def streamSeed = ~>('streamSeed)
 
+  def setStreamKey(value: String) = this + ('streamKey -> value)
+  def setStreamSeed(value: String) = this + ('streamSeed -> value)
+  def setEventId(value: String) = this + ('eventId -> value)
+
   override def entityId: Any = eventId
 }
 

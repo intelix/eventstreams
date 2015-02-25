@@ -33,7 +33,7 @@ object Dependencies {
     
     val scalazVersion = "7.1.0"
     
-    val elastic4sVersion = "1.4.0"
+    val elastic4sVersion = "1.4.12"
     
     val asyncHttpVersion = "1.0.0"
 

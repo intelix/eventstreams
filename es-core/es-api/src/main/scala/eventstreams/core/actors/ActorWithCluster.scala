@@ -21,7 +21,7 @@ import akka.cluster.Cluster
 trait ActorWithCluster extends ActorWithComposableBehavior {
 
   implicit val cluster: Cluster
-  val myAddress = cluster.selfAddress.toString
+  lazy val myAddress = cluster.selfAddress.toString
 
 
 }

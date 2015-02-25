@@ -108,8 +108,8 @@ private class TransactionInstructionActor(correlationIdTemplate: String, props: 
       pendingToDownstreamCount
   }
 
-  override def becomeActive(): Unit = {
-    super.becomeActive()
+  override def onBecameActive(): Unit = {
+    super.onBecameActive()
   }
 
   /*

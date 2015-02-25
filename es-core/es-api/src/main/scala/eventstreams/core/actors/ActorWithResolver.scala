@@ -17,6 +17,9 @@
 package eventstreams.core.actors
 
 import akka.actor.{ActorPath, ActorRef, ActorSelection}
+import core.sysevents.SyseventOps.symbolToSyseventOps
+import core.sysevents.WithSyseventPublisher
+import core.sysevents.ref.ComponentWithBaseSysevents
 
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success}
@@ -27,10 +30,18 @@ case class Resolved(actorId: ActorWithRoleId, ref: ActorRef)
 
 case class Resolve(actorId: ActorWithRoleId)
 
+trait ActorWithResolverSysevents extends ComponentWithBaseSysevents {
+
+  val ResolvingActor = 'ResolvingActor.trace
+  val ResolvedActor = 'ResolvedActor.trace
+
+}
 
 
-trait ActorWithResolver extends ActorWithClusterAwareness {
+trait ActorWithResolver extends ActorWithClusterAwareness with ActorWithResolverSysevents {
 
+  _:WithSyseventPublisher =>
+  
   implicit val ec = context.dispatcher
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
@@ -54,8 +65,10 @@ trait ActorWithResolver extends ActorWithClusterAwareness {
   }
 
   private def initiate(m: ActorWithRoleId) = roleToAddress(m.role) match {
-    case None => context.system.scheduler.scheduleOnce(4.seconds, self, Resolve(m))
-    case Some(a) => selectionFor(a, m.actorId).resolveOne(5.seconds).onComplete {
+    case None => 
+      context.system.scheduler.scheduleOnce(4.seconds, self, Resolve(m))
+    case Some(a) =>
+      selectionFor(a, m.actorId).resolveOne(5.seconds).onComplete {
       case Success(ref) =>
         context.watch(ref)
         resolved = resolved + (m -> ref)
@@ -66,8 +79,12 @@ trait ActorWithResolver extends ActorWithClusterAwareness {
 
   
   private def handler: Receive = {
-    case Resolve(req) => initiate(req)
-    case Resolved(id, ref) => onActorResolved(id, ref)
+    case Resolve(req) =>
+      ResolvingActor >> ('ActorId -> req.actorId, 'NodeRole -> req.role)
+      initiate(req)
+    case Resolved(id, ref) =>
+      ResolvedActor >> ('ActorId -> id.actorId, 'NodeRole -> id.role, 'Ref -> ref.path)
+      onActorResolved(id, ref)
   }
 
 }

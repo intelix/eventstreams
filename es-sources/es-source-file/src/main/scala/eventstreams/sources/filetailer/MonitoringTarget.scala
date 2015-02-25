@@ -8,7 +8,7 @@ trait MonitoringTarget {
 
   def initialPosition: InitialPosition
 
-  def eventsourceId: String
+  def streamKey: String
 
   def directory: String
 

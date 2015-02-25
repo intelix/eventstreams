@@ -28,7 +28,7 @@
         </layout>
     </appender>
 
-    <logger name="events" level="DEBUG" additivity="false">
+    <logger name="sysevents" level="DEBUG" additivity="false">
         <appender-ref ref="EVENTS" />
     </logger>
 

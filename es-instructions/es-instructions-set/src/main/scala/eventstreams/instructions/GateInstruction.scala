@@ -123,11 +123,11 @@ private class GateInstructionActor(instructionId: String, address: String, confi
     if (isComponentActive) initiateReconnect()
   }
 
-  override def becomeActive(): Unit = {
+  override def onBecameActive(): Unit = {
     initiateReconnect()
   }
 
-  override def becomePassive(): Unit = {
+  override def onBecamePassive(): Unit = {
     stopGateStateMonitoring()
     disconnect()
   }
@@ -144,7 +144,7 @@ private class GateInstructionActor(instructionId: String, address: String, confi
 
   override def fullyAcknowledged(correlationId: Long, msg: Batch[EventFrame]): Unit = {
     FullAcknowledgement >> ('CorrelationId -> correlationId)
-    if (blockingDelivery) msg.entries.foreach(forwardToFlow)
+    if (blockingDelivery) msg.entries.foreach(pushSingleEventToStream)
   }
 
   override def execute(value: EventFrame): Option[Seq[EventFrame]] = {

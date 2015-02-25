@@ -28,7 +28,7 @@
         </layout>
     </appender>
 
-    <logger name="events" level="DEBUG" additivity="false">
+    <logger name="sysevents" level="DEBUG" additivity="false">
         <appender-ref ref="EVENTS" />
     </logger>
 
@@ -37,7 +37,7 @@
 
     <logger name="akka.cluster.ClusterHeartbeatSender" level="WARN" />
 
-    <root level="WARN">
+    <root level="DEBUG">
         <appender-ref ref="STDOUT" />
     </root>
 

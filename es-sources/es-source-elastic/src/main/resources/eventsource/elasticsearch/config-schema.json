@@ -1,0 +1,56 @@
+{
+  "type": "object",
+  "title": "Elasticsearch",
+  "properties": {
+    "class": {
+      "propertyOrder": 10,
+      "title": "Type",
+      "type": "string",
+      "template": "elasticsearch"
+    },
+    "host": {
+      "propertyOrder": 20,
+      "title": "Host",
+      "type": "string"
+    },
+    "port": {
+      "propertyOrder": 30,
+      "title": "Port",
+      "type": "number"
+    },
+    "cluster": {
+      "propertyOrder": 40,
+      "title": "Cluster",
+      "type": "string"
+    },
+    "index": {
+      "propertyOrder": 50,
+      "title": "Index",
+      "type": "string"
+    },
+    "etype": {
+      "propertyOrder": 60,
+      "title": "Type",
+      "type": "string"
+    },
+    "batchSize": {
+      "propertyOrder": 70,
+      "title": "Batch size",
+      "type": "number",
+      "default": 1000
+    },
+    "scrollKeepAlive": {
+      "propertyOrder": 80,
+      "title": "Scroll keep alive",
+      "type": "string",
+      "default": "10m"
+    },
+    "limit": {
+      "propertyOrder": 90,
+      "title": "Limit",
+      "type": "number",
+      "default": -1
+    }
+  },
+  "additionalProperties": false
+}

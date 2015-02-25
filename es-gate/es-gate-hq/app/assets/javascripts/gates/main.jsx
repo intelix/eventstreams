@@ -65,7 +65,7 @@ define(['react', 'core_mixin', 'common_nodetabs', './Table', './Editor'],
 
                 return <div>
 
-                    <Tabs roles={["hq"]} selectorId="nodeSelectorForGates" />
+                    <Tabs roles={["hub"]} selectorId="nodeSelectorForGates" />
                     {this.state.editBlock ? this.state.editBlock : ""}
                     {this.state.selected ? <Table addr={this.state.selected}/> : ""}
                 </div>;

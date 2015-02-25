@@ -29,7 +29,7 @@ class IntervalCalcInstructionTest extends TestHelpers {
     override def config: JsValue = Json.obj(
       CfgFClass -> "intervalcalc",
       CfgFIntervalFieldName -> "interval",
-      CfgFStreamId -> "${streamId}",
+      CfgFStreamKey -> "${streamKey}",
       CfgFTimestampField -> "ts"
     )
   }
@@ -39,14 +39,14 @@ class IntervalCalcInstructionTest extends TestHelpers {
 
     override def config: JsValue = Json.obj(
       IntervalCalcInstructionConstants.CfgFClass -> "intervalcalc",
-      IntervalCalcInstructionConstants.CfgFStreamId -> "streamId",
+      IntervalCalcInstructionConstants.CfgFStreamKey -> "streamKey",
       IntervalCalcInstructionConstants.CfgFTimestampField -> "ts"
     )
 
     shouldNotBuild()
   }
 
-  it should s"not build without required fields (no ${IntervalCalcInstructionConstants.CfgFStreamId}})" in new WithSimpleInstructionBuilder {
+  it should s"not build without required fields (no ${IntervalCalcInstructionConstants.CfgFStreamKey}})" in new WithSimpleInstructionBuilder {
     override def builder: SimpleInstructionBuilder = new IntervalCalcInstruction()
 
     override def config: JsValue = Json.obj(
@@ -64,7 +64,7 @@ class IntervalCalcInstructionTest extends TestHelpers {
     override def config: JsValue = Json.obj(
       IntervalCalcInstructionConstants.CfgFClass -> "intervalcalc",
       IntervalCalcInstructionConstants.CfgFIntervalFieldName -> "interval",
-      IntervalCalcInstructionConstants.CfgFStreamId -> "${streamId}"
+      IntervalCalcInstructionConstants.CfgFStreamKey -> "${streamKey}"
     )
 
     shouldNotBuild()
@@ -78,92 +78,92 @@ class IntervalCalcInstructionTest extends TestHelpers {
     expectEvent(EventFrame("abc1" -> "bla"))(Built)
   }
 
-  "IntervalCalcInstruction" should "skip events without designated streamId field" in new WithMinimalConfig {
+  "IntervalCalcInstruction" should "skip events without designated streamKey field" in new WithMinimalConfig {
     expectEvent(EventFrame("abc1" -> "bla"))(IntervalCalcSkipped)
   }
 
   it should "skip initialisation if ts is empty" in new WithMinimalConfig {
-    expectEvent(EventFrame("streamId" -> "stream1"))(IntervalCalcSkipped)
+    expectEvent(EventFrame("streamKey" -> "stream1"))(IntervalCalcSkipped)
   }
 
   val ts = System.currentTimeMillis()
 
-  it should "initialise on first event with streamId and proper ts" in new WithMinimalConfig {
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
+  it should "initialise on first event with streamKey and proper ts" in new WithMinimalConfig {
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
   }
 
   it should "not set interval field when initialised" in new WithMinimalConfig {
-    expectOne(EventFrame("streamId" -> "stream1", "ts" -> ts)) { result =>
+    expectOne(EventFrame("streamKey" -> "stream1", "ts" -> ts)) { result =>
       result ++> 'interval should be(None)
     }
   }
 
   it should "calculate interval on second event" in new WithMinimalConfig {
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 100)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamKey -> "stream1", 'Interval -> 100)
   }
 
   it should "calculate interval and update fields on second event" in new WithMinimalConfig {
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
-    expectOne(EventFrame("streamId" -> "stream1", "ts" -> (ts + 100))) { result =>
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
+    expectOne(EventFrame("streamKey" -> "stream1", "ts" -> (ts + 100))) { result =>
       result ++> 'interval should be(Some(100))
     }
   }
 
   it should "calculate interval on third event" in new WithMinimalConfig {
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 100)
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 110)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 10)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamKey -> "stream1", 'Interval -> 100)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> (ts + 110)))(IntervalCalculated, 'StreamKey -> "stream1", 'Interval -> 10)
   }
 
   trait WithCalculated extends WithMinimalConfig {
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 100)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> ts))(IntervalCalcInitialised)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamKey -> "stream1", 'Interval -> 100)
   }
 
   "IntervalCalcInstruction with one calculated interval" should "reset if next event ts is out of order" in new WithCalculated {
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 90)))(IntervalCalcReset)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> (ts + 90)))(IntervalCalcReset)
   }
   it should "calc another interval if ts value is higher" in new WithCalculated {
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 190)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 90)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> (ts + 190)))(IntervalCalculated, 'StreamKey -> "stream1", 'Interval -> 90)
   }
   it should "calc another interval if ts value is the same" in new WithCalculated {
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 0)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> (ts + 100)))(IntervalCalculated, 'StreamKey -> "stream1", 'Interval -> 0)
   }
-  it should "start another interval if streamID is different" in new WithCalculated {
-    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 100)))(IntervalCalcInitialised, 'StreamId -> "stream2")
+  it should "start another interval if streamKey is different" in new WithCalculated {
+    expectEvent(EventFrame("streamKey" -> "stream2", "ts" -> (ts + 100)))(IntervalCalcInitialised, 'StreamKey -> "stream2")
   }
   it should "reset if ts is missing" in new WithCalculated {
-    expectEvent(EventFrame("streamId" -> "stream1"))(IntervalCalcReset, 'StreamId -> "stream1")
+    expectEvent(EventFrame("streamKey" -> "stream1"))(IntervalCalcReset, 'StreamKey -> "stream1")
   }
   it should "reset if ts is lower" in new WithCalculated {
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> ts))(IntervalCalcReset, 'StreamId -> "stream1")
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> ts))(IntervalCalcReset, 'StreamKey -> "stream1")
   }
   it should "handle two intervals independently" in new WithCalculated {
-    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 100)))(IntervalCalcInitialised, 'StreamId -> "stream2")
-    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 200)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 100)
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 120)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 20)
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 130)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 10)
-    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 201)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 1)
+    expectEvent(EventFrame("streamKey" -> "stream2", "ts" -> (ts + 100)))(IntervalCalcInitialised, 'StreamKey -> "stream2")
+    expectEvent(EventFrame("streamKey" -> "stream2", "ts" -> (ts + 200)))(IntervalCalculated, 'StreamKey -> "stream2", 'Interval -> 100)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> (ts + 120)))(IntervalCalculated, 'StreamKey -> "stream1", 'Interval -> 20)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> (ts + 130)))(IntervalCalculated, 'StreamKey -> "stream1", 'Interval -> 10)
+    expectEvent(EventFrame("streamKey" -> "stream2", "ts" -> (ts + 201)))(IntervalCalculated, 'StreamKey -> "stream2", 'Interval -> 1)
   }
 
   trait WithTwoIntervalsOneReset extends WithCalculated {
-    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 100)))(IntervalCalcInitialised, 'StreamId -> "stream2")
-    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 200)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 100)
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 120)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 20)
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 130)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 10)
-    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 201)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 1)
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> ts))(IntervalCalcReset, 'StreamId -> "stream1")
+    expectEvent(EventFrame("streamKey" -> "stream2", "ts" -> (ts + 100)))(IntervalCalcInitialised, 'StreamKey -> "stream2")
+    expectEvent(EventFrame("streamKey" -> "stream2", "ts" -> (ts + 200)))(IntervalCalculated, 'StreamKey -> "stream2", 'Interval -> 100)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> (ts + 120)))(IntervalCalculated, 'StreamKey -> "stream1", 'Interval -> 20)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> (ts + 130)))(IntervalCalculated, 'StreamKey -> "stream1", 'Interval -> 10)
+    expectEvent(EventFrame("streamKey" -> "stream2", "ts" -> (ts + 201)))(IntervalCalculated, 'StreamKey -> "stream2", 'Interval -> 1)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> ts))(IntervalCalcReset, 'StreamKey -> "stream1")
   }
 
   "IntervalCalcInstruction with one reset one calculated intervals" should "continue after reset" in new WithTwoIntervalsOneReset {
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 90)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 90)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> (ts + 90)))(IntervalCalculated, 'StreamKey -> "stream1", 'Interval -> 90)
   }
 
   it should "ignore invalid events and then continue normal operation" in new WithTwoIntervalsOneReset {
     expectEvent(EventFrame("ts" -> (ts + 90)))(IntervalCalcSkipped)
-    expectEvent(EventFrame("streamId" -> "stream1", "ts" -> (ts + 90)))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> 90)
-    expectEvent(EventFrame("streamId" -> "stream2", "ts" -> (ts + 290)))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> 89)
+    expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> (ts + 90)))(IntervalCalculated, 'StreamKey -> "stream1", 'Interval -> 90)
+    expectEvent(EventFrame("streamKey" -> "stream2", "ts" -> (ts + 290)))(IntervalCalculated, 'StreamKey -> "stream2", 'Interval -> 89)
   }
 
   it should "consistently produce correct values" in new WithTwoIntervalsOneReset {
@@ -172,8 +172,8 @@ class IntervalCalcInstructionTest extends TestHelpers {
     (1 to 10000) foreach { i =>
       shift1 += i
       shift2 += i
-      expectEvent(EventFrame("streamId" -> "stream1", "ts" -> shift1))(IntervalCalculated, 'StreamId -> "stream1", 'Interval -> i)
-      expectEvent(EventFrame("streamId" -> "stream2", "ts" -> shift2))(IntervalCalculated, 'StreamId -> "stream2", 'Interval -> i)
+      expectEvent(EventFrame("streamKey" -> "stream1", "ts" -> shift1))(IntervalCalculated, 'StreamKey -> "stream1", 'Interval -> i)
+      expectEvent(EventFrame("streamKey" -> "stream2", "ts" -> shift2))(IntervalCalculated, 'StreamKey -> "stream2", 'Interval -> i)
       
     }
   }

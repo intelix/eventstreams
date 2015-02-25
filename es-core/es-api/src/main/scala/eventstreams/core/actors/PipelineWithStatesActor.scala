@@ -44,9 +44,9 @@ trait PipelineWithStatesActor extends ActorWithComposableBehavior with NowProvid
 
   def isComponentPassive = !isComponentActive
 
-  def becomeActive(): Unit = {}
+  def onBecameActive(): Unit = {}
 
-  def becomePassive(): Unit = {}
+  def onBecamePassive(): Unit = {}
 
   def millisTimeSinceStateChange = date.map(now - _) | -1
 
@@ -55,19 +55,25 @@ trait PipelineWithStatesActor extends ActorWithComposableBehavior with NowProvid
     case Some(l) => prettyTimeFormat(l)
   }
 
+  final def becomeActive() = {
+    BecomingActive >>()
+    requestedState = Some(Active())
+    date = Some(now)
+    onBecameActive()
+  }
+  
+  final def becomePassive() = {
+    BecomingPassive >>()
+    requestedState = Some(Passive())
+    date = Some(now)
+    onBecamePassive()
+  }
+  
   override def commonBehavior: Actor.Receive = handlePipelineStateChanges orElse super.commonBehavior
 
   private def handlePipelineStateChanges: Actor.Receive = {
-    case BecomeActive() =>
-      BecomingActive >>()
-      requestedState = Some(Active())
-      date = Some(now)
-      becomeActive()
-    case BecomePassive() =>
-      BecomingPassive >>()
-      requestedState = Some(Passive())
-      date = Some(now)
-      becomePassive()
+    case BecomeActive() => becomeActive()
+    case BecomePassive() => becomePassive()
   }
 
   sealed trait RequestedState

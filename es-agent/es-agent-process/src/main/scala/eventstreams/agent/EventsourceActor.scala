@@ -36,16 +36,14 @@ import scalaz.Scalaz._
 import scalaz._
 
 trait EventsourceActorSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with StateChangeSysevents {
-  override def componentId: String = "Agent.Eventsource"
-
   val EventsourceReady = 'EventsourceReady.info
-
   val CreatingFlow = 'CreatingFlow.trace
   val CreatingProducer = 'CreatingProducer.trace
   val CreatingProcessors = 'CreatingProcessors.trace
   val CreatingSink = 'CreatingSink.trace
-
   val MessageToEventsourceProxy = 'MessageToEventsourceProxy.trace
+
+  override def componentId: String = "Agent.Eventsource"
 
 
 }
@@ -83,13 +81,11 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
 
   val key = ComponentKey(dsId)
   var currentState: EventsourceState = EventsourceStateUnknown(Some("Initialising"))
-
-
-  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ComponentKey -> key.key, 'State -> stateAsString)
-
   private var endpointDetails = "N/A"
   private var commProxy: Option[ActorRef] = None
   private var flow: Option[FlowInstance] = None
+
+  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ComponentKey -> key.key, 'State -> stateAsString)
 
   override def storageKey: Option[String] = Some(dsId)
 
@@ -106,14 +102,17 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
     case _ => stateAsString
   }
 
-  override def becomeActive(): Unit = {
-    startFlow()
-    super.becomeActive()
+  override def onBecameActive(): Unit = {
+    super.onBecameActive()
+    flow match {
+      case None => createFlow()
+      case _ => startFlow()
+    }
   }
 
-  override def becomePassive(): Unit = {
-    stopFlow()
-    super.becomePassive()
+  override def onBecamePassive(): Unit = {
+    stopFlow(None)
+    super.onBecamePassive()
   }
 
   override def commonBehavior: Receive = super.commonBehavior orElse {
@@ -121,9 +120,20 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
       case c: JsValue => propsConfig.foreach { propsConfig => updateWithoutApplyConfigSnapshot(propsConfig, Some(c))}
       case _ => ()
     }
+    case StreamClosed() =>
+      becomePassive()
+      destroyFlow(None)
+      updateWithoutApplyConfigState(None)
+      sendToHubAll()
+    case StreamClosedWithError(cause) =>
+      becomePassive()
+      destroyFlow(cause)
+      updateWithoutApplyConfigState(None)
+      currentState = EventsourceStateError(cause)
+      sendToHubAll()
     case CommunicationProxyRef(ref) =>
       commProxy = Some(ref)
-      sendToHQAll()
+      sendToHubAll()
     case ReconfigureEventsource(data) =>
       updateAndApplyConfigProps(Json.parse(data))
     case ResetEventsourceState() =>
@@ -133,54 +143,68 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
       context.stop(self)
   }
 
-  override def applyConfig(key: String, config: JsValue, state: Option[JsValue]): Unit = {
+  override def applyConfig(key: String, config: JsValue, state: Option[JsValue]): Unit = createFlow()
 
-    implicit val dispatcher = context.system.dispatcher
+  override def onInitialConfigApplied(): Unit = context.parent ! EventsourceAvailable(key)
 
-    implicit val mat = FlowMaterializer()
+  override def afterApplyConfig(): Unit = {
+    sendToHubAll()
+  }
 
+  override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
+    (TopicKey("info"), 5, () => info, sendToHub _)
+  )
+
+  private def destroyFlow(reason: Option[String]) = {
     flow.foreach { v =>
       v.source ! BecomePassive()
-      v.source ! Stop(Some("Applying new configuration"))
-      v.sink ! Stop(Some("Applying new configuration"))
+      v.source ! Stop(reason)
+      v.sink ! Stop(reason)
     }
 
     flow = None
 
-    def buildProcessorFlow(props: JsValue): Flow[ProducedMessage, ProducedMessage] = {
+  }
 
-      CreatingFlow >>()
+  private def createFlow(): Unit = {
+    implicit val dispatcher = context.system.dispatcher
 
-      val setSource = Flow[ProducedMessage].map {
-        case ProducedMessage(frame, c) =>
-          ProducedMessage(frame + ("sourceId" -> (props ~> "sourceId" | "undefined")), c)
+    implicit val mat = FlowMaterializer()
+
+    def buildProcessorFlow(streamSeed: String, props: JsValue): Flow[EventAndCursor, EventAndCursor] = {
+
+      CreatingFlow >> ('StreamSeed -> streamSeed)
+
+      val setSource = Flow[EventAndCursor].map {
+        case EventAndCursor(frame, c) =>
+          EventAndCursor(frame.setStreamKey(props ~> "streamKey" | "default").setStreamSeed(streamSeed), c)
       }
 
-      val setTags = Flow[ProducedMessage].map {
-        case ProducedMessage(json, c) =>
+      val setTags = Flow[EventAndCursor].map {
+        case EventAndCursor(frame, c) =>
           val v: Seq[String] = (props ~> "tags").map(_.split(",").map(_.trim).toSeq).getOrElse(Seq[String]())
-          ProducedMessage(json + ("tags" -> v), c)
+          EventAndCursor(frame + ("tags" -> v), c)
       }
 
       setSource.via(setTags)
     }
 
-    def buildProducer(fId: String, config: JsValue): \/[Fail, Props] = {
+    def buildProducer(streamSeed: String, config: JsValue): \/[Fail, Props] = {
 
-      CreatingProducer >> ('Props -> config)
+      CreatingProducer >>('Props -> config, 'StreamSeed -> streamSeed)
 
       for (
-        instClass <- config ~> 'class \/> Fail("Invalid eventsource config: missing 'class' value");
+        instClass <- config #> 'source ~> 'class \/> Fail("Invalid eventsource config: missing 'class' value");
         builder <- allBuilders.find(_.configId == instClass)
           \/> Fail(s"Unsupported or invalid eventsource class $instClass. Supported classes: ${allBuilders.map(_.configId)}");
-        impl <- builder.build(config, state, Some(fId))
+        impl <- builder.build(config, stateConfig, Some(streamSeed))
       ) yield impl
 
     }
 
 
-    def buildSink(fId: String, props: JsValue): \/[Fail, Props] = {
-      CreatingSink >> ('Props -> config)
+    def buildSink(streamSeed: String, props: JsValue): \/[Fail, Props] = {
+      CreatingSink >>('Props -> propsConfig, 'StreamSeed -> streamSeed)
 
       for (
         endpoint <- props ~> 'targetGate \/> Fail("Invalid eventsource config: missing 'targetGate' value");
@@ -191,19 +215,22 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
       }
     }
 
+    destroyFlow(Some("Applying new config"))
 
+    val streamSeed = UUIDTools.generateShortUUID
 
     val result = for (
-      publisherProps <- buildProducer(dsId, config \ "source");
-      sinkProps <- buildSink(dsId, config)
+      config <- propsConfig \/> Fail("Configuration missing");
+      publisherProps <- buildProducer(streamSeed, config );
+      sinkProps <- buildSink(streamSeed, config)
     ) yield {
       val publisherActor: ActorRef = context.actorOf(publisherProps)
-      val publisher = PublisherSource(ActorPublisher[ProducedMessage](publisherActor))
+      val publisher = PublisherSource(ActorPublisher[EventAndCursor](publisherActor))
 
-      val processingSteps = buildProcessorFlow(config)
+      val processingSteps = buildProcessorFlow(streamSeed, config)
 
       val sinkActor = context.actorOf(sinkProps)
-      val sink = SubscriberSink(ActorSubscriber[ProducedMessage](sinkActor))
+      val sink = SubscriberSink(ActorSubscriber[EventAndCursor](sinkActor))
 
       val runnableFlow: RunnableFlow = publisher.via(processingSteps).to(sink)
 
@@ -211,10 +238,6 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
 
       flow = Some(FlowInstance(materializedFlow, publisherActor, sinkActor))
 
-      if (isComponentActive)
-        startFlow()
-      else
-        stopFlow()
     }
 
     result match {
@@ -223,20 +246,17 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
         currentState = EventsourceStateError(fail.message)
       case _ =>
         EventsourceReady >>()
+        if (isComponentActive) {
+          startFlow()
+        } else {
+          stopFlow(None)
+        }
     }
 
 
+    sendToHubAll()
+
   }
-
-  override def onInitialConfigApplied(): Unit = context.parent ! EventsourceAvailable(key)
-
-  override def afterApplyConfig(): Unit = {
-    sendToHQAll()
-  }
-
-  override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
-    (TopicKey("info"), 5, () => info, sendToHQ _)
-  )
 
   private def name = propsConfig ~> 'name | "N/A"
 
@@ -248,16 +268,19 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
       v.source ! BecomeActive()
     }
     currentState = EventsourceStateActive()
-    sendToHQAll()
+    sendToHubAll()
   }
 
-  private def stopFlow(): Unit = {
+  private def stopFlow(errorCause: Option[String]): Unit = {
     flow.foreach { v =>
       v.source ! BecomePassive()
       v.sink ! BecomePassive()
     }
-    currentState = EventsourceStatePassive()
-    sendToHQAll()
+    currentState = errorCause match {
+      case Some(c) => EventsourceStateError(errorCause)
+      case None => EventsourceStatePassive()
+    }
+    sendToHubAll()
   }
 
   private def props =
@@ -275,12 +298,12 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
       "stateDetails" -> stateDetailsAsString
     ))
 
-  private def sendToHQAll() = {
-    sendToHQ(info)
-    sendToHQ(props)
+  private def sendToHubAll() = {
+    sendToHub(info)
+    sendToHub(props)
   }
 
-  private def sendToHQ(msg: Any) = {
+  private def sendToHub(msg: Any) = {
     commProxy foreach { actor =>
       MessageToEventsourceProxy >> ('Message -> msg)
       actor ! msg

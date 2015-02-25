@@ -50,9 +50,9 @@ trait FileHandler extends PipelineWithStatesActor with ActorWithTicks with Stopp
   }
 
 
-  override def becomePassive(): Unit = {
+  override def onBecamePassive(): Unit = {
     closeOpenedResource()
-    super.becomePassive()
+    super.onBecamePassive()
   }
 
 

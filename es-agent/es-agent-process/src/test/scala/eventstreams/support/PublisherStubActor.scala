@@ -5,7 +5,7 @@ import akka.stream.actor.ActorPublisherMessage.Request
 import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
-import eventstreams.{ProducedMessage, JSONTools, EventFrame}
+import eventstreams.{EventAndCursor, JSONTools, EventFrame}
 import JSONTools.configHelper
 import eventstreams.core.actors._
 import play.api.libs.json.{JsValue, Json}
@@ -31,14 +31,14 @@ object PublisherStubActor extends PublisherStubActorSysevents {
 
 class PublisherStubActor(maybeState: Option[JsValue])
   extends ActorWithComposableBehavior
-  with StoppablePublisherActor[ProducedMessage]
+  with StoppablePublisherActor[EventAndCursor]
   with PipelineWithStatesActor
   with PublisherStubActorSysevents
   with WithSyseventPublisher
   with ActorWithTicks {
 
-  private var replayList = List[ProducedMessage]()
-  private val queue = mutable.Queue[ProducedMessage]()
+  private var replayList = List[EventAndCursor]()
+  private val queue = mutable.Queue[EventAndCursor]()
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
@@ -48,7 +48,7 @@ class PublisherStubActor(maybeState: Option[JsValue])
     PublisherStubStarted >> ('InitialState -> maybeState )
   }
 
-  def process(m: ProducedMessage) = {
+  def process(m: EventAndCursor) = {
     MessageQueuedAtStub >> ('EventId -> m.value.eventIdOrNA)
     replayList = replayList :+ m
     queue.enqueue(m)
@@ -66,17 +66,17 @@ class PublisherStubActor(maybeState: Option[JsValue])
   }
   
   def handler: Receive = {
-    case m: ProducedMessage => process(m)
-//    case m: JsValue => process(ProducedMessage(m, Some(Json.obj("id" -> (m ~> 'eventId | "na")))))
-    case m: EventFrame => process(ProducedMessage(m, Some(Json.obj("id" -> (m ~> 'eventId | "na")))))
+    case m: EventAndCursor => process(m)
+//    case m: JsValue => process(EventAndCursor(m, Some(Json.obj("id" -> (m ~> 'eventId | "na")))))
+    case m: EventFrame => process(EventAndCursor(m, Some(Json.obj("id" -> (m ~> 'eventId | "na")))))
     case Request(n) =>
       NewDemandAtPublisher >> ('Requested -> n)
       publishNext()
   }
 
 
-  override def becomeActive(): Unit = {
-    super.becomeActive()
+  override def onBecameActive(): Unit = {
+    super.onBecameActive()
     publishNext()
   }
 

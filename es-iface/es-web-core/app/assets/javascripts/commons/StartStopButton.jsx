@@ -52,7 +52,7 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
                     </button>;
             } else {
                 buttonClasses = this.cx({
-                    'disabled': (!self.state.connected || this.props.state != 'passive' || !self.hasTopicPermission(this.props.ckey,"start")),
+                    'disabled': (!self.state.connected || !self.hasTopicPermission(this.props.ckey,"start")),
                     'btn-success': true
                 });
                 button =

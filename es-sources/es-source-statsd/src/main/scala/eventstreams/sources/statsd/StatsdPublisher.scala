@@ -26,7 +26,7 @@ import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.JSONTools.configHelper
 import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor, StoppablePublisherActor}
-import eventstreams.{EventFrame, ProducedMessage, JSONTools}
+import eventstreams.{EventFrame, EventAndCursor, JSONTools}
 import play.api.libs.json.JsValue
 
 import scala.util.Try
@@ -47,7 +47,7 @@ class StatsdPublisher(val props: JsValue)
   with PipelineWithStatesActor
   with StatsdPublisherEvents
   with WithSyseventPublisher
-  with StoppablePublisherActor[ProducedMessage] {
+  with StoppablePublisherActor[EventAndCursor] {
 
   implicit val sys = context.system
 
@@ -71,16 +71,16 @@ class StatsdPublisher(val props: JsValue)
     super.postStop()
   }
 
-  override def becomeActive(): Unit = {
+  override def onBecameActive(): Unit = {
     openPort()
     logger.info(s"Becoming active - new accepting messages from statsd [$id]")
-    super.becomeActive()
+    super.onBecameActive()
   }
 
-  override def becomePassive(): Unit = {
+  override def onBecamePassive(): Unit = {
     closePort()
     logger.info(s"Becoming passive - no longer accepting messages from gate [$id] - all messages will be dropped")
-    super.becomePassive()
+    super.onBecamePassive()
   }
 
   def handler: Receive = {
@@ -134,7 +134,7 @@ class StatsdPublisher(val props: JsValue)
   }
 
   private def parse(data: String) = {
-    ProducedMessage(
+    EventAndCursor(
       EventFrame(
       "statsd" -> (if (!parsePayload) data else parseStatsdMessage(data))), None)
   }
@@ -144,7 +144,7 @@ class StatsdPublisher(val props: JsValue)
     if (isComponentActive) {
       logger.info(s"Statsd input $id received: $data")
       val elements = data.utf8String.split('\n')
-      elements foreach { v => forwardToFlow(parse(v)) }
+      elements foreach { v => pushSingleEventToStream(parse(v)) }
 
       // TODO at the moment we are using unbounded queue and UDP are not back-pressured, so it is possible to hit OOM
       // to fix this we need a combination of aggregation/dropping in place

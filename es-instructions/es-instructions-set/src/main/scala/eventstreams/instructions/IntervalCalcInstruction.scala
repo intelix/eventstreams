@@ -42,7 +42,7 @@ trait IntervalCalcInstructionSysevents extends ComponentWithBaseSysevents {
 trait IntervalCalcInstructionConstants extends InstructionConstants with IntervalCalcInstructionSysevents {
   val CfgFIntervalFieldName = "intervalFieldName"
   val CfgFTimestampField = "timestampField"
-  val CfgFStreamId = "streamIdTemplate"
+  val CfgFStreamKey = "streamKeyTemplate"
 
 }
 
@@ -54,7 +54,7 @@ class IntervalCalcInstruction extends SimpleInstructionBuilder with IntervalCalc
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
       fieldName <- props ~> CfgFIntervalFieldName \/> Fail(s"Invalid $configId instruction. Missing '$CfgFIntervalFieldName' value. Contents: ${Json.stringify(props)}");
-      streamIdTemplate <- props ~> CfgFStreamId \/> Fail(s"Invalid $configId instruction. Missing '$CfgFStreamId' value. Contents: ${Json.stringify(props)}");
+      streamKeyTemplate <- props ~> CfgFStreamKey \/> Fail(s"Invalid $configId instruction. Missing '$CfgFStreamKey' value. Contents: ${Json.stringify(props)}");
       tsField <- props ~> CfgFTimestampField \/> Fail(s"Invalid $configId instruction. Missing '$CfgFTimestampField' value. Contents: ${Json.stringify(props)}")
     ) yield {
 
@@ -69,36 +69,36 @@ class IntervalCalcInstruction extends SimpleInstructionBuilder with IntervalCalc
 
         val eventId = frame.eventIdOrNA
 
-        val streamId = macroReplacement(frame, streamIdTemplate).trim
+        val streamKey = macroReplacement(frame, streamKeyTemplate).trim
 
-        if (streamId.isEmpty) {
-          IntervalCalcSkipped >>('Reason -> s"No stream id in $streamIdTemplate", 'EventId -> eventId, 'InstructionInstanceId -> uuid)
+        if (streamKey.isEmpty) {
+          IntervalCalcSkipped >>('Reason -> s"No stream id in $streamKeyTemplate", 'EventId -> eventId, 'InstructionInstanceId -> uuid)
           List(frame)
         } else {
           val v = frame ++> tsField | 0
 
           def initialise() = {
-            IntervalCalcInitialised >>('StreamId -> streamId, 'Initial -> v, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
-            streams += streamId -> Some(v)
+            IntervalCalcInitialised >>('StreamKey -> streamKey, 'Initial -> v, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
+            streams += streamKey -> Some(v)
             List(frame)
           }
           def reset(last: Long) = {
-            IntervalCalcReset >>('StreamId -> streamId, 'Last -> last, 'Current -> v, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
-            streams += streamId -> Some(v)
+            IntervalCalcReset >>('StreamKey -> streamKey, 'Last -> last, 'Current -> v, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
+            streams += streamKey -> Some(v)
             List(frame)
           }
           def calculate(last: Long) = {
             // TODO test what happens if path is invalid, or fieldname is invalid
             val keyPath = EventValuePath(macroReplacement(frame, fieldName))
             val interval = v - last
-            streams += streamId -> Some(v)
-            IntervalCalculated >>('StreamId -> streamId, 'Interval -> interval, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
+            streams += streamKey -> Some(v)
+            IntervalCalculated >>('StreamKey -> streamKey, 'Interval -> interval, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
 
             List(keyPath.setLongInto(frame, interval))
           }
 
 
-          streams.getOrElse(streamId, None) match {
+          streams.getOrElse(streamKey, None) match {
             case None if v > 0 => initialise()
             case Some(last) if v < last => reset(last)
             case Some(last) if v >= last => calculate(last)

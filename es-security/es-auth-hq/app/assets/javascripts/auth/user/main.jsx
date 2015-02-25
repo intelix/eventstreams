@@ -58,7 +58,7 @@ define(['react', 'core_mixin', 'common_nodetabs', './Table', './Editor'],
 
                 return <div>
 
-                    <Tabs roles={["hq"]} selectorId="nodeSelectorForAuth" hideIfSingle="true"/>
+                    <Tabs roles={["hub"]} selectorId="nodeSelectorForAuth" hideIfSingle="true"/>
                     {this.state.editBlock ? this.state.editBlock : ""}
                     {this.state.selected ? <Table addr={this.state.selected}/> : ""}
                 </div>;

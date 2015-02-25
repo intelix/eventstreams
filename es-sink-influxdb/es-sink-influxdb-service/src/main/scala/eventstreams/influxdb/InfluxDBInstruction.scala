@@ -92,11 +92,11 @@ private class InfluxDBInstructionActor(series: String, config: JsValue)
   }
 
 
-  override def becomeActive(): Unit = {
+  override def onBecameActive(): Unit = {
     logger.info(s"Influx link becoming active")
   }
 
-  override def becomePassive(): Unit = {
+  override def onBecamePassive(): Unit = {
     client.foreach(_.close())
     client = None
     logger.info(s"Influx link becoming passive")
@@ -165,7 +165,7 @@ private class InfluxDBInstructionActor(series: String, config: JsValue)
             logger.error(s"Delivery failed with error: $err")
           case None =>
             deliveringNow.foreach { count =>
-              queue.take(count).foreach(forwardToFlow)
+              queue.take(count).foreach(pushSingleEventToStream)
               queue = queue.drop(count)
             }
             lastSent = Some(now)

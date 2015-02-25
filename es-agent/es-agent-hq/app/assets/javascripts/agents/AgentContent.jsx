@@ -37,7 +37,7 @@ define(['react', 'core_mixin', './AgentsTabs', './EventsourcesTable', './Eventso
                 var defaults = {
                     "name": "",
                     "desc": "",
-                    "sourceId": "",
+                    "streamKey": "",
                     "tags": "",
                     "targetGate": "akka.tcp://hub@localhost:12345/user/GATENAME"
                 };

@@ -82,18 +82,18 @@ private class GateInputActor(id: String, address: String)
 
   override def onDisconnectedFromEndpoint(): Unit = super.onDisconnectedFromEndpoint()
 
-  override def becomeActive(): Unit = {
+  override def onBecameActive(): Unit = {
     switchToCustomBehavior(handlerWhenActive)
-    super.becomeActive()
+    super.onBecameActive()
   }
 
-  override def becomePassive(): Unit = {
+  override def onBecamePassive(): Unit = {
     switchToCustomBehavior(handlerWhenPassive)
-    super.becomePassive()
+    super.onBecamePassive()
   }
 
   def forward(m: Any) = m match {
-    case m: EventFrame => forwardToFlow(m)
+    case m: EventFrame => pushSingleEventToStream(m)
     case _ => ()
   }
 

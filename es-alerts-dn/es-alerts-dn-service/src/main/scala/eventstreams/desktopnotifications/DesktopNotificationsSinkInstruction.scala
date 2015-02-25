@@ -76,12 +76,12 @@ private class DesktopNotificationsSinkInstructionActor(address: String, config: 
     if (isComponentActive) initiateReconnect()
   }
 
-  override def becomeActive(): Unit = {
+  override def onBecameActive(): Unit = {
     logger.info(s"Desktop notifications sink instruction becoming active")
     initiateReconnect()
   }
 
-  override def becomePassive(): Unit = {
+  override def onBecamePassive(): Unit = {
     logger.info(s"Desktop notifications sink instruction becoming passive")
     disconnect()
   }

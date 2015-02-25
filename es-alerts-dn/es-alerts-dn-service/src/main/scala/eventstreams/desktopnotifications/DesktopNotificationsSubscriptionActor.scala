@@ -109,12 +109,12 @@ class DesktopNotificationsSubscriptionActor(id: String)
   ))
 
 
-  override def becomeActive(): Unit = {
+  override def onBecameActive(): Unit = {
     goActive()
     publishInfo()
   }
 
-  override def becomePassive(): Unit = {
+  override def onBecamePassive(): Unit = {
     goPassive()
     publishInfo()
   }

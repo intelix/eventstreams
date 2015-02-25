@@ -121,9 +121,9 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
   }
 
 
-  override def becomeActive(): Unit = {
+  override def onBecameActive(): Unit = {
     resetCounters()
-    super.becomeActive()
+    super.onBecameActive()
   }
 
   def accountSignal(s: Signal) = {
@@ -214,7 +214,7 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
       && countSignals(correlationIdTemplate.map { s => JSONTools.macroReplacement(EventFrame(), s)}) == 0) {
       if (throttlingAllowed()) {
         mark(now)
-        forwardToFlow(signalToEvent(eventToSignal(EventFrame("eventId" -> UUIDTools.generateShortUUID, "ts" -> now))))
+        pushSingleEventToStream(signalToEvent(eventToSignal(EventFrame("eventId" -> UUIDTools.generateShortUUID, "ts" -> now))))
       }
     }
   }

@@ -84,7 +84,7 @@ class AgentsTest
     expectExactlyNEvents(1, AgentControllerActor.EventsourceInstanceAvailable)
   }
 
-  "AgentManager with a subscriber" should "update a subscriber when new agent arrives" taggedAs OnlyThisTest in new WithSubscriberForAgentManager {
+  "AgentManager with a subscriber" should "update a subscriber when new agent arrives" in new WithSubscriberForAgentManager {
     expectOneOrMoreEvents(AgentsManagerActor.UpdateForSubject)
   }
 
@@ -197,7 +197,7 @@ class AgentsTest
     expectOneOrMoreEvents(SubscriberBoundaryInitiatingActor.MonitoredGateStateChanged, 'NewState -> "GateOpen()")
   }
 
-  it should "produce a single event at the gate if there is a demand and gate is open and event is published at the same time with gate opening" taggedAs (OnlyThisTest) in new WithEventsourceActivatedAndGateCreated {
+  it should "produce a single event at the gate if there is a demand and gate is open and event is published at the same time with gate opening" in new WithEventsourceActivatedAndGateCreated {
     openGate("gate1")
     publishEventFromEventsource(EventFrame("eventId" -> "1"))
     waitAndCheck {
@@ -719,7 +719,7 @@ class AgentsTest
 
 
   "when two eventsources created, both gates available, and 10 events available for publishing, AgentProxy" should
-    "be able to activate both and then reset one once all messages are published" in new WithTwoEventsourcesAnd10SyseventsForEach {
+    "be able to activate both and then reset one once all messages are published" taggedAs OnlyThisTest  in new WithTwoEventsourcesAnd10SyseventsForEach {
     sendCommand(hub1System, dsProxy1Route, T_START, None)
     sendCommand(hub1System, dsProxy2Route, T_START, None)
 

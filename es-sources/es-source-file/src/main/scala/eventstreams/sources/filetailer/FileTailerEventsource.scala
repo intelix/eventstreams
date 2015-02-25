@@ -65,10 +65,12 @@ object FileTailerConstants extends FileTailerConstants
 class FileTailerEventsource extends BuilderFromConfig[Props] with FileTailerSysevents with FileTailerConstants with WithSyseventPublisher {
   override def configId: String = CfgID
 
-  def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, Props] = {
+  def build(config: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, Props] = {
     implicit val fileSystem = new DiskFileSystem()
     for (
-      eventsourceId <- id \/> Fail(s"eventsourceId must be provided");
+      streamSeed <- id \/> Fail(s"streamSeed must be provided");
+      streamKey <- config ~> 'streamKey \/> Fail(s"streamKey must be provided");
+      props <- config #> 'source \/> Fail(s"Invalid configuration");
       _ <- props ~> CfgFDirectory \/> Fail(s"Invalid $configId eventsource. Missing '$CfgFDirectory' value. Contents: ${Json.stringify(props)}");
       mainPattern <- props ~> CfgFMainPattern \/> Fail(s"Invalid $configId eventsource. Missing '$CfgFMainPattern' value. Contents: ${Json.stringify(props)}");
       _ <- Try {
@@ -85,7 +87,7 @@ class FileTailerEventsource extends BuilderFromConfig[Props] with FileTailerSyse
       else OK.right
     ) yield {
       Built >>('Config -> props, 'State -> maybeState)
-      LocationMonitorActor.props(eventsourceId, props, maybeState)
+      LocationMonitorActor.props(streamKey, props, maybeState)
     }
   }
 }

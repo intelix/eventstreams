@@ -38,7 +38,7 @@ trait StoppableSubscribingPublisherActor
   private def handler: Receive = {
     case OnNext(el: EventFrame) =>
       MessageArrived >>('EventId -> el.eventIdOrNA, 'PublisherQueueDepth -> pendingToDownstreamCount, 'StreamActive -> isActive)
-      if (isActive) execute(el) foreach (_.foreach(forwardToFlow))
+      if (isActive) execute(el) foreach (_.foreach(pushSingleEventToStream))
 
   }
 

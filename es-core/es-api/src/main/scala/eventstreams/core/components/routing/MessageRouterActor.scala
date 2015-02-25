@@ -88,14 +88,14 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
 
   def myNodeIsTarget(subj: Any): Boolean = subj match {
     case LocalSubj(_, _) => true
-    case RemoteAddrSubj(role, _) => roleToAddress(role) match {
+    case RemoteAddrSubj(role, _) => aliasToFullAddress(role) match {
       case Some(a) if a == myAddress => true
       case _ => false
     }
     case _ => true
   }
 
-  private def subjectsForAddress(addr: String) = collectSubjects { a => roleToAddress(a.address).map(_ == addr) | false }
+  private def subjectsForAddress(addr: String) = collectSubjects { a => aliasToFullAddress(a.address).map(_ == addr) | false }
 
   override def onClusterMemberUp(info: NodeInfo): Unit =
     if (info.address.toString != myAddress)

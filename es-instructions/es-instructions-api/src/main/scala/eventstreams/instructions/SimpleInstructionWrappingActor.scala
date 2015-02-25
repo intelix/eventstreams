@@ -42,7 +42,7 @@ class SimpleInstructionWrappingActor(instruction: SimpleInstructionTypeWithGener
 
   override def internalProcessTick(): Unit = {
     super.internalProcessTick()
-    if (isActive && isComponentActive) onTick foreach { onTickFunc => onTickFunc(millisTimeSinceStateChange) foreach forwardToFlow}
+    if (isActive && isComponentActive) onTick foreach { onTickFunc => onTickFunc(millisTimeSinceStateChange) foreach pushSingleEventToStream}
   }
 
   override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(maxInFlight) {

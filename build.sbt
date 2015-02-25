@@ -48,6 +48,7 @@ lazy val agent_process = Project(
     source_jmx % "compile;test->test",
     source_statsd % "compile;test->test",
     source_udp % "compile;test->test",
+    source_elasticsearch % "compile;test->test",
     source_tcp % "compile;test->test"
   )
 )
@@ -362,6 +363,18 @@ lazy val source_udp = Project(
 lazy val source_tcp = Project(
   id = "es-source-tcp",
   base = file("es-sources/es-source-tcp"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    api  % "compile;test->test",
+    agent_api  % "compile;test->test"
+  )
+)
+
+/* Source - Elasticsearch */
+
+lazy val source_elasticsearch = Project(
+  id = "es-source-elastic",
+  base = file("es-sources/es-source-elastic"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
     api  % "compile;test->test",

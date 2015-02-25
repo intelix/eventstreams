@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-define(['react', 'core_mixin', 'common_button_startstop', 'common_button_delete', 'common_button_reset'],
-    function (React, core_mixin, StartStopButton, DeleteButton, ResetButton) {
+define(['react', 'core_mixin', 'common_statelabel', 'common_button_startstop', 'common_button_delete', 'common_button_reset'],
+    function (React, core_mixin, StateLabel, StartStopButton, DeleteButton, ResetButton) {
 
     return React.createClass({
         mixins: [core_mixin],
@@ -39,19 +39,13 @@ define(['react', 'core_mixin', 'common_button_startstop', 'common_button_delete'
 
             var info = this.state.info;
 
-            switch (info.state) {
-                case "active": state = <span className="label label-success">open - ok</span>; break;
-                case "passive": state = <span className="label label-default">closed</span>; break;
-                default: state = <span className="label label-warning">unknown - this.state.info.state</span>; break;
-            }
-
             return <tr>
 
                 <td><a href="#" onClick={this.handleClick}>{info.name}</a></td>
                 <td>[{info.endpointType}] {info.endpointDetails}</td>
                 <td>{info.created}</td>
                 <td>{info.sinceStateChange}</td>
-                <td>{state}</td>
+                <td><StateLabel state={info.state} details={info.stateDetails} /></td>
                 <td>
                     <StartStopButton {...this.props} state={info.state} />
                     <DeleteButton {...this.props}  />

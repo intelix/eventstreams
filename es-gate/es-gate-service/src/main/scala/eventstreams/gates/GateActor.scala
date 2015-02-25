@@ -131,12 +131,12 @@ class GateActor(id: String)
 
   override def commonBehavior: Actor.Receive = messageHandler orElse super.commonBehavior
 
-  override def becomeActive(): Unit = {
+  override def onBecameActive(): Unit = {
     openGate()
     publishInfo()
   }
 
-  override def becomePassive(): Unit = {
+  override def onBecamePassive(): Unit = {
     closeGate()
     publishInfo()
   }

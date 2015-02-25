@@ -16,11 +16,11 @@ package eventstreams.support
  * limitations under the License.
  */
 
-import core.sysevents.support.EventAssertions
 import akka.actor.Props
 import akka.stream.actor.{OneByOneRequestStrategy, RequestStrategy, ZeroRequestStrategy}
 import akka.testkit.{TestKit, TestProbe}
 import com.typesafe.config.ConfigFactory
+import core.sysevents.support.EventAssertions
 import eventstreams.BuilderFromConfig
 import eventstreams.core.storage.ConfigStorageActor
 import eventstreams.sources.filetailer.FileTailerConstants._
@@ -85,10 +85,13 @@ trait FileTailerTestSupport
     override def builder: BuilderFromConfig[Props] = new FileTailerEventsource()
 
     override def config: JsValue = Json.obj(
-      CfgFDirectory -> tempDirPath,
-      CfgFMainPattern -> "current[.]log$",
-      CfgFRolledPattern -> "current-.+",
-      CfgFBlockSize -> testBlockSize
+      "streamKey" -> "key",
+      "source" -> Json.obj(
+        CfgFDirectory -> tempDirPath,
+        CfgFMainPattern -> "current[.]log$",
+        CfgFRolledPattern -> "current-.+",
+        CfgFBlockSize -> testBlockSize
+      )
     )
   }
 
@@ -102,6 +105,7 @@ trait FileTailerTestSupport
         f(file)
       }
     }
+
     def runWithExistingFile(f: OpenFile => Unit) = withEventsourceFlow {
       withExistingFile("current.log") { file =>
         flowCtx.foreach(activateFlow)
@@ -121,11 +125,13 @@ trait FileTailerTestSupport
 
   trait EmptyDirWithDemandDeactivatedStartWithLast extends WithBasicConfig {
     override def config: JsValue = Json.obj(
-      CfgFDirectory -> tempDirPath,
-      CfgFMainPattern -> "current[.]log$",
-      CfgFRolledPattern -> "current-.+",
-      CfgFBlockSize -> testBlockSize
-    )
+      "streamKey" -> "key",
+      "source" -> Json.obj(
+        CfgFDirectory -> tempDirPath,
+        CfgFMainPattern -> "current[.]log$",
+        CfgFRolledPattern -> "current-.+",
+        CfgFBlockSize -> testBlockSize
+      ))
 
     def run(f: OpenFile => Unit) = withEventsourceFlow {
       withNewFile("current.log") { file =>
@@ -136,12 +142,14 @@ trait FileTailerTestSupport
 
   trait EmptyDirWithDemandDeactivatedStartWithFirst extends WithBasicConfig {
     override def config: JsValue = Json.obj(
-      CfgFDirectory -> tempDirPath,
-      CfgFMainPattern -> "current[.]log$",
-      CfgFRolledPattern -> "current-.+",
-      CfgFBlockSize -> testBlockSize,
-      CfgFStartWith -> "first"
-    )
+      "streamKey" -> "key",
+      "source" -> Json.obj(
+        CfgFDirectory -> tempDirPath,
+        CfgFMainPattern -> "current[.]log$",
+        CfgFRolledPattern -> "current-.+",
+        CfgFBlockSize -> testBlockSize,
+        CfgFStartWith -> "first"
+      ))
 
     def run(f: OpenFile => Unit) = withEventsourceFlow {
       withNewFile("current.log") { file =>
@@ -152,13 +160,15 @@ trait FileTailerTestSupport
 
   trait EmptyDirWithoutDemandDeactivatedOrderByNameOnly extends WithBasicConfig {
     override def config: JsValue = Json.obj(
+      "streamKey" -> "key",
+      "source" -> Json.obj(
       CfgFDirectory -> tempDirPath,
       CfgFMainPattern -> "current[.]log$",
       CfgFRolledPattern -> "current-.+",
       CfgFBlockSize -> testBlockSize,
       CfgFStartWith -> "first",
       CfgFFileOrdering -> "name only"
-    )
+    ))
 
     override def sinkRequestStrategy: RequestStrategy = ZeroRequestStrategy
 

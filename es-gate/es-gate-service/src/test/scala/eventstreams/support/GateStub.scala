@@ -146,7 +146,7 @@ class GateStubActor(name: String)
             case x: EventFrame =>
               val eId = x.eventIdOrNA
               MessageReceivedAtGate >>('CorrelationId -> id, 'EventId -> eId)
-            case x: ProducedMessage =>
+            case x: EventAndCursor =>
               val eId = x.value.eventIdOrNA
               MessageReceivedAtGate >>('CorrelationId -> id, 'EventId -> eId)
           }
@@ -155,7 +155,7 @@ class GateStubActor(name: String)
           val eId = m.eventIdOrNA
           MessageReceivedAtGate >>('CorrelationId -> id, 'EventId -> eId)
           1
-        case m: ProducedMessage =>
+        case m: EventAndCursor =>
           val eId = m.value.eventIdOrNA
           MessageReceivedAtGate >>('CorrelationId -> id, 'EventId -> eId)
           1

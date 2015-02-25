@@ -31,7 +31,10 @@ trait StandardPublisherSysevents extends ComponentWithBaseSysevents {
   val MessagePublished = 'MessagePublished.info
   val NewDemand = 'NewDemand.info
   val ClosingStream = 'ClosingStream.info
+  val EndOfStreamPublished = 'EndOfStreamPublished.info
+  val EndOfStreamWithErrorPublished = 'EndOfStreamWithErrorPublished.warn
 }
+
 
 trait StoppablePublisherActor[T]
   extends ActorPublisher[T]
@@ -43,11 +46,50 @@ trait StoppablePublisherActor[T]
 
   this: WithSyseventPublisher =>
 
-  override def commonBehavior: Receive = handlePublisherShutdown orElse super.commonBehavior
+  private val queue = mutable.Queue[StreamElement]()
 
-  private val queue = mutable.Queue[T]()
+  override def commonBehavior: Receive = handler orElse super.commonBehavior
 
   def pendingToDownstreamCount = queue.size
+
+  def pushToStream(e: StreamElement) = {
+    offer(e)
+    deliverToDownstream()
+  }
+
+  def pushEndOfStream() = pushToStream(EndOfStream())
+
+  def pushEndOfStreamWithError(error: String): Unit = pushEndOfStreamWithError(new Exception(error))
+
+  def pushEndOfStreamWithError(error: Throwable): Unit = pushToStream(EndOfStreamWithError(error))
+
+  def pushSingleEventToStream(value: T) = pushToStream(ScheduledEvent(value))
+
+  def onRequestForMore(currentDemand: Int) = {}
+
+  def currentDemand: Int = if (totalDemand < queue.size) 0 else (totalDemand - queue.size).toInt
+
+  override def stop(reason: Option[String]) = {
+    ClosingStream >>('Reason -> (reason | "none given"), 'PublisherQueueDepth -> pendingToDownstreamCount)
+    if (isActive) onComplete()
+    super.stop(reason)
+  }
+
+  override def onBecameActive(): Unit = {
+    super.onBecameActive()
+    self ! ProduceMore()
+    deliverToDownstream()
+  }
+
+  override def internalProcessTick(): Unit = {
+    super.internalProcessTick()
+    self ! ProduceMore()
+    deliverToDownstream()
+  }
+
+  def isComponentAndStreamActive: Boolean = super.isComponentActive && isActive
+
+  def onDataAvailable() = if (isComponentAndStreamActive && currentDemand > 0) onRequestForMore(currentDemand)
 
   private def eventId(x: T): Option[String] = x match {
     case m: EventFrame => m.eventId
@@ -55,56 +97,49 @@ trait StoppablePublisherActor[T]
   }
 
   @tailrec
-  final def sendIfPossible(): Unit =
-    if (isActive && totalDemand > 0 && isComponentActive) {
-      if (queue.size < totalDemand) produceAndOfferMore(totalDemand - queue.size)
+  private final def deliverToDownstream(): Unit =
+    if (totalDemand > 0 && isComponentAndStreamActive)
       take() match {
         case None => ()
-        case Some(x) =>
+        case Some(ScheduledEvent(x)) =>
           onNext(x)
           val currentDepth = queue.size
           MessagePublished >>('EventId -> (eventId(x) | "n/a"), 'RemainingDemand -> totalDemand, 'PublisherQueueDepth -> currentDepth)
-          sendIfPossible()
+          if (currentDepth == 0) self ! ProduceMore() else deliverToDownstream()
+        case Some(EndOfStream()) =>
+          onComplete()
+          queue.clear()
+          EndOfStreamPublished >>()
+        case Some(EndOfStreamWithError(e)) =>
+          onError(e)
+          queue.clear()
+          EndOfStreamWithErrorPublished >> ('Error -> e)
       }
-    }
 
-
-  def forwardToFlow(value: T) = {
-    offer(value)
-    sendIfPossible()
-  }
-
-  private def offer(m: T) = queue.enqueue(m)
+  private def offer(m: StreamElement) = queue.enqueue(m)
 
   private def take() = if (queue.size > 0) Some(queue.dequeue()) else None
 
-  def produceMore(count: Long): Option[Seq[T]] = None
-
-  private def produceAndOfferMore(count: Long) = produceMore(count) foreach { seq => seq.foreach(offer)}
-
-  override def stop(reason: Option[String]) = {
-    ClosingStream >>('Reason -> (reason | "none given"), 'PublisherQueueDepth -> pendingToDownstreamCount)
-    onComplete()
-    super.stop(reason)
-  }
-
-  private def handlePublisherShutdown: Receive = {
-    case Cancel => stop(Some("Cancelled"))
+  private def handler: Receive = {
+    case ProduceMore() =>
+      if (isComponentAndStreamActive && currentDemand > 0) onRequestForMore(currentDemand)
+    case Cancel =>
+      stop(Some("Cancelled"))
     case Request(n) =>
       NewDemand >>('Requested -> n, 'Total -> totalDemand)
-      produceAndOfferMore(n)
-      sendIfPossible()
+      if (isComponentAndStreamActive) onRequestForMore(currentDemand)
+      deliverToDownstream()
   }
 
+  sealed trait StreamElement
 
-  override def becomeActive(): Unit = {
-    super.becomeActive()
-    sendIfPossible()
-  }
+  case class ScheduledEvent(e: T) extends StreamElement
 
-  override def internalProcessTick(): Unit = {
-    super.internalProcessTick()
-    sendIfPossible()
-  }
+  case class EndOfStream() extends StreamElement
+
+  case class EndOfStreamWithError(error: Throwable) extends StreamElement
+
+  private case class ProduceMore()
 
 }
+

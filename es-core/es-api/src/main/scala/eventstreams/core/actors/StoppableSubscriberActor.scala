@@ -31,9 +31,16 @@ trait StoppableSubscriberActor
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
+  def onStreamCompletedSuccessfully() = {}
+  def onStreamCompletedWithError(cause: Throwable) = {}
+
   private def handler: Receive = {
-    case OnComplete => stop(Some("OnComplete"))
-    case OnError(cause) => stop(Some("Error: " + cause.getMessage))
+    case OnComplete =>
+      onStreamCompletedSuccessfully()
+//      stop(Some("OnComplete"))
+    case OnError(cause) =>
+      onStreamCompletedWithError(cause)
+//      stop(Some("Error: " + cause.getMessage))
   }
 
 }

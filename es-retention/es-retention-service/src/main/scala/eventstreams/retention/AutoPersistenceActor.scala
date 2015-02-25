@@ -59,11 +59,11 @@ class AutoPersistenceActor(id: String)
 
   override def onActorTerminated(actorId: ActorWithRoleId, ref: ActorRef): Unit = endpoint = Set.empty
 
-  override def becomeActive(): Unit = {
+  override def onBecameActive(): Unit = {
     logger.info(s"AutoPersistenceActor becoming active")
   }
 
-  override def becomePassive(): Unit = {
+  override def onBecamePassive(): Unit = {
     logger.info(s"AutoPersistenceActor becoming passive")
   }
 

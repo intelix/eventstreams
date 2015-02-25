@@ -139,12 +139,12 @@ class FlowActor(id: String, instructions: List[Config])
   }
 
 
-  override def becomeActive(): Unit = {
+  override def onBecameActive(): Unit = {
     openFlow()
     publishInfo()
   }
 
-  override def becomePassive(): Unit = {
+  override def onBecamePassive(): Unit = {
     closeFlow()
     publishInfo()
   }

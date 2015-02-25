@@ -18,4 +18,4 @@ package eventstreams
 
 import play.api.libs.json.JsValue
 
-case class ProducedMessage(value: EventFrame, cursor: Option[JsValue])
+case class EventAndCursor(value: EventFrame, cursor: Option[JsValue])

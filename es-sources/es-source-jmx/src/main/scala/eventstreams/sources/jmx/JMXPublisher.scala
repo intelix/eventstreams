@@ -20,7 +20,7 @@ import akka.actor.Props
 import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.JSONTools.configHelper
 import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, PipelineWithStatesActor, StoppablePublisherActor}
-import eventstreams.{EventFrame, ProducedMessage, JSONTools}
+import eventstreams.{EventFrame, EventAndCursor, JSONTools}
 import fr.janalyse.jmx._
 import play.api.libs.json._
 import play.api.libs.json.extensions._
@@ -43,7 +43,7 @@ class JMXPublisher(val props: JsValue)
   with ActorWithTicks
   with JMXPublisherSysevents
   with ComponentWithBaseSysevents
-  with StoppablePublisherActor[ProducedMessage] {
+  with StoppablePublisherActor[EventAndCursor] {
 
   implicit val sys = context.system
 
@@ -68,15 +68,15 @@ class JMXPublisher(val props: JsValue)
   }
 
 
-  override def becomeActive(): Unit = {
+  override def onBecameActive(): Unit = {
     logger.info(s"JMX Becoming active ")
-    super.becomeActive()
+    super.onBecameActive()
   }
 
-  override def becomePassive(): Unit = {
+  override def onBecamePassive(): Unit = {
 
     logger.info(s"JMX Becoming passive")
-    super.becomePassive()
+    super.onBecamePassive()
   }
 
 
@@ -110,7 +110,7 @@ class JMXPublisher(val props: JsValue)
             if (attr.name != "ObjectName")
               attr match {
                 case n: RichDoubleAttribute => mbean.getDouble(n).map { d =>
-                  forwardToFlow(ProducedMessage(EventFrame(
+                  pushSingleEventToStream(EventAndCursor(EventFrame(
                     "jmx" -> Map(
                       "mbean" -> mbean.name,
                       "ts" -> now,
@@ -124,7 +124,7 @@ class JMXPublisher(val props: JsValue)
                   ), None))
                 }
                 case n: RichFloatAttribute => mbean.getDouble(n).map { d =>
-                  forwardToFlow(ProducedMessage(EventFrame(
+                  pushSingleEventToStream(EventAndCursor(EventFrame(
                     "jmx" -> Map(
                       "mbean" -> mbean.name,
                       "ts" -> now,
@@ -138,7 +138,7 @@ class JMXPublisher(val props: JsValue)
                   ), None))
                 }
                 case n: RichNumberAttribute => mbean.getString(n).map { s =>
-                  forwardToFlow(ProducedMessage(EventFrame(
+                  pushSingleEventToStream(EventAndCursor(EventFrame(
                     "jmx" -> Map(
                       "mbean" -> mbean.name,
                       "ts" -> now,
@@ -152,7 +152,7 @@ class JMXPublisher(val props: JsValue)
                   ), None))
                 }
                 case n: RichBooleanAttribute => mbean.getString(n).map { s =>
-                  forwardToFlow(ProducedMessage(EventFrame(
+                  pushSingleEventToStream(EventAndCursor(EventFrame(
                     "jmx" -> Map(
                       "mbean" -> mbean.name,
                       "ts" -> now,
@@ -191,7 +191,7 @@ class JMXPublisher(val props: JsValue)
 
                   val keys = list.map("jmx.values_num." + _._1)
 
-                  forwardToFlow(ProducedMessage(EventFrame(
+                  pushSingleEventToStream(EventAndCursor(EventFrame(
                     "jmx" -> Map(
                       "ts" -> now,
                       "mbean" -> mbean.name,
@@ -205,7 +205,7 @@ class JMXPublisher(val props: JsValue)
                   ), None))
                 }
                 case n => mbean.getString(n).map { s =>
-                  forwardToFlow(ProducedMessage(EventFrame(
+                  pushSingleEventToStream(EventAndCursor(EventFrame(
                     "jmx" -> Map(
                       "ts" -> now,
                       "mbean" -> mbean.name,

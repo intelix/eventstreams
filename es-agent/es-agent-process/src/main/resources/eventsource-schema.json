@@ -8,9 +8,9 @@
       "title": "Name",
       "type": "string"
     },
-    "sourceId": {
+    "streamKey": {
       "propertyOrder": 30,
-      "title": "Value of 'sourceId' field",
+      "title": "Stream Key",
       "type": "string"
     },
     "tags": {

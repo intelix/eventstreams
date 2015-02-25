@@ -3,7 +3,7 @@ package eventstreams.support
 import akka.actor.{Actor, Props}
 import akka.stream.actor.ActorSubscriberMessage.OnNext
 import akka.stream.actor.{RequestStrategy, WatermarkRequestStrategy}
-import eventstreams.ProducedMessage
+import eventstreams.EventAndCursor
 
 import scalaz.Scalaz._
 
@@ -22,8 +22,8 @@ class SinkStubActor(initialStrategyWhenEnabled: RequestStrategy)
 
   def handler: Actor.Receive = {
     case OnNext(msg) => msg match {
-      case ProducedMessage(value, Some(cursor)) => ReceivedMessageAtSink >>('Contents -> msg, 'Value -> (value ~> 'value | ""), 'Cursor -> cursor)
-      case ProducedMessage(value, _) => ReceivedMessageAtSink >>('Contents -> msg, 'Value -> (value ~> 'value | ""), 'Cursor -> "")
+      case EventAndCursor(value, Some(cursor)) => ReceivedMessageAtSink >>('Contents -> msg, 'Value -> (value ~> 'value | ""), 'Cursor -> cursor)
+      case EventAndCursor(value, _) => ReceivedMessageAtSink >>('Contents -> msg, 'Value -> (value ~> 'value | ""), 'Cursor -> "")
       case _ => ReceivedMessageAtSink >> ('Contents -> msg)
     }
   }

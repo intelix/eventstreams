@@ -24,7 +24,7 @@ trait ResourceCatalogComponent
   var currentSeed = java.lang.System.currentTimeMillis()
   var dataSnapshotReceived = false
 
-  override def storageKey: Option[String] = Some(eventsourceId + ":" + directory)
+  override def storageKey: Option[String] = Some(streamKey + ":" + directory)
 
   @throws[Exception](classOf[Exception]) override
   def postStop(): Unit = {

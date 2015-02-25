@@ -28,7 +28,7 @@ import com.sksamuel.elastic4s.source.StringDocumentSource
 import com.typesafe.config.Config
 import eventstreams._
 import eventstreams.core.actors.{ActorObj, ActorWithComposableBehavior, ActorWithTicks}
-import net.ceedubs.ficus.FicusConfig._
+import net.ceedubs.ficus.Ficus._
 import org.elasticsearch.common.settings.ImmutableSettings
 import play.api.libs.json._
 import play.api.libs.json.extensions._
@@ -42,8 +42,8 @@ trait ElasticsearchEntpointSysevents extends ComponentWithBaseSysevents {
   override def componentId: String = "Endpoint.Elasticsearch"
 }
 
-object ElasticsearchEntpointActor extends ActorObj {
-  override def id: String = "elasticsearch"
+object ElasticsearchEndpointActor extends ActorObj {
+  override def id: String = "epelasticsearch"
 }
 
 
@@ -55,13 +55,13 @@ private case class BatchSuccessful(bulkSize: Int)
 
 private case class BatchFailed()
 
-class ElasticsearchEntpointActor(config: Config, c: Cluster)
+class ElasticsearchEndpointActor(config: Config, c: Cluster)
   extends ActorWithComposableBehavior
   with ElasticsearchEntpointSysevents
   with ComponentWithBaseSysevents
   with NowProvider with ActorWithTicks {
 
-  val id = ElasticsearchEntpointActor.id
+  val id = ElasticsearchEndpointActor.id
 
   implicit val ec = context.dispatcher
   
@@ -73,7 +73,7 @@ class ElasticsearchEntpointActor(config: Config, c: Cluster)
   private val cal = Calendar.getInstance()
   private val settings = ImmutableSettings.settingsBuilder().put("cluster.name", escluster).build()
   private val queue = collection.mutable.Queue[EventFrame]()
-  private val clientAgent = Agent[Option[ElasticClient]](Some(ElasticClient.remote(settings, (host, port))))
+  private val clientAgent = Agent[Option[ElasticClient]](Some(ElasticClient.remote(settings, host, port)))
   private var insertSequence = now
   private var lastDelivery: Long = 0
 
@@ -144,7 +144,7 @@ class ElasticsearchEntpointActor(config: Config, c: Cluster)
   private def handler: Receive = {
     case m: Acknowledgeable[_] => m.msg match {
       case s: StoreInElasticsearch => if (enqueue(s)) sender() ! AcknowledgeAsProcessed(m.id)
-      case b: Batch =>
+      case b: Batch[_] =>
         b.entries.foreach {
           case s: StoreInElasticsearch => enqueue(s, enforce = true)
         }

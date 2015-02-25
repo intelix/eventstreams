@@ -41,7 +41,7 @@ define(['react', 'core_mixin', 'common_nodetabs', './AgentContent'],
             render: function () {
 
                 return <div>
-                    <Tabs roles={["hq"]} selectorId="nodeSelectorForEventsources" nodeName="HQ" />
+                    <Tabs roles={["hub"]} selectorId="nodeSelectorForEventsources" nodeName="HQ" />
                     {this.state.selected ? <AgentContent addr={this.state.selected}/> : ""}
                 </div>;
             }

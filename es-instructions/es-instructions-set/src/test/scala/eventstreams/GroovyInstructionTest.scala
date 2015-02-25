@@ -139,12 +139,12 @@ class GroovyInstructionTest extends TestHelpers {
       CfgFClass -> "groovy",
       CfgFCode ->
         """j = json.content
-          |streamId = j.streamId
+          |streamKey = j.streamKey
           |v = j.value
-          |counters = ctx.get(streamId)
+          |counters = ctx.get(streamKey)
           |if (counters == null) counters = 0
           |counters = counters + v
-          |ctx.put(streamId, counters)
+          |ctx.put(streamKey, counters)
           |j.sum = counters
           |json""".stripMargin
     )
@@ -152,11 +152,11 @@ class GroovyInstructionTest extends TestHelpers {
 
   val inputStream1 = EventFrame(
     "value" -> 10,
-    "streamId" -> "stream1"
+    "streamKey" -> "stream1"
   )
   val inputStream2 = EventFrame(
     "value" -> 23,
-    "streamId" -> "stream2"
+    "streamKey" -> "stream2"
   )
 
   "GroovyInstruction with sum calculator using context" should "initialise map when first event arrives" in new WithCalculatorConfig {
@@ -212,7 +212,7 @@ class GroovyInstructionTest extends TestHelpers {
       CfgFClass -> "groovy",
       CfgFCode ->
         """j = newJson.apply()
-          |j.content.streamId = "stream3"
+          |j.content.streamKey = "stream3"
           |j""".stripMargin
     )
   }
@@ -220,7 +220,7 @@ class GroovyInstructionTest extends TestHelpers {
   "GroovyInstruction with newJson() op" should "create a new event" in new WithUsingNewJsonOpConfig {
     expectOne(inputStream1) { result =>
       result +> 'value should be (None)
-      result ~> 'streamId should be (Some("stream3"))
+      result ~> 'streamKey should be (Some("stream3"))
     }
   }
 
@@ -231,7 +231,7 @@ class GroovyInstructionTest extends TestHelpers {
       CfgFClass -> "groovy",
       CfgFCode ->
         """j = copyJson.apply()
-          |j.content.streamId = "stream3"
+          |j.content.streamKey = "stream3"
           |j""".stripMargin
     )
   }
@@ -239,7 +239,7 @@ class GroovyInstructionTest extends TestHelpers {
   "GroovyInstruction with copyJson() op" should "copy event" in new WithUsingCopyJsonOpConfig {
     expectOne(inputStream1) { result =>
       result +> 'value should be (Some(10))
-      result ~> 'streamId should be (Some("stream3"))
+      result ~> 'streamKey should be (Some("stream3"))
     }
   }
 
@@ -251,7 +251,7 @@ class GroovyInstructionTest extends TestHelpers {
       CfgFClass -> "groovy",
       CfgFCode ->
         """j = copyJson.apply()
-          |j.content.streamId = "stream3"
+          |j.content.streamKey = "stream3"
           |[j,json]""".stripMargin
     )
   }
@@ -260,9 +260,9 @@ class GroovyInstructionTest extends TestHelpers {
     expectN(inputStream1) { result =>
       result should have size 2
       result(0) +> 'value should be (Some(10))
-      result(0) ~> 'streamId should be (Some("stream3"))
+      result(0) ~> 'streamKey should be (Some("stream3"))
       result(1) +> 'value should be (Some(10))
-      result(1) ~> 'streamId should be (Some("stream1"))
+      result(1) ~> 'streamKey should be (Some("stream1"))
     }
   }
 
@@ -273,7 +273,7 @@ class GroovyInstructionTest extends TestHelpers {
       CfgFClass -> "groovy",
       CfgFCode ->
         """j = copyJson.apply()
-          |j.content.streamId = "stream3"
+          |j.content.streamKey = "stream3"
           |[]""".stripMargin
     )
   }
