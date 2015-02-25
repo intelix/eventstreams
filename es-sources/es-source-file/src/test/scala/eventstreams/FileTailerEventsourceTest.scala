@@ -38,47 +38,57 @@ class FileTailerEventsourceTest(_system: ActorSystem)
 
        s"not be built if $CfgFDirectory is missing" in new WithBasicConfig {
          override def config: JsValue = Json.obj(
+           "streamKey" -> "key",
+           "source" -> Json.obj(
            CfgFMainPattern -> "mylog.txt",
            CfgFRolledPattern -> ".*gz"
-         )
+         ))
 
          shouldNotBuild()
        }
 
        s"not be built if $CfgFMainPattern is missing" in new WithBasicConfig {
          override def config: JsValue = Json.obj(
+           "streamKey" -> "key",
+           "source" -> Json.obj(
            CfgFDirectory -> "f:/tmp/log",
            CfgFRolledPattern -> ".*gz"
-         )
+         ))
 
          shouldNotBuild()
        }
 
        s"not be built if $CfgFMainPattern is invalid" in new WithBasicConfig {
          override def config: JsValue = Json.obj(
+           "streamKey" -> "key",
+           "source" -> Json.obj(
            CfgFDirectory -> "f:/tmp/log",
            CfgFMainPattern -> "(gz"
-         )
+         ))
 
          shouldNotBuild()
        }
 
        s"not be built if $CfgFRolledPattern is invalid" in new WithBasicConfig {
          override def config: JsValue = Json.obj(
+           "streamKey" -> "key",
+           "source" -> Json.obj(
            CfgFDirectory -> "f:/tmp/log",
            CfgFMainPattern -> ".+gz",
            CfgFRolledPattern -> "("
-         )
+         ))
 
          shouldNotBuild()
        }
 
        s"not be built if $CfgFBlockSize is less than 32" in new WithBasicConfig {
          override def config: JsValue = Json.obj(
+           "streamKey" -> "key",
+           "source" -> Json.obj(
            CfgFDirectory -> "f:/tmp/log",
            CfgFMainPattern -> ".+gz",
            CfgFBlockSize -> 10
-         )
+         ))
 
          shouldNotBuild()
        }
@@ -771,12 +781,14 @@ class FileTailerEventsourceTest(_system: ActorSystem)
 
            "handle multiple rolled files when demand requested - like previous but deleting old files before rolling - with one missing block - without flow deactivation" in new EmptyDirWithoutDemand {
              override def config: JsValue = Json.obj(
+               "streamKey" -> "key",
+               "source" -> Json.obj(
                CfgFDirectory -> tempDirPath,
                CfgFMainPattern -> "current[.]log$",
                CfgFRolledPattern -> "current-.+",
                CfgFBlockSize -> testBlockSize,
                CfgFInactivityThresholdMs -> 500
-             )
+             ))
 
              runWithNewFile { f =>
                f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")

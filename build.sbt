@@ -258,17 +258,6 @@ lazy val node_hq = Project(
 
 
 
-/* Retention */
-
-lazy val retention_service = Project(
-  id = "es-retention-service",
-  base = file("es-retention/es-retention-service"),
-  dependencies = Seq(
-    sysevents  % "compile;test->test",
-    api  % "compile;test->test"
-  )
-)
-
 
 
 /* Signals */
