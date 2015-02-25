@@ -18,8 +18,9 @@ package eventstreams
 
 import akka.actor.ActorSystem
 import eventstreams.sources.filetailer.FileTailerConstants._
-import eventstreams.support.{FileTailerTestSupport, ActorTestContext}
 import eventstreams.support.SinkStubActor._
+import eventstreams.support.{ActorTestContext, FileTailerTestSupport}
+import org.scalatest.Tag
 import play.api.libs.json._
 import play.api.libs.json.extensions._
 
@@ -431,7 +432,7 @@ class FileTailerEventsourceCursorTest(_system: ActorSystem)
          }
        }
 
-       "given current.log, three blocks, one read, rolled, another read, lots of extra input into main, roll, extra into main, current-1 gone (before instance started), new instance must read remainder if there is enough demand" in new EmptyDirWithoutDemand {
+       "given current.log, three blocks, one read, rolled, another read, lots of extra input into main, roll, extra into main, current-1 gone (before instance started), new instance must read remainder if there is enough demand" taggedAs Tag("OnlyThisTest") in new EmptyDirWithoutDemand {
 
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
@@ -441,8 +442,8 @@ class FileTailerEventsourceCursorTest(_system: ActorSystem)
            f.rollGz("current-1.gz")
            f.write("D" * testBlockSize + "E" * testBlockSize + "F" * testBlockSize)
            f.rollGz("current-2.gz")
-           flowCtx.foreach(sinkProduceDemand(1, _))
-           expectExactlyNEvents(1, ReceivedMessageAtSink)
+           flowCtx.foreach(sinkProduceDemand(2, _))
+           expectExactlyNEvents(2, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
            clearEvents()
            f.write("GGG")
@@ -470,15 +471,15 @@ class FileTailerEventsourceCursorTest(_system: ActorSystem)
 
        }
 
-       "given current.log, three blocks, one read, rolled, another read, lots of extra input into main, roll, extra into main, current-1 and current-2 gone (before instance started), new instance must read remainder if there is enough demand" in new EmptyDirWithoutDemand {
+       "given current.log, three blocks, one read, rolled, another read, lots of extra input into main, roll, extra into main, current-1 and current-2 gone (before instance started), new instance must read remainder if there is enough demand" taggedAs Tag("OnlyThisTest") in new EmptyDirWithoutDemand {
          runWithNewFile { f =>
            f.write("A" * testBlockSize + "B" * testBlockSize + "CCC")
            flowCtx.foreach(sinkProduceDemand(1, _))
            expectExactlyNEvents(1, ReceivedMessageAtSink)
            clearEvents()
            f.rollGz("current-1.gz")
-           flowCtx.foreach(sinkProduceDemand(1, _))
-           expectExactlyNEvents(1, ReceivedMessageAtSink)
+           flowCtx.foreach(sinkProduceDemand(2, _))
+           expectExactlyNEvents(2, ReceivedMessageAtSink)
            state = Some(Json.parse(locateLastEventFieldValue(ReceivedMessageAtSink, "Cursor").asInstanceOf[String]))
            clearEvents()
            f.write("D" * testBlockSize + "E" * testBlockSize + "F" * testBlockSize)
