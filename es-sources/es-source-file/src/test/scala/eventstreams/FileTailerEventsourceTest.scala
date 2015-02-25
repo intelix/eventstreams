@@ -144,12 +144,14 @@ class FileTailerEventsourceTest(_system: ActorSystem)
 
            "not produce any messages if directory is wrong" in new EmptyDirWithDemand {
              override def config: JsValue = Json.obj(
+               "streamKey" -> "key",
+               "source" -> Json.obj(
                CfgFDirectory -> "/zzz/zzzzz",
                CfgFMainPattern -> "current[.]log$",
                CfgFRolledPattern -> "current-.+",
                CfgFBlockSize -> testBlockSize,
                CfgFStartWith -> "first"
-             )
+             ))
 
              runWithNewFile { f =>
                waitAndCheck {

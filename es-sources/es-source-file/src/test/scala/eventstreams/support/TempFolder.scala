@@ -21,12 +21,13 @@ import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.util.zip.GZIPOutputStream
 
+import com.typesafe.scalalogging.StrictLogging
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.ref.ComponentWithBaseSysevents
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Matchers}
 
-trait TempFolderSysevents extends ComponentWithBaseSysevents {
+trait TempFolderSysevents extends ComponentWithBaseSysevents with StrictLogging {
   override def componentId: String = "Test.TempFolder"
 
   val FailedToDelete = 'FailedToDeleteFile.info
@@ -67,7 +68,8 @@ trait TempFolder extends BeforeAndAfterEach with BeforeAndAfterAll with Matchers
 
     private def deleteFile(f: File, truncateOnly: Boolean = true) = {
       def tryDelete(attempt: Int): Boolean = f.delete() match {
-        case false if attempt < 25 =>
+        case false if attempt < 50 =>
+          logger.error("Failed to delete file " + f.getAbsolutePath +" after " + attempt + " attempt(s), exists: " + f.exists())
           FailedToDelete >> ('Message -> ("Failed to delete file " + f.getAbsolutePath +" after " + attempt + " attempt(s)"))
           Thread.sleep(65)
           tryDelete(attempt + 1)
