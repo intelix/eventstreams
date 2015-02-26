@@ -27,12 +27,13 @@ import play.api.libs.json.{JsValue, Json}
 trait ConfigStorageActorSysevents extends ComponentWithBaseSysevents with BaseActorSysevents {
   override def componentId: String = "Storage"
 
-  val PropsAndStateStored = 'PropsAndStateStored.info
-  val StateStored = 'StateStored.info
-  val PropsStored = 'PropsStored.info
-  val RequestedSingleEntry = 'RequestedSingleEntry.info
-  val RequestedAllMatchingEntries = 'RequestedAllMatchingEntries.info
-  val RemovedEntry = 'RemovedEntry.info
+  val PropsAndStateStored = 'PropsAndStateStored.trace
+  val StateStored = 'StateStored.trace
+  val PropsStored = 'PropsStored.trace
+  val MetaStored = 'StateStored.trace
+  val RequestedSingleEntry = 'RequestedSingleEntry.trace
+  val RequestedAllMatchingEntries = 'RequestedAllMatchingEntries.trace
+  val RemovedEntry = 'RemovedEntry.trace
 
 }
 
@@ -42,15 +43,19 @@ object ConfigStorageActor extends ActorObjWithConfig with ConfigStorageActorSyse
   override def props(implicit config: Config) = Props(new ConfigStorageActor())
 }
 
-case class EntryConfigSnapshot(key: String, config: JsValue, state: Option[JsValue])
+case class EntryConfigSnapshot(key: String, config: JsValue, meta: JsValue, state: Option[JsValue])
 
 case class EntryStateConfig(key: String, state: Option[JsValue])
 
 case class EntryPropsConfig(key: String, state: JsValue)
 
+case class EntryMetaConfig(key: String, meta: JsValue)
+
 case class StoreSnapshot(config: EntryConfigSnapshot)
 
 case class StoreProps(config: EntryPropsConfig)
+
+case class StoreMeta(config: EntryMetaConfig)
 
 case class StoreState(config: EntryStateConfig)
 
@@ -75,13 +80,17 @@ class ConfigStorageActor(implicit config: Config)
   }
 
   override def commonBehavior: Actor.Receive = super.commonBehavior orElse {
-    case StoreSnapshot(EntryConfigSnapshot(key, c, s)) =>
-      storage.store(key, Json.stringify(c), s.map(Json.stringify))
+    case StoreSnapshot(EntryConfigSnapshot(key, c, m, s)) =>
+      storage.store(key, Json.stringify(c), Json.stringify(m), s.map(Json.stringify))
       PropsAndStateStored >> ('Key -> key)
 
     case StoreState(EntryStateConfig(key, s)) =>
       storage.storeState(key, s.map(Json.stringify))
       StateStored >> ('Key -> key)
+
+    case StoreMeta(EntryMetaConfig(key, s)) =>
+      storage.storeMeta(key, Json.stringify(s))
+      MetaStored >> ('Key -> key)
 
     case StoreProps(EntryPropsConfig(key, s)) =>
       storage.storeConfig(key, Json.stringify(s))
@@ -90,7 +99,7 @@ class ConfigStorageActor(implicit config: Config)
     case RetrieveConfigFor(key) =>
       RequestedSingleEntry >> ('Key -> key)
       sender() ! StoredConfig(key, storage.retrieve(key) map {
-        case (c, s) => EntryConfigSnapshot(key, Json.parse(c), s.map(Json.parse))
+        case (c, m, s) => EntryConfigSnapshot(key, Json.parse(c), Json.parse(m), s.map(Json.parse))
       })
       
     case RemoveConfigFor(key) =>
@@ -100,7 +109,7 @@ class ConfigStorageActor(implicit config: Config)
     case RetrieveConfigForAllMatching(partialKey) =>
       RequestedAllMatchingEntries >> ('PartialKey -> partialKey)
       sender() ! StoredConfigs(storage.retrieveAllMatching(partialKey).map {
-        case (fId, c, s) => StoredConfig(fId, Some(EntryConfigSnapshot(fId, Json.parse(c), s.map(Json.parse))))
+        case (fId, c, m, s) => StoredConfig(fId, Some(EntryConfigSnapshot(fId, Json.parse(c), Json.parse(m), s.map(Json.parse))))
       })
       
   }

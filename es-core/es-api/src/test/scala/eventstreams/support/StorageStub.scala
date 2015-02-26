@@ -11,7 +11,7 @@ import scalaz.Scalaz._
 
 object StorageStub {
 
-  case class StoredEntry(config: String, state: Option[String])
+  case class StoredEntry(config: String, meta: String, state: Option[String])
 
   private var map = mutable.Map[Int, mutable.Map[String, StoredEntry]]()
 
@@ -29,33 +29,37 @@ class StorageStub(implicit config: Config) extends Storage {
 
   def myStorage = storage.getOrElseUpdate(configStorageInstance, mutable.Map())
   
-  override def store(key: String, config: String, state: Option[String]): Unit = storage.synchronized {
-    myStorage.put(key, StoredEntry(config, state))
+  override def store(key: String, config: String, meta: String, state: Option[String]): Unit = storage.synchronized {
+    myStorage.put(key, StoredEntry(config, meta, state))
   }
 
-  override def retrieveAllMatching(key: String): List[(String, String, Option[String])] =
+  override def retrieveAllMatching(key: String): List[(String, String, String, Option[String])] =
     storage.synchronized {
       myStorage.collect {
-        case (k, StoredEntry(c, s)) if k.startsWith(key) => (k, c, s)
+        case (k, StoredEntry(c, m, s)) if k.startsWith(key) => (k, c, m, s)
       }.toList
     }
 
 
   override def storeState(key: String, state: Option[String]): Unit = storage.synchronized {
-    myStorage += key -> myStorage.getOrElse(key, StoredEntry("", None)).copy(state = state)
+    myStorage += key -> myStorage.getOrElse(key, StoredEntry("","", None)).copy(state = state)
   }
 
   override def remove(key: String): Unit = storage.synchronized {
     myStorage -= key
   }
 
-  override def retrieve(key: String): Option[(String, Option[String])] = storage.synchronized {
+  override def retrieve(key: String): Option[(String, String, Option[String])] = storage.synchronized {
     myStorage.get(key).map { e =>
-      (e.config, e.state)
+      (e.config, e.meta, e.state)
     }
   }
 
   override def storeConfig(key: String, config: String): Unit = storage.synchronized {
-    myStorage += key -> myStorage.getOrElse(key, StoredEntry("", None)).copy(config = config)
+    myStorage += key -> myStorage.getOrElse(key, StoredEntry("", "", None)).copy(config = config)
+  }
+
+  override def storeMeta(key: String, meta: String): Unit = storage.synchronized {
+    myStorage += key -> myStorage.getOrElse(key, StoredEntry("", "", None)).copy(meta = meta)
   }
 }

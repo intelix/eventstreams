@@ -70,7 +70,7 @@ class UserActor(id: String)
       Character.forDigit(b & 0x0f, 16))
   }
 
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {
+  override def applyConfig(key: String, props: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = {
     name = props ~> 'name
     val password = props ~> 'password
     passwordHash = props ~> 'passwordHash

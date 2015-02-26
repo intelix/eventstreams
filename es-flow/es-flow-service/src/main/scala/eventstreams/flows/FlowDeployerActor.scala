@@ -20,6 +20,7 @@ import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import _root_.core.sysevents.{FieldAndValue, WithSyseventPublisher}
 import akka.actor._
+import akka.remote.RemoteScope
 import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
@@ -36,7 +37,7 @@ import scalaz.{-\/, \/-}
 
 
 
-trait FlowActorSysevents
+trait FlowDeployerActorSysevents
   extends ComponentWithBaseSysevents
   with BaseActorSysevents
   with StateChangeSysevents
@@ -47,29 +48,29 @@ trait FlowActorSysevents
 
   override def componentId: String = "Flow.Flow"
 }
-object FlowActorSysevents extends FlowActorSysevents
+object FlowDeployerActorSysevents extends FlowDeployerActorSysevents
 
-object FlowActor extends FlowActorSysevents {
-  def props(id: String, instructions: List[Config]) = Props(new FlowActor(id, instructions))
+object FlowDeployerActor extends FlowDeployerActorSysevents {
+  def props(id: String, instructions: List[Config]) = Props(new FlowDeployerActor(id, instructions))
 
   def start(id: String, instructions: List[Config])(implicit f: ActorRefFactory) = f.actorOf(props(id, instructions), ActorTools.actorFriendlyId(id))
 }
 
 
-sealed trait FlowState {
+sealed trait FlowDeployerState {
   def details: Option[String]
 }
 
-case class FlowStateUnknown(details: Option[String] = None) extends FlowState
+case class FlowDeployerStateUnknown(details: Option[String] = None) extends FlowDeployerState
 
-case class FlowStateActive(details: Option[String] = None) extends FlowState
+case class FlowDeployerStateActive(details: Option[String] = None) extends FlowDeployerState
 
-case class FlowStatePassive(details: Option[String] = None) extends FlowState
+case class FlowDeployerStatePassive(details: Option[String] = None) extends FlowDeployerState
 
-case class FlowStateError(details: Option[String] = None) extends FlowState
+case class FlowDeployerStateError(details: Option[String] = None) extends FlowDeployerState
 
 
-class FlowActor(id: String, instructions: List[Config])
+class FlowDeployerActor(id: String, instructions: List[Config])
   extends PipelineWithStatesActor
   with FlowActorSysevents
   with ActorWithConfigStore
@@ -78,25 +79,9 @@ class FlowActor(id: String, instructions: List[Config])
   with ActorWithPeriodicalBroadcasting
   with WithMetrics {
 
-  implicit val mat = FlowMaterializer()
-  implicit val dispatcher = context.system.dispatcher
-
-
-  private var tapActor: Option[ActorRef] = None
-  private var sinkActor: Option[ActorRef] = None
-  private var flowActors: Option[Seq[ActorRef]] = None
-  private var flow: Option[MaterializedMap] = None
-
-
-  override lazy val metricBaseName: MetricName = MetricName("flow")
-
-  val _inrate = metrics.meter(s"$id.source")
-  val _outrate = metrics.meter(s"$id.sink")
-
-
   var name = "default"
   var created = prettyTimeFormat(now)
-  var currentState: FlowState = FlowStateUnknown(Some("Initialising"))
+  var currentState: FlowDeployerState = FlowDeployerStateUnknown(Some("Initialising"))
 
 
   override def commonFields: Seq[FieldAndValue] = Seq('ID ->  id, 'Name -> name, 'Handler -> self)
@@ -113,10 +98,10 @@ class FlowActor(id: String, instructions: List[Config])
   }
 
   def stateAsString = currentState match {
-    case FlowStateUnknown(_) => "unknown"
-    case FlowStateActive(_) => "active"
-    case FlowStatePassive(_) => "passive"
-    case FlowStateError(_) => "error"
+    case FlowDeployerStateUnknown(_) => "unknown"
+    case FlowDeployerStateActive(_) => "active"
+    case FlowDeployerStatePassive(_) => "passive"
+    case FlowDeployerStateError(_) => "error"
   }
 
 
@@ -129,9 +114,9 @@ class FlowActor(id: String, instructions: List[Config])
   ))
 
   def infoDynamic = currentState match {
-    case FlowStateActive(_) => Some(Json.obj(
-      "inrate" -> ("%.2f" format _inrate.oneMinuteRate),
-      "outrate" -> ("%.2f" format _outrate.oneMinuteRate)
+    case FlowDeployerStateActive(_) => Some(Json.obj(
+//      "inrate" -> ("%.2f" format _inrate.oneMinuteRate),
+//      "outrate" -> ("%.2f" format _outrate.oneMinuteRate)
     ))
     case _ => Some(Json.obj())
   }
@@ -152,12 +137,13 @@ class FlowActor(id: String, instructions: List[Config])
   )
 
   def closeFlow() = {
-    currentState = FlowStatePassive()
-    tapActor.foreach(_ ! BecomePassive())
-    flowActors.foreach(_.foreach(_ ! BecomePassive()))
+    currentState = FlowDeployerStatePassive()
     updateConfigMeta(__ \ 'lastStateActive -> JsBoolean(value = false))
 
   }
+
+
+
 
   override def applyConfig(key: String, config: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = {
 
@@ -166,74 +152,27 @@ class FlowActor(id: String, instructions: List[Config])
 
     FlowConfigured >> ()
 
-    terminateFlow(Some("Applying new configuration"))
-
-    Builder(instructions, config, context, id) match {
-      case -\/(fail) =>
-        Warning >> ('Message -> "Unable to build the flow", 'Failure -> fail)
-        currentState = FlowStateError(fail.message)
-      case \/-(FlowComponents(tap, pipeline, sink)) =>
-        resetFlowWith(tap, pipeline, sink)
-        if (meta ?> 'lastStateActive | false) {
-          becomeActive()
-        }
-    }
   }
 
 
   private def terminateFlow(reason: Option[String]) = {
     closeFlow()
-    tapActor.foreach(_ ! Stop(reason))
-    tapActor = None
-    sinkActor = None
-    flowActors = None
-    flow = None
   }
 
   private def openFlow() = {
-    currentState = FlowStateActive(Some("ok"))
-
-    flowActors.foreach(_.foreach(_ ! BecomeActive()))
-    sinkActor.foreach(_ ! BecomeActive())
-    tapActor.foreach(_ ! BecomeActive())
+    currentState = FlowDeployerStateActive(Some("ok"))
 
     updateConfigMeta(__ \ 'lastStateActive -> JsBoolean(value = true))
 
     FlowStarted >>()
-    
+
   }
 
-  private def propsToActors(list: Seq[Props]) = list map context.actorOf
-
-  private def resetFlowWith(tapProps: Props, pipeline: Seq[Props], sinkProps: Props) = {
-
-    val tapA = context.actorOf(tapProps)
-    val sinkA = context.actorOf(sinkProps)
-
-    val pubSrc = PublisherSource[EventFrame](ActorPublisher[EventFrame](tapA))
-    val subSink = SubscriberSink(ActorSubscriber[EventFrame](sinkA))
-
-    val pipelineActors = propsToActors(pipeline)
 
 
 
-
-    val flowPipeline = pipelineActors.foldRight[Sink[EventFrame]](subSink) { (actor, sink) =>
-      val s = SubscriberSink(ActorSubscriber[EventFrame](actor))
-      val p = PublisherSource[EventFrame](ActorPublisher[EventFrame](actor))
-      p.to(sink).run()
-      s
-    }
-
-    flow = Some(pubSrc.to(flowPipeline).run())
-
-    tapActor = Some(tapA)
-    sinkActor = Some(sinkA)
-    flowActors = Some(pipelineActors)
-
-    if (isComponentActive) openFlow()
-  }
 
 
 }
+
 

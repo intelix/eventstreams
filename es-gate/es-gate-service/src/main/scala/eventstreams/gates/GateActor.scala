@@ -16,6 +16,7 @@
 
 package eventstreams.gates
 
+import _root_.core.sysevents.SyseventOps.stringToSyseventOps
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor._
@@ -30,6 +31,17 @@ import scalaz.Scalaz._
 
 trait GateSysevents extends ComponentWithBaseSysevents {
   override def componentId: String = "Gate.Gate"
+
+  val NewMessageReceived = "NewMessageReceived".trace
+  val DuplicateMessageReceived = "DuplicateMessageReceived".trace
+  val MessageIgnored = "MessageIgnored".trace
+
+  val SinkConnected = "SinkConnected".info
+  val SinkDisconnected = "SinkDisconnected".info
+
+  val ForwarderStarted = "ForwarderStarted".info
+  val UnsupportedMessageType = "UnsupportedMessageType".warn
+  
 }
 
 object GateActor {
@@ -47,8 +59,6 @@ case class GateStateUnknown(details: Option[String] = None) extends InternalGate
 case class GateStateOpen(details: Option[String] = None) extends InternalGateState
 
 case class GateStateClosed(details: Option[String] = None) extends InternalGateState
-
-case class GateStateReplay(details: Option[String] = None) extends InternalGateState
 
 case class GateStateError(details: Option[String] = None) extends InternalGateState
 
@@ -69,10 +79,9 @@ class GateActor(id: String)
 
   var name = "default"
   var address = uuid.toString
-  var initialState = "Closed"
   var created = prettyTimeFormat(now)
-  var maxInFlight = 1000
-  var acceptWithoutSinks = false
+  var inFlightThreshold = 1000
+  var noSinkDropMessages = false
 
   var eventSequenceCounter = now
 
@@ -91,6 +100,8 @@ class GateActor(id: String)
 
   override def key = ComponentKey(id)
 
+
+  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('Name -> name, 'State -> currentState, 'Key -> id)
 
   override def storageKey: Option[String] = Some(id)
 
@@ -114,11 +125,15 @@ class GateActor(id: String)
   def openGate(): Unit = {
     currentState = GateStateOpen(Some("ok"))
     switchToCustomBehavior(flowMessagesHandlerForOpenGate)
+    updateConfigMeta(__ \ 'lastStateActive -> JsBoolean(value = true))
+
   }
 
   def closeGate(): Unit = {
     currentState = GateStateClosed()
     switchToCustomBehavior(flowMessagesHandlerForClosedGate)
+    updateConfigMeta(__ \ 'lastStateActive -> JsBoolean(value = false))
+
   }
 
   override def postStop(): Unit = {
@@ -145,7 +160,6 @@ class GateActor(id: String)
     case GateStateUnknown(_) => "unknown"
     case GateStateOpen(_) => "active"
     case GateStateClosed(_) => "passive"
-    case GateStateReplay(_) => "replay"
     case GateStateError(_) => "error"
   }
 
@@ -157,19 +171,17 @@ class GateActor(id: String)
   override def info = Some(Json.obj(
     "name" -> name,
     "address" -> address,
-    "addressFull" -> (forwarderActor.map(_.toString) | "N/A"),
-    "initial" -> initialState,
+    "addressFull" -> (forwarderActor.map(_.toString()) | "N/A"),
     "sinceStateChange" -> prettyTimeSinceStateChange,
-    "acceptWithoutSinks" -> acceptWithoutSinks,
+    "noSinkDropMessages" -> noSinkDropMessages,
     "created" -> created,
-    "replaySupported" -> true,
     "state" -> stateAsString,
     "stateDetails" -> stateDetailsAsString,
     "sinks" -> sinks.size
   ))
 
   override def stats = currentState match {
-    case GateStateOpen(_) | GateStateReplay(_) => Some(Json.obj(
+    case GateStateOpen(_) => Some(Json.obj(
       "rate" -> ("%.2f" format _rateMeter.oneMinuteRate),
       "mrate" -> ("%.2f" format _rateMeter.meanRate),
       "activeDS" -> activeEventsources.size,
@@ -183,10 +195,6 @@ class GateActor(id: String)
 
 
   override def canDeliverDownstreamRightNow: Boolean = isComponentActive
-
-  override def fullyAcknowledged(correlationId: Long, msg: Batch[EventFrame]): Unit = {
-    logger.info(s"Delivered to all active sinks $correlationId ")
-  }
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = sinks
 
@@ -211,20 +219,19 @@ class GateActor(id: String)
     case Batch(e) => e.flatMap(convertInboundPayload(id, _))
     case m: EventFrame => Seq(enrichInboundJsonFrame(id, m))
     case x =>
-      logger.warn(s"Unsupported message type at the gate  $id: $x")
+      UnsupportedMessageType >> ('Type -> x.getClass)
       Seq()
   }
 
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {
+  override def applyConfig(key: String, props: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = {
     name = props ~> 'name | "default"
-    initialState = props ~> 'initialState | "Closed"
 
-    // TODO rename maxInFlight to inFlightThreshold
-    maxInFlight = props +> 'maxInFlight | 1000
+    inFlightThreshold = props +> 'inFlightThreshold | 1000
 
-    acceptWithoutSinks = props ?> 'acceptWithoutSinks | false
+    noSinkDropMessages = props ?> 'acceptWithoutSinks | false
     address = props ~> 'address | key
-    created = prettyTimeFormat(props ++> 'created | now)
+    created = prettyTimeFormat(meta ++> 'created | now)
+
 
     val newForwarderId = ActorTools.actorFriendlyId(address)
     forwarderId match {
@@ -233,13 +240,17 @@ class GateActor(id: String)
       case x => ()
     }
 
+    if (meta ?> 'lastStateActive | false) {
+      becomeActive()
+    }
+
   }
 
   private def reopenForwarder(newForwarderId: String) = {
     forwarderId = Some(newForwarderId)
     forwarderActor.foreach(context.system.stop)
     forwarderActor = Some(context.system.actorOf(Props(new Forwarder(self)), newForwarderId))
-    logger.info(s"Gate forwarder started for $newForwarderId, actor $forwarderActor")
+    ForwarderStarted >> ('ForwarderId -> newForwarderId)
   }
 
   private def flowMessagesHandlerForClosedGate: Receive = {
@@ -249,7 +260,7 @@ class GateActor(id: String)
   }
 
   private def canAcceptAnotherMessage = currentState match {
-    case GateStateOpen(_) => inFlightCount < maxInFlight
+    case GateStateOpen(_) => inFlightCount < inFlightThreshold
     case _ => false
   }
 
@@ -265,27 +276,26 @@ class GateActor(id: String)
       if (canAcceptAnotherMessage) {
         forwarderActor.foreach(_ ! RouteTo(sender(), AcknowledgeAsProcessed(m.id)))
         if (!isDup(sender(), m.id)) {
-          logger.info(s"New unique message arrived at the gate $id ... ${m.id}")
-          if (sinks.nonEmpty || !acceptWithoutSinks) {
+          NewMessageReceived >> ('MessageId -> m.id)
+          if (sinks.nonEmpty || !noSinkDropMessages) {
             val seq = convertInboundPayload(m.id, m.msg)
             seq foreach { msg =>
-              // TODO rename acceptWithoutSinks
               deliverMessage(msg)
             }
             if (seq.nonEmpty) _rateMeter.mark(seq.size)
           }
         } else {
-          logger.info(s"Received duplicate message at $id ${m.id}")
+          DuplicateMessageReceived >> ('MessageId -> m.id)
         }
       } else {
-        logger.debug(s"Unable to accept another message, in flight count " + inFlightCount)
+        MessageIgnored >> ('MessageId -> m.id, 'Reason -> "Backlog", 'InFlightCount -> inFlightCount)
       }
 
   }
 
   override def onTerminated(ref: ActorRef): Unit = {
     if (sinks.contains(ref)) {
-      logger.info(s"Sink is gone: $ref")
+      SinkDisconnected >> ('Ref -> ref)
       sinks -= ref
       publishInfo()
     }
@@ -294,7 +304,6 @@ class GateActor(id: String)
 
   private def messageHandler: Receive = {
     case GateStateCheck(ref) =>
-      logger.debug(s"Received state check from $ref, our state: $isComponentActive")
       if (isComponentActive) {
         forwarderActor.foreach(_ ! RouteTo(ref, GateStateUpdate(GateOpen())))
       } else {
@@ -303,7 +312,7 @@ class GateActor(id: String)
     case RegisterSink(sinkRef) =>
       sinks += sender()
       context.watch(sinkRef)
-      logger.info(s"New sink: ${sender()}")
+      SinkConnected >> ('Ref -> sender)
       publishInfo()
   }
 
@@ -311,6 +320,8 @@ class GateActor(id: String)
   override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
     (T_STATS, 5, () => stats, T_STATS !! _)
   )
+
+  override def fullyAcknowledged(correlationId: Long, msg: Batch[EventFrame]): Unit = {}
 }
 
 case class RouteTo(ref: ActorRef, msg: Any)

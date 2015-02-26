@@ -23,7 +23,7 @@ import eventstreams.JSONTools.configHelper
 import eventstreams._
 import eventstreams.core.actors._
 import eventstreams.signals.SignalLevel
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.{JsObject, JsValue, Json}
 
 import scala.util.matching.Regex
 import scalaz.Scalaz._
@@ -123,10 +123,10 @@ class DesktopNotificationsSubscriptionActor(id: String)
     case T_SIGNAL => None
   }
 
-  override def applyConfig(key: String, config: JsValue, maybeState: Option[JsValue]): Unit = {
+  override def applyConfig(key: String, config: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = {
 
     name = config ~> 'name | "default"
-    created = prettyTimeFormat(config ++> 'created | now)
+    created = prettyTimeFormat(meta ++> 'created | now)
 
     signalClass = config ~> 'signalClass | "default"
     signalClassR = Some(signalClass.r)

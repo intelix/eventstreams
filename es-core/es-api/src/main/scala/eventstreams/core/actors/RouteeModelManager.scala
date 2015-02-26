@@ -46,7 +46,7 @@ trait RouteeModelManager[T <: Model]
   }
 
   override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
-    case T_ADD => createModelInstance(None, maybeData, None)
+    case T_ADD => createModelInstance(None, maybeData, None, None)
   }
 
   override def onTerminated(ref: ActorRef): Unit = {
@@ -60,18 +60,18 @@ trait RouteeModelManager[T <: Model]
     publishList()
   }
   
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = createModelInstance(Some(key), Some(props), maybeState)
+  override def applyConfig(key: String, props: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = createModelInstance(Some(key), Some(props), Some(meta), maybeState)
 
-  private def createModelInstance(k: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
+  private def createModelInstance(k: Option[String], maybeData: Option[JsValue], meta: Option[JsValue], maybeState: Option[JsValue]) =
     for (
       data <- maybeData \/> Fail("Invalid payload")
     ) yield {
       val entryKey = k | (key / shortUUID).key
-      var json = data
+      var json = meta | Json.obj()
       if (k.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
       val actor = startModelActor(entryKey)
       context.watch(actor)
-      actor ! InitialConfig(json, maybeState)
+      actor ! InitialConfig(data, json, maybeState)
       onSuccessfulAdd()
     }
 

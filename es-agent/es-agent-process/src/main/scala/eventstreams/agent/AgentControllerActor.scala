@@ -140,18 +140,18 @@ class AgentControllerActor(implicit sysconfig: Config)
 
   override def afterApplyConfig(): Unit = sendToHQAll()
 
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = addEventsource(Some(key), Some(props), maybeState)
+  override def applyConfig(key: String, props: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = addEventsource(Some(key), Some(props), Some(meta), maybeState)
 
-  private def addEventsource(key: Option[String], maybeData: Option[JsValue], maybeState: Option[JsValue]) =
+  private def addEventsource(key: Option[String], maybeData: Option[JsValue], maybeMeta: Option[JsValue], maybeState: Option[JsValue]) =
     for (
       data <- maybeData \/> Fail("Invalid payload")
     ) yield {
       val eventsourceKey = key | "esource/" + UUIDTools.generateShortUUID
-      var json = data
-      if (key.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
+      var meta = maybeMeta | Json.obj()
+      if (key.isEmpty) meta = meta.set(__ \ 'created -> JsNumber(now))
       val actor = EventsourceActor.start(eventsourceKey, eventsourcesConfigsList)
       context.watch(actor)
-      actor ! InitialConfig(json, maybeState)
+      actor ! InitialConfig(data, meta, maybeState)
       (actor, eventsourceKey)
     }
 
@@ -169,7 +169,7 @@ class AgentControllerActor(implicit sysconfig: Config)
     case CommunicationProxyRef(ref) =>
       commProxy = Some(ref)
       sendToHQAll()
-    case CreateEventsource(cfg) => addEventsource(None, Some(Json.parse(cfg)), None) match {
+    case CreateEventsource(cfg) => addEventsource(None, Some(Json.parse(cfg)), None, None) match {
       case \/-((actor, name)) =>
         EventsourceInstanceCreated >> ('Name -> name, 'Actor -> actor, 'Config -> cfg)
       case -\/(error) =>

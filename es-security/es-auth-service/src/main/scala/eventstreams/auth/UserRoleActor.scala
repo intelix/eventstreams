@@ -59,7 +59,7 @@ class UserRoleActor(id: String, availableDomains: List[SecuredDomainPermissions]
   var name: Option[String] = None
   var permissions: Option[RolePermissions] = None
 
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {
+  override def applyConfig(key: String, props: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = {
     name = props ~> 'name
     val seq = availableDomains.flatMap { sdp =>
       val domainId = sdp.domain.id

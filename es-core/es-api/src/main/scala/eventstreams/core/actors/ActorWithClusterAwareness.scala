@@ -54,8 +54,9 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
     case r if r.startsWith("~") => roleToAddress(r.tail)
     case r => Some(r)
   }
-  
+
   def roleToAddress(role: String): Option[String] = nodes.find(_.roles.contains(role)).map(_.address.toString)
+  def roleToAllAvailableAddresses(role: String): Seq[String] = nodes.filter(_.roles.contains(role)).map(_.address.toString)
 
   def forwardToClusterNode(addr: String, msg: Any): Unit = aliasToFullAddress(addr).foreach { address =>
     if (nodeIsUp(address)) {

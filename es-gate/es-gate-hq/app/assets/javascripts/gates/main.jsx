@@ -37,15 +37,8 @@ define(['react', 'core_mixin', 'common_nodetabs', './Table', './Editor'],
                 var defaults = {
                     "name": "",
                     "address": "",
-                    "initialState": "Closed",
-                    "maxInFlight": 100,
-                    "acceptWithoutSinks": false,
-                    "overflowPolicy": {
-                        "type": "backpressure"
-                    },
-                    "retentionPolicy": {
-                        "type": "none"
-                    }
+                    "inFlightThreshold": 1000,
+                    "noSinkDropMessages": false
                 };
                 this.setState({editBlock: <Editor addr={this.state.selected} mgrRoute="gates" title="Gate configuration" defaults={defaults}  editorId="gates"/>});
             },

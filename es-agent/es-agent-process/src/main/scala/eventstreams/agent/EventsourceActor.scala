@@ -143,7 +143,7 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
       context.stop(self)
   }
 
-  override def applyConfig(key: String, config: JsValue, state: Option[JsValue]): Unit = createFlow()
+  override def applyConfig(key: String, config: JsValue, meta: JsValue, state: Option[JsValue]): Unit = createFlow()
 
   override def onInitialConfigApplied(): Unit = context.parent ! EventsourceAvailable(key)
 
@@ -260,7 +260,7 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
 
   private def name = propsConfig ~> 'name | "N/A"
 
-  private def created = prettyTime.format(new Date(propsConfig ++> 'created | now))
+  private def created = prettyTime.format(new Date(metaConfig ++> 'created | now))
 
   private def startFlow(): Unit = {
     flow.foreach { v =>

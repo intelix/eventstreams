@@ -21,7 +21,8 @@ import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.core.storage._
 import eventstreams.{Fail, NowProvider, OK}
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json._
+import play.api.libs.json.extensions._
 
 import scalaz.Scalaz._
 import scalaz._
@@ -39,17 +40,19 @@ trait ActorWithConfigStoreSysevents extends ComponentWithBaseSysevents {
 
 }
 
-case class InitialConfig(config: JsValue, state: Option[JsValue])
+case class InitialConfig(config: JsValue, meta: JsValue, state: Option[JsValue])
 
 trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithConfigStoreSysevents with ActorWithTicks with NowProvider {
   _: WithSyseventPublisher =>
 
   private val configStore = ConfigStorageActor.path
   var propsConfig: Option[JsValue] = None
+  var metaConfig: JsValue = Json.obj()
   var stateConfig: Option[JsValue] = None
   var initialConfigApplied = false
 
   private var pendingStorageProps = false
+  private var pendingStorageMeta = false
   private var pendingStorageState = false
 
   private var lastPersistenceTimestamp: Option[Long] = None
@@ -67,7 +70,7 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithCon
 
   def afterApplyConfig(): Unit = {}
 
-  def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit
+  def applyConfig(key: String, props: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit
 
   def storageKey: Option[String] = None
 
@@ -93,6 +96,7 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithCon
 
   def removeConfig() = {
     propsConfig = None
+    metaConfig = Json.obj()
     stateConfig = None
     storageKey.foreach(configStore ! RemoveConfigFor(_))
   }
@@ -108,6 +112,14 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithCon
     pendingStorageProps = true
     pendingStorageState = true
     cacheConfig(props, state)
+    OK().right
+  }
+
+  def updateConfigMeta(values: Tuple2[JsPath, JsValue]*): \/[Fail, OK] = updateConfigMeta(metaConfig.set(values:_*))
+
+  def updateConfigMeta(meta: JsValue): \/[Fail, OK] = {
+    pendingStorageMeta = true
+    metaConfig = meta
     OK().right
   }
 
@@ -139,23 +151,33 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithCon
   def onInitialConfigApplied(): Unit = {}
 
   private def storeConfigSnapshot(props: JsValue, state: Option[JsValue]) =
-    storageKey.foreach { key => configStore ! StoreSnapshot(EntryConfigSnapshot(key, props, state))}
+    storageKey.foreach { key => configStore ! StoreSnapshot(EntryConfigSnapshot(key, props, metaConfig, state))}
 
   private def storeConfigProps(props: JsValue) =
     storageKey.foreach { key => configStore ! StoreProps(EntryPropsConfig(key, props))}
+
+  private def storeConfigMeta(meta: JsValue) =
+    storageKey.foreach { key => configStore ! StoreMeta(EntryMetaConfig(key, meta))}
 
   private def storeConfigState(state: Option[JsValue]) =
     storageKey.foreach { key => configStore ! StoreState(EntryStateConfig(key, state))}
 
   private def storePending() = {
-    if (pendingStorageProps && pendingStorageState)
+    if (pendingStorageProps && pendingStorageState) {
       storeConfigSnapshot(propsConfig | Json.obj(), stateConfig)
-    else if (pendingStorageState)
+      pendingStorageProps = false
+      pendingStorageState = false
+      pendingStorageMeta = false
+    } else if (pendingStorageState) {
       storeConfigState(stateConfig)
-    else if (pendingStorageProps)
+      pendingStorageState = false
+    } else if (pendingStorageProps) {
       storeConfigProps(propsConfig | Json.obj())
-    pendingStorageProps = false
-    pendingStorageState = false
+      pendingStorageProps = false
+    } else if (pendingStorageMeta) {
+      storeConfigMeta(metaConfig)
+      pendingStorageMeta = false
+    }
   }
 
   private def cacheAndApplyConfig(props: JsValue, maybeState: Option[JsValue]): Unit = {
@@ -166,7 +188,7 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithCon
       cacheConfig(props, maybeState)
       storageKey.foreach { key =>
         beforeApplyConfig()
-        applyConfig(key, props, maybeState)
+        applyConfig(key, props, metaConfig, maybeState)
         afterApplyConfig()
         ConfigurationApplied >> ('Key -> key, 'Initial -> isInitialConfig)
         if (isInitialConfig) {
@@ -187,17 +209,19 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithCon
       beforeApplyConfig()
       list.foreach(_.config.foreach { e =>
         ConfigurationSetReceived >> ('PartialKey -> partialStorageKey)
-        applyConfig(e.key, e.config, e.state)
+        applyConfig(e.key, e.config, e.meta, e.state)
       })
       afterApplyConfig()
     case StoredConfig(k, cfg) =>
       cfg.foreach { config =>
         ConfigurationReceived >> ()
         cacheAndApplyConfig(config.config, config.state)
+        updateConfigMeta(config.meta)
       }
-    case InitialConfig(c, s) => propsConfig match {
+    case InitialConfig(c, m, s) => propsConfig match {
       case None =>
         updateAndApplyConfigSnapshot(c, s)
+        updateConfigMeta(m)
         InitialConfigurationApplied >> ('Props -> c, 'State -> s)
       case Some(_) =>
         InitialConfigurationIgnored >> ('Reason -> "actor already initialised", 'Props -> c, 'State -> s)

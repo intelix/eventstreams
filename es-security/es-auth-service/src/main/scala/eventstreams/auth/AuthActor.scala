@@ -10,7 +10,7 @@ import eventstreams.JSONTools.configHelper
 import eventstreams._
 import eventstreams.core.actors._
 import net.ceedubs.ficus.Ficus._
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.{JsObject, JsValue, Json}
 
 import scala.concurrent.duration._
 import scalaz.Scalaz._
@@ -60,7 +60,7 @@ class AuthActor(config: Config, cluster: Cluster)
     UserRoleManager.start
   }
 
-  override def applyConfig(key: String, props: JsValue, maybeState: Option[JsValue]): Unit = {}
+  override def applyConfig(key: String, props: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = {}
 
   override def key: ComponentKey = ComponentKey(AuthActor.id)
 

@@ -13,6 +13,12 @@
       "title": "Gate name or full address",
       "type": "string"
     },
+    "deployTo": {
+      "propertyOrder": 30,
+      "title": "List of node roles where the flow can be deployed",
+      "type": "string",
+      "default": "hub"
+    },
     "pipeline": {
       "propertyOrder": 50,
       "title": "Pipeline configuration",

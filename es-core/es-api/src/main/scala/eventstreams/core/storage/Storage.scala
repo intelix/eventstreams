@@ -26,17 +26,19 @@ import scala.slick.jdbc.meta.MTable
 
 trait Storage {
 
-  def store(key: String, config: String, state: Option[String]): Unit
+  def store(key: String, config: String, meta: String, state: Option[String]): Unit
 
   def storeState(key: String, state: Option[String]): Unit
 
   def storeConfig(key: String, state: String): Unit
 
-  def retrieve(key: String): Option[(String, Option[String])]
+  def storeMeta(key: String, meta: String): Unit
+
+  def retrieve(key: String): Option[(String, String, Option[String])]
 
   def remove(key: String): Unit
 
-  def retrieveAllMatching(key: String): List[(String, String, Option[String])]
+  def retrieveAllMatching(key: String): List[(String, String, String, Option[String])]
 
 }
 
@@ -66,19 +68,19 @@ case class H2Storage(implicit config: Config) extends Storage with StrictLogging
   }
   private val dir = new File(config.as[Option[String]]("eventstreams.storage.directory").getOrElse("."))
 
-  override def store(key: String, config: String, state: Option[String]): Unit = {
+  override def store(key: String, config: String, meta: String, state: Option[String]): Unit = {
     db withSession { implicit session =>
-      configurations.insertOrUpdate((key, config, state))
+      configurations.insertOrUpdate((key, config, meta, state))
     }
   }
 
   load()
 
-  override def retrieve(key: String): Option[(String, Option[String])] = {
+  override def retrieve(key: String): Option[(String, String, Option[String])] = {
     db withSession { implicit session =>
       (configurations filter (_.key === key)).firstOption
     } map {
-      case (f, c, s) => (c, s)
+      case (f, c, m, s) => (c, m, s)
     }
   }
 
@@ -106,11 +108,20 @@ case class H2Storage(implicit config: Config) extends Storage with StrictLogging
     }
   }
 
-  override def retrieveAllMatching(key: String): List[(String, String, Option[String])] = {
+  override def storeMeta(key: String, meta: String): Unit = {
+    db withSession { implicit session =>
+      configurations
+        .filter(_.key === key)
+        .map(p => p.meta)
+        .update(meta)
+    }
+  }
+
+  override def retrieveAllMatching(key: String): List[(String, String, String, Option[String])] = {
     db withSession { implicit session =>
       (for {
         entry <- configurations if entry.key like (key + "%")
-      } yield (entry.key, entry.conf, entry.state)).list
+      } yield (entry.key, entry.conf, entry.meta, entry.state)).list
     }
   }
 
@@ -124,12 +135,14 @@ case class H2Storage(implicit config: Config) extends Storage with StrictLogging
 
   private def configurations = TableQuery[Configurations]
 
-  class Configurations(tag: Tag) extends Table[(String, String, Option[String])](tag, "configurations") {
-    def * = (key, conf, state)
+  class Configurations(tag: Tag) extends Table[(String, String, String, Option[String])](tag, "configurations") {
+    def * = (key, conf, meta, state)
 
     def key = column[String]("key", O.PrimaryKey)
 
     def conf = column[String]("conf")
+
+    def meta = column[String]("meta")
 
     def state = column[Option[String]]("state")
   }

@@ -62,7 +62,7 @@ trait ActorWithDataStore extends ActorWithComposableBehavior with ActorWithDataS
   }
 
   def storeData(data: JsValue) =
-    storageKey.foreach { key => configStore ! StoreSnapshot(EntryConfigSnapshot(key, data, None))}
+    storageKey.foreach { key => configStore ! StoreSnapshot(EntryConfigSnapshot(key, data, Json.obj(), None))}
 
 
   private def handler: Receive = {
