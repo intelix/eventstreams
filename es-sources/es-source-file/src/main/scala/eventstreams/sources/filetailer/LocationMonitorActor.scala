@@ -20,7 +20,7 @@ object LocationMonitorActor {
 
 class LocationMonitorActor(val streamKey: String, props: JsValue, cursor: Option[JsValue])(implicit val fileSystem: FileSystem)
   extends ActorWithComposableBehavior
-  with PipelineWithStatesActor
+  with ActorWithActivePassiveBehaviors
   with ActorWithTicks
   with FileTailerConstants
   with PullingPublisher[EventAndCursor]

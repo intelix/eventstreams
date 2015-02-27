@@ -70,7 +70,7 @@ case class EventsourceStateError(details: Option[String] = None) extends Eventso
 
 class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer, sysconfig: Config)
   extends ActorWithComposableBehavior
-  with PipelineWithStatesActor
+  with ActorWithActivePassiveBehaviors
   with ActorWithConfigStore
   with ActorWithPeriodicalBroadcasting
   with EventsourceActorSysevents with WithSyseventPublisher {

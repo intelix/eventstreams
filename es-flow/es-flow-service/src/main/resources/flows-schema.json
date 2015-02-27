@@ -19,6 +19,12 @@
       "type": "string",
       "default": "hub"
     },
+    "instancesPerNode": {
+      "propertyOrder": 30,
+      "title": "Flow instances per node",
+      "type": "number",
+      "default": 10
+    },
     "pipeline": {
       "propertyOrder": 50,
       "title": "Pipeline configuration",

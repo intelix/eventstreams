@@ -54,7 +54,7 @@ case class EventsourceProxyAvailable(key: ComponentKey)
 
 
 class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
-  extends PipelineWithStatesActor
+  extends ActorWithActivePassiveBehaviors
   with ActorWithDisassociationMonitor
   with RouteeActor
   with AgentProxyActorSysevents

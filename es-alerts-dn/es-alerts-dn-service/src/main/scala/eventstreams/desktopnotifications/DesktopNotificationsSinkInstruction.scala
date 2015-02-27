@@ -58,7 +58,7 @@ private class DesktopNotificationsSinkInstructionActor(address: String, config: 
   val maxInFlight = config +> 'buffer | 1000
   private val condition = SimpleCondition.conditionOrAlwaysTrue(config ~> 'simpleCondition)
 
-  override def connectionEndpoint: String = address
+  override def connectionEndpoint: Option[String] = Some(address)
 
 
   override def preStart(): Unit = {

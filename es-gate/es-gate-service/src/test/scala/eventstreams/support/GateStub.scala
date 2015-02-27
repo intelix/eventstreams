@@ -7,7 +7,7 @@ import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.gates._
 import eventstreams._
-import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor}
+import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithActivePassiveBehaviors}
 
 import scala.util.Try
 
@@ -103,6 +103,7 @@ trait GateStubActorSysevents extends ComponentWithBaseSysevents {
   val AutoClosingGate = 'AutoClosingGate.info
   val AcknowledgeAsProcessedReceived = 'AcknowledgeAsProcessed.info
   val AcknowledgeAsReceivedReceived = 'AcknowledgeAsReceivedReceived.info
+  val SentToSinks = 'SentToSinks.info
 
   override def componentId: String = "Test.GateStubActor"
 }
@@ -114,7 +115,7 @@ object GateStubActor extends GateStubActorSysevents with WithSyseventPublisher {
 
 class GateStubActor(name: String)
   extends ActorWithComposableBehavior
-  with PipelineWithStatesActor
+  with ActorWithActivePassiveBehaviors
   with GateStubActorSysevents {
 
   var state: GateState = GateClosed()
@@ -182,7 +183,9 @@ class GateStubActor(name: String)
     case RegisterSink(ref) =>
       RegisterSinkReceived >> ('Ref -> ref)
       sinks += ref
-    case SendToSinks(m) => sinks.foreach(_ ! m)
+    case SendToSinks(m) =>
+      SentToSinks >> ('Message -> m)
+      sinks.foreach(_ ! m)
     case AcknowledgeAsProcessed(id) => AcknowledgeAsProcessedReceived >> ('CorrelationId -> id)
     case AcknowledgeAsReceived(id) => AcknowledgeAsReceivedReceived >> ('CorrelationId -> id)
     case x => UnrecognisedMessageAtGate >> ('Message -> x)

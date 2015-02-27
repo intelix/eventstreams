@@ -17,3 +17,4 @@
 package eventstreams
 
 trait CommMessage
+trait CommMessageJavaSer

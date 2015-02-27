@@ -23,7 +23,7 @@ import akka.actor._
 import akka.remote.DisassociatedEvent
 import eventstreams._
 import eventstreams.agent.AgentMessagesV1.{EventsourceConfig, EventsourceInfo}
-import eventstreams.core.actors.{ActorWithDisassociationMonitor, BaseActorSysevents, PipelineWithStatesActor, RouteeActor}
+import eventstreams.core.actors.{ActorWithDisassociationMonitor, BaseActorSysevents, ActorWithActivePassiveBehaviors, RouteeActor}
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.\/-
@@ -43,7 +43,7 @@ object EventsourceProxyActor extends EventsourceProxySysevents {
 }
 
 class EventsourceProxyActor(val key: ComponentKey, ref: ActorRef)
-  extends PipelineWithStatesActor
+  extends ActorWithActivePassiveBehaviors
   with ActorWithDisassociationMonitor
   with RouteeActor
   with EventsourceProxySysevents

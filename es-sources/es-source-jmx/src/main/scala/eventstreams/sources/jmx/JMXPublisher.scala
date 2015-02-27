@@ -19,7 +19,7 @@ package eventstreams.sources.jmx
 import akka.actor.Props
 import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.JSONTools.configHelper
-import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, PipelineWithStatesActor, StoppablePublisherActor}
+import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithTicks, ActorWithActivePassiveBehaviors, StoppablePublisherActor}
 import eventstreams.{EventFrame, EventAndCursor, JSONTools}
 import fr.janalyse.jmx._
 import play.api.libs.json._
@@ -39,7 +39,7 @@ object JMXPublisher {
 
 class JMXPublisher(val props: JsValue)
   extends ActorWithComposableBehavior
-  with PipelineWithStatesActor
+  with ActorWithActivePassiveBehaviors
   with ActorWithTicks
   with JMXPublisherSysevents
   with ComponentWithBaseSysevents

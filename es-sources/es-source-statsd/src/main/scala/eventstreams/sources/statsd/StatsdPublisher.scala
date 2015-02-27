@@ -25,7 +25,7 @@ import akka.util.ByteString
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.JSONTools.configHelper
-import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor, StoppablePublisherActor}
+import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithActivePassiveBehaviors, StoppablePublisherActor}
 import eventstreams.{EventFrame, EventAndCursor, JSONTools}
 import play.api.libs.json.JsValue
 
@@ -44,7 +44,7 @@ object StatsdPublisher {
 
 class StatsdPublisher(val props: JsValue)
   extends ActorWithComposableBehavior
-  with PipelineWithStatesActor
+  with ActorWithActivePassiveBehaviors
   with StatsdPublisherEvents
   with WithSyseventPublisher
   with StoppablePublisherActor[EventAndCursor] {

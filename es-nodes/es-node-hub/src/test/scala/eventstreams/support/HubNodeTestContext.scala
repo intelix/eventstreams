@@ -30,6 +30,9 @@ trait HubNodeTestContext extends MultiNodeTestingSupport {
     HubSystemPrefix + "2" -> ConfigFactory.load("hub2-proc-test.conf")
   )
 
+  val Hub1Address = "akka.tcp://hub@localhost:12521"
+  val Hub2Address = "akka.tcp://hub@localhost:12522"
+
 
   trait WithHubNode
     extends ConfigStorageActorTestContext
@@ -67,7 +70,7 @@ trait HubNodeTestContext extends MultiNodeTestingSupport {
   }
 
   trait WithHubNode1 extends WithHubNode {
-    def hub1Address = "akka.tcp://hub@localhost:12521"
+    def hub1Address = Hub1Address
 
     def hub1System = getSystem(HubSystemPrefix + "1")
 
@@ -81,7 +84,7 @@ trait HubNodeTestContext extends MultiNodeTestingSupport {
   }
 
   trait WithHubNode2 extends WithHubNode {
-    def hub2Address = "akka.tcp://hub@localhost:12522"
+    def hub2Address = Hub2Address
 
     def hub2System = getSystem(HubSystemPrefix + "2")
 

@@ -52,7 +52,7 @@ object ElasticsearchPublisher {
 
 class ElasticsearchPublisher(streamKey: String, val streamSeed: String, val props: JsValue, cursor: Option[JsValue])
   extends ActorWithComposableBehavior
-  with PipelineWithStatesActor
+  with ActorWithActivePassiveBehaviors
   with ElasticsearchPublisherEvents
   with WithSyseventPublisher
   with PullingPublisher[EventAndCursor] {

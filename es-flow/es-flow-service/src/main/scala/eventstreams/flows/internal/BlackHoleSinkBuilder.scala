@@ -49,7 +49,7 @@ private[internal] object BlackHoleSinkBuilder extends BuilderFromConfig[SinkActo
 private class BlackholeAutoAckSinkActor(maybeId: Option[String])
   extends ActorWithComposableBehavior
   with StoppableSubscriberActor
-  with PipelineWithStatesActor
+  with ActorWithActivePassiveBehaviors
   with WithMetrics
   with BlackHoleSinkSysevents
   with WithSyseventPublisher {

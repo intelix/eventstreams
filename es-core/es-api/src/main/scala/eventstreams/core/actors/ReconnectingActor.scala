@@ -47,7 +47,7 @@ trait ReconnectingActor
 
   override def commonBehavior: Receive = handleReconnectMessages orElse super.commonBehavior
 
-  def connectionEndpoint: String
+  def connectionEndpoint: Option[String]
 
   def monitorConnectionWithDeathWatch = false
 
@@ -74,14 +74,19 @@ trait ReconnectingActor
 
   def initiateReconnect(): Unit = {
     disconnect()
-    val addr = actorSelection
-    reconnectAttemptCounter += 1
-    AssociationAttempt >>('Target -> addr, 'AttemptCount -> reconnectAttemptCounter)
-    
-    addr.resolveOne(remoteAssociationTimeout).onComplete {
-      case Failure(x) => self ! AssociationFailed(x)
-      case Success(ref) => self ! Connected(ref)
+
+    actorSelection match {
+      case None => scheduleReconnect()
+      case Some(addr) =>
+        reconnectAttemptCounter += 1
+        AssociationAttempt >>('Target -> addr, 'AttemptCount -> reconnectAttemptCounter)
+
+        addr.resolveOne(remoteAssociationTimeout).onComplete {
+          case Failure(x) => self ! AssociationFailed(x)
+          case Success(ref) => self ! Connected(ref)
+        }
     }
+
   }
 
 
@@ -113,7 +118,7 @@ trait ReconnectingActor
       scheduleReconnect()
   }
 
-  private def actorSelection = context.actorSelection(connectionEndpoint)
+  private def actorSelection = connectionEndpoint.map(context.actorSelection)
 
 
 }

@@ -45,7 +45,7 @@ object UserActor {
 
 
 class UserActor(id: String)
-  extends PipelineWithStatesActor
+  extends ActorWithActivePassiveBehaviors
   with ActorWithConfigStore
   with RouteeActor
   with RouteeModelInstance

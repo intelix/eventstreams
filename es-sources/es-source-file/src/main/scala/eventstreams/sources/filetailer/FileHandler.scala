@@ -2,12 +2,12 @@ package eventstreams.sources.filetailer
 
 import core.sysevents.WithSyseventPublisher
 import eventstreams.agent.{Cursor, NilCursor}
-import eventstreams.core.actors.{ActorWithTicks, PipelineWithStatesActor, Stoppable}
+import eventstreams.core.actors.{ActorWithTicks, ActorWithActivePassiveBehaviors, Stoppable}
 
 import scalaz.Scalaz._
 
 
-trait FileHandler extends PipelineWithStatesActor with ActorWithTicks with Stoppable with FileTailerSysevents {
+trait FileHandler extends ActorWithActivePassiveBehaviors with ActorWithTicks with Stoppable with FileTailerSysevents {
   _: FileSystemComponent with ResourceCatalogComponent with MonitoringTarget with WithSyseventPublisher =>
 
   private var openResource: Option[OpenFileResource] = None

@@ -107,7 +107,7 @@ class AgentControllerActor(implicit sysconfig: Config)
 
   override def commonBehavior: Receive = commonMessageHandler orElse super.commonBehavior
 
-  override def connectionEndpoint: String = sysconfig.as[String]("eventstreams.agent.hq.endpoint")
+  override def connectionEndpoint: Option[String] = sysconfig.as[Option[String]]("eventstreams.agent.hq.endpoint")
 
 
   override def reconnectAttemptInterval: FiniteDuration = sysconfig.as[Option[FiniteDuration]]("eventstreams.agent.hub-reconnect-attempt-interval") | super.reconnectAttemptInterval

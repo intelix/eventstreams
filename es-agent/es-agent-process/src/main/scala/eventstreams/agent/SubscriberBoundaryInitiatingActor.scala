@@ -46,7 +46,7 @@ object SubscriberBoundaryInitiatingActor extends EventsourceSinkSysevents {
 }
 
 class SubscriberBoundaryInitiatingActor(endpoint: String, maxInFlight: Int, maxBatchSize: Int)(implicit sysconfig: Config)
-  extends PipelineWithStatesActor
+  extends ActorWithActivePassiveBehaviors
   with StoppableSubscriberActor
   with ReconnectingActor
   with AtLeastOnceDeliveryActor[EventFrame]
@@ -60,7 +60,7 @@ class SubscriberBoundaryInitiatingActor(endpoint: String, maxInFlight: Int, maxB
 
   override def commonBehavior: Receive = handleOnNext orElse super.commonBehavior
 
-  override def connectionEndpoint: String = endpoint
+  override def connectionEndpoint: Option[String] = Some(endpoint)
 
 
   override def configMaxBatchSize: Int = maxBatchSize

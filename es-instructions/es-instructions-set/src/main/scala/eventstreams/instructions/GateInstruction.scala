@@ -102,7 +102,7 @@ private class GateInstructionActor(instructionId: String, address: String, confi
 
   override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('Address -> address, 'InstructionInstanceId -> instructionId)
 
-  override def connectionEndpoint: String = address
+  override def connectionEndpoint: Option[String] = Some(address)
 
 
   override def preStart(): Unit = {

@@ -19,41 +19,36 @@ package eventstreams.flows.internal
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.{ActorRefFactory, Props}
-import eventstreams.JSONTools.configHelper
 import eventstreams._
 import eventstreams.core.actors._
-import eventstreams.gates.RegisterSink
 import eventstreams.instructions.Types.TapActorPropsType
 import nl.grons.metrics.scala.MetricName
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.JsValue
 
 import scalaz.Scalaz._
 import scalaz._
 
-trait GateInputSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with StandardPublisherSysevents {
+trait PassiveInputSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with StandardPublisherSysevents {
 
-  override def componentId: String = "Flow.GateInput"
+  override def componentId: String = "Flow.Input"
 }
 
-private[internal] object GateInputBuilder extends BuilderFromConfig[TapActorPropsType] {
+private[internal] object PassiveInputBuilder extends BuilderFromConfig[TapActorPropsType] {
   val configId = "gate"
 
   override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, TapActorPropsType] =
-    for (
-      address <- props ~> 'sourceGateName \/> Fail(s"Invalid gate input configuration. Missing 'sourceGateName' value. Contents: ${Json.stringify(props)}")
-    ) yield GateInputActor.props(id | "default", address)
+    PassiveInputActor.props(id | "default").right
 }
 
- object GateInputActor extends PassiveInputSysevents{
-  def props(id: String, address: String) = Props(new GateInputActor(id, address))
+ object PassiveInputActor extends PassiveInputSysevents{
+  def props(id: String) = Props(new PassiveInputActor(id))
 
-  def start(id: String, address: String)(implicit f: ActorRefFactory) = f.actorOf(props(id, address))
+  def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id))
 }
 
-private class GateInputActor(id: String, address: String)
+private class PassiveInputActor(id: String)
   extends ActorWithComposableBehavior
   with StoppablePublisherActor[EventFrame]
-  with ReconnectingActor
   with ActorWithActivePassiveBehaviors
   with ActorWithDupTracking
   with WithMetrics
@@ -65,22 +60,13 @@ private class GateInputActor(id: String, address: String)
   val _rate = metrics.meter(s"$id.source")
   val buffer = 1024
 
-  override def monitorConnectionWithDeathWatch: Boolean = true
-
   override def commonBehavior: Receive = handlerWhenPassive orElse super.commonBehavior
 
   override def preStart(): Unit = {
     super.preStart()
     switchToCustomBehavior(handlerWhenPassive)
-    initiateReconnect()
   }
 
-  override def onConnectedToEndpoint(): Unit = {
-    super.onConnectedToEndpoint()
-    remoteActorRef.foreach(_ ! RegisterSink(self))
-  }
-
-  override def onDisconnectedFromEndpoint(): Unit = super.onDisconnectedFromEndpoint()
 
   override def onBecameActive(): Unit = {
     switchToCustomBehavior(handlerWhenActive)
@@ -99,6 +85,7 @@ private class GateInputActor(id: String, address: String)
 
   def handlerWhenActive: Receive = {
     case Acknowledgeable(m,id) =>
+      println(s"!>>>>> pasive input received: $m")
       if (pendingToDownstreamCount < buffer || pendingToDownstreamCount < totalDemand) {
         if (!isDup(sender(), id)) {
           sender() ! AcknowledgeAsReceived(id)
@@ -117,9 +104,10 @@ private class GateInputActor(id: String, address: String)
   }
 
   def handlerWhenPassive: Receive = {
-    case m: Acknowledgeable[_] => ()
+    case m: Acknowledgeable[_] =>
+      println(s"!>>>>> pasive input received (passive): $m")
+      ()
   }
 
-  override def connectionEndpoint: Option[String] = Some(address)
 }
 

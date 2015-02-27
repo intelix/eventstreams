@@ -116,7 +116,7 @@ object JsonFramePublisherStubActor extends JsonFramePublisherStubActorSysevents 
 class JsonFramePublisherStubActor
   extends ActorWithComposableBehavior
   with StoppablePublisherActor[EventFrame]
-  with PipelineWithStatesActor
+  with ActorWithActivePassiveBehaviors
   with JsonFramePublisherStubActorSysevents
   with WithSyseventPublisher {
 

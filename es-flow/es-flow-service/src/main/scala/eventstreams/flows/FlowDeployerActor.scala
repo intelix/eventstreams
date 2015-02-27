@@ -16,25 +16,18 @@
 
 package eventstreams.flows
 
-import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
-import _root_.core.sysevents.ref.ComponentWithBaseSysevents
-import _root_.core.sysevents.{FieldAndValue, WithSyseventPublisher}
 import akka.actor._
-import akka.remote.RemoteScope
-import akka.stream.FlowMaterializer
-import akka.stream.actor.{ActorPublisher, ActorSubscriber}
-import akka.stream.scaladsl._
+import akka.cluster.Cluster
 import com.typesafe.config.Config
+import core.sysevents.SyseventOps.symbolToSyseventOps
+import core.sysevents.ref.ComponentWithBaseSysevents
+import core.sysevents.{FieldAndValue, WithSyseventPublisher}
 import eventstreams.JSONTools.configHelper
 import eventstreams._
 import eventstreams.core.actors._
-import eventstreams.flows.internal.{FlowComponents, Builder}
-import nl.grons.metrics.scala.MetricName
 import play.api.libs.json._
 
 import scalaz.Scalaz._
-import scalaz.{-\/, \/-}
-
 
 
 trait FlowDeployerActorSysevents
@@ -43,136 +36,62 @@ trait FlowDeployerActorSysevents
   with StateChangeSysevents
   with WithSyseventPublisher {
 
-  val FlowStarted = 'FlowStarted.trace
-  val FlowConfigured = 'FlowConfigured.trace
+  val UnableToRoute = 'UnableToRoute.trace
 
-  override def componentId: String = "Flow.Flow"
+  override def componentId: String = "Flow.Deployer"
 }
+
 object FlowDeployerActorSysevents extends FlowDeployerActorSysevents
 
 object FlowDeployerActor extends FlowDeployerActorSysevents {
-  def props(id: String, instructions: List[Config]) = Props(new FlowDeployerActor(id, instructions))
+  def props(id: String, config: JsValue, instructions: List[Config]) =
+    Props(new FlowDeployerActor(id, config, instructions))
 
-  def start(id: String, instructions: List[Config])(implicit f: ActorRefFactory) = f.actorOf(props(id, instructions), ActorTools.actorFriendlyId(id))
+  def start(id: String, config: JsValue, instructions: List[Config])(implicit f: ActorRefFactory) =
+    f.actorOf(props(id, config, instructions), ActorTools.actorFriendlyId(id))
 }
 
 
-sealed trait FlowDeployerState {
-  def details: Option[String]
-}
-
-case class FlowDeployerStateUnknown(details: Option[String] = None) extends FlowDeployerState
-
-case class FlowDeployerStateActive(details: Option[String] = None) extends FlowDeployerState
-
-case class FlowDeployerStatePassive(details: Option[String] = None) extends FlowDeployerState
-
-case class FlowDeployerStateError(details: Option[String] = None) extends FlowDeployerState
-
-
-class FlowDeployerActor(id: String, instructions: List[Config])
-  extends PipelineWithStatesActor
-  with FlowActorSysevents
-  with ActorWithConfigStore
-  with RouteeWithStartStopHandler
-  with RouteeModelInstance
-  with ActorWithPeriodicalBroadcasting
+class FlowDeployerActor(id: String, config: JsValue, instructions: List[Config])
+  extends ActorWithActivePassiveBehaviors
+  with ProvisionLogic
+  with SinkLogic
+  with FlowDeployerActorSysevents
+  with WithSyseventPublisher
   with WithMetrics {
 
-  var name = "default"
-  var created = prettyTimeFormat(now)
-  var currentState: FlowDeployerState = FlowDeployerStateUnknown(Some("Initialising"))
+  override implicit val cluster: Cluster = Cluster(context.system)
+  var provisionOnNodesWithRoles: Set[String] = (config ~> 'deployTo).map(_.split(",").map(_.trim).filter(!_.isEmpty).toSet) | Set()
+  var instancesPerNode: Int = config +> 'instancesPerNode | 1
+  var connectionEndpoint: Option[String] = config ~> 'sourceGateName
 
+  override def commonFields: Seq[FieldAndValue] = Seq('ID -> id, 'Handler -> self)
 
-  override def commonFields: Seq[FieldAndValue] = Seq('ID ->  id, 'Name -> name, 'Handler -> self)
-
-  override def storageKey: Option[String] = Some(id)
-
-  override def key = ComponentKey(id)
-
-  override def publishAvailable(): Unit = context.parent ! FlowAvailable(key, self, name)
-
-  def stateDetailsAsString = currentState.details match {
-    case Some(v) => stateAsString + " - " + v
-    case _ => stateAsString
+  override def onNextEvent(e: Acknowledgeable[_]): Unit = {
+    println(s"!>>>>> ${destinationFor(e)}")
+    destinationFor(e).foreach(_.forward(e))
   }
 
-  def stateAsString = currentState match {
-    case FlowDeployerStateUnknown(_) => "unknown"
-    case FlowDeployerStateActive(_) => "active"
-    case FlowDeployerStatePassive(_) => "passive"
-    case FlowDeployerStateError(_) => "error"
+  override def initialiseDeployment(address: String, index: Int, ref: ActorRef): Unit =
+    ref ! InitialiseDeployable(index + "@" + address, id, Json.stringify(config), instructions)
+
+  private def destinationFor(e: Acknowledgeable[_]): Option[ActorRef] = e.msg match {
+    case x: EventFrame => destinationFor(x)
+    case Batch((x: EventFrame) :: _) => destinationFor(x)
+    case x =>
+      UnableToRoute >>('MessageId -> e.id, 'Type -> x.getClass)
+      None
   }
 
+  private def destinationFor(e: EventFrame): Option[ActorRef] = {
+    println(s"!>>>>>destinationFor $e : " + e.streamKey + " : " + e.streamSeed)
 
-  override def info = Some(Json.obj(
-    "name" -> name,
-    "sinceStateChange" -> prettyTimeSinceStateChange,
-    "created" -> created,
-    "state" -> stateAsString,
-    "stateDetails" -> stateDetailsAsString
-  ))
-
-  def infoDynamic = currentState match {
-    case FlowDeployerStateActive(_) => Some(Json.obj(
-//      "inrate" -> ("%.2f" format _inrate.oneMinuteRate),
-//      "outrate" -> ("%.2f" format _outrate.oneMinuteRate)
-    ))
-    case _ => Some(Json.obj())
+    for (
+      key <- e.streamKey;
+      seed <- e.streamSeed;
+      destination <- destinationFor(key, seed)
+    ) yield destination
   }
-
-
-  override def onBecameActive(): Unit = {
-    openFlow()
-    publishInfo()
-  }
-
-  override def onBecamePassive(): Unit = {
-    closeFlow()
-    publishInfo()
-  }
-
-  override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
-    (T_STATS, 5, () => infoDynamic, T_STATS !! _)
-  )
-
-  def closeFlow() = {
-    currentState = FlowDeployerStatePassive()
-    updateConfigMeta(__ \ 'lastStateActive -> JsBoolean(value = false))
-
-  }
-
-
-
-
-  override def applyConfig(key: String, config: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = {
-
-    name = config ~> 'name | "default"
-    created = prettyTimeFormat(meta ++> 'created | now)
-
-    FlowConfigured >> ()
-
-  }
-
-
-  private def terminateFlow(reason: Option[String]) = {
-    closeFlow()
-  }
-
-  private def openFlow() = {
-    currentState = FlowDeployerStateActive(Some("ok"))
-
-    updateConfigMeta(__ \ 'lastStateActive -> JsBoolean(value = true))
-
-    FlowStarted >>()
-
-  }
-
-
-
-
-
-
 }
 
 

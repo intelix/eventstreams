@@ -40,7 +40,7 @@ object Builder extends StrictLogging {
 
 
   def buildTap(implicit config: JsValue, f: ActorRefFactory, id: String): \/[Fail, TapActorPropsType] =
-    GateInputBuilder.build(config, None, Some(id))
+    PassiveInputBuilder.build(config, None, Some(id))
 
 
   def buildInstruction(implicit instructionConfigs: List[Config], config: JsValue, id: String): \/[Fail, InstructionType] = {

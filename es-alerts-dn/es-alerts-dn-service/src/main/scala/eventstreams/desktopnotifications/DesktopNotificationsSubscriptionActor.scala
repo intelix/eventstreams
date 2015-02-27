@@ -53,7 +53,7 @@ case class DesktopNotificationsSubscriptionStateError(details: Option[String] = 
 
 
 class DesktopNotificationsSubscriptionActor(id: String)
-  extends PipelineWithStatesActor
+  extends ActorWithActivePassiveBehaviors
   with ActorWithConfigStore
   with RouteeModelInstance
   with RouteeWithStartStopHandler

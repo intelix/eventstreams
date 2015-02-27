@@ -30,7 +30,7 @@ trait StateChangeSysevents extends ComponentWithBaseSysevents {
   val BecomingPassive = 'BecomingPassive.info
 }
 
-trait PipelineWithStatesActor extends ActorWithComposableBehavior with NowProvider with StateChangeSysevents with WithSyseventPublisher {
+trait ActorWithActivePassiveBehaviors extends ActorWithComposableBehavior with NowProvider with StateChangeSysevents with WithSyseventPublisher {
 
   private var requestedState: Option[RequestedState] = None
   private var date: Option[Long] = None

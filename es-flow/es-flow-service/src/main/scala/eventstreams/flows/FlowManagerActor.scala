@@ -103,5 +103,5 @@ class FlowManagerActor(sysconfig: Config, cluster: Cluster)
     case e: FlowAvailable => addEntry(e)
   }
 
-  override def startModelActor(key: String): ActorRef = FlowActor.start(key, instructionsConfigsList)
+  override def startModelActor(key: String): ActorRef = FlowProxyActor.start(key, instructionsConfigsList)
 }

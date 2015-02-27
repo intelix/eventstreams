@@ -40,7 +40,7 @@ trait StoppablePublisherActor[T]
   extends ActorPublisher[T]
   with ActorWithComposableBehavior
   with Stoppable
-  with PipelineWithStatesActor
+  with ActorWithActivePassiveBehaviors
   with StandardPublisherSysevents
   with ActorWithTicks {
 

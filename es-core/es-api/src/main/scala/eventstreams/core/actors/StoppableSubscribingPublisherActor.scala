@@ -24,7 +24,7 @@ trait SubscribingPublisherActorSysevents extends StandardSubscriberSysevents wit
 
 trait StoppableSubscribingPublisherActor
   extends ActorWithComposableBehavior
-  with PipelineWithStatesActor
+  with ActorWithActivePassiveBehaviors
   with StoppablePublisherActor[EventFrame]
   with StoppableSubscriberActor
   with SubscribingPublisherActorSysevents {

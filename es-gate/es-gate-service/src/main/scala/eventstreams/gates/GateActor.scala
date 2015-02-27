@@ -64,7 +64,7 @@ case class GateStateError(details: Option[String] = None) extends InternalGateSt
 
 
 class GateActor(id: String)
-  extends PipelineWithStatesActor
+  extends ActorWithActivePassiveBehaviors
   with AtLeastOnceDeliveryActor[EventFrame]
   with ActorWithConfigStore
   with RouteeModelInstance

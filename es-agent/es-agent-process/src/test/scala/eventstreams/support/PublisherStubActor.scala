@@ -32,7 +32,7 @@ object PublisherStubActor extends PublisherStubActorSysevents {
 class PublisherStubActor(maybeState: Option[JsValue])
   extends ActorWithComposableBehavior
   with StoppablePublisherActor[EventAndCursor]
-  with PipelineWithStatesActor
+  with ActorWithActivePassiveBehaviors
   with PublisherStubActorSysevents
   with WithSyseventPublisher
   with ActorWithTicks {

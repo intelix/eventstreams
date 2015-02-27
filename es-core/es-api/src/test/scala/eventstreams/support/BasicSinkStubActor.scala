@@ -6,7 +6,7 @@ import akka.stream.actor.{RequestStrategy, WatermarkRequestStrategy, ZeroRequest
 import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
-import eventstreams.core.actors.{ActorWithComposableBehavior, PipelineWithStatesActor, StoppableSubscriberActor}
+import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithActivePassiveBehaviors, StoppableSubscriberActor}
 
 trait BasicSinkStubActorSysevents extends ComponentWithBaseSysevents {
 
@@ -24,7 +24,7 @@ object BasicSinkStubActor extends SinkStubActorSysevents {
 
 class BasicSinkStubActor(initialStrategyWhenEnabled: RequestStrategy)
   extends ActorWithComposableBehavior
-  with StoppableSubscriberActor with PipelineWithStatesActor
+  with StoppableSubscriberActor with ActorWithActivePassiveBehaviors
   with BasicSinkStubActorSysevents
   with WithSyseventPublisher {
 

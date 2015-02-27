@@ -24,7 +24,7 @@ import scalaz.{-\/, \/-}
 
 
 trait RouteeWithStartStopHandler
-  extends RouteeActor with PipelineWithStatesActor {
+  extends RouteeActor with ActorWithActivePassiveBehaviors {
 
   override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
     case T_STOP =>
