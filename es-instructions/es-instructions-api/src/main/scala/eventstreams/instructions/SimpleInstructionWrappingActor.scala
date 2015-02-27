@@ -18,23 +18,28 @@ package eventstreams.instructions
 
 import akka.actor.{ActorRefFactory, Props}
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
+import core.sysevents.WithSyseventPublisher
 import eventstreams.EventFrame
 import eventstreams.core.actors.{ActorWithTicks, StoppableSubscribingPublisherActor}
 import eventstreams.instructions.Types._
 
 object SimpleInstructionWrappingActor {
 
-  def props(instruction: SimpleInstructionTypeWithGenerator, maxInFlight: Int): Props = Props(new SimpleInstructionWrappingActor(instruction, maxInFlight))
+  def props(instruction: SimpleInstructionTypeWithGenerator, maxInFlight: Int, id: String = "N/A"): Props = Props(new SimpleInstructionWrappingActor(instruction, maxInFlight, id))
 
-  def start(f: ActorRefFactory, instruction: SimpleInstructionTypeWithGenerator, maxInFlight: Int = 1000) =
-    f.actorOf(props(instruction, maxInFlight))
+  def start(f: ActorRefFactory, instruction: SimpleInstructionTypeWithGenerator, maxInFlight: Int = 1000, id: String = "N/A") =
+    f.actorOf(props(instruction, maxInFlight, id))
 
 }
 
 
-class SimpleInstructionWrappingActor(instruction: SimpleInstructionTypeWithGenerator, maxInFlight: Int)
+class SimpleInstructionWrappingActor(instruction: SimpleInstructionTypeWithGenerator, maxInFlight: Int, id: String)
   extends StoppableSubscribingPublisherActor
-  with ActorWithTicks {
+  with ActorWithTicks
+  with WithSyseventPublisher {
+
+
+  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('InstanceId -> id)
 
   val (onEvent, onTick) = instruction
 

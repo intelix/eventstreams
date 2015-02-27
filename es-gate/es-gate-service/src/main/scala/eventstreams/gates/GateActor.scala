@@ -41,7 +41,7 @@ trait GateSysevents extends ComponentWithBaseSysevents {
 
   val ForwarderStarted = "ForwarderStarted".info
   val UnsupportedMessageType = "UnsupportedMessageType".warn
-  
+
 }
 
 object GateActor {
@@ -121,6 +121,13 @@ class GateActor(id: String)
     super.processTick()
     clearActiveEventsourceList()
   }
+
+
+  override def batchAggregationKeyFor(msg: EventFrame): Option[String] =
+    for (
+      key <- msg.streamKey;
+      seed <- msg.streamSeed
+    ) yield key + ":" + seed
 
   def openGate(): Unit = {
     currentState = GateStateOpen(Some("ok"))
@@ -288,7 +295,7 @@ class GateActor(id: String)
           DuplicateMessageReceived >> ('MessageId -> m.id)
         }
       } else {
-        MessageIgnored >> ('MessageId -> m.id, 'Reason -> "Backlog", 'InFlightCount -> inFlightCount)
+        MessageIgnored >>('MessageId -> m.id, 'Reason -> "Backlog", 'InFlightCount -> inFlightCount)
       }
 
   }

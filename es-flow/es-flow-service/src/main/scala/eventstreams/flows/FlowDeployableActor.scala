@@ -23,11 +23,13 @@ trait FlowDeployableSysevents
   with WithSyseventPublisher {
 
   val FlowStarted = 'FlowStarted.trace
+  val FlowStopped = 'FlowStopped.trace
   val FlowConfigured = 'FlowConfigured.trace
   val ForwardedToFlow = 'ForwardedToFlow.trace
 
   override def componentId: String = "Flow.FlowInstance"
 }
+
 object FlowDeployableSysevents extends FlowDeployableSysevents
 
 case class InitialiseDeployable(id: String, key: String, props: String, instructions: List[Config]) extends CommMessageJavaSer
@@ -49,6 +51,7 @@ class FlowDeployableActor
   private var flow: Option[MaterializedMap] = None
 
   private var instanceId: String = "N/A"
+  private var flowKey: String = "N/A"
 
   override def onBecameActive(): Unit = {
     openFlow()
@@ -57,20 +60,25 @@ class FlowDeployableActor
   override def onBecamePassive(): Unit = {
     closeFlow()
   }
+
   def closeFlow() = {
     tapActor.foreach(_ ! BecomePassive())
     flowActors.foreach(_.foreach(_ ! BecomePassive()))
+    FlowStopped >>()
   }
+
+
+  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('InstanceId -> instanceId)
 
   private def init(id: String, key: String, props: String, instructions: List[Config]): Unit = {
 
-    instanceId = id
-    
+    instanceId = key + "/" + id
+    flowKey = key
+
     val config = Json.parse(props)
-    Builder(instructions, config, context, key) match {
+    Builder(instructions, config, context, instanceId) match {
       case -\/(fail) =>
-        println(s"!>>>>>> unable to build flow $fail")
-        Warning >> ('Message -> "Unable to build the flow", 'Failure -> fail)
+        Warning >>('Message -> "Unable to build the flow", 'Failure -> fail)
         self ! PoisonPill
       case \/-(FlowComponents(tap, pipeline, sink)) =>
         resetFlowWith(tap, pipeline, sink)
@@ -116,8 +124,7 @@ class FlowDeployableActor
   private def handler: Receive = {
     case InitialiseDeployable(id, key, props, instructions) => init(id, key, props, instructions)
     case x: Acknowledgeable[_] =>
-      println(s"!>>>>>received  $x -> $tapActor")
-      ForwardedToFlow >> ('Messageid -> x.id, 'InstanceId -> instanceId)
+      ForwardedToFlow >> ('Messageid -> x.id)
       tapActor.foreach(_.forward(x))
   }
 

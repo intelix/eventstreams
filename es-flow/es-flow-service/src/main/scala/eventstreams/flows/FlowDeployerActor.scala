@@ -31,7 +31,7 @@ import scalaz.Scalaz._
 
 
 trait FlowDeployerActorSysevents
-  extends ComponentWithBaseSysevents
+  extends FlowProvisionSysevents
   with BaseActorSysevents
   with StateChangeSysevents
   with WithSyseventPublisher {
@@ -67,10 +67,8 @@ class FlowDeployerActor(id: String, config: JsValue, instructions: List[Config])
 
   override def commonFields: Seq[FieldAndValue] = Seq('ID -> id, 'Handler -> self)
 
-  override def onNextEvent(e: Acknowledgeable[_]): Unit = {
-    println(s"!>>>>> ${destinationFor(e)}")
+  override def onNextEvent(e: Acknowledgeable[_]): Unit =
     destinationFor(e).foreach(_.forward(e))
-  }
 
   override def initialiseDeployment(address: String, index: Int, ref: ActorRef): Unit =
     ref ! InitialiseDeployable(index + "@" + address, id, Json.stringify(config), instructions)
@@ -83,15 +81,13 @@ class FlowDeployerActor(id: String, config: JsValue, instructions: List[Config])
       None
   }
 
-  private def destinationFor(e: EventFrame): Option[ActorRef] = {
-    println(s"!>>>>>destinationFor $e : " + e.streamKey + " : " + e.streamSeed)
-
+  private def destinationFor(e: EventFrame): Option[ActorRef] =
     for (
       key <- e.streamKey;
       seed <- e.streamSeed;
       destination <- destinationFor(key, seed)
     ) yield destination
-  }
+
 }
 
 

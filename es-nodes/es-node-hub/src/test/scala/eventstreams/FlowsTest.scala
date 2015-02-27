@@ -45,6 +45,7 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
     "name" -> "flow1",
     "sourceGateName" -> (Hub1Address + "/user/gate1"),
     "deployTo" -> "hubworker",
+    "instancesPerNode" -> 2,
     "pipeline" -> Json.arr(
       Json.obj(
         CfgFClass -> "enrich",
@@ -67,36 +68,182 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
   }
 
   trait WithFlow1Created extends WithFlowManager {
+    var flowConfig = validFlow1
     startMessageSubscriber1(hub1System)
     startGate1("gate1")
-    commandFrom1(hub1System, LocalSubj(flowManagerComponentKey, T_ADD), Some(validFlow1))
+    commandFrom1(hub1System, LocalSubj(flowManagerComponentKey, T_ADD), Some(flowConfig))
     expectOneOrMoreEvents(FlowProxyActor.PreStart)
     expectOneOrMoreEvents(FlowProxyActor.FlowConfigured, 'Name -> "flow1")
     val flow1ComponentKey = ComponentKey(locateLastEventFieldValue(FlowProxyActor.FlowConfigured, "ID").asInstanceOf[String])
   }
 
-  "Flow" should "start in response to start command" in new WithFlow1Created {
+  "Flow proxy" should "start in response to start command" in new WithFlow1Created {
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
     expectExactlyNEvents(1, FlowProxyActor.BecomingActive)
   }
 
-  it should "register with the gate" in new WithFlow1Created {
+
+  "Started flow proxy" should "register with the gate" in new WithFlow1Created {
     expectOneOrMoreEvents(GateStubActor.RegisterSinkReceived)
   }
 
-  it should "process event" taggedAs OnlyThisTest in new WithFlow1Created {
+
+  it should "deploy flow instance into host with required role" taggedAs OnlyThisTest in new WithFlow1Created {
+    commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
+    expectExactlyNEvents(1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
+  }
+
+  it should "start deployed flow instances" taggedAs OnlyThisTest in new WithFlow1Created {
+    commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
+    expectExactlyNEvents(2, FlowDeployableSysevents.FlowStarted)
+  }
+
+  it should "stop itself and deployed flows on command" taggedAs OnlyThisTest in new WithFlow1Created {
+    commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
+    expectExactlyNEvents(2, FlowDeployableSysevents.FlowStarted)
+    clearEvents()
+    commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_STOP), None)
+    expectExactlyNEvents(2, FlowDeployableSysevents.FlowStopped)
+    expectExactlyNEvents(1, FlowProxyActor.BecomingPassive)
+  }
+
+  trait WithFlowTwoDeploymentsFourWorkers extends WithFlow1Created with WithWorkerNode2
+
+
+  it should "deploy flow instance into all available hosts with required role" in new WithFlowTwoDeploymentsFourWorkers {
+    commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
+    expectExactlyNEvents(1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 2, 'ActiveWorkers -> 4)
+  }
+
+  trait WithFlowTwoDeploymentsFourWorkersStarted extends WithFlowTwoDeploymentsFourWorkers {
+    expectExactlyNEvents(1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 2, 'ActiveWorkers -> 4)
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
     expectExactlyNEvents(1, FlowProxyActor.BecomingActive)
     expectExactlyNEvents(1, GateStubActor.RegisterSinkReceived)
-    expectExactlyNEvents(1, FlowDeployableSysevents.BecomingActive)
+    expectOneOrMoreEvents(FlowDeployableSysevents.BecomingActive)
     clearEvents()
-    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> "1", "streamKey" -> "key", "streamSeed" -> "1", "abc1" -> "xyz"), 123))
-    expectOneOrMoreEvents(BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc1":"xyz"""".r)
+  }
 
-    expectExactlyNEvents(1, FlowDeployableSysevents.ForwardedToFlow, 'InstanceId -> s"1@$worker1Address")
+
+  case class KeyAndSeed(key: String, seed: String, inst: String)
+
+  val KeyAndSeedForW1Inst1 = KeyAndSeed("k", "3", "Instance1@Worker1")
+  val KeyAndSeedForW1Inst2 = KeyAndSeed("k", "4", "Instance2@Worker1")
+  val KeyAndSeedForW2Inst1 = KeyAndSeed("k", "1", "Instance1@Worker2")
+  val KeyAndSeedForW2Inst2 = KeyAndSeed("k", "2", "Instance2@Worker2")
+
+  it should s"process $KeyAndSeedForW1Inst1 on Instance1@Worker1" in new WithFlowTwoDeploymentsFourWorkersStarted {
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> "1", "streamKey" -> KeyAndSeedForW1Inst1.key, "streamSeed" -> KeyAndSeedForW1Inst1.seed, "abc1" -> "xyz"), 123))
+    expectOneOrMoreEvents(BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"xyz"""".r)
+
+    expectExactlyNEvents(1, FlowDeployableSysevents.ForwardedToFlow, 'InstanceId -> s"1@$worker1Address".r)
+    expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 123)
+  }
+
+  it should s"process $KeyAndSeedForW1Inst2 on Instance2@Worker1" in new WithFlowTwoDeploymentsFourWorkersStarted {
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> "1", "streamKey" -> KeyAndSeedForW1Inst2.key, "streamSeed" -> KeyAndSeedForW1Inst2.seed, "abc1" -> "xyz"), 123))
+    expectOneOrMoreEvents(BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"xyz"""".r)
+
+    expectExactlyNEvents(1, FlowDeployableSysevents.ForwardedToFlow, 'InstanceId -> s"2@$worker1Address".r)
+    expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 123)
+  }
+
+  it should s"process $KeyAndSeedForW2Inst1 on Instance1@Worker2" in new WithFlowTwoDeploymentsFourWorkersStarted {
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> "1", "streamKey" -> KeyAndSeedForW2Inst1.key, "streamSeed" -> KeyAndSeedForW2Inst1.seed, "abc1" -> "xyz"), 123))
+    expectOneOrMoreEvents(BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"xyz"""".r)
+
+    expectExactlyNEvents(1, FlowDeployableSysevents.ForwardedToFlow, 'InstanceId -> s"1@$worker2Address".r)
+    expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 123)
+  }
+
+  it should s"process $KeyAndSeedForW2Inst2 on Instance2@Worker2" in new WithFlowTwoDeploymentsFourWorkersStarted {
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> "1", "streamKey" -> KeyAndSeedForW2Inst2.key, "streamSeed" -> KeyAndSeedForW2Inst2.seed, "abc1" -> "xyz"), 123))
+    expectOneOrMoreEvents(BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"xyz"""".r)
+
+    expectExactlyNEvents(1, FlowDeployableSysevents.ForwardedToFlow, 'InstanceId -> s"2@$worker2Address".r)
     expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 123)
 
-    collectAndPrintEvents()
+  }
+
+  it should s"consistently process events on correct workers" in new WithFlowTwoDeploymentsFourWorkersStarted {
+
+    var cnt = 0
+    (1 to 100) foreach { i =>
+      cnt = cnt + 1
+      sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"$cnt", "streamKey" -> KeyAndSeedForW1Inst1.key, "streamSeed" -> KeyAndSeedForW1Inst1.seed, "abc1" -> "1@w1"), cnt))
+      cnt = cnt + 1
+      sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"$cnt", "streamKey" -> KeyAndSeedForW2Inst2.key, "streamSeed" -> KeyAndSeedForW2Inst2.seed, "abc1" -> "2@w2"), cnt))
+      cnt = cnt + 1
+      sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"$cnt", "streamKey" -> KeyAndSeedForW1Inst2.key, "streamSeed" -> KeyAndSeedForW1Inst2.seed, "abc1" -> "2@w1"), cnt))
+      cnt = cnt + 1
+      sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"$cnt", "streamKey" -> KeyAndSeedForW2Inst1.key, "streamSeed" -> KeyAndSeedForW2Inst1.seed, "abc1" -> "1@w2"), cnt))
+    }
+
+    expectExactlyNEvents(100, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w2"""".r, 'InstanceId -> s"2@$worker2Address".r)
+    expectExactlyNEvents(100, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w2"""".r, 'InstanceId -> s"1@$worker2Address".r)
+    expectExactlyNEvents(100, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w1"""".r, 'InstanceId -> s"2@$worker1Address".r)
+    expectExactlyNEvents(100, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w1"""".r, 'InstanceId -> s"1@$worker1Address".r)
+
+    expectExactlyNEvents(400, GateStubActor.AcknowledgeAsProcessedReceived)
+    expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 1)
+    expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 50)
+    expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 100)
+    expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 150)
+
+
+  }
+
+
+  it should s"consistently process events on correct workers, when events sent as batches" taggedAs OnlyThisTest in new WithFlowTwoDeploymentsFourWorkersStarted {
+
+    var cnt = 0
+    (1 to 100) foreach { i =>
+      cnt = cnt + 1
+      sendFromGateToSinks("gate1", Acknowledgeable(
+        Batch(Seq(
+          EventFrame("eventId" -> s"$cnt", "streamKey" -> KeyAndSeedForW2Inst2.key, "streamSeed" -> KeyAndSeedForW2Inst2.seed, "abc1" -> "2@w2"),
+          EventFrame("eventId" -> s"$cnt-1", "streamKey" -> KeyAndSeedForW2Inst2.key, "streamSeed" -> KeyAndSeedForW2Inst2.seed, "abc1" -> "2@w2"),
+          EventFrame("eventId" -> s"$cnt-2", "streamKey" -> KeyAndSeedForW2Inst2.key, "streamSeed" -> KeyAndSeedForW2Inst2.seed, "abc1" -> "2@w2")
+        )), 
+        cnt))
+      cnt = cnt + 1
+      sendFromGateToSinks("gate1", Acknowledgeable(
+        Batch(Seq(
+          EventFrame("eventId" -> s"$cnt", "streamKey" -> KeyAndSeedForW1Inst1.key, "streamSeed" -> KeyAndSeedForW1Inst1.seed, "abc1" -> "1@w1"),
+          EventFrame("eventId" -> s"$cnt-1", "streamKey" -> KeyAndSeedForW1Inst1.key, "streamSeed" -> KeyAndSeedForW1Inst1.seed, "abc1" -> "1@w1"),
+          EventFrame("eventId" -> s"$cnt-2", "streamKey" -> KeyAndSeedForW1Inst1.key, "streamSeed" -> KeyAndSeedForW1Inst1.seed, "abc1" -> "1@w1")
+        )),
+        cnt))
+      cnt = cnt + 1
+      sendFromGateToSinks("gate1", Acknowledgeable(
+        Batch(Seq(
+          EventFrame("eventId" -> s"$cnt", "streamKey" -> KeyAndSeedForW1Inst2.key, "streamSeed" -> KeyAndSeedForW1Inst2.seed, "abc1" -> "2@w1"),
+          EventFrame("eventId" -> s"$cnt-1", "streamKey" -> KeyAndSeedForW1Inst2.key, "streamSeed" -> KeyAndSeedForW1Inst2.seed, "abc1" -> "2@w1"),
+          EventFrame("eventId" -> s"$cnt-2", "streamKey" -> KeyAndSeedForW1Inst2.key, "streamSeed" -> KeyAndSeedForW1Inst2.seed, "abc1" -> "2@w1")
+        )),
+        cnt))
+      cnt = cnt + 1
+      sendFromGateToSinks("gate1", Acknowledgeable(
+        Batch(Seq(
+          EventFrame("eventId" -> s"$cnt", "streamKey" -> KeyAndSeedForW2Inst1.key, "streamSeed" -> KeyAndSeedForW2Inst1.seed, "abc1" -> "1@w2"),
+          EventFrame("eventId" -> s"$cnt-1", "streamKey" -> KeyAndSeedForW2Inst1.key, "streamSeed" -> KeyAndSeedForW2Inst1.seed, "abc1" -> "1@w2"),
+          EventFrame("eventId" -> s"$cnt-2", "streamKey" -> KeyAndSeedForW2Inst1.key, "streamSeed" -> KeyAndSeedForW2Inst1.seed, "abc1" -> "1@w2")
+        )),
+        cnt))
+    }
+
+    expectExactlyNEvents(300, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w2"""".r, 'InstanceId -> s"2@$worker2Address".r)
+    expectExactlyNEvents(300, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w2"""".r, 'InstanceId -> s"1@$worker2Address".r)
+    expectExactlyNEvents(300, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w1"""".r, 'InstanceId -> s"2@$worker1Address".r)
+    expectExactlyNEvents(300, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w1"""".r, 'InstanceId -> s"1@$worker1Address".r)
+
+    expectExactlyNEvents(400, GateStubActor.AcknowledgeAsProcessedReceived)
+    expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 1)
+    expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 50)
+    expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 100)
+    expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 150)
+
+
   }
 
   it should "terminate in response to remove command" in new WithFlow1Created {

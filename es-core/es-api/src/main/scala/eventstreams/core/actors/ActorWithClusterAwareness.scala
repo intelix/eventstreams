@@ -56,6 +56,7 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
   }
 
   def roleToAddress(role: String): Option[String] = nodes.find(_.roles.contains(role)).map(_.address.toString)
+
   def roleToAllAvailableAddresses(role: String): Seq[String] = nodes.filter(_.roles.contains(role)).map(_.address.toString)
 
   def forwardToClusterNode(addr: String, msg: Any): Unit = aliasToFullAddress(addr).foreach { address =>
@@ -89,7 +90,7 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
 
   override def onTerminated(ref: ActorRef): Unit = {
     refCache = refCache.filter {
-      case (k,v) => v != ref
+      case (k, v) => v != ref
     }
     super.onTerminated(ref)
   }
@@ -97,12 +98,13 @@ trait ActorWithClusterAwareness extends ActorWithCluster {
   def resolveActorInCluster(address: String, id: String) = {
     implicit val timeout = Timeout(5.seconds)
     implicit val ec = context.dispatcher
+    val ctx = context
     selectionFor(address, id).resolveOne() onComplete {
       case Success(result) =>
         refCache += ClusterActorId(address, id) -> result
-        context.watch(result)
+        ctx.watch(result)
       case Failure(failure) =>
-        context.system.scheduler.scheduleOnce(5.seconds, self, ResolveRetry(address, id))
+        ctx.system.scheduler.scheduleOnce(5.seconds, self, ResolveRetry(address, id))
     }
   }
 

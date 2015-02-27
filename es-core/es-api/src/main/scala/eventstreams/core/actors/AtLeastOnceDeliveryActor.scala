@@ -40,6 +40,7 @@ trait AtLeastOnceDeliveryActor[T <: WithID]
   with WithSyseventPublisher {
 
   private var unscheduledBatch: List[T] = List()
+  private var batchAggregationKey: Option[String] = None
   private var batchId = new Random().nextLong().abs
 
   private var list = Vector[InFlight[Batch[T]]]()
@@ -134,8 +135,14 @@ trait AtLeastOnceDeliveryActor[T <: WithID]
     batchId = generateCorrelationId()
   }
 
+  def batchAggregationKeyFor(msg: T): Option[String] = None
 
   private def addToBatch(msg: T) = {
+    val aggrKey = batchAggregationKeyFor(msg)
+    
+    if (aggrKey != batchAggregationKey && unscheduledBatch.nonEmpty) rollBatch()
+    batchAggregationKey = aggrKey
+
     unscheduledBatch = unscheduledBatch :+ msg
     inFlightCount = inFlightCount + 1
     if (unscheduledBatch.size >= configMaxBatchSize) rollBatch()

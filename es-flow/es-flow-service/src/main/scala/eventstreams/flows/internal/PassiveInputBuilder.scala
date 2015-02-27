@@ -62,6 +62,9 @@ private class PassiveInputActor(id: String)
 
   override def commonBehavior: Receive = handlerWhenPassive orElse super.commonBehavior
 
+
+  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('InstanceId -> id)
+
   override def preStart(): Unit = {
     super.preStart()
     switchToCustomBehavior(handlerWhenPassive)
@@ -85,7 +88,6 @@ private class PassiveInputActor(id: String)
 
   def handlerWhenActive: Receive = {
     case Acknowledgeable(m,id) =>
-      println(s"!>>>>> pasive input received: $m")
       if (pendingToDownstreamCount < buffer || pendingToDownstreamCount < totalDemand) {
         if (!isDup(sender(), id)) {
           sender() ! AcknowledgeAsReceived(id)
@@ -104,9 +106,7 @@ private class PassiveInputActor(id: String)
   }
 
   def handlerWhenPassive: Receive = {
-    case m: Acknowledgeable[_] =>
-      println(s"!>>>>> pasive input received (passive): $m")
-      ()
+    case m: Acknowledgeable[_] =>      ()
   }
 
 }

@@ -89,6 +89,7 @@ private[flows] trait ProvisionLogic
 
   override def onBecameActive(): Unit = {
     super.onBecameActive()
+    remapWorkers()
     activeWorkers.values.foreach(_.foreach(_ ! BecomeActive()))
   }
 
@@ -100,7 +101,8 @@ private[flows] trait ProvisionLogic
   private def destinationFor(streamKey: String, hashCode: Int): Option[ActorRef] =
     seedToWorkerMap match {
       case a if a.isEmpty => None
-      case a => Some(a(hashCode % a.length))
+      case a =>
+        Some(a(hashCode % a.length))
     }
 
   private def isActiveWorker(ref: ActorRef) = activeWorkers.values.exists(_.contains(ref))
@@ -121,7 +123,7 @@ private[flows] trait ProvisionLogic
 
   private def remapWorkers() =
     seedToWorkerMap =
-      if (seedToWorkerMap.isEmpty) activeWorkers.values.flatten.toArray
+      if (seedToWorkerMap.isEmpty) activeWorkers.keys.toList.sorted.flatMap { k => activeWorkers.get(k).get }.toArray
       else if (activeWorkers.size == 0) Array()
       else seedToWorkerMap.map {
         case r if isActiveWorker(r) => r
@@ -144,13 +146,11 @@ private[flows] trait ProvisionLogic
       val ref = deployTo(address)
       context.watch(ref)
       initialiseDeployment(address.toString, i, ref)
-      println(s"!>>>> $isComponentActive -> $ref")
       if (isComponentActive) ref ! BecomeActive()
       activeWorkers = activeWorkers + (address.toString -> (activeWorkers.getOrElse(address.toString, List()) :+ ref))
       FlowWorkerAdded >>('Address -> address.toString, 'Ref -> ref)
     }
     FlowDeploymentAdded >>('Address -> address.toString, 'ActiveDeployments -> totalDeployments, 'ActiveWorkers -> totalWorkers)
-    remapWorkers()
   }
 
   private def deployTo(addr: Address): ActorRef = context.system.actorOf(Props[FlowDeployableActor].withDeploy(Deploy(scope = RemoteScope(addr))))

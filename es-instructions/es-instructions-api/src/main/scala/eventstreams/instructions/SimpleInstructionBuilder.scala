@@ -23,6 +23,7 @@ import eventstreams.instructions.Types._
 import play.api.libs.json.JsValue
 
 import scalaz._
+import Scalaz._
 
 
 trait SimpleInstructionBuilder extends BuilderFromConfig[InstructionType] with StrictLogging {
@@ -44,6 +45,6 @@ trait SimpleInstructionBuilder extends BuilderFromConfig[InstructionType] with S
     simpleInstruction(props, id).map { instr =>
       SimpleInstructionWrappingActor.props(
         (wrapInCondition(instr, SimpleCondition.conditionOrAlwaysTrue(props ~> 'simpleCondition)), None),
-        maxInFlight)
+        maxInFlight, id|"N/A")
     }
 }
