@@ -265,11 +265,6 @@ class MessageRouterTest
     expectExactlyNEvents(1, MessageRouterActor.NewSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://hub@localhost:12521")
   }
 
-  it should s"resubscribe with restarted component on another node" in new WithThreeSubscribersToInfoAndOneToList {
-    restartDummyNode1()
-    expectSomeEventsWithTimeout(30000, 1, MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://hub@localhost:12521")
-    expectExactlyNEvents(1, MessageRouterActor.NewSubjectSubscription)
-  }
 
   it should s"resubscribe with restarted component on another node - eventually subscribe to providers" taggedAs OnlyThisTest in new WithThreeSubscribersToInfoAndOneToList {
     restartDummyNode1()
@@ -277,11 +272,13 @@ class MessageRouterTest
     duringPeriodInMillis(2000) {
       expectNoEvents(MessageRouterActor.NewSubscription)
     }
+    expectExactlyNEvents(1, MessageRouterActor.NewSubjectSubscription)
     startRouteeComponentStub1(dummy1System)
     expectExactlyNEvents(1, MessageRouterActor.NewSubscription)
     expectExactlyNEvents(1, MessageRouterActor.NewSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://hub@localhost:12521")
   }
 
+  
   it should "drop any unsupported payload (not wraped in Option)" in new WithThreeSubscribersToInfoAndOneToList {
     subscribeFrom1(dummy1System, RemoteAddrSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, TopicKey("withunsupportedresponse"))))
   }

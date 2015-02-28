@@ -102,7 +102,7 @@ private[flows] trait ProvisionLogic
     seedToWorkerMap match {
       case a if a.isEmpty => None
       case a =>
-        Some(a(hashCode % a.length))
+        Some(a(hashCode.abs % a.length))
     }
 
   private def isActiveWorker(ref: ActorRef) = activeWorkers.values.exists(_.contains(ref))
@@ -137,7 +137,7 @@ private[flows] trait ProvisionLogic
     }.flatten match {
       case None =>
         val arr = activeWorkers.values.flatten.toArray
-        arr(rnd.nextInt() % arr.length)
+        arr(rnd.nextInt().abs % arr.length)
       case Some(r) => r
     }
 

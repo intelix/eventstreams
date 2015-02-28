@@ -88,17 +88,17 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
   }
 
 
-  it should "deploy flow instance into host with required role" taggedAs OnlyThisTest in new WithFlow1Created {
+  it should "deploy flow instance into host with required role" in new WithFlow1Created {
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
     expectExactlyNEvents(1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
   }
 
-  it should "start deployed flow instances" taggedAs OnlyThisTest in new WithFlow1Created {
+  it should "start deployed flow instances" in new WithFlow1Created {
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
     expectExactlyNEvents(2, FlowDeployableSysevents.FlowStarted)
   }
 
-  it should "stop itself and deployed flows on command" taggedAs OnlyThisTest in new WithFlow1Created {
+  it should "stop itself and deployed flows on command" in new WithFlow1Created {
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
     expectExactlyNEvents(2, FlowDeployableSysevents.FlowStarted)
     clearEvents()
@@ -116,7 +116,8 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
   }
 
   trait WithFlowTwoDeploymentsFourWorkersStarted extends WithFlowTwoDeploymentsFourWorkers {
-    expectExactlyNEvents(1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 2, 'ActiveWorkers -> 4)
+    expectSomeEventsWithTimeout(10000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
+    expectSomeEventsWithTimeout(10000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 2, 'ActiveWorkers -> 4)
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
     expectExactlyNEvents(1, FlowProxyActor.BecomingActive)
     expectExactlyNEvents(1, GateStubActor.RegisterSinkReceived)
@@ -194,7 +195,7 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
   }
 
 
-  it should s"consistently process events on correct workers, when events sent as batches" taggedAs OnlyThisTest in new WithFlowTwoDeploymentsFourWorkersStarted {
+  it should s"consistently process events on correct workers, when events sent as batches" in new WithFlowTwoDeploymentsFourWorkersStarted {
 
     var cnt = 0
     (1 to 100) foreach { i =>
@@ -253,6 +254,55 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_REMOVE), None)
     expectOneOrMoreEvents(GateInputActor.PostStop)
   }
+
+
+
+  it should s"reassign to available workers when one is gone, then when it restarts nothing should change" taggedAs OnlyThisTest in new WithFlowTwoDeploymentsFourWorkersStarted {
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"1", "streamKey" -> KeyAndSeedForW1Inst1.key, "streamSeed" -> KeyAndSeedForW1Inst1.seed, "abc1" -> "1@w1"), 1))
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"2", "streamKey" -> KeyAndSeedForW2Inst2.key, "streamSeed" -> KeyAndSeedForW2Inst2.seed, "abc1" -> "2@w2"), 2))
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"3", "streamKey" -> KeyAndSeedForW1Inst2.key, "streamSeed" -> KeyAndSeedForW1Inst2.seed, "abc1" -> "2@w1"), 3))
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"4", "streamKey" -> KeyAndSeedForW2Inst1.key, "streamSeed" -> KeyAndSeedForW2Inst1.seed, "abc1" -> "1@w2"), 4))
+
+    expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w2"""".r, 'InstanceId -> s"2@$worker2Address".r)
+    expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w2"""".r, 'InstanceId -> s"1@$worker2Address".r)
+    expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w1"""".r, 'InstanceId -> s"2@$worker1Address".r)
+    expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w1"""".r, 'InstanceId -> s"1@$worker1Address".r)
+
+    restartWorkerNode2()
+    expectExactlyNEvents(1, FlowDeployerActor.FlowDeploymentRemoved, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
+    expectSomeEventsWithTimeout(30000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 2, 'ActiveWorkers -> 4)
+
+    clearEvents()
+
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"1", "streamKey" -> KeyAndSeedForW1Inst1.key, "streamSeed" -> KeyAndSeedForW1Inst1.seed, "abc1" -> "1@w1"), 5))
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"2", "streamKey" -> KeyAndSeedForW2Inst2.key, "streamSeed" -> KeyAndSeedForW2Inst2.seed, "abc1" -> "2@w2"), 6))
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"3", "streamKey" -> KeyAndSeedForW1Inst2.key, "streamSeed" -> KeyAndSeedForW1Inst2.seed, "abc1" -> "2@w1"), 7))
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"4", "streamKey" -> KeyAndSeedForW2Inst1.key, "streamSeed" -> KeyAndSeedForW2Inst1.seed, "abc1" -> "1@w2"), 8))
+
+    expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w2"""".r, 'InstanceId -> s"@$worker1Address".r)
+    expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w2"""".r, 'InstanceId -> s"@$worker1Address".r)
+    expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w1"""".r, 'InstanceId -> s"2@$worker1Address".r)
+    expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w1"""".r, 'InstanceId -> s"1@$worker1Address".r)
+
+
+    stopWorkerNode1()
+    expectExactlyNEvents(1, FlowDeployerActor.FlowDeploymentRemoved, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
+
+
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"1", "streamKey" -> KeyAndSeedForW1Inst1.key, "streamSeed" -> KeyAndSeedForW1Inst1.seed, "abc1" -> "1@w1"), 5))
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"2", "streamKey" -> KeyAndSeedForW2Inst2.key, "streamSeed" -> KeyAndSeedForW2Inst2.seed, "abc1" -> "2@w2"), 6))
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"3", "streamKey" -> KeyAndSeedForW1Inst2.key, "streamSeed" -> KeyAndSeedForW1Inst2.seed, "abc1" -> "2@w1"), 7))
+    sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"4", "streamKey" -> KeyAndSeedForW2Inst1.key, "streamSeed" -> KeyAndSeedForW2Inst1.seed, "abc1" -> "1@w2"), 8))
+
+    expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w2"""".r, 'InstanceId -> s"@$worker2Address".r)
+    expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w2"""".r, 'InstanceId -> s"@$worker2Address".r)
+    expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w1"""".r, 'InstanceId -> s"@$worker2Address".r)
+    expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w1"""".r, 'InstanceId -> s"@$worker2Address".r)
+
+  }
+
+
+
 
 
 }

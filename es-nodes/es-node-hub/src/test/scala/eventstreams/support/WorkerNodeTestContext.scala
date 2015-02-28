@@ -52,6 +52,10 @@ trait WorkerNodeTestContext extends MultiNodeTestingSupport {
       startWorkerNode(systemIndex)
     }
 
+    def stopWorkerNode(systemIndex: Int) = {
+      destroySystem(WorkerSystemPrefix + systemIndex.toString)
+    }
+
   }
 
   trait WithWorkerNode1 extends WithWorkerNode {
@@ -62,6 +66,8 @@ trait WorkerNodeTestContext extends MultiNodeTestingSupport {
     def startWorkerNode1(): Unit = startWorkerNode(1)
 
     def restartWorkerNode1(): Unit = restartWorkerNode(1)
+
+    def stopWorkerNode1(): Unit = stopWorkerNode(1)
 
     startWorkerNode1()
   }
@@ -75,6 +81,8 @@ trait WorkerNodeTestContext extends MultiNodeTestingSupport {
 
     def restartWorkerNode2(): Unit = restartWorkerNode(2)
 
+    def stopWorkerNode2(): Unit = stopWorkerNode(2)
+
     startWorkerNode2()
   }
 
@@ -86,6 +94,8 @@ trait WorkerNodeTestContext extends MultiNodeTestingSupport {
     def startWorkerNode3(): Unit = startWorkerNode(3)
 
     def restartWorkerNode3(): Unit = restartWorkerNode(3)
+
+    def stopWorkerNode3(): Unit = stopWorkerNode(3)
 
     startWorkerNode3()
   }
