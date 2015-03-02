@@ -1,5 +1,3 @@
-package eventstreams.support
-
 /*
  * Copyright 2014-15 Intelix Pty Ltd
  *
@@ -15,17 +13,22 @@ package eventstreams.support
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package eventstreams.support
 
 import eventstreams.core.actors.DefaultTopicKeys
-import eventstreams.flows.FlowManagerActor
+import eventstreams.gates.GateManagerActor
 
-trait FlowManagerActorTestContext extends DefaultTopicKeys with ClusterTestContext {
+trait GateManagerActorTestContext extends DefaultTopicKeys with ClusterTestContext {
 
-  def startFlowManager(system: ActorSystemWrapper) =
+  def startGateManager(system: ActorSystemWrapper) =
     withCluster(system) { cluster =>
-      system.start(FlowManagerActor.props(system.config, cluster), FlowManagerActor.id)
+      system.start(GateManagerActor.props(system.config, cluster), GateManagerActor.id)
     }
 
-  def flowManagerActorSelection(system: ActorSystemWrapper) = system.rootUserActorSelection(FlowManagerActor.id)
-  
+  def gatewManagerActorSelection(system: ActorSystemWrapper) = system.rootUserActorSelection(GateManagerActor.id)
+
+  def startGatePublisherStub(address: String, system: ActorSystemWrapper) =
+    system.start(GatePublisherStubActor.props(address), GatePublisherStubActor.id)
+
+
 }

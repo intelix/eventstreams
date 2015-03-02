@@ -32,6 +32,6 @@
 
   },
   "additionalProperties": true,
-  "required": ["name", "maxInFlight", "noSinkDropMessages"],
+  "required": ["name", "address", "maxInFlight", "noSinkDropMessages"],
   "definitions": {  }
 }

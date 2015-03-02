@@ -170,7 +170,7 @@ class AgentsTest
   }
 
   trait WithEventsourceActivatedAndGateCreated extends WithEventsourceActivated {
-    startGate1("gate1")
+    startGateStub1("gate1")
     expectExactlyNEvents(1, SubscriberBoundaryInitiatingActor.AssociatedWithRemoteActor)
     expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived)
     clearEvents()
@@ -280,7 +280,7 @@ class AgentsTest
 
   "when eventsource is up gate is closed and 1 event available, Eventsource" should "reconnect to the gate if connection drops" in new WithOneSyseventsAvailAndClosedGate {
     restartHubNode1()
-    startGate1("gate1")
+    startGateStub1("gate1")
     expectOneOrMoreEvents(AgentProxyActor.EventsourceProxyUp)
     expectOneOrMoreEvents(GateStubActor.GateStatusCheckReceived)
     clearEvents()
@@ -291,7 +291,7 @@ class AgentsTest
   it should "communicate the current state once reconnected" in new WithOneSyseventsAvailAndClosedGate {
     clearEvents()
     restartHubNode1()
-    startGate1("gate1")
+    startGateStub1("gate1")
     expectOneOrMoreEvents(AgentProxyActor.EventsourceProxyUp)
     expectOneOrMoreEvents(GateStubActor.GateStatusCheckReceived)
     openGate("gate1")
@@ -333,7 +333,7 @@ class AgentsTest
       expectOneOrMoreEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString)
     }
     restartHubNode1()
-    startGate1("gate1")
+    startGateStub1("gate1")
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
     (26 to 100).foreach { i =>
@@ -350,14 +350,14 @@ class AgentsTest
     }
     restartHubNode1()
     autoCloseGateAfter("gate1", 25)
-    startGate1("gate1")
+    startGateStub1("gate1")
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
     (26 to 50).foreach { i =>
       expectOneOrMoreEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> i.toString)
     }
     restartHubNode1()
-    startGate1("gate1")
+    startGateStub1("gate1")
     openGate("gate1")
     autoAckAsProcessedAtGate("gate1")
     (51 to 100).foreach { i =>
@@ -503,8 +503,8 @@ class AgentsTest
     var ds2ComponentKey = locateFirstEventFieldValue(EventsourceActor.PreStart, "ComponentKey").asInstanceOf[String]
     dsProxy1Route should not be dsProxy2Route
 
-    startGate1("gate1")
-    startGate1("gate2")
+    startGateStub1("gate1")
+    startGateStub1("gate2")
     autoAckAsProcessedAtGate("gate1")
     autoAckAsProcessedAtGate("gate2")
     openGate("gate1")
@@ -756,7 +756,7 @@ class AgentsTest
     }
     clearEvents()
 
-    startGate1("gate3")
+    startGateStub1("gate3")
     autoAckAsProcessedAtGate("gate3")
     openGate("gate3")
 

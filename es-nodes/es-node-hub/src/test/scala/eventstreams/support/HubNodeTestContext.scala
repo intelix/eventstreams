@@ -58,7 +58,7 @@ trait HubNodeTestContext extends MultiNodeTestingSupport {
 
       }
 
-    def startGate(systemIndex: Int, name: String) = withSystem(HubSystemPrefix, systemIndex) { sys =>
+    def startGateStub(systemIndex: Int, name: String) = withSystem(HubSystemPrefix, systemIndex) { sys =>
       withGateStub(sys, name)
     }
 
@@ -76,7 +76,7 @@ trait HubNodeTestContext extends MultiNodeTestingSupport {
 
     def startHubNode1(): Unit = startHubNode(1)
 
-    def startGate1(name: String): Unit = startGate(1, name)
+    def startGateStub1(name: String): Unit = startGateStub(1, name)
 
     def restartHubNode1(): Unit = restartHubNode(1)
 
@@ -90,7 +90,7 @@ trait HubNodeTestContext extends MultiNodeTestingSupport {
 
     def startHubNode2(): Unit = startHubNode(2)
 
-    def startGate2(name: String): Unit = startGate(2, name)
+    def startGateStub2(name: String): Unit = startGateStub(2, name)
 
     def restartHubNode2(): Unit = restartHubNode(2)
 

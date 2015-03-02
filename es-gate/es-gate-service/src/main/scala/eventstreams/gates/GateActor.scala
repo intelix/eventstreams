@@ -29,8 +29,11 @@ import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scalaz.Scalaz._
 
-trait GateSysevents extends ComponentWithBaseSysevents {
+trait GateSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with StateChangeSysevents {
   override def componentId: String = "Gate.Gate"
+
+  val GateConfigured = "GateConfigured".trace
+
 
   val NewMessageReceived = "NewMessageReceived".trace
   val DuplicateMessageReceived = "DuplicateMessageReceived".trace
@@ -44,7 +47,7 @@ trait GateSysevents extends ComponentWithBaseSysevents {
 
 }
 
-object GateActor {
+object GateActor extends GateSysevents {
   def props(id: String) = Props(new GateActor(id))
 
   def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id), ActorTools.actorFriendlyId(id))
@@ -101,7 +104,7 @@ class GateActor(id: String)
   override def key = ComponentKey(id)
 
 
-  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('Name -> name, 'State -> currentState, 'Key -> id)
+  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('Name -> name, 'State -> currentState, 'ID -> id, 'Address -> address)
 
   override def storageKey: Option[String] = Some(id)
 
@@ -251,6 +254,8 @@ class GateActor(id: String)
       becomeActive()
     }
 
+    GateConfigured >> ()
+    
   }
 
   private def reopenForwarder(newForwarderId: String) = {

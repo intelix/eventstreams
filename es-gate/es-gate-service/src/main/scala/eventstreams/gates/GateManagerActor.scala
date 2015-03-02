@@ -27,13 +27,16 @@ import play.api.libs.json._
 
 import scala.io.Source
 
-trait GateManagerSysevents extends ComponentWithBaseSysevents {
+trait GateManagerSysevents extends ComponentWithBaseSysevents with BaseActorSysevents {
   override def componentId: String = "Gate.GateManager"
 }
 
-object GateManagerActor extends  GateManagerSysevents {
+object GateManagerActor extends GateManagerSysevents {
   val id = "gates"
+  def props(config: Config, cluster: Cluster) = Props(new GateManagerActor(config, cluster))
 }
+
+
 
 case class GateAvailable(id: ComponentKey, ref: ActorRef, name: String) extends Model
 

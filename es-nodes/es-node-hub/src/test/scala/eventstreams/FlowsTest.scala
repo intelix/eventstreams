@@ -70,7 +70,7 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
   trait WithFlow1Created extends WithFlowManager {
     var flowConfig = validFlow1
     startMessageSubscriber1(hub1System)
-    startGate1("gate1")
+    startGateStub1("gate1")
     commandFrom1(hub1System, LocalSubj(flowManagerComponentKey, T_ADD), Some(flowConfig))
     expectOneOrMoreEvents(FlowProxyActor.PreStart)
     expectOneOrMoreEvents(FlowProxyActor.FlowConfigured, 'Name -> "flow1")
