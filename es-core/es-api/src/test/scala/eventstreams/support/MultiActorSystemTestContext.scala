@@ -55,6 +55,9 @@ private class WatcherActor(id: String) extends ActorWithComposableBehavior with 
 
   def handler: Receive = {
     case StopAll() =>
+      if (watched.isEmpty) {
+        AllWatchedActorsGone >> ()
+      }
       watched.foreach { a =>
         TerminatingActor >> ('Actor -> a)
         context.stop(a)

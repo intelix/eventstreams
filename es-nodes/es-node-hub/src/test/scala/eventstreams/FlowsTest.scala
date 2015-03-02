@@ -2,7 +2,7 @@ package eventstreams
 
 import eventstreams.core.components.routing.MessageRouterActor
 import eventstreams.core.storage.ConfigStorageActor
-import eventstreams.flows.internal.{BlackholeAutoAckSinkActor, GateInputActor}
+import eventstreams.flows.internal.{BlackholeAutoAckSinkActor, PassiveInputActor}
 import eventstreams.flows.{FlowDeployableSysevents, FlowDeployerActor, FlowManagerActor, FlowProxyActor}
 import eventstreams.instructions.{EnrichInstructionConstants, LogInstructionConstants}
 import eventstreams.support._
@@ -10,7 +10,7 @@ import org.scalatest.FlatSpec
 import play.api.libs.json.Json
 
 
-class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestContext with SharedActorSystem with LogInstructionConstants with EnrichInstructionConstants {
+class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestContext with IsolatedActorSystems with LogInstructionConstants with EnrichInstructionConstants {
 
   trait WithFlowManager extends WithHubNode1 with WithWorkerNode1 {
     startFlowManager(hub1System)
@@ -90,17 +90,17 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
 
   it should "deploy flow instance into host with required role" in new WithFlow1Created {
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
-    expectExactlyNEvents(1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
+    expectSomeEventsWithTimeout(30000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
   }
 
   it should "start deployed flow instances" in new WithFlow1Created {
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
-    expectExactlyNEvents(2, FlowDeployableSysevents.FlowStarted)
+    expectSomeEventsWithTimeout(30000, 2, FlowDeployableSysevents.FlowStarted)
   }
 
-  it should "stop itself and deployed flows on command" in new WithFlow1Created {
+  it should "stop itself and deployed flows on command" taggedAs (OnlyThisTest) in new WithFlow1Created {
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
-    expectExactlyNEvents(2, FlowDeployableSysevents.FlowStarted)
+    expectSomeEventsWithTimeout(30000, 2, FlowDeployableSysevents.FlowStarted)
     clearEvents()
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_STOP), None)
     expectExactlyNEvents(2, FlowDeployableSysevents.FlowStopped)
@@ -112,16 +112,18 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
 
   it should "deploy flow instance into all available hosts with required role" in new WithFlowTwoDeploymentsFourWorkers {
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
-    expectExactlyNEvents(1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 2, 'ActiveWorkers -> 4)
+    expectSomeEventsWithTimeout(30000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
+    expectSomeEventsWithTimeout(30000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 2, 'ActiveWorkers -> 4)
   }
 
   trait WithFlowTwoDeploymentsFourWorkersStarted extends WithFlowTwoDeploymentsFourWorkers {
-    expectSomeEventsWithTimeout(10000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
-    expectSomeEventsWithTimeout(10000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 2, 'ActiveWorkers -> 4)
+    expectSomeEventsWithTimeout(30000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
+    expectSomeEventsWithTimeout(30000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 2, 'ActiveWorkers -> 4)
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
     expectExactlyNEvents(1, FlowProxyActor.BecomingActive)
     expectExactlyNEvents(1, GateStubActor.RegisterSinkReceived)
     expectOneOrMoreEvents(FlowDeployableSysevents.BecomingActive)
+
     clearEvents()
   }
 
@@ -250,14 +252,15 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
   it should "terminate in response to remove command" in new WithFlow1Created {
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
     expectExactlyNEvents(1, FlowProxyActor.BecomingActive)
+    expectSomeEventsWithTimeout(30000, 2, PassiveInputActor.PreStart)
     clearEvents()
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_REMOVE), None)
-    expectOneOrMoreEvents(GateInputActor.PostStop)
+    expectOneOrMoreEvents(PassiveInputActor.PostStop)
   }
 
 
 
-  it should s"reassign to available workers when one is gone, then when it restarts nothing should change" taggedAs OnlyThisTest in new WithFlowTwoDeploymentsFourWorkersStarted {
+  it should s"reassign to available workers when one is gone, then when it restarts nothing should change" in new WithFlowTwoDeploymentsFourWorkersStarted {
     sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"1", "streamKey" -> KeyAndSeedForW1Inst1.key, "streamSeed" -> KeyAndSeedForW1Inst1.seed, "abc1" -> "1@w1"), 1))
     sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"2", "streamKey" -> KeyAndSeedForW2Inst2.key, "streamSeed" -> KeyAndSeedForW2Inst2.seed, "abc1" -> "2@w2"), 2))
     sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"3", "streamKey" -> KeyAndSeedForW1Inst2.key, "streamSeed" -> KeyAndSeedForW1Inst2.seed, "abc1" -> "2@w1"), 3))
@@ -267,6 +270,8 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
     expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w2"""".r, 'InstanceId -> s"1@$worker2Address".r)
     expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w1"""".r, 'InstanceId -> s"2@$worker1Address".r)
     expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w1"""".r, 'InstanceId -> s"1@$worker1Address".r)
+
+    clearEvents()
 
     restartWorkerNode2()
     expectExactlyNEvents(1, FlowDeployerActor.FlowDeploymentRemoved, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
@@ -285,7 +290,7 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
     expectExactlyNEvents(1, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w1"""".r, 'InstanceId -> s"1@$worker1Address".r)
 
 
-    stopWorkerNode1()
+    restartWorkerNode1()
     expectExactlyNEvents(1, FlowDeployerActor.FlowDeploymentRemoved, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
 
 

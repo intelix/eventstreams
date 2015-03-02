@@ -1,6 +1,7 @@
 package core.sysevents.support
 
 import com.typesafe.scalalogging.StrictLogging
+import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents._
 import org.scalatest.concurrent.Eventually._
 import org.scalatest.time.{Millis, Seconds, Span}
@@ -63,15 +64,16 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
 
   def report(x: Throwable) = {
     val log = LoggerFactory.getLogger("history")
-    log.error("Test failed", x)
-    log.error("*" * 60 + " RAISED EVENTS: " + "*" * 60)
-    log.error("Raised sysevents:")
+    val log2 = LoggerFactory.getLogger("test")
+    log2.error("Test failed", x)
+    log2.error("*" * 60 + " RAISED EVENTS: " + "*" * 60)
+    log2.error("Raised sysevents:")
     SyseventPublisherRef.ref.asInstanceOf[TestSyseventPublisher].withOrderedEvents { events =>
       events.foreach { next =>
         LoggerSyseventPublisherWithDateHelper.log(next.timestamp, next.event, SyseventSystemRef.ref, next.values, s => log.error(s))
       }
     }
-    log.error("*" * 120 + "\n\n\n\n")
+    log2.error("*" * 120 + "\n\n\n\n")
   }
 
   def waitWithTimeout(millis: Long)(f: => Unit) = {
@@ -92,6 +94,7 @@ trait EventAssertions extends Matchers with EventMatchers with BeforeAndAfterEac
       f
     } catch {
       case x: Throwable =>
+        SyseventPublisherRef.ref.publish(SyseventSystemRef.ref, ErrorSysevent("ExpectationFailed", "Test"), Seq())
         report(x)
         throw x
     }

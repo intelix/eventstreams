@@ -23,26 +23,8 @@ import org.scalatest.FlatSpec
 import eventstreams.core.components.cluster.ClusterManagerActor._
 
 class MessageRouterTest
-  extends FlatSpec with DummyNodeTestContext with SharedActorSystem {
+  extends MessageRouterTestContext with SharedActorSystem {
 
-
-  trait WithThreeNodes extends WithDummyNode1 with WithDummyNode2 with WithDummyNode3 with RouteeComponentStub
-  trait WithThreeNodesStarted extends WithThreeNodes {
-    expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> "dummy1,dummy2,dummy3", 'Node -> "dummy1")
-    expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> "dummy1,dummy2,dummy3", 'Node -> "dummy2")
-    expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> "dummy1,dummy2,dummy3", 'Node -> "dummy3")
-    clearEvents()
-  }
-  trait WithThreeNodesAndThreeComponents extends WithThreeNodesStarted {
-    startRouteeComponentStub1(dummy1System)
-    startRouteeComponentStub2(dummy1System)
-    startRouteeComponentStub1(dummy3System)
-    startMessageSubscriber1(dummy1System)
-    startMessageSubscriber2(dummy1System)
-    startMessageSubscriber1(dummy2System)
-    expectExactlyNEvents(3, MessageRouterActor.RouteAdded)
-    clearEvents()
-  }
 
   "Three nodes with message router on each, Message router" should "start" in new WithThreeNodes {
     expectSomeEventsWithTimeout(30000, ClusterStateChanged, 'Peers -> "dummy1,dummy2,dummy3", 'Node -> "dummy1")
@@ -86,15 +68,6 @@ class MessageRouterTest
     }
   }
 
-  trait WithOneSubscriber extends WithThreeNodesAndThreeComponents {
-    subscribeFrom1(dummy1System, LocalSubj(componentKeyForRouteeStub1, T_INFO))
-    expectOneOrMoreEvents(MessageRouterActor.NewSubjectSubscription)
-    expectOneOrMoreEvents(MessageRouterActor.ForwardedToLocalProviders)
-    expectOneOrMoreEvents(MessageRouterActor.MessageForwarded)
-    expectOneOrMoreEvents(MessageRouterActor.FirstSubjectSubscriber)
-    clearEvents()
-  }
-
   it should "not subscribe with provider on 2nd subscription (coming from the same subscriber) if already subscribed" in new WithOneSubscriber {
     subscribeFrom1(dummy1System, LocalSubj(componentKeyForRouteeStub1, T_INFO))
     expectOneOrMoreEvents(MessageRouterActor.NewSubjectSubscription)
@@ -131,12 +104,6 @@ class MessageRouterTest
     }
   }
 
-  trait WithTwoSubscribersToInfo extends WithOneSubscriber {
-    subscribeFrom2(dummy1System, LocalSubj(componentKeyForRouteeStub1, T_INFO))
-    expectOneOrMoreEvents(MessageRouterActor.NewSubjectSubscription)
-    clearEvents()    
-  }
-
   "... with two subscribers to info, message router" should "forward to the local subscriber if subscribed to the new topic" in new WithTwoSubscribersToInfo {
     subscribeFrom1(dummy1System, LocalSubj(componentKeyForRouteeStub1, T_LIST))
     expectOneOrMoreEvents(MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> dummy1Address)
@@ -160,13 +127,6 @@ class MessageRouterTest
   it should "drop the message if it is sent to unknown component (incorrect component key)" in new WithTwoSubscribersToInfo {
     subscribeFrom1(dummy1System, RemoteAddrSubj(dummy1Address, LocalSubj(ComponentKey("provider"), T_INFO)))
     expectOneOrMoreEvents(MessageRouterActor.MessageDropped, 'InstanceAddress -> dummy1Address)
-  }
-
-  trait WithThreeSubscribersToInfoAndOneToList extends WithTwoSubscribersToInfo {
-    subscribeFrom1(dummy1System, LocalSubj(componentKeyForRouteeStub1, T_LIST))
-    subscribeFrom1(dummy2System, RemoteAddrSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
-    expectExactlyNEvents(2, MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> dummy1Address)
-    clearEvents()
   }
 
   "... with two local one remote sub to info and one sub to list, message router" should "keep subscription for unknown component" in new WithThreeSubscribersToInfoAndOneToList {
@@ -266,19 +226,6 @@ class MessageRouterTest
   }
 
 
-  it should s"resubscribe with restarted component on another node - eventually subscribe to providers" taggedAs OnlyThisTest in new WithThreeSubscribersToInfoAndOneToList {
-    restartDummyNode1()
-    expectSomeEventsWithTimeout(30000, 1, MessageRouterActor.NewSubjectSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://hub@localhost:12521")
-    duringPeriodInMillis(2000) {
-      expectNoEvents(MessageRouterActor.NewSubscription)
-    }
-    expectExactlyNEvents(1, MessageRouterActor.NewSubjectSubscription)
-    startRouteeComponentStub1(dummy1System)
-    expectExactlyNEvents(1, MessageRouterActor.NewSubscription)
-    expectExactlyNEvents(1, MessageRouterActor.NewSubscription, 'InstanceAddress -> dummy1Address, 'Subject -> "provider/routeeStub1#info@akka.tcp://hub@localhost:12521")
-  }
-
-  
   it should "drop any unsupported payload (not wraped in Option)" in new WithThreeSubscribersToInfoAndOneToList {
     subscribeFrom1(dummy1System, RemoteAddrSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, TopicKey("withunsupportedresponse"))))
   }
