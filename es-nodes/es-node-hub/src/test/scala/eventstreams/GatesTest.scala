@@ -14,6 +14,15 @@ import play.api.libs.json.Json
 class GatesTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestContext with SharedActorSystem with LogInstructionConstants with EnrichInstructionConstants {
 
   trait WithGateManager extends WithHubNode1 with WithWorkerNode1 with GateManagerActorTestContext {
+
+    def validGate1 = Json.obj(
+      "name" -> "gate1name",
+      "address" -> "gate1",
+      "inFlightThreshold" -> 5,
+      "noSinkDropMessages" -> false
+    )
+
+
     startGateManager(hub1System)
     val gateManagerComponentKey = ComponentKey(GateManagerActor.id)
     expectOneOrMoreEvents(MessageRouterActor.RouteAdded, 'Route -> GateManagerActor.id)
@@ -42,14 +51,9 @@ class GatesTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
   }
 
 
-  val validGate1 = Json.obj(
-    "name" -> "gate1name",
-    "address" -> "gate1",
-    "inFlightThreshold" -> 5,
-    "noSinkDropMessages" -> false
-  )
 
   it should "create a gate actor in response to add command" in new WithGateManager {
+
     startMessageSubscriber1(hub1System)
     commandFrom1(hub1System, LocalSubj(gateManagerComponentKey, T_ADD), Some(validGate1))
 
@@ -69,16 +73,69 @@ class GatesTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
     expectExactlyNEvents(1, GatePublisherStubActor.StubConnectedToGate, 'Address -> "/user/gate1")
     clearEvents()
   }
-  
-  "Gate" should "receive message from publisher" in new WithGateCreated {
+
+  "Gate" should "open upon activation" in new WithGateCreated {
     commandFrom1(hub1System, LocalSubj(gate1ComponentKey, T_START), None)
     expectExactlyNEvents(1, GateActor.BecomingActive)
-    
     expectOneOrMoreEvents(GatePublisherStubActor.MonitoredGateStateChanged, 'NewState -> "GateOpen()")
-    
+
     gatePublisherRef ! EventFrame().setEventId("1").setStreamKey("key").setStreamSeed("seed")
-    collectAndPrintEvents()
   }
-  
+
+  trait WithGateOpen extends WithGateCreated {
+    commandFrom1(hub1System, LocalSubj(gate1ComponentKey, T_START), None)
+    expectExactlyNEvents(1, GateActor.BecomingActive)
+    expectOneOrMoreEvents(GatePublisherStubActor.MonitoredGateStateChanged, 'NewState -> "GateOpen()")
+    clearEvents()
+  }
+
+  "Open gate" should "receive message from publisher" in new WithGateOpen {
+    gatePublisherRef ! EventFrame().setEventId("1").setStreamKey("key").setStreamSeed("seed")
+    val correlationId = locateLastEventFieldValue(GatePublisherStubActor.ScheduledForDelivery, "CorrelationId")
+    expectExactlyNEvents(1, GateActor.NewMessageReceived, 'MessageId -> correlationId)
+  }
+
+  it should "should confirm received message as processed" in new WithGateOpen {
+    gatePublisherRef ! EventFrame().setEventId("1").setStreamKey("key").setStreamSeed("seed")
+    val correlationId = locateLastEventFieldValue(GatePublisherStubActor.ScheduledForDelivery, "CorrelationId")
+    expectExactlyNEvents(1, GatePublisherStubActor.StubFullAcknowledgement, 'CorrelationId -> correlationId)
+  }
+
+  it should "schedule message for delivery if noSinkDropMessages is set to false" in new WithGateOpen {
+    gatePublisherRef ! EventFrame().setEventId("1").setStreamKey("key").setStreamSeed("seed")
+    val correlationId = locateLastEventFieldValue(GatePublisherStubActor.ScheduledForDelivery, "CorrelationId")
+    expectExactlyNEvents(1, GateActor.ScheduledForDelivery)
+  }
+
+  it should "schedule message for delivery if noSinkDropMessages is set to false - is also config default" in new WithGateOpen {
+
+    override def validGate1 = Json.obj(
+      "name" -> "gate1name",
+      "address" -> "gate1",
+      "inFlightThreshold" -> 5
+    )
+
+    gatePublisherRef ! EventFrame().setEventId("1").setStreamKey("key").setStreamSeed("seed")
+    val correlationId = locateLastEventFieldValue(GatePublisherStubActor.ScheduledForDelivery, "CorrelationId")
+    expectExactlyNEvents(1, GateActor.ScheduledForDelivery)
+  }
+
+  it should "drop message if noSinkDropMessages is set to true" in new WithGateOpen {
+
+    override def validGate1 = Json.obj(
+      "name" -> "gate1name",
+      "address" -> "gate1",
+      "inFlightThreshold" -> 5,
+      "noSinkDropMessages" -> true
+    )
+
+    gatePublisherRef ! EventFrame().setEventId("1").setStreamKey("key").setStreamSeed("seed")
+    val correlationId = locateLastEventFieldValue(GatePublisherStubActor.ScheduledForDelivery, "CorrelationId")
+    expectExactlyNEvents(1, GatePublisherStubActor.StubFullAcknowledgement, 'CorrelationId -> correlationId)
+    waitAndCheck {
+      expectNoEvents(GateActor.ScheduledForDelivery)
+    }
+  }
+
 
 }

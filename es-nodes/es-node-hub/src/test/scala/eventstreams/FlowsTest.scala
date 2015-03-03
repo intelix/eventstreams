@@ -98,7 +98,7 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
     expectSomeEventsWithTimeout(30000, 2, FlowDeployableSysevents.FlowStarted)
   }
 
-  it should "stop itself and deployed flows on command" taggedAs (OnlyThisTest) in new WithFlow1Created {
+  it should "stop itself and deployed flows on command" in new WithFlow1Created {
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
     expectSomeEventsWithTimeout(30000, 2, FlowDeployableSysevents.FlowStarted)
     clearEvents()
@@ -168,7 +168,7 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
 
   }
 
-  it should s"consistently process events on correct workers" in new WithFlowTwoDeploymentsFourWorkersStarted {
+  it should s"consistently process events on correct workers" taggedAs (OnlyThisTest) in new WithFlowTwoDeploymentsFourWorkersStarted {
 
     var cnt = 0
     (1 to 100) foreach { i =>
@@ -182,12 +182,12 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
       sendFromGateToSinks("gate1", Acknowledgeable(EventFrame("eventId" -> s"$cnt", "streamKey" -> KeyAndSeedForW2Inst1.key, "streamSeed" -> KeyAndSeedForW2Inst1.seed, "abc1" -> "1@w2"), cnt))
     }
 
-    expectExactlyNEvents(100, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w2"""".r, 'InstanceId -> s"2@$worker2Address".r)
+    expectSomeEventsWithTimeout(30000, 100, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w2"""".r, 'InstanceId -> s"2@$worker2Address".r)
     expectExactlyNEvents(100, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w2"""".r, 'InstanceId -> s"1@$worker2Address".r)
     expectExactlyNEvents(100, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w1"""".r, 'InstanceId -> s"2@$worker1Address".r)
     expectExactlyNEvents(100, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w1"""".r, 'InstanceId -> s"1@$worker1Address".r)
 
-    expectExactlyNEvents(400, GateStubActor.AcknowledgeAsProcessedReceived)
+    expectSomeEventsWithTimeout(30000, 400, GateStubActor.AcknowledgeAsProcessedReceived)
     expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 1)
     expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 50)
     expectExactlyNEvents(1, GateStubActor.AcknowledgeAsProcessedReceived, 'CorrelationId -> 100)
@@ -235,7 +235,7 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
         cnt))
     }
 
-    expectExactlyNEvents(300, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w2"""".r, 'InstanceId -> s"2@$worker2Address".r)
+    expectSomeEventsWithTimeout(30000, 300, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w2"""".r, 'InstanceId -> s"2@$worker2Address".r)
     expectExactlyNEvents(300, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w2"""".r, 'InstanceId -> s"1@$worker2Address".r)
     expectExactlyNEvents(300, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"2@w1"""".r, 'InstanceId -> s"2@$worker1Address".r)
     expectExactlyNEvents(300, BlackholeAutoAckSinkActor.MessageArrived, 'Contents -> """"abc":"1@w1"""".r, 'InstanceId -> s"1@$worker1Address".r)

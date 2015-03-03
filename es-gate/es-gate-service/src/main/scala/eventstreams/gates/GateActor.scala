@@ -29,7 +29,8 @@ import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scalaz.Scalaz._
 
-trait GateSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with StateChangeSysevents {
+trait GateSysevents
+  extends ComponentWithBaseSysevents with BaseActorSysevents with StateChangeSysevents with AtLeastOnceDeliveryActorSysevents {
   override def componentId: String = "Gate.Gate"
 
   val GateConfigured = "GateConfigured".trace
@@ -238,7 +239,7 @@ class GateActor(id: String)
 
     inFlightThreshold = props +> 'inFlightThreshold | 1000
 
-    noSinkDropMessages = props ?> 'acceptWithoutSinks | false
+    noSinkDropMessages = props ?> 'noSinkDropMessages | false
     address = props ~> 'address | key
     created = prettyTimeFormat(meta ++> 'created | now)
 

@@ -172,7 +172,7 @@ class AgentsTest
   trait WithEventsourceActivatedAndGateCreated extends WithEventsourceActivated {
     startGateStub1("gate1")
     expectExactlyNEvents(1, SubscriberBoundaryInitiatingActor.AssociatedWithRemoteActor)
-    expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived)
+    expectOneOrMoreEvents(GateStubActor.GateStatusCheckReceived)
     clearEvents()
   }
 
@@ -213,7 +213,7 @@ class AgentsTest
     }
     publishEventFromEventsource(EventFrame("eventId" -> "1"))
     waitAndCheck {
-      expectExactlyNEvents(1, GateStubActor.MessageReceivedAtGate, 'EventId -> "1")
+      expectOneOrMoreEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> "1")
     }
   }
 
@@ -227,7 +227,7 @@ class AgentsTest
     clearEvents()
     openGate("gate1")
     waitAndCheck {
-      expectExactlyNEvents(1, GateStubActor.MessageReceivedAtGate, 'EventId -> "1")
+      expectOneOrMoreEvents(GateStubActor.MessageReceivedAtGate, 'EventId -> "1")
     }
   }
 
