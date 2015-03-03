@@ -16,6 +16,8 @@
 
 package eventstreams.gates
 
+import java.util.concurrent.TimeUnit
+
 import _root_.core.sysevents.SyseventOps.stringToSyseventOps
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
@@ -100,7 +102,9 @@ class GateActor(id: String)
   private var forwarderId: Option[String] = None
   private var forwarderActor: Option[ActorRef] = None
 
-  override def configUnacknowledgedMessagesResendInterval: FiniteDuration = 10.seconds
+  private var resendInterval = 5.seconds
+  
+  override def configUnacknowledgedMessagesResendInterval = resendInterval
 
   override def key = ComponentKey(id)
 
@@ -205,7 +209,7 @@ class GateActor(id: String)
   }
 
 
-  override def canDeliverDownstreamRightNow: Boolean = isComponentActive
+  override def canDeliverDownstreamRightNow: Boolean = isComponentActive && sinks.nonEmpty
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = sinks
 
@@ -242,6 +246,8 @@ class GateActor(id: String)
     noSinkDropMessages = props ?> 'noSinkDropMessages | false
     address = props ~> 'address | key
     created = prettyTimeFormat(meta ++> 'created | now)
+
+    resendInterval = FiniteDuration(props ++> 'unacknowledgedMessagesResendIntervalSec | 5, TimeUnit.SECONDS)
 
 
     val newForwarderId = ActorTools.actorFriendlyId(address)

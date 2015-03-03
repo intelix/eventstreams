@@ -22,7 +22,7 @@ import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams._
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{FiniteDuration, DurationInt}
 import scala.util.Random
 
 trait AtLeastOnceDeliveryActorSysevents extends ComponentWithBaseSysevents {
@@ -49,7 +49,7 @@ trait AtLeastOnceDeliveryActor[T <: WithID]
 
   override def commonBehavior: Receive = handleRedeliveryMessages orElse super.commonBehavior
 
-  def configUnacknowledgedMessagesResendInterval = 1.seconds
+  def configUnacknowledgedMessagesResendInterval: FiniteDuration = 1.seconds
 
   def configMaxBatchSize = 100
 

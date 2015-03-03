@@ -27,8 +27,14 @@ trait GateManagerActorTestContext extends DefaultTopicKeys with ClusterTestConte
 
   def gatewManagerActorSelection(system: ActorSystemWrapper) = system.rootUserActorSelection(GateManagerActor.id)
 
-  def startGatePublisherStub(address: String, system: ActorSystemWrapper) =
-    system.start(GatePublisherStubActor.props(address), GatePublisherStubActor.id)
+  def startGatePublisherStub1(system: ActorSystemWrapper, address: String = "/user/gate1") =
+    system.start(GatePublisherStubActor.props(address), GatePublisherStubActor.id + "1")
+  def startGatePublisherStub2(system: ActorSystemWrapper, address: String = "/user/gate1") =
+    system.start(GatePublisherStubActor.props(address), GatePublisherStubActor.id + "2")
 
+  def startGateSinkStub1(system: ActorSystemWrapper, address: String = "/user/gate1") =
+    system.start(GateSinkStubActor.props(address, GateSinkStubActor.id + "1"), GateSinkStubActor.id + "1")
+  def startGateSinkStub2(system: ActorSystemWrapper, address: String = "/user/gate1") =
+    system.start(GateSinkStubActor.props(address, GateSinkStubActor.id + "2"), GateSinkStubActor.id + "2")
 
 }
