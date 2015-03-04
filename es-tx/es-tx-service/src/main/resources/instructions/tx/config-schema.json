@@ -18,9 +18,9 @@
       "title": "Unique Transaction ID template",
       "type": "string"
     },
-    "correlationIdTemplate": {
+    "correlationIdTemplates": {
       "propertyOrder": 40,
-      "title": "Correlation ID template",
+      "title": "Correlation ID templates (comma-separated)",
       "type": "string"
     },
     "txStartCondition": {

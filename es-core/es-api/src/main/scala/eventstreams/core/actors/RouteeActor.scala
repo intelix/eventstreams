@@ -35,6 +35,7 @@ trait DefaultTopicKeys {
   val T_PROPS = TopicKey("props")
   val T_START = TopicKey("start")
   val T_STOP = TopicKey("stop")
+  val T_PURGE = TopicKey("purge")
   val T_REMOVE = TopicKey("remove")
   val T_RESET = TopicKey("reset")
   val T_UPDATE_PROPS = TopicKey("update_props")

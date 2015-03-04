@@ -21,7 +21,7 @@ import com.typesafe.config.{ConfigFactory, Config}
 import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.ref.ComponentWithBaseSysevents
 import core.sysevents.{FieldAndValue, WithSyseventPublisher}
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.core.actors._
 import play.api.libs.json._

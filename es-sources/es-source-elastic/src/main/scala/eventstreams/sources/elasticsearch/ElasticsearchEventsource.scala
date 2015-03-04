@@ -18,7 +18,7 @@ package eventstreams.sources.elasticsearch
 
 import akka.actor.Props
 import com.typesafe.scalalogging.StrictLogging
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams.{BuilderFromConfig, Fail}
 import play.api.libs.json.JsValue
 

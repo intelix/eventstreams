@@ -24,7 +24,7 @@ import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
 
-object JSONTools  {
+object Tools  {
 
 
    implicit def configHelper(config: JsValue): ConfigExtOps = ConfigExtOps(config)
@@ -197,7 +197,7 @@ object JSONTools  {
 
  //  def templateToStringValue(frame: EventFrame, template: String) =
  //    for (
- //      dirtyValue <- JSONTools.locateFieldValue(frame, JSONTools.macroReplacement(frame, template)) match {
+ //      dirtyValue <- Tools.locateFieldValue(frame, Tools.macroReplacement(frame, template)) match {
  //        case JsString(s) => Some(s)
  //        case JsNumber(n) => Some(n.toString())
  //        case JsBoolean(b) => None

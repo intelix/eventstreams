@@ -21,7 +21,7 @@ import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.Props
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import eventstreams._
-import JSONTools._
+import Tools._
 import eventstreams.instructions.{DateInstructionConstants, Types}
 import Types._
 import eventstreams.core._
@@ -143,16 +143,16 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
 
     val eventId = e.eventIdOrNA
     val signalId = eventId + ":" + sequenceCounter
-    val ts = timestampSource.flatMap { tsSource => JSONTools.locateRawFieldValue(e, tsSource, now).asNumber.map(_.longValue())} | now
+    val ts = timestampSource.flatMap { tsSource => Tools.locateRawFieldValue(e, tsSource, now).asNumber.map(_.longValue())} | now
 
     Signal(signalId, sequenceCounter, ts,
       eventId, level, signalClass, signalSubclass,
-      conflationKeyTemplate.map(JSONTools.macroReplacement(e, _)),
-      correlationIdTemplate.map(JSONTools.macroReplacement(e, _)),
+      conflationKeyTemplate.map(Tools.macroReplacement(e, _)),
+      correlationIdTemplate.map(Tools.macroReplacement(e, _)),
       transactionDemarcation, transactionStatus,
-      title.map(JSONTools.macroReplacement(e, _)),
-      body.map(JSONTools.macroReplacement(e, _)),
-      icon.map(JSONTools.macroReplacement(e, _)),
+      title.map(Tools.macroReplacement(e, _)),
+      body.map(Tools.macroReplacement(e, _)),
+      icon.map(Tools.macroReplacement(e, _)),
       expirySec.map(_ * 1000 + now))
   }
 
@@ -211,7 +211,7 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
       && isActive
       && isComponentActive
       && millisTimeSinceStateChange > occurrenceWatchPeriodSec * 1000
-      && countSignals(correlationIdTemplate.map { s => JSONTools.macroReplacement(EventFrame(), s)}) == 0) {
+      && countSignals(correlationIdTemplate.map { s => Tools.macroReplacement(EventFrame(), s)}) == 0) {
       if (throttlingAllowed()) {
         mark(now)
         pushSingleEventToStream(signalToEvent(eventToSignal(EventFrame("eventId" -> UUIDTools.generateShortUUID, "ts" -> now))))

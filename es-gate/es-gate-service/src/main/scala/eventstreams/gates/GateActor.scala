@@ -22,7 +22,7 @@ import _root_.core.sysevents.SyseventOps.stringToSyseventOps
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor._
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.core.actors._
 import play.api.libs.json._
@@ -30,6 +30,7 @@ import play.api.libs.json._
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scalaz.Scalaz._
+import scalaz.{-\/, \/-}
 
 trait GateSysevents
   extends ComponentWithBaseSysevents with BaseActorSysevents with StateChangeSysevents with AtLeastOnceDeliveryActorSysevents {
@@ -41,6 +42,8 @@ trait GateSysevents
   val NewMessageReceived = "NewMessageReceived".trace
   val DuplicateMessageReceived = "DuplicateMessageReceived".trace
   val MessageIgnored = "MessageIgnored".trace
+
+  val InflightsPurged = "InflightsPurged".info
 
   val SinkConnected = "SinkConnected".info
   val SinkDisconnected = "SinkDisconnected".info
@@ -124,6 +127,15 @@ class GateActor(id: String)
     super.preStart()
 
   }
+
+  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
+    case T_PURGE =>
+      val inFlightNow = inFlightCount
+      purgeInflights()
+      InflightsPurged >> ('Count -> inFlightNow)
+      \/-(OK(message = Some(s"Purged $inFlightNow messages")))
+  }
+
 
   override def processTick(): Unit = {
     super.processTick()
@@ -329,11 +341,14 @@ class GateActor(id: String)
         forwarderActor.foreach(_ ! RouteTo(ref, GateStateUpdate(GateClosed())))
       }
     case RegisterSink(sinkRef) =>
-      sinks += sender()
+      sinks += sinkRef
       context.watch(sinkRef)
-      SinkConnected >> ('Ref -> sender)
+      SinkConnected >> ('Ref -> sinkRef)
       publishInfo()
-  }
+    case UnregisterSink(sinkRef) =>
+      sinks -= sinkRef
+      context.unwatch(sinkRef)
+      SinkDisconnected >> ('Ref -> sinkRef)  }
 
 
   override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(

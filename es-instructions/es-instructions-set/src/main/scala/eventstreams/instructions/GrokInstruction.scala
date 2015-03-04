@@ -19,7 +19,7 @@ package eventstreams.instructions
 import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
-import eventstreams.JSONTools.{configHelper, _}
+import eventstreams.Tools.{configHelper, _}
 import eventstreams.instructions.Types.SimpleInstructionType
 import eventstreams.{EventFrame, Fail, UUIDTools}
 import play.api.libs.json.{JsString, JsValue, Json}

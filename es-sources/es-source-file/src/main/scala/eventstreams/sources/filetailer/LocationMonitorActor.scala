@@ -5,7 +5,7 @@ import java.nio.charset.Charset
 import _root_.core.sysevents.WithSyseventPublisher
 import akka.actor.Props
 import akka.util.ByteString
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.core.actors._
 import play.api.libs.json.{JsValue, Json}

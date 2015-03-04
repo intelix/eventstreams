@@ -1,7 +1,7 @@
 package eventstreams.sources.filetailer
 
 import core.sysevents.WithSyseventPublisher
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams.core.actors.ActorWithDataStore
 import play.api.libs.json.{JsValue, Json}
 

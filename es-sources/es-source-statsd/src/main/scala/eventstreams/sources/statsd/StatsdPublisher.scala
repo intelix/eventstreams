@@ -24,9 +24,9 @@ import akka.io.{IO, Udp}
 import akka.util.ByteString
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithActivePassiveBehaviors, StoppablePublisherActor}
-import eventstreams.{EventFrame, EventAndCursor, JSONTools}
+import eventstreams.{EventFrame, EventAndCursor, Tools}
 import play.api.libs.json.JsValue
 
 import scala.util.Try

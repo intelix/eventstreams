@@ -20,7 +20,7 @@ import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.{ActorRef, Props}
 import akka.cluster.Cluster
 import com.typesafe.config.Config
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.core.actors.{ActorObjWithCluster, ActorWithComposableBehavior, RouteeActor}
 import eventstreams.core.components.cluster.ClusterManagerActor

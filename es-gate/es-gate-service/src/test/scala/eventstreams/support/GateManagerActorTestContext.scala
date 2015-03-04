@@ -15,6 +15,7 @@
  */
 package eventstreams.support
 
+import akka.actor.ActorRef
 import eventstreams.core.actors.DefaultTopicKeys
 import eventstreams.gates.GateManagerActor
 

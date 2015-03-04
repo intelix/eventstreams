@@ -18,7 +18,7 @@ package eventstreams
 
 import eventstreams.EventValuePathTools.{FieldSetter, FieldAccessor}
 import EventValuePathTools._
-import eventstreams.JSONTools._
+import eventstreams.Tools._
 import play.api.libs.json._
 
 import scala.language.implicitConversions

@@ -7,7 +7,8 @@ import eventstreams.flows.{FlowDeployableSysevents, FlowDeployerActor, FlowManag
 import eventstreams.instructions.{EnrichInstructionConstants, LogInstructionConstants}
 import eventstreams.support._
 import org.scalatest.FlatSpec
-import play.api.libs.json.Json
+import play.api.libs.json._
+import play.api.libs.json.extensions._
 
 
 class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestContext with IsolatedActorSystems with LogInstructionConstants with EnrichInstructionConstants {
@@ -68,13 +69,14 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
   }
 
   trait WithFlow1Created extends WithFlowManager {
-    var flowConfig = validFlow1
+    def flowConfig: JsValue = validFlow1
     startMessageSubscriber1(hub1System)
     startGateStub1("gate1")
     commandFrom1(hub1System, LocalSubj(flowManagerComponentKey, T_ADD), Some(flowConfig))
     expectOneOrMoreEvents(FlowProxyActor.PreStart)
     expectOneOrMoreEvents(FlowProxyActor.FlowConfigured, 'Name -> "flow1")
     val flow1ComponentKey = ComponentKey(locateLastEventFieldValue(FlowProxyActor.FlowConfigured, "ID").asInstanceOf[String])
+    expectSomeEventsWithTimeout(30000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
   }
 
   "Flow proxy" should "start in response to start command" in new WithFlow1Created {
@@ -83,10 +85,39 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
   }
 
 
-  "Started flow proxy" should "register with the gate" in new WithFlow1Created {
+  it should "register with the gate by default" taggedAs OnlyThisTest in new WithFlow1Created {
     expectOneOrMoreEvents(GateStubActor.RegisterSinkReceived)
   }
 
+  it should "not register with the gate if blockGateWhenPassive set to false"  taggedAs OnlyThisTest in new WithFlow1Created {
+    waitAndCheck {
+      expectNoEvents(GateStubActor.RegisterSinkReceived)
+    }
+    override def flowConfig: JsValue = validFlow1.set(__ \ 'blockGateWhenPassive -> JsBoolean(false))
+  }
+
+  "Started flow proxy" should "register with the gate" in new WithFlow1Created {
+    commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
+    expectSomeEventsWithTimeout(30000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
+    expectOneOrMoreEvents(GateStubActor.RegisterSinkReceived)
+  }
+
+  it should "register with the gate if blockGateWhenPassive set to false"  taggedAs OnlyThisTest in new WithFlow1Created {
+    override def flowConfig: JsValue = validFlow1.set(__ \ 'blockGateWhenPassive -> JsBoolean(false))
+    commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
+    expectSomeEventsWithTimeout(30000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
+    expectOneOrMoreEvents(GateStubActor.RegisterSinkReceived)
+  }
+
+  it should "unregister with the gate if blockGateWhenPassive set to false, when flow stops"  taggedAs OnlyThisTest in new WithFlow1Created {
+    override def flowConfig: JsValue = validFlow1.set(__ \ 'blockGateWhenPassive -> JsBoolean(false))
+    commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
+    expectSomeEventsWithTimeout(30000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
+    expectOneOrMoreEvents(GateStubActor.RegisterSinkReceived)
+    clearEvents()
+    commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_STOP), None)
+    expectSomeEventsWithTimeout(30000, 1, GateStubActor.UnregisterSinkReceived)
+  }
 
   it should "deploy flow instance into host with required role" in new WithFlow1Created {
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
@@ -168,7 +199,7 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
 
   }
 
-  it should s"consistently process events on correct workers" taggedAs (OnlyThisTest) in new WithFlowTwoDeploymentsFourWorkersStarted {
+  it should s"consistently process events on correct workers" in new WithFlowTwoDeploymentsFourWorkersStarted {
 
     var cnt = 0
     (1 to 100) foreach { i =>

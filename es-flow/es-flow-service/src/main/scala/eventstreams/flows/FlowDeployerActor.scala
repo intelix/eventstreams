@@ -22,7 +22,7 @@ import com.typesafe.config.Config
 import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.ref.ComponentWithBaseSysevents
 import core.sysevents.{FieldAndValue, WithSyseventPublisher}
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.core.actors._
 import play.api.libs.json._
@@ -64,6 +64,8 @@ class FlowDeployerActor(id: String, config: JsValue, instructions: List[Config])
   var provisionOnNodesWithRoles: Set[String] = (config ~> 'deployTo).map(_.split(",").map(_.trim).filter(!_.isEmpty).toSet) | Set()
   var instancesPerNode: Int = config +> 'instancesPerNode | 1
   var connectionEndpoint: Option[String] = config ~> 'sourceGateName
+
+  override val blockGateWhenPassive: Boolean = config ?> 'blockGateWhenPassive | true
 
   override def commonFields: Seq[FieldAndValue] = Seq('ID -> id, 'Handler -> self)
 

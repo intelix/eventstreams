@@ -22,7 +22,7 @@ import com.typesafe.config.Config
 import core.sysevents.SyseventOps.stringToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
-import eventstreams.JSONTools._
+import eventstreams.Tools._
 import eventstreams.core.actors._
 import eventstreams.{ComponentKey, TopicKey}
 import net.ceedubs.ficus.Ficus._

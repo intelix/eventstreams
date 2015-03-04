@@ -82,12 +82,12 @@ class GatesTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
   }
 
   it should "accept one sink" in new WithGateCreated {
-    startGateSinkStub1(hub1System)
+    startGateSinkStub1(hub1System) ! RegisterWithGateNow()
     expectExactlyNEvents(1, GateActor.SinkConnected)
   }
   it should "accept second sink" in new WithGateCreated {
-    startGateSinkStub1(hub1System)
-    startGateSinkStub2(hub1System)
+    startGateSinkStub1(hub1System) ! RegisterWithGateNow()
+    startGateSinkStub2(hub1System) ! RegisterWithGateNow()
     expectExactlyNEvents(2, GateActor.SinkConnected)
   }
 
@@ -149,21 +149,32 @@ class GatesTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
 
 
   it should "accept one sink" in new WithGateOpen {
-    startGateSinkStub1(hub1System)
+    startGateSinkStub1(hub1System) ! RegisterWithGateNow()
     expectExactlyNEvents(1, GateActor.SinkConnected)
   }
 
   it should "accept second sink" in new WithGateOpen {
-    startGateSinkStub1(hub1System)
-    startGateSinkStub2(hub1System)
+    startGateSinkStub1(hub1System) ! RegisterWithGateNow()
+    startGateSinkStub2(hub1System) ! RegisterWithGateNow()
     expectExactlyNEvents(2, GateActor.SinkConnected)
   }
+
+  it should "unregister one sink" in new WithGateOpen {
+    val ref = startGateSinkStub1(hub1System)
+    ref  ! RegisterWithGateNow()
+    expectExactlyNEvents(1, GateActor.SinkConnected)
+    clearEvents()
+    ref  ! UnregisterFromGateNow()
+    expectExactlyNEvents(1, GateActor.SinkDisconnected)
+  }
+
+
 
   it should "deliver scheduled message to the sink once one registers" in new WithGateOpen {
     gatePublisherRef ! EventFrame().setEventId("1").setStreamKey("key").setStreamSeed("seed")
     val correlationId = locateLastEventFieldValue(GatePublisherStubActor.ScheduledForDelivery, "CorrelationId")
     expectExactlyNEvents(1, GateActor.ScheduledForDelivery)
-    startGateSinkStub1(hub1System)
+    startGateSinkStub1(hub1System) ! RegisterWithGateNow()
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceived, 'EventId -> "1")
   }
 
@@ -173,12 +184,47 @@ class GatesTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
     gatePublisherRef ! EventFrame().setEventId("3").setStreamKey("key").setStreamSeed("seed")
     gatePublisherRef ! EventFrame().setEventId("4").setStreamKey("key").setStreamSeed("seed")
     expectExactlyNEvents(4, GateActor.ScheduledForDelivery)
-    startGateSinkStub1(hub1System)
+    startGateSinkStub1(hub1System) ! RegisterWithGateNow()
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceived, 'EventId -> "1")
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceived, 'EventId -> "2")
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceived, 'EventId -> "3")
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceived, 'EventId -> "4")
   }
+
+
+  it should "drop message if noSinkDropMessages is set to true and last sink gone" in new WithGateOpen {
+    override def validGate1 = Json.obj(
+      "name" -> "gate1name",
+      "address" -> "gate1",
+      "inFlightThreshold" -> 5,
+      "noSinkDropMessages" -> true
+    )
+
+    val ref = startGateSinkStub1(hub1System)
+    ref  ! RegisterWithGateNow()
+    expectExactlyNEvents(1, GateActor.SinkConnected)
+    clearEvents()
+
+    gatePublisherRef ! EventFrame().setEventId("1").setStreamKey("key").setStreamSeed("seed")
+    expectExactlyNEvents(1, GateActor.ScheduledForDelivery)
+    expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceived, 'EventId -> "1")
+    clearEvents()
+
+    ref  ! UnregisterFromGateNow()
+    expectExactlyNEvents(1, GateActor.SinkDisconnected)
+    clearEvents()
+
+    gatePublisherRef ! EventFrame().setEventId("1").setStreamKey("key").setStreamSeed("seed")
+    val correlationId = locateLastEventFieldValue(GatePublisherStubActor.ScheduledForDelivery, "CorrelationId")
+    expectExactlyNEvents(1, GatePublisherStubActor.StubFullAcknowledgement, 'CorrelationId -> correlationId)
+
+    expectExactlyNEvents(1, GateActor.NewMessageReceived)
+    waitAndCheck {
+      expectNoEvents(GateActor.ScheduledForDelivery)
+    }
+  }
+
+
 
   it should "deliver all scheduled message with the same key and seed in a single batch" in new WithGateOpen {
     gatePublisherRef ! EventFrame().setEventId("1").setStreamKey("key").setStreamSeed("seed")
@@ -186,7 +232,7 @@ class GatesTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
     gatePublisherRef ! EventFrame().setEventId("3").setStreamKey("key").setStreamSeed("seed")
     gatePublisherRef ! EventFrame().setEventId("4").setStreamKey("key").setStreamSeed("seed")
     expectExactlyNEvents(4, GateActor.ScheduledForDelivery)
-    startGateSinkStub1(hub1System)
+    startGateSinkStub1(hub1System) ! RegisterWithGateNow()
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceivedBatch, 'Size -> 4)
   }
 
@@ -196,7 +242,7 @@ class GatesTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
     gatePublisherRef ! EventFrame().setEventId("3").setStreamKey("key1").setStreamSeed("seed")
     gatePublisherRef ! EventFrame().setEventId("4").setStreamKey("key").setStreamSeed("seed")
     expectExactlyNEvents(4, GateActor.ScheduledForDelivery)
-    startGateSinkStub1(hub1System)
+    startGateSinkStub1(hub1System) ! RegisterWithGateNow()
     expectExactlyNEvents(2, GateSinkStubActor.StubSinkReceivedBatch, 'Size -> 1)
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceivedBatch, 'Size -> 2)
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceived, 'EventId -> "1")
@@ -211,7 +257,7 @@ class GatesTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
     gatePublisherRef ! EventFrame().setEventId("3").setStreamKey("key").setStreamSeed("seed1")
     gatePublisherRef ! EventFrame().setEventId("4").setStreamKey("key").setStreamSeed("seed")
     expectExactlyNEvents(4, GateActor.ScheduledForDelivery)
-    startGateSinkStub1(hub1System)
+    startGateSinkStub1(hub1System) ! RegisterWithGateNow()
     expectExactlyNEvents(2, GateSinkStubActor.StubSinkReceivedBatch, 'Size -> 1)
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceivedBatch, 'Size -> 2)
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceived, 'EventId -> "1")
@@ -224,10 +270,10 @@ class GatesTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
     gatePublisherRef ! EventFrame().setEventId("1").setStreamKey("key").setStreamSeed("seed")
     val correlationId = locateLastEventFieldValue(GatePublisherStubActor.ScheduledForDelivery, "CorrelationId")
     expectExactlyNEvents(1, GateActor.ScheduledForDelivery)
-    startGateSinkStub1(hub1System)
+    startGateSinkStub1(hub1System) ! RegisterWithGateNow()
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceived, 'EventId -> "1")
     clearEvents()
-    startGateSinkStub2(hub1System)
+    startGateSinkStub2(hub1System) ! RegisterWithGateNow()
     waitAndCheck {
       expectNoEvents(GateSinkStubActor.StubSinkReceived)
     }
@@ -254,7 +300,7 @@ class GatesTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
       expectNoEvents(GateActor.ScheduledForDelivery)
       
     }
-    startGateSinkStub1(hub1System)
+    startGateSinkStub1(hub1System) ! RegisterWithGateNow()
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceived, 'EventId -> "1")
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceived, 'EventId -> "2")
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceived, 'EventId -> "3")
@@ -265,9 +311,35 @@ class GatesTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
     expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceived, 'EventId -> "7")
   }
 
+
+  it should "purge inflights on command" in new WithGateOpen {
+    gatePublisherRef ! EventFrame().setEventId("1").setStreamKey("key").setStreamSeed("seed")
+    gatePublisherRef ! EventFrame().setEventId("2").setStreamKey("key").setStreamSeed("seed")
+    gatePublisherRef ! EventFrame().setEventId("3").setStreamKey("key").setStreamSeed("seed")
+    gatePublisherRef ! EventFrame().setEventId("4").setStreamKey("key").setStreamSeed("seed")
+    expectExactlyNEvents(4, GateActor.ScheduledForDelivery)
+
+    commandFrom1(hub1System, LocalSubj(gate1ComponentKey, T_PURGE), None)
+    expectExactlyNEvents(1, GateActor.InflightsPurged, 'Count -> 4)
+
+    gatePublisherRef ! EventFrame().setEventId("5").setStreamKey("key").setStreamSeed("seed")
+
+    startGateSinkStub1(hub1System) ! RegisterWithGateNow()
+    expectExactlyNEvents(1, GateSinkStubActor.StubSinkReceived, 'EventId -> "5")
+
+    waitAndCheck {
+      expectNoEvents(GateSinkStubActor.StubSinkReceived, 'EventId -> "1")
+
+    }
+
+  }
+
+
+
+
   trait WithTwoSinks extends WithGateOpen {
-    startGateSinkStub1(hub1System)
-    startGateSinkStub2(hub1System)
+    startGateSinkStub1(hub1System) ! RegisterWithGateNow()
+    startGateSinkStub2(hub1System) ! RegisterWithGateNow()
     expectExactlyNEvents(2, GateActor.SinkConnected)
     clearEvents()
   }

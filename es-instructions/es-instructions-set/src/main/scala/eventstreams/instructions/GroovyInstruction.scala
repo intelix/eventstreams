@@ -21,7 +21,7 @@ import java.util
 import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.instructions.Types.SimpleInstructionType
 import groovy.json.{JsonBuilder, JsonSlurper}

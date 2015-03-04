@@ -25,6 +25,12 @@
       "type": "number",
       "default": 10
     },
+    "blockGateWhenPassive": {
+      "propertyOrder": 30,
+      "title": "Block gate when passive",
+      "type": "boolean",
+      "default": true
+    },
     "pipeline": {
       "propertyOrder": 50,
       "title": "Pipeline configuration",

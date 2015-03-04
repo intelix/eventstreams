@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.Logger
 import core.sysevents.SyseventOps.{stringToSyseventOps, symbolToSyseventOps}
 import core.sysevents.ref.ComponentWithBaseSysevents
 import core.sysevents.{FieldAndValue, WithSyseventPublisher}
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams.instructions.Types.SimpleInstructionType
 import eventstreams.{EventFrame, Fail, UUIDTools}
 import org.slf4j.LoggerFactory

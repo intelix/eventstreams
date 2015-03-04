@@ -21,7 +21,7 @@ import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import _root_.core.sysevents.{FieldAndValue, WithSyseventPublisher}
 import akka.actor._
 import akka.remote.DisassociatedEvent
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.agent.AgentMessagesV1.{AgentEventsourceConfigs, AgentEventsources, AgentInfo}
 import eventstreams.core.actors._

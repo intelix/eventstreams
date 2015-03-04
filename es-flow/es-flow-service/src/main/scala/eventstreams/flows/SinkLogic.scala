@@ -18,7 +18,7 @@ package eventstreams.flows
 import _root_.core.sysevents.WithSyseventPublisher
 import eventstreams._
 import eventstreams.core.actors._
-import eventstreams.gates.RegisterSink
+import eventstreams.gates.{UnregisterSink, RegisterSink}
 
 private[flows] trait SinkLogic
   extends ActorWithComposableBehavior
@@ -32,14 +32,26 @@ private[flows] trait SinkLogic
 
   override def commonBehavior: Receive = handler orElse super.commonBehavior
 
+  def blockGateWhenPassive: Boolean
+
   override def preStart(): Unit = {
     super.preStart()
     initiateReconnect()
   }
 
+  override def onBecameActive(): Unit = {
+    if (!blockGateWhenPassive) remoteActorRef.foreach(_ ! RegisterSink(self))
+    super.onBecameActive()
+  }
+
+  override def onBecamePassive(): Unit = {
+    if (!blockGateWhenPassive) remoteActorRef.foreach(_ ! UnregisterSink(self))
+    super.onBecamePassive()
+  }
+
   override def onConnectedToEndpoint(): Unit = {
     super.onConnectedToEndpoint()
-    remoteActorRef.foreach(_ ! RegisterSink(self))
+    if (blockGateWhenPassive || isComponentActive) remoteActorRef.foreach(_ ! RegisterSink(self))
   }
 
   override def onDisconnectedFromEndpoint(): Unit = super.onDisconnectedFromEndpoint()

@@ -4,7 +4,7 @@ import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.{ActorRef, ActorRefFactory, Props}
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.core.actors._
 import eventstreams.auth._

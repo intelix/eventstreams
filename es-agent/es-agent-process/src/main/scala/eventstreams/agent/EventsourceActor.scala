@@ -26,7 +26,7 @@ import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
 import com.typesafe.config.Config
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.agent.AgentMessagesV1.{EventsourceConfig, EventsourceInfo}
 import eventstreams.core.actors._

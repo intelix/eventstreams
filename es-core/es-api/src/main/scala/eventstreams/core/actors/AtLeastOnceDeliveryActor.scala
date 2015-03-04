@@ -72,6 +72,12 @@ trait AtLeastOnceDeliveryActor[T <: WithID]
     batchId
   }
 
+  def purgeInflights() = {
+    list = Vector()
+    unscheduledBatch = List()
+    batchAggregationKey = None
+    inFlightCount = 0
+  }
 
   private def filter() =
     list = list.filter {

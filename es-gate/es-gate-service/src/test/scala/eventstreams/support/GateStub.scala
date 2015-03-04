@@ -99,6 +99,7 @@ trait GateStubActorSysevents extends ComponentWithBaseSysevents {
   val OpeningGate = 'OpeningGate.info
   val ClosingGate = 'ClosingGate.info
   val RegisterSinkReceived = 'RegisterSinkReceived.info
+  val UnregisterSinkReceived = 'UnregisterSinkReceived.info
   val AutoClosingRequested = 'AutoClosingRequested.info
   val AutoClosingGate = 'AutoClosingGate.info
   val AcknowledgeAsProcessedReceived = 'AcknowledgeAsProcessed.info
@@ -183,6 +184,9 @@ class GateStubActor(name: String)
     case RegisterSink(ref) =>
       RegisterSinkReceived >> ('Ref -> ref)
       sinks += ref
+    case UnregisterSink(ref) =>
+      UnregisterSinkReceived >> ('Ref -> ref)
+      sinks -= ref
     case SendToSinks(m) =>
       SentToSinks >> ('Message -> m)
       sinks.foreach(_ ! m)

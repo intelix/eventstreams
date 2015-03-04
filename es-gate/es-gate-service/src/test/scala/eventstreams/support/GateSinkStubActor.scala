@@ -5,7 +5,7 @@ import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.core.actors._
-import eventstreams.gates.RegisterSink
+import eventstreams.gates.{UnregisterSink, RegisterSink}
 import eventstreams.{AcknowledgeAsProcessed, Acknowledgeable, Batch, EventFrame}
 
 trait GateSinkStubSysevents
@@ -23,6 +23,9 @@ trait GateSinkStubSysevents
 case class DisableAcknowledge()
 
 case class EnableAcknowledge()
+
+case class RegisterWithGateNow()
+case class UnregisterFromGateNow()
 
 object GateSinkStubActor extends GateSinkStubSysevents {
   def props(address: String, id: String): Props = Props(new GateSinkStubActor(address, id))
@@ -44,7 +47,6 @@ class GateSinkStubActor(address: String, id: String)
 
   override def preStart(): Unit = {
     super.preStart()
-    context.actorSelection(address) ! RegisterSink(self)
   }
 
   def register(v: EventFrame) = StubSinkReceived >>('EventId -> v.eventIdOrNA, 'StreamKey -> v.streamKey, 'StreamSeed -> v.streamSeed)
@@ -63,6 +65,9 @@ class GateSinkStubActor(address: String, id: String)
       }
     case DisableAcknowledge() => ackEnabled = false
     case EnableAcknowledge() => ackEnabled = true
+
+    case RegisterWithGateNow() => context.actorSelection(address) ! RegisterSink(self)
+    case UnregisterFromGateNow() => context.actorSelection(address) ! UnregisterSink(self)
 
   }
 

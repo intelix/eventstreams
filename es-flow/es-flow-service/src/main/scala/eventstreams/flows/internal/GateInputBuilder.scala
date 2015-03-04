@@ -19,7 +19,7 @@ package eventstreams.flows.internal
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.{ActorRefFactory, Props}
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.core.actors._
 import eventstreams.gates.RegisterSink

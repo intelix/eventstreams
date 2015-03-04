@@ -20,9 +20,9 @@ import java.nio.charset.Charset
 
 import akka.actor.Props
 import core.sysevents.WithSyseventPublisher
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams.core.actors.{StandardPublisherSysevents, StateChangeSysevents}
-import eventstreams.{BuilderFromConfig, Fail, OK, JSONTools}
+import eventstreams.{BuilderFromConfig, Fail, OK, Tools}
 import play.api.libs.json.{JsValue, Json}
 
 import scala.util.Try

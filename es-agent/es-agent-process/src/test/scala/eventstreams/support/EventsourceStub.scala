@@ -2,8 +2,8 @@ package eventstreams.support
 
 import akka.actor.Props
 import com.typesafe.scalalogging.StrictLogging
-import eventstreams.JSONTools.configHelper
-import eventstreams.{BuilderFromConfig, Fail, JSONTools}
+import eventstreams.Tools.configHelper
+import eventstreams.{BuilderFromConfig, Fail, Tools}
 import play.api.libs.json.JsValue
 
 import scalaz.Scalaz._

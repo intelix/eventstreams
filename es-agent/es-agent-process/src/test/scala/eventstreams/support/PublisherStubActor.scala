@@ -5,8 +5,8 @@ import akka.stream.actor.ActorPublisherMessage.Request
 import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
-import eventstreams.{EventAndCursor, JSONTools, EventFrame}
-import JSONTools.configHelper
+import eventstreams.{EventAndCursor, Tools, EventFrame}
+import Tools.configHelper
 import eventstreams.core.actors._
 import play.api.libs.json.{JsValue, Json}
 

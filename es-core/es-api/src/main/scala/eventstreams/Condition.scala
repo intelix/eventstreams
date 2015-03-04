@@ -19,7 +19,7 @@ package eventstreams
 import com.typesafe.scalalogging.StrictLogging
 import play.api.libs.json._
 
-import eventstreams.JSONTools._
+import eventstreams.Tools._
 import scala.collection.mutable
 import scala.util.Try
 import scala.util.matching.Regex

@@ -19,7 +19,7 @@ package eventstreams.instructions
 import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
-import eventstreams.JSONTools.{configHelper, _}
+import eventstreams.Tools.{configHelper, _}
 import eventstreams._
 import eventstreams.instructions.Types.SimpleInstructionType
 import play.api.libs.json._

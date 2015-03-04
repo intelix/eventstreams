@@ -2,7 +2,7 @@ package eventstreams
 
 import actors.WebsocketActor
 import actors.WebsocketActor.{msgSplitChar, opSplitChar}
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams.core.components.cluster.ClusterManagerActor._
 import eventstreams.core.components.routing.MessageRouterActor
 import eventstreams.support.RouteeComponentStubOps._

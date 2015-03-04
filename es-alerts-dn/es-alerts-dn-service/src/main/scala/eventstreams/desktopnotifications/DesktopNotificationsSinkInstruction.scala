@@ -20,7 +20,7 @@ import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.{ActorRef, Props}
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.instructions.Types
 import Types._

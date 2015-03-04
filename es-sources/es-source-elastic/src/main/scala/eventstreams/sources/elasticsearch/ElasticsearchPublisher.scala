@@ -22,7 +22,7 @@ import com.sksamuel.elastic4s.ElasticDsl._
 import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams.core.actors._
 import eventstreams.{EventAndCursor, EventFrameConverter}
 import org.elasticsearch.action.search.SearchResponse

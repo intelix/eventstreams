@@ -17,7 +17,7 @@
 package eventstreams.instructions
 
 import com.typesafe.scalalogging.StrictLogging
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.instructions.Types._
 import play.api.libs.json.JsValue

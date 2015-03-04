@@ -22,7 +22,7 @@ import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.{ActorRef, Props}
 import akka.cluster.Cluster
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
-import eventstreams.JSONTools._
+import eventstreams.Tools._
 import eventstreams._
 import eventstreams.core.actors._
 import eventstreams.instructions.InstructionConstants

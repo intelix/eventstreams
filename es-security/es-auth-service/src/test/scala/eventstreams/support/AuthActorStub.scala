@@ -2,7 +2,7 @@ package eventstreams.support
 
 import _root_.core.sysevents.WithSyseventPublisher
 import akka.actor.{ActorRefFactory, Props}
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.auth.{AuthSysevents, DomainPermissions, FunctionPermission, RolePermissions, SecuredDomain}
 import eventstreams.core.actors.{ActorTools, ActorWithComposableBehavior, ActorWithTicks, RouteeActor}

@@ -19,7 +19,7 @@ package eventstreams.flows.internal
 import akka.actor.{ActorRefFactory, Props}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
-import eventstreams.JSONTools._
+import eventstreams.Tools._
 import eventstreams.instructions.Types._
 import eventstreams.{BuilderFromConfig, Fail}
 import play.api.libs.json.JsValue

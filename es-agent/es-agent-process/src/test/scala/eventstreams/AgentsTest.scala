@@ -1,7 +1,7 @@
 package eventstreams
 
 import akka.actor.ActorSelection
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams.agent._
 import eventstreams.support.{EventsourceStub, _}
 import org.scalatest.FlatSpec
