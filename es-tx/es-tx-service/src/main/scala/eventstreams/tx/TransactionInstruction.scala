@@ -20,13 +20,15 @@ import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.Props
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
-import eventstreams.JSONTools.configHelper
+import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.core.actors.{ActorWithTicks, StoppableSubscribingPublisherActor}
 import eventstreams.instructions.Types._
-import eventstreams.instructions.{DateInstructionConstants, Types}
+import eventstreams.instructions.{DateInstructionConstants, InstructionConstants}
 import play.api.libs.json._
 
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scalaz.Scalaz._
 import scalaz._
 
@@ -34,74 +36,128 @@ trait TransactionInstructionSysevents extends ComponentWithBaseSysevents {
   override def componentId: String = "Instruction.Tx"
 }
 
-class TransactionInstruction extends BuilderFromConfig[InstructionType] {
-  val configId = "sensor"
+trait TransactionInstructionConstants extends InstructionConstants with TransactionInstructionSysevents {
+  val CfgFName = "name"
+  val CfgFCorrelationIdTemplates = "correlationIdTemplates"
+  val CfgFTxStartCondition = "txStartCondition"
+  val CfgFTxEndSuccessCondition = "txEndSuccessCondition"
+  val CfgFTxEndFailureCondition = "txEndFailureCondition"
+  val CfgFMaxOpenTransactions = "maxOpenTransactions"
+  val CfgFTimestampSource = "timestampSource"
+  val CfgFTargetTxField = "targetTxField"
+  val CfgFBuffer = "buffer"
+}
+
+object TransactionInstructionConstants extends TransactionInstructionConstants
+
+class TransactionInstruction extends BuilderFromConfig[InstructionType] with TransactionInstructionConstants {
+  val configId = "tx"
 
   override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
-      correlationIdTemplate <- props ~> 'correlationIdTemplate \/> Fail(s"Invalid transaction instruction. Missing 'correlationIdTemplate' value. Contents: ${Json.stringify(props)}")
-    ) yield TransactionInstructionActor.props(correlationIdTemplate, props)
+      _ <- props ~> CfgFCorrelationIdTemplates
+        \/> Fail(s"Invalid $configId instruction. Missing '$CfgFCorrelationIdTemplates' value. Contents: ${Json.stringify(props)}");
+      _ <- props ~> CfgFTxStartCondition
+        \/> Fail(s"Invalid $configId instruction. Missing '$CfgFTxStartCondition' value. Contents: ${Json.stringify(props)}");
+      _ <- SimpleCondition.optionalCondition(props ~> CfgFTxEndSuccessCondition)
+        \/> Fail(s"Invalid $configId instruction. Missing or invalid '$CfgFTxEndSuccessCondition' value. Contents: ${Json.stringify(props)}")
+    ) yield TransactionInstructionActor.props(props)
 
 }
 
 private object TransactionInstructionActor {
-  def props(correlationIdTemplate: String, config: JsValue) = Props(new TransactionInstructionActor(correlationIdTemplate, config))
+  def props(config: JsValue) = Props(new TransactionInstructionActor(config))
 }
 
-private class TransactionInstructionActor(correlationIdTemplate: String, props: JsValue)
+private class TransactionInstructionActor(props: JsValue)
   extends StoppableSubscribingPublisherActor
   with ActorWithTicks
   with NowProvider
   with TransactionInstructionSysevents
-  with WithSyseventPublisher {
+  with WithSyseventPublisher
+  with TransactionInstructionConstants {
 
   implicit val ec = context.dispatcher
 
-  val name = props ~> 'name | "default"
-  val uniqueTransactionIdTemplate = props ~> 'uniqueTransactionIdTemplate
-  val txStartCondition = SimpleCondition.optionalCondition(props ~> 'txStartCondition)
-  val txEndSuccessCondition = SimpleCondition.optionalCondition(props ~> 'txEndSuccessCondition)
-  val txEndFailureCondition = SimpleCondition.optionalCondition(props ~> 'txEndFailureCondition)
-  val txAliveCondition = SimpleCondition.optionalCondition(props ~> 'txAliveCondition)
+  val correlationIdTemplatesSeq: Seq[String] = (props ~> CfgFCorrelationIdTemplates | "").split(',').map(_.trim).filter(!_.isEmpty)
 
+  val name = props ~> CfgFName | "default"
+  val txStartCondition = SimpleCondition.optionalCondition(props ~> CfgFTxStartCondition)
+  val txEndSuccessCondition = SimpleCondition.optionalCondition(props ~> CfgFTxEndSuccessCondition)
+  val txEndFailureCondition = SimpleCondition.optionalCondition(props ~> CfgFTxEndFailureCondition)
 
-  val maxEvents = props +> 'maxEvents
-  val minEvents = props +> 'minEvents
-  val maxDurationMs = props +> 'maxDurationMs
+  val maxOpenTransactions = props +> CfgFMaxOpenTransactions | 100000
+  val timestampSource = props ~> CfgFTimestampSource | DateInstructionConstants.default_targetTsField
 
-  val maxOpenTransactions = props +> 'maxOpenTransactions | 100000
-  val timestampSource = props ~> 'timestampSource | DateInstructionConstants.default_targetTsField
+  val targetTxField = props ~> CfgFTargetTxField | "transactionId"
+  val maxInFlight = props +> CfgFBuffer | 1000
 
-  /*
-  demarcationLogic match {
-    case None => logger.error(s"Invalid combination of transaction demarcation conditions. Transaction instruction disabled.")
-    case Some(l) => logger.debug(s"Demarcation logic: $l")
-  }
-  */
-  val targetTxField = props ~> 'targetTxField | "transactionId"
-  val targetTxValueTemplate = props ~> 'targetTxValueTemplate
-  private val maxInFlight = props +> 'buffer | 1000
-  //  var currentOpenTransactions = 0
-  //  var sequenceCounter: Long = 0
+  val txById: mutable.Map[String, TxTimeline] = mutable.Map()
+  var openTransactions: Int = 0
 
-  /*
-  val txByCorrelationId = mutable.Map[String, List[Transaction]]()
-*/
+  class Tx {
 
-  /*
-  var demarcationLogic = uniqueTransactionIdTemplate match {
-    case Some(tpl) => Some(DemarcationWithUniqueId(tpl, minEvents))
-    case None => txEndSuccessCondition match {
-      case Some(cond) if txStartCondition.isDefined => Some(DemarcationWithStartAndStop(txStartCondition.get, cond, txEndFailureCondition))
-      case Some(cond) if txAliveCondition.isDefined => Some(DemarcationWithAlivesAndStop(txAliveCondition.get, cond, txEndFailureCondition))
-      case None => txStartCondition match {
-        case Some(cond) if txAliveCondition.isDefined => Some(DemarcationWithStartAndAlives(cond, txAliveCondition.get, minEvents, maxEvents))
-        case None if txAliveCondition.isDefined => Some(DemarcationWithAlivesOnly(txAliveCondition.get, maxEvents, maxDurationMs))
-        case None => None
+    var start: Option[TxDemarcation] = None
+    var finish: Option[TxDemarcation] = None
+
+    def +(d: TxDemarcation): Tx = {
+      d match {
+        case x: TxStart => start = Some(x)
+        case x => finish = Some(x)
       }
+      this
     }
+
+    def completed: Boolean = start.isDefined && finish.isDefined
+
+    def olderThan(tx: Tx): Boolean = getOldestTs < tx.getOldestTs
+
+    private def getOldestTs = (start.map(_.ts).toList ++ finish.map(_.ts).toList).min
   }
-*/
+
+  class TxTimeline {
+    private val list: mutable.ListBuffer[Tx] = ListBuffer()
+
+    def +(tx: Tx): TxTimeline = {
+      openTransactions += 1
+      list.insert(list.indexWhere(_.olderThan(tx)), tx)
+      this
+    }
+
+    def -(tx: Tx): TxTimeline = {
+      openTransactions -= 1
+      list -= tx
+      this
+    }
+
+    def ?(d: TxDemarcation): Option[Tx] =
+      d match {
+        case x: TxStart =>
+          list.reverseIterator.collectFirst {
+            case tx if tx.start.isEmpty && (tx.finish.map(_.ts >= x.ts) | false) => tx
+          }
+        case x =>
+          list.collectFirst {
+            case tx if tx.finish.isEmpty && (tx.start.map(_.ts <= x.ts) | false) => tx
+          }
+      }
+
+    def empty: Boolean = list.isEmpty
+
+    def oldest: Tx = list.last
+  }
+
+  sealed trait TxDemarcation {
+    def ts: Long
+
+    def evt: EventFrame
+  }
+
+  case class TxStart(ts: Long, evt: EventFrame) extends TxDemarcation
+
+  case class TxFinishSuccess(ts: Long, evt: EventFrame) extends TxDemarcation
+
+  case class TxFinishFailure(ts: Long, evt: EventFrame) extends TxDemarcation
 
   override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(maxInFlight) {
     override def inFlightInternally: Int =
@@ -112,195 +168,71 @@ private class TransactionInstructionActor(correlationIdTemplate: String, props: 
     super.onBecameActive()
   }
 
-  /*
-  def toEvent(t: Transaction): EventFrame = {
-    // TODO
-    return EventFrame(Json.obj(), Map())
-  }
-*/
 
-  /*
-    def accountTransaction(frame: EventFrame): Option[Seq[EventFrame]] =
-      for (
-        logic <- demarcationLogic;
+  private def accountEvent(value: EventFrame): Option[Seq[EventFrame]] =
+    for (
+      txStartC <- txStartCondition;
+      txEndSC <- txEndSuccessCondition;
+      ts <- value ++> timestampSource;
+      ids <- listOfTxIds(value);
+      txEndFC = txEndFailureCondition | NeverTrueCondition();
+      txB <- toBoundaryType(ts, value, txStartC.metFor(value).isRight, txEndSC.metFor(value).isRight, txEndFC.metFor(value).isRight)
+    ) yield ids.flatMap(toEvents(_, txB)) ++ removeOldestIfMaxOpenExceeded()
 
-        ts <- JSONTools.locateFieldValue(frame, timestampSource).asOpt[Long];
+  private def toBoundaryType(ts: Long, evt: EventFrame, start: Boolean, finishWithSuccess: Boolean, finishWithFailure: Boolean): Option[TxDemarcation] =
+    if (start) Some(TxStart(ts, evt))
+    else if (finishWithFailure) Some(TxFinishFailure(ts, evt))
+    else if (finishWithSuccess) Some(TxFinishSuccess(ts, evt))
+    else None
 
-        correlationId <- JSONTools.templateToStringValue(frame, correlationIdTemplate);
+  private def toEvent(tx: Tx): EventFrame = 
+    EventFrame(
+      "start" -> (tx.start.map(_.evt.asInstanceOf[EventData]) | EventDataValueNil()),
+      "finish" -> (tx.finish.map(_.evt.asInstanceOf[EventData]) | EventDataValueNil())
+    )
 
-        seq <- if (logic.isApplicableFromFrame(frame)) {
-          var list = txByCorrelationId.getOrElse(correlationId, List())
-
-          type AffectedTx = Option[Transaction]
-          type ListOfClosedTxs = Option[List[Transaction]]
-          type ListOfOpenTxs = List[Transaction]
-          type FoldingResult = (AffectedTx, ListOfClosedTxs, ListOfOpenTxs)
-
-          def closeNextTx(nextTx: Transaction, currentList: ListOfClosedTxs) = currentList.map(nextTx.close() +: _)
-
-          list.foldRight[FoldingResult]((None, None, List())) { (nextTx, foldingResult) =>
-            foldingResult match {
-              case (currentAffectedTx, currentListOfClosedTxs, currentListOfOpenTxs) =>
-                currentAffectedTx match {
-                  case Some(tx) if tx.isCompleted => (currentAffectedTx, closeNextTx(nextTx, currentListOfClosedTxs), currentListOfOpenTxs)
-                  case Some(tx) => (currentAffectedTx, None, nextTx +: currentListOfOpenTxs)
-                  case None if nextTx.lastEventTs > ts => (None, None, nextTx +: currentListOfOpenTxs)
-                  case None => logic.applyTo(nextTx, ts, frame) match {
-                    case Some(newTx) if newTx.isCompleted => (Some(newTx), closeNextTx(newTx, Some(List())), currentListOfOpenTxs)
-                    case Some(newTx) => (Some(newTx), None, newTx +: currentListOfOpenTxs)
-                    case None => (None, None, nextTx +: currentListOfOpenTxs)
-                  }
-                }
-            }
-          } match {
-            case result@(Some(tx), closedTxs, openTxs) =>
-              txByCorrelationId += correlationId -> openTxs
-              logger.debug(s"Affected existing tx: $tx, total tx count for correlation $correlationId: ${openTxs.size + 1}, closed count: ${closedTxs.map(_.size)}, total in-flight correlations: ${txByCorrelationId.size}")
-              closedTxs
-            case (None, _, openTxs) =>
-              logic.applyTo(logic.newTx(ts, frame), ts, frame).foreach { newTx =>
-                  logger.debug(s"New tx: $newTx, total tx count for correlation $correlationId: ${openTxs.size + 1}, total in-flight correlations: ${txByCorrelationId.size}")
-                  txByCorrelationId += correlationId -> (newTx +: openTxs)
-              }
-              None
+  private def toEvents(id: String, txB: TxDemarcation): Seq[EventFrame] =
+    txById.get(id) match {
+      case None =>
+        txById += (id -> (new TxTimeline() + (new Tx() + txB)))
+        Seq()
+      case Some(tl) =>
+        tl ? txB match {
+          case None =>
+            tl + (new Tx() + txB)
+            Seq()
+          case Some(tx) => tx + txB match {
+            case t if t.completed =>
+              if ((tl - t).empty) txById -= id
+              Seq(toEvent(t))
+            case _ => Seq()
           }
-        } else None
+        }
+    }
 
-      ) yield seq.map(toEvent)
-
-
-    override def execute(frame: EventFrame): Option[Seq[EventFrame]] =
-      accountTransaction(frame) match {
-        case Some(tx) => Some(List(frame) ++ tx)
-        case _ => Some(List(frame))
+  private def removeOldestIfMaxOpenExceeded(): Seq[EventFrame] =
+    if (openTransactions > maxOpenTransactions)
+      txById.foldLeft[Option[(String, TxTimeline, Tx)]](None) {
+        case (None, (k, v)) => Some((k, v, v.oldest))
+        case (Some((bk, btl, btx)), (k, v)) if v.oldest.olderThan(btx) => Some((k, v, v.oldest))
+        case (x, _) => x
+      } match {
+        case Some((k, tl, tx)) =>
+          if ((tl - tx).empty) txById -= k
+          Seq(toEvent(tx))
+        case None => Seq()
       }
+    else Seq()
 
-
-
-
-  }
-
-
-  case class Transaction(completeCheckFunc: Transaction => Boolean, tranId: String = UUIDTools.generateShortUUID) {
-
-    def hasDefinedStart: Boolean
-
-    def hasDefinedFinish: Boolean
-
-    def firstEventTs: Long
-
-    def lastEventTs: Long
-
-    def eventsCount: Int
-
-    def isCompleted: Boolean
-
-    def close(): Transaction
-
-    def add(ts: Long, frame: EventFrame): Transaction
-
-    def markSuccess(): Transaction
-
-    def markFailure(): Transaction
-
-    def markHasStart(): Transaction
-
-    def markHasFinish(): Transaction
-
-    def markCompleted(completed: Boolean): Transaction
-  }
-
-
-  sealed trait DemarcationLogic {
-    def isApplicableFromFrame(frame: EventFrame): Boolean
-
-    def applyTo(tx: Transaction, ts: Long, frame: EventFrame): Option[Transaction]
-
-    def newTx(ts: Long, frame: EventFrame): Transaction
-
-  }
-
-  case class DemarcationWithUniqueId(uniqueIdTemplate: String, minEvents: Option[Int]) extends DemarcationLogic {
-
-    val minEventsReq = minEvents | 2
-
-    override def isApplicableFromFrame(frame: EventFrame): Boolean = JSONTools.templateToStringValue(frame, uniqueIdTemplate).isDefined
-
-    def applyTo(tx: Transaction, ts: Long, frame: EventFrame): Option[Transaction] = JSONTools.templateToStringValue(frame, uniqueIdTemplate) match {
-      case Some(v) if tx.tranId == v => Some(tx.add(ts, frame))
-      case _ => None
+  private def listOfTxIds(value: EventFrame): Option[Seq[String]] =
+    correlationIdTemplatesSeq.map(Tools.macroReplacement(value, _)).map(_.trim).filter(!_.isEmpty) match {
+      case Nil => None
+      case x => Some(x)
     }
 
-    override def newTx(ts: Long, frame: EventFrame): Transaction =
-      Transaction(_.eventsCount >= minEventsReq, JSONTools.templateToStringValue(frame, uniqueIdTemplate)|"undefined")
-  }
-
-  case class DemarcationWithStartAndStop(txStart: Condition, txStopSuccess: Condition, txStopFailure: Option[Condition]) extends DemarcationLogic {
-    override def isApplicableFromFrame(frame: EventFrame): Boolean =
-      txStart.metFor(frame).isRight || txStopSuccess.metFor(frame).isRight || (txStopFailure.map(_.metFor(frame).isRight) | false)
-
-
-    def applyTo(tx: Transaction, ts: Long, frame: EventFrame): Option[Transaction] = tx match {
-      case x if !x.hasDefinedFinish && txStopSuccess.metFor(frame).isRight =>
-        Some(tx.add(ts, frame).markHasFinish().markSuccess())
-      case x if !x.hasDefinedFinish && (txStopFailure.map(_.metFor(frame).isRight) | false) =>
-        Some(tx.add(ts, frame).markHasFinish().markFailure())
-      case x if !x.hasDefinedStart && txStart.metFor(frame).isRight =>
-        Some(tx.add(ts, frame).markHasStart())
-      case _ => None
+  override def execute(value: EventFrame): Option[Seq[EventFrame]] =
+    accountEvent(value) match {
+      case Some(x) => Some(x :+ value)
+      case None => Some(Seq(value))
     }
-
-    override def newTx(ts: Long, frame: EventFrame): Transaction = Transaction(t => t.hasDefinedFinish && t.hasDefinedStart)
-
-
-  }
-
-  case class DemarcationWithStartAndAlives(txStart: Condition, txAlive: Condition, minEvents: Option[Int], maxEvents: Option[Int]) extends DemarcationLogic {
-
-    val minEventsReq = minEvents | 2
-
-
-    override def isApplicableFromFrame(frame: EventFrame): Boolean =
-      txStart.metFor(frame).isRight || txAlive.metFor(frame).isRight
-
-    def applyTo(tx: Transaction, ts: Long, frame: EventFrame): Option[Transaction] = tx match {
-      case x if !x.hasDefinedStart && txStart.metFor(frame).isRight =>
-        Some(tx.add(ts, frame).markHasStart())
-      case x if txAlive.metFor(frame).isRight =>
-        Some(tx.add(ts, frame))
-      case _ => None
-    }
-
-    override def newTx(ts: Long, frame: EventFrame): Transaction =
-      Transaction(t => t.hasDefinedStart).add(ts, frame)
-
-  }
-
-  case class DemarcationWithAlivesOnly(txAlive: Condition, maxEvents: Option[Int], maxDuration: Option[Int]) extends DemarcationLogic {
-    override def isApplicableFromFrame(frame: EventFrame): Boolean =
-      txAlive.metFor(frame).isRight
-
-    def applyTo(tx: Transaction, ts: Long, frame: EventFrame): Option[Transaction] = tx match {
-      case x if txAlive.metFor(frame).isRight =>
-        Some(tx.add(ts, frame))
-      case _ => None
-    }
-
-  }
-
-  case class DemarcationWithAlivesAndStop(txAlive: Condition, txStopSuccess: Condition, txStopFailure: Option[Condition]) extends DemarcationLogic {
-    override def isApplicableFromFrame(frame: EventFrame): Boolean =
-      txAlive.metFor(frame).isRight || txStopSuccess.metFor(frame).isRight || (txStopFailure.map(_.metFor(frame).isRight) | false)
-
-    def applyTo(tx: Transaction, ts: Long, frame: EventFrame): Option[Transaction] = tx match {
-      case x if !x.hasDefinedFinish && txStopSuccess.metFor(frame).isRight =>
-        Some(tx.add(ts, frame).markHasFinish().markSuccess())
-      case x if !x.hasDefinedFinish && (txStopFailure.map(_.metFor(frame).isRight) | false) =>
-        Some(tx.add(ts, frame).markHasFinish().markFailure())
-      case x if txAlive.metFor(frame).isRight =>
-        Some(tx.add(ts, frame))
-      case _ => None
-    }
-  */
-  override def execute(value: EventFrame): Option[Seq[EventFrame]] = None // TODO
 }
