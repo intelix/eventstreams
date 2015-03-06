@@ -3,7 +3,8 @@ package eventstreams.support
 import akka.actor.{Actor, Props}
 import akka.stream.actor.ActorSubscriberMessage.OnNext
 import akka.stream.actor.{RequestStrategy, WatermarkRequestStrategy}
-import eventstreams.EventAndCursor
+import eventstreams.{EventFrame, EventAndCursor}
+import play.api.libs.json.Json
 
 import scalaz.Scalaz._
 
@@ -24,7 +25,14 @@ class SinkStubActor(initialStrategyWhenEnabled: RequestStrategy)
     case OnNext(msg) => msg match {
       case EventAndCursor(value, Some(cursor)) => ReceivedMessageAtSink >>('Contents -> msg, 'Value -> (value ~> 'value | ""), 'Cursor -> cursor)
       case EventAndCursor(value, _) => ReceivedMessageAtSink >>('Contents -> msg, 'Value -> (value ~> 'value | ""), 'Cursor -> "")
-      case _ => ReceivedMessageAtSink >> ('Contents -> msg)
+      case msg: EventFrame =>
+        ReceivedMessageAtSink >> (
+          'EventId -> msg.eventIdOrNA,
+          'StreamKey -> msg.streamKey,
+          'StreamSeed -> msg.streamSeed,
+          'Contents -> msg,
+          'JsonContents -> Json.stringify(msg.asJson))
+      case _ => ReceivedMessageAtSink >> ('Type -> msg.getClass.getSimpleName, 'Contents -> msg)
     }
   }
 

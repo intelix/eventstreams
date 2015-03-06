@@ -16,13 +16,14 @@
 
 package eventstreams.tx
 
+import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.Props
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
-import eventstreams.Tools.configHelper
+import eventstreams.Tools._
 import eventstreams._
-import eventstreams.core.actors.{ActorWithTicks, StoppableSubscribingPublisherActor}
+import eventstreams.core.actors.{ActorWithTicks, StateChangeSysevents, StoppableSubscribingPublisherActor}
 import eventstreams.instructions.Types._
 import eventstreams.instructions.{DateInstructionConstants, InstructionConstants}
 import play.api.libs.json._
@@ -32,8 +33,20 @@ import scala.collection.mutable.ListBuffer
 import scalaz.Scalaz._
 import scalaz._
 
-trait TransactionInstructionSysevents extends ComponentWithBaseSysevents {
+trait TransactionInstructionSysevents
+  extends ComponentWithBaseSysevents
+  with StateChangeSysevents {
+  val TxInstructionInstance = 'TxInstructionInstance.trace
+
+  val NewTransaction = 'NewTransaction.trace
+  val TransactionStart = 'TransactionStart.trace
+  val TransactionFinish = 'TransactionFinish.trace
+  val TransactionCompleted = 'TransactionCompleted.trace
+  val TransactionEvicted = 'TransactionEvicted.trace
+
   override def componentId: String = "Instruction.Tx"
+
+
 }
 
 trait TransactionInstructionConstants extends InstructionConstants with TransactionInstructionSysevents {
@@ -45,7 +58,22 @@ trait TransactionInstructionConstants extends InstructionConstants with Transact
   val CfgFMaxOpenTransactions = "maxOpenTransactions"
   val CfgFTimestampSource = "timestampSource"
   val CfgFTargetTxField = "targetTxField"
+  val CfgFTargetTxElapsedMsField = "targetTxElapsedMsField"
+  val CfgFTargetTxStatusField = "targetTxStatusField"
   val CfgFBuffer = "buffer"
+
+  val CfgFEventIdTemplate = "eventIdTemplate"
+  val CfgFStreamKeyTemplate = "streamKeyTemplate"
+  val CfgFStreamSeedTemplate = "streamSeedTemplate"
+
+  val CfgFTags = "tags"
+  val CfgFTxTypeTemplate = "txTypeTemplate"
+
+
+  val ValueStatusClosedSuccess = "closed_success"
+  val ValueStatusClosedFailure = "closed_success"
+  val ValueStatusIncomplete = "incomplete"
+
 }
 
 object TransactionInstructionConstants extends TransactionInstructionConstants
@@ -73,9 +101,8 @@ private class TransactionInstructionActor(props: JsValue)
   extends StoppableSubscribingPublisherActor
   with ActorWithTicks
   with NowProvider
-  with TransactionInstructionSysevents
-  with WithSyseventPublisher
-  with TransactionInstructionConstants {
+  with TransactionInstructionConstants
+  with WithSyseventPublisher {
 
   implicit val ec = context.dispatcher
 
@@ -86,16 +113,159 @@ private class TransactionInstructionActor(props: JsValue)
   val txEndSuccessCondition = SimpleCondition.optionalCondition(props ~> CfgFTxEndSuccessCondition)
   val txEndFailureCondition = SimpleCondition.optionalCondition(props ~> CfgFTxEndFailureCondition)
 
+  val eventIdTemplate = props ~> CfgFEventIdTemplate | "${first.eventId}:${last.eventId}"
+  val streamKeyTemplate = props ~> CfgFStreamKeyTemplate | "${first.streamKey}"
+  val streamSeedTemplate = props ~> CfgFStreamSeedTemplate | "0"
+  val tags = (props ~> CfgFTags).map(_.split(',').map(_.trim).filterNot(_.isEmpty))
+  val txTypeTemplate = props ~> CfgFTxTypeTemplate
+
   val maxOpenTransactions = props +> CfgFMaxOpenTransactions | 100000
   val timestampSource = props ~> CfgFTimestampSource | DateInstructionConstants.default_targetTsField
 
-  val targetTxField = props ~> CfgFTargetTxField | "transactionId"
+  val targetTxField = props ~> CfgFTargetTxField | "txId"
+  val targetTxElapsedMsField = props ~> CfgFTargetTxElapsedMsField | "txElapsedMs"
+  val targetTxStatusField = props ~> CfgFTargetTxStatusField | "txStatus"
+
   val maxInFlight = props +> CfgFBuffer | 1000
 
   val txById: mutable.Map[String, TxTimeline] = mutable.Map()
   var openTransactions: Int = 0
 
-  class Tx {
+  override def onBecameActive(): Unit = {
+    super.onBecameActive()
+  }
+
+
+  override def preStart(): Unit = {
+    super.preStart()
+    TxInstructionInstance >>> Seq(
+      'Name -> name,
+      'Templates -> correlationIdTemplatesSeq,
+      'Start -> props ~> CfgFTxStartCondition,
+      'EndSuccess -> props ~> CfgFTxEndSuccessCondition,
+      'EndFailure -> props ~> CfgFTxEndFailureCondition,
+      'MaxOpen -> maxOpenTransactions,
+      'Buffer -> maxInFlight
+    )
+  }
+
+  override def execute(value: EventFrame): Option[Seq[EventFrame]] =
+    accountEvent(value) match {
+      case Some(x) => Some(x :+ value)
+      case None => Some(Seq(value))
+    }
+
+  override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(maxInFlight) {
+    override def inFlightInternally: Int =
+      pendingToDownstreamCount
+  }
+
+  private def accountEvent(value: EventFrame): Option[Seq[EventFrame]] =
+    for (
+      eId <- value.eventId;
+      txStartC <- txStartCondition;
+      txEndSC <- txEndSuccessCondition;
+      ts <- value ++> timestampSource;
+      ids <- listOfTxIds(value);
+      txEndFC = txEndFailureCondition | NeverTrueCondition();
+      txB <- toDemarcType(ts, value, txStartC.metFor(value).isRight, txEndSC.metFor(value).isRight, txEndFC.metFor(value).isRight, ids)
+    ) yield ids.flatMap(toEvents(_, txB)) ++ removeOldestIfMaxOpenExceeded()
+
+  private def toDemarcType(ts: Long, evt: EventFrame, start: Boolean, finishWithSuccess: Boolean, finishWithFailure: Boolean, ids: Seq[String]): Option[TxDemarcation] =
+    if (start) {
+      TransactionStart >>('EventId -> evt.eventIdOrNA, 'TxIds -> ids.mkString(","))
+      Some(TxStart(ts, evt))
+    } else if (finishWithFailure) {
+      TransactionFinish >>('EventId -> evt.eventIdOrNA, 'Success -> false, 'TxIds -> ids.mkString(","))
+      Some(TxFinishFailure(ts, evt))
+    } else if (finishWithSuccess) {
+      TransactionFinish >>('EventId -> evt.eventIdOrNA, 'Success -> true, 'TxIds -> ids.mkString(","))
+      Some(TxFinishSuccess(ts, evt))
+    }
+    else None
+
+  private def toEvent(tx: Tx): EventFrame = {
+    var e = EventFrame(
+      targetTxField -> tx.id,
+      targetTxElapsedMsField -> tx.elapsedMs,
+      targetTxStatusField -> (if (tx.completed) {
+        if (tx.isCompletedSuccessfully) ValueStatusClosedSuccess else ValueStatusClosedFailure
+      } else ValueStatusIncomplete),
+      "first" -> (tx.start.map(_.evt.asInstanceOf[EventData]) | EventDataValueNil()),
+      "last" -> (tx.finish.map(_.evt.asInstanceOf[EventData]) | EventDataValueNil())
+    )
+    txTypeTemplate.foreach { t =>
+      e = e + ('txType -> Tools.macroReplacement(e, t))
+    }
+    tags.foreach(_.foreach { t =>
+      e = Tools.setValue("as", Tools.macroReplacement(e, t), "tags", e)
+    })
+    e
+      .setEventId(Tools.macroReplacement(e, eventIdTemplate) match {
+      case s if s.trim.isEmpty => UUIDTools.generateShortUUID
+      case s => s
+    })
+      .setStreamKey(Tools.macroReplacement(e, streamKeyTemplate))
+      .setStreamSeed(Tools.macroReplacement(e, streamSeedTemplate))
+  }
+
+  private def toEvents(id: String, txB: TxDemarcation): Seq[EventFrame] =
+    txById.get(id) match {
+      case None =>
+        txById += (id -> (new TxTimeline() + (new Tx(id) + txB)))
+        Seq()
+      case Some(tl) =>
+        tl ? txB match {
+          case None =>
+            tl + (new Tx(id) + txB)
+            Seq()
+          case Some(tx) => tx + txB match {
+            case t if t.completed =>
+              if ((tl - t).empty) txById -= id
+              TransactionCompleted >>(
+                'TxId -> id,
+                'EventIdStart -> (tx.start.map(_.evt.eventIdOrNA) | "N/A"),
+                'EventIdFinish -> (tx.finish.map(_.evt.eventIdOrNA) | "N/A"),
+                'Success -> tx.isCompletedSuccessfully,
+                'OpenTxCount -> openTransactions)
+              Seq(toEvent(t))
+            case _ => Seq()
+          }
+        }
+    }
+
+  private def removeOldestIfMaxOpenExceeded(): Seq[EventFrame] =
+    if (openTransactions > maxOpenTransactions)
+      txById.foldLeft[Option[(String, TxTimeline, Tx)]](None) {
+        case (None, (k, v)) => Some((k, v, v.oldest))
+        case (Some((bk, btl, btx)), (k, v)) if v.oldest.olderThan(btx) => Some((k, v, v.oldest))
+        case (x, _) => x
+      } match {
+        case Some((k, tl, tx)) =>
+          if ((tl - tx).empty) txById -= k
+          TransactionEvicted >>(
+            'TxId -> tx.id,
+            'EventIdStart -> (tx.start.map(_.evt.eventIdOrNA) | "N/A"),
+            'EventIdFinish -> (tx.finish.map(_.evt.eventIdOrNA) | "N/A"),
+            'OpenTxCount -> openTransactions)
+          Seq(toEvent(tx))
+        case None => Seq()
+      }
+    else Seq()
+
+  private def listOfTxIds(value: EventFrame): Option[Seq[String]] =
+    correlationIdTemplatesSeq.map(Tools.macroReplacement(value, _)).map(_.trim).filter(!_.isEmpty) match {
+      case Nil => None
+      case x => Some(x)
+    }
+
+  sealed trait TxDemarcation {
+    def ts: Long
+
+    def evt: EventFrame
+  }
+
+  class Tx(val id: String) {
 
     var start: Option[TxDemarcation] = None
     var finish: Option[TxDemarcation] = None
@@ -108,9 +278,16 @@ private class TransactionInstructionActor(props: JsValue)
       this
     }
 
+    def elapsedMs: Long = if (!completed) -1 else finish.get.ts - start.get.ts
+
     def completed: Boolean = start.isDefined && finish.isDefined
 
     def olderThan(tx: Tx): Boolean = getOldestTs < tx.getOldestTs
+
+    def isCompletedSuccessfully: Boolean = finish match {
+      case Some(x: TxFinishSuccess) => completed
+      case _ => false
+    }
 
     private def getOldestTs = (start.map(_.ts).toList ++ finish.map(_.ts).toList).min
   }
@@ -120,7 +297,11 @@ private class TransactionInstructionActor(props: JsValue)
 
     def +(tx: Tx): TxTimeline = {
       openTransactions += 1
-      list.insert(list.indexWhere(_.olderThan(tx)), tx)
+      NewTransaction >>('TxId -> tx.id, 'OpenTxCount -> openTransactions)
+      list.indexWhere(_.olderThan(tx)) match {
+        case i if i < 0 => list.append(tx)
+        case i => list.insert(i, tx)
+      }
       this
     }
 
@@ -147,92 +328,10 @@ private class TransactionInstructionActor(props: JsValue)
     def oldest: Tx = list.last
   }
 
-  sealed trait TxDemarcation {
-    def ts: Long
-
-    def evt: EventFrame
-  }
-
   case class TxStart(ts: Long, evt: EventFrame) extends TxDemarcation
 
   case class TxFinishSuccess(ts: Long, evt: EventFrame) extends TxDemarcation
 
   case class TxFinishFailure(ts: Long, evt: EventFrame) extends TxDemarcation
 
-  override protected def requestStrategy: RequestStrategy = new MaxInFlightRequestStrategy(maxInFlight) {
-    override def inFlightInternally: Int =
-      pendingToDownstreamCount
-  }
-
-  override def onBecameActive(): Unit = {
-    super.onBecameActive()
-  }
-
-
-  private def accountEvent(value: EventFrame): Option[Seq[EventFrame]] =
-    for (
-      txStartC <- txStartCondition;
-      txEndSC <- txEndSuccessCondition;
-      ts <- value ++> timestampSource;
-      ids <- listOfTxIds(value);
-      txEndFC = txEndFailureCondition | NeverTrueCondition();
-      txB <- toBoundaryType(ts, value, txStartC.metFor(value).isRight, txEndSC.metFor(value).isRight, txEndFC.metFor(value).isRight)
-    ) yield ids.flatMap(toEvents(_, txB)) ++ removeOldestIfMaxOpenExceeded()
-
-  private def toBoundaryType(ts: Long, evt: EventFrame, start: Boolean, finishWithSuccess: Boolean, finishWithFailure: Boolean): Option[TxDemarcation] =
-    if (start) Some(TxStart(ts, evt))
-    else if (finishWithFailure) Some(TxFinishFailure(ts, evt))
-    else if (finishWithSuccess) Some(TxFinishSuccess(ts, evt))
-    else None
-
-  private def toEvent(tx: Tx): EventFrame = 
-    EventFrame(
-      "start" -> (tx.start.map(_.evt.asInstanceOf[EventData]) | EventDataValueNil()),
-      "finish" -> (tx.finish.map(_.evt.asInstanceOf[EventData]) | EventDataValueNil())
-    )
-
-  private def toEvents(id: String, txB: TxDemarcation): Seq[EventFrame] =
-    txById.get(id) match {
-      case None =>
-        txById += (id -> (new TxTimeline() + (new Tx() + txB)))
-        Seq()
-      case Some(tl) =>
-        tl ? txB match {
-          case None =>
-            tl + (new Tx() + txB)
-            Seq()
-          case Some(tx) => tx + txB match {
-            case t if t.completed =>
-              if ((tl - t).empty) txById -= id
-              Seq(toEvent(t))
-            case _ => Seq()
-          }
-        }
-    }
-
-  private def removeOldestIfMaxOpenExceeded(): Seq[EventFrame] =
-    if (openTransactions > maxOpenTransactions)
-      txById.foldLeft[Option[(String, TxTimeline, Tx)]](None) {
-        case (None, (k, v)) => Some((k, v, v.oldest))
-        case (Some((bk, btl, btx)), (k, v)) if v.oldest.olderThan(btx) => Some((k, v, v.oldest))
-        case (x, _) => x
-      } match {
-        case Some((k, tl, tx)) =>
-          if ((tl - tx).empty) txById -= k
-          Seq(toEvent(tx))
-        case None => Seq()
-      }
-    else Seq()
-
-  private def listOfTxIds(value: EventFrame): Option[Seq[String]] =
-    correlationIdTemplatesSeq.map(Tools.macroReplacement(value, _)).map(_.trim).filter(!_.isEmpty) match {
-      case Nil => None
-      case x => Some(x)
-    }
-
-  override def execute(value: EventFrame): Option[Seq[EventFrame]] =
-    accountEvent(value) match {
-      case Some(x) => Some(x :+ value)
-      case None => Some(Seq(value))
-    }
 }

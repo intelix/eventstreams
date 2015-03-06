@@ -6,7 +6,9 @@ import akka.stream.actor.{RequestStrategy, WatermarkRequestStrategy, ZeroRequest
 import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
+import eventstreams.{EventFrame, Tools}
 import eventstreams.core.actors.{ActorWithComposableBehavior, ActorWithActivePassiveBehaviors, StoppableSubscriberActor}
+import play.api.libs.json.Json
 
 trait BasicSinkStubActorSysevents extends ComponentWithBaseSysevents {
 
@@ -34,7 +36,14 @@ class BasicSinkStubActor(initialStrategyWhenEnabled: RequestStrategy)
 
   override def commonBehavior: Actor.Receive = super.commonBehavior orElse {
     case OnNext(msg) => msg match {
-      case _ => ReceivedMessageAtSink >> ('Contents -> msg)
+      case msg: EventFrame =>
+        ReceivedMessageAtSink >> (
+        'EventId -> msg.eventIdOrNA,
+        'StreamKey -> msg.streamKey,
+        'StreamSeed -> msg.streamSeed,
+        'Contents -> msg,
+        'JsonContents -> Json.stringify(msg.asJson))
+      case _ => ReceivedMessageAtSink >> ('Type -> msg.getClass.getSimpleName, 'Contents -> msg)
     }
     case NewRequestStrategy(rs) => rsWhenEnabled = rs
     case ProduceDemand(i) => request(i)

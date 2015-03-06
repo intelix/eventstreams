@@ -228,7 +228,8 @@ lazy val node_hub = Project(
     gate_service % "compile;test->test",
     flow_service % "compile;test->test",
     agent_service % "compile;test->test",
-    signals_service % "compile;test->test",
+//    signals_service % "compile;test->test",
+    alerts_service % "compile;test->test",
     tx_service % "compile;test->test",
     instructions_set % "compile;test->test",
     sink_influxdb_service % "compile;test->test",
@@ -249,12 +250,60 @@ lazy val node_hq = Project(
     agent_hq,
     flow_hq,
     gate_hq,
-    alerts_dn_hq
+    alerts_dn_hq,
+    momentum_hq
   )
 ).enablePlugins(PlayScala,SbtWeb)
 
 
 
+/* Alerts */
+
+lazy val alerts_api = Project(
+  id = "es-alerts-api",
+  base = file("es-alerts/es-alerts-api"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    api  % "compile;test->test"
+  )
+)
+
+lazy val alerts_service = Project(
+  id = "es-alerts-service",
+  base = file("es-alerts/es-alerts-service"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    api  % "compile;test->test",
+    alerts_api,
+    instructions_api,
+    instructions_set
+  )
+)
+
+
+/* Alerts - Desktop notifications */
+
+lazy val alerts_dn_service = Project(
+  id = "es-alerts-dn-service",
+  base = file("es-alerts/es-alerts-dn-service"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    api  % "compile;test->test",
+    instructions_api % "compile;test->test",
+    alerts_api % "compile;test->test",
+    alerts_service % "test->test"
+  )
+)
+
+lazy val alerts_dn_hq = Project(
+  id = "es-alerts-dn-hq",
+  base = file("es-alerts/es-alerts-dn-hq"),
+  dependencies = Seq(
+    web_core,
+    sysevents  % "compile;test->test",
+    api  % "compile;test->test"
+  )
+).enablePlugins(PlayScala,SbtWeb)
 
 
 
@@ -282,6 +331,34 @@ lazy val signals_service = Project(
     instructions_set
   )
 )
+
+
+
+/* Momentum */
+
+
+lazy val momentum_service = Project(
+  id = "es-momentum-service",
+  base = file("es-momentum/es-momentum-service"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    api  % "compile;test->test",
+    instructions_api % "compile;test->test",
+    signals_api % "compile;test->test"
+  )
+)
+
+lazy val momentum_hq = Project(
+  id = "es-momentum-hq",
+  base = file("es-momentum/es-momentum-hq"),
+  dependencies = Seq(
+    web_core,
+    sysevents  % "compile;test->test",
+    api  % "compile;test->test"
+  )
+).enablePlugins(PlayScala,SbtWeb)
+
+
 
 
 /* Transactions */
@@ -403,30 +480,6 @@ lazy val sink_elasticsearch_service = Project(
 
 
 
-
-/* Alerts - Desktop notifications */
-
-lazy val alerts_dn_service = Project(
-  id = "es-alerts-dn-service",
-  base = file("es-alerts-dn/es-alerts-dn-service"),
-  dependencies = Seq(
-    sysevents  % "compile;test->test",
-    api  % "compile;test->test",
-    instructions_api % "compile;test->test",
-    signals_api % "compile;test->test",
-    signals_service % "test->test"
-  )
-)
-
-lazy val alerts_dn_hq = Project(
-  id = "es-alerts-dn-hq",
-  base = file("es-alerts-dn/es-alerts-dn-hq"),
-  dependencies = Seq(
-    web_core,
-    sysevents  % "compile;test->test",
-    api  % "compile;test->test"
-  )
-).enablePlugins(PlayScala,SbtWeb)
 
 
 

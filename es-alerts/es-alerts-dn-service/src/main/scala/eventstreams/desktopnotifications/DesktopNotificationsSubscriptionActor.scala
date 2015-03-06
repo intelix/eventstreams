@@ -21,9 +21,9 @@ import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor._
 import eventstreams.Tools.configHelper
 import eventstreams._
+import eventstreams.alerts.AlertLevel
 import eventstreams.core.actors._
-import eventstreams.signals.SignalLevel
-import play.api.libs.json.{JsObject, JsValue, Json}
+import play.api.libs.json.{JsValue, Json}
 
 import scala.util.matching.Regex
 import scalaz.Scalaz._
@@ -66,7 +66,7 @@ class DesktopNotificationsSubscriptionActor(id: String)
   var name = "default"
   var created = prettyTimeFormat(now)
   var currentState: DesktopNotificationsSubscriptionState = DesktopNotificationsSubscriptionStateUnknown(Some("Initialising"))
-  var level: SignalLevel = SignalLevel.default()
+  var level: AlertLevel = AlertLevel.default()
   var signalClass: String = "default"
   var signalSubclass: Option[String] = None
   var signalClassR: Option[Regex] = None
@@ -132,7 +132,7 @@ class DesktopNotificationsSubscriptionActor(id: String)
     signalClassR = Some(signalClass.r)
     signalSubclass = config ~> 'signalSubclass
     signalSubclassR = signalSubclass.map(_.r)
-    level = SignalLevel.fromString(config ~> 'level | "Very low")
+    level = AlertLevel.fromString(config ~> 'level | "Very low")
     conflate = config ?> 'conflate | true
     autoCloseSec = config +> 'autoClose | 10
 
@@ -151,13 +151,13 @@ class DesktopNotificationsSubscriptionActor(id: String)
 
   def checkMatch(s: String, r: Option[Regex]) = r match {
     case None => true
-    case Some(r) => r.findFirstMatchIn(s) match {
+    case Some(x) => x.findFirstMatchIn(s) match {
       case Some(m) => true
       case _ => false
     }
   }
 
-  def checkLevel(l: Int, required: SignalLevel) = required.code <= l
+  def checkLevel(l: Int, required: AlertLevel) = required.code <= l
 
   def forward(value: EventFrame) = {
     val expiry = value ++> 'expiryTs | 0

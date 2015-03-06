@@ -13,11 +13,6 @@
       "title": "Name",
       "type": "string"
     },
-    "uniqueTransactionIdTemplate": {
-      "propertyOrder": 30,
-      "title": "Unique Transaction ID template",
-      "type": "string"
-    },
     "correlationIdTemplates": {
       "propertyOrder": 40,
       "title": "Correlation ID templates (comma-separated)",
@@ -35,62 +30,62 @@
     },
     "txEndFailureCondition": {
       "propertyOrder": 70,
-      "title": "Transaction end (failure) condition",
+      "title": "Transaction end (failure) condition (optional)",
       "$ref": "#/definitions/simpleCondition"
     },
-    "txAliveCondition": {
-      "propertyOrder": 90,
-      "title": "Transaction alive indicator condition",
-      "$ref": "#/definitions/simpleCondition"
-    },
-    "maxEvents": {
+    "maxOpenTransactions": {
       "propertyOrder": 100,
-      "title": "Max events",
+      "title": "Max open transactions",
       "type": "number",
-      "default": 0
-    },
-    "minEvents": {
-      "propertyOrder": 110,
-      "title": "Min events",
-      "type": "number",
-      "default": 0
-    },
-    "maxDurationMs": {
-      "propertyOrder": 120,
-      "title": "Max duration (ms)",
-      "type": "number",
-      "default": 0
-    },
-    "tsFieldSource": {
-      "propertyOrder": 140,
-      "title": "Timestamp field source",
-      "type": "string",
-      "default": "date_ts"
+      "default": 100000
     },
     "targetTxField": {
       "propertyOrder": 150,
       "title": "Target transaction id field",
       "type": "string",
-      "default": "transactionId"
+      "default": "txId"
     },
-    "targetTxValueTemplate": {
+    "targetTxElapsedMsField": {
       "propertyOrder": 160,
-      "title": "Target transaction id value template",
-      "type": "string"
+      "title": "Target elapsed time (ms) value field",
+      "type": "string",
+      "default": "txElapsedMs"
     },
     "targetTxStatusField": {
       "propertyOrder": 170,
       "title": "Target transaction status field",
       "type": "string",
-      "description": "Will be one of: open, closed or dropped",
-      "default": "transactionStatus"
+      "default": "txStatus"
     },
-    "targetTxResultField": {
-      "propertyOrder": 170,
-      "title": "Target transaction result field",
+    "eventIdTemplate": {
+      "propertyOrder": 171,
+      "title": "eventId value template",
       "type": "string",
-      "description": "Will be one of: success, failure or incomplete",
-      "default": "transactionResult"
+      "default": "${first.eventId}:${last.eventId}"
+    },
+    "streamKeyTemplate": {
+      "propertyOrder": 172,
+      "title": "streamKey value template",
+      "type": "string",
+      "default": "${first.streamKey}"
+    },
+    "streamSeedTemplate": {
+      "propertyOrder": 173,
+      "title": "streamSeed value template",
+      "type": "string",
+      "default": "0"
+    },
+    "txTypeTemplate": {
+      "propertyOrder": 174,
+      "title": "txType value template",
+      "type": "string",
+      "default": ""
+    },
+    "timestampSource": {
+      "propertyOrder": 180,
+      "title": "Source timestamp field",
+      "type": "string",
+      "default": "date_ts"
     }
   }
 }

@@ -14,52 +14,52 @@
  * limitations under the License.
  */
 
-package eventstreams.signals
+package eventstreams.alerts
 
-sealed trait SignalLevel {
+sealed trait AlertLevel {
   def code: Int
   def name: String
 }
 
-object SignalLevel {
-  def default() = new SignalLevelVeryLow()
+object AlertLevel {
+  def default() = new AlertLevelVeryLow()
   def fromString(s: String) = s match {
-    case "Very low" => SignalLevelVeryLow()
-    case "Low" => SignalLevelLow()
-    case "Medium" => SignalLevelMedium()
-    case "High" => SignalLevelHigh()
-    case "Very high" => SignalLevelVeryHigh()
-    case "Maximum" => SignalLevelMaximum()
-    case _ => SignalLevelVeryLow()
+    case "Very low" => AlertLevelVeryLow()
+    case "Low" => AlertLevelLow()
+    case "Medium" => AlertLevelMedium()
+    case "High" => AlertLevelHigh()
+    case "Very high" => AlertLevelVeryHigh()
+    case "Maximum" => AlertLevelMaximum()
+    case _ => AlertLevelVeryLow()
   }
 }
 
-case class SignalLevelVeryLow() extends SignalLevel {
+case class AlertLevelVeryLow() extends AlertLevel {
   override val name = "Very low"
   override final def code: Int = 1
 }
 
-case class SignalLevelLow() extends SignalLevel {
+case class AlertLevelLow() extends AlertLevel {
   override val name = "Low"
   override final def code: Int = 3
 }
 
-case class SignalLevelMedium() extends SignalLevel {
+case class AlertLevelMedium() extends AlertLevel {
   override val name = "Medium"
   override final def code: Int = 5
 }
 
-case class SignalLevelHigh() extends SignalLevel {
+case class AlertLevelHigh() extends AlertLevel {
   override val name = "High"
   override final def code: Int = 7
 }
 
-case class SignalLevelVeryHigh() extends SignalLevel {
+case class AlertLevelVeryHigh() extends AlertLevel {
   override val name = "Very high"
   override final def code: Int = 9
 }
 
-case class SignalLevelMaximum() extends SignalLevel {
+case class AlertLevelMaximum() extends AlertLevel {
   override val name = "Maximum"
   override final def code: Int = 10
 }

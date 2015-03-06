@@ -22,6 +22,7 @@ import akka.actor.Props
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
 import eventstreams._
 import Tools._
+import eventstreams.alerts.{AlertLevel, Alert}
 import eventstreams.instructions.{DateInstructionConstants, Types}
 import Types._
 import eventstreams.core._
@@ -83,7 +84,7 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
   val signalSubclass = props ~> 'signalSubclass
   val throttlingWindow = props +> 'throttlingWindow
   val throttlingAllowance = props +> 'throttlingAllowance
-  val level = SignalLevel.fromString(props ~> 'level | "Very low")
+  val level = AlertLevel.fromString(props ~> 'level | "Very low")
   val (transactionDemarcation, transactionStatus) = (props ~> 'transactionDemarcation | "None").toLowerCase match {
     case "start" => (Some("start"), Some("open"))
     case "success" => (Some("success"), Some("closed"))
@@ -126,7 +127,7 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
     super.onBecameActive()
   }
 
-  def accountSignal(s: Signal) = {
+  def accountSignal(s: Alert) = {
     logger.debug(s"Candidate signal $s")
     cleanup()
     val bucketId = bucketIdByTs(s.ts)
@@ -137,7 +138,7 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
     }
   }
 
-  def eventToSignal(e: EventFrame): Signal = {
+  def eventToSignal(e: EventFrame): Alert = {
 
     sequenceCounter = sequenceCounter + 1
 
@@ -145,7 +146,7 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
     val signalId = eventId + ":" + sequenceCounter
     val ts = timestampSource.flatMap { tsSource => Tools.locateRawFieldValue(e, tsSource, now).asNumber.map(_.longValue())} | now
 
-    Signal(signalId, sequenceCounter, ts,
+    Alert(signalId, sequenceCounter, ts,
       eventId, level, signalClass, signalSubclass,
       conflationKeyTemplate.map(Tools.macroReplacement(e, _)),
       correlationIdTemplate.map(Tools.macroReplacement(e, _)),
@@ -156,7 +157,7 @@ private class SignalSensorInstructionActor(signalClass: String, props: JsValue)
       expirySec.map(_ * 1000 + now))
   }
 
-  def signalToEvent(s: Signal): EventFrame = EventFrame(
+  def signalToEvent(s: Alert): EventFrame = EventFrame(
     "eventId" -> s.signalId,
     "eventSeq" -> s.sequenceId,
     DateInstructionConstants.default_targetFmtField -> DateTime.now().toString(DateInstructionConstants.default),

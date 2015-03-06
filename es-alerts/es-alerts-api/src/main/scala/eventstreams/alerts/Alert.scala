@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package eventstreams.signals
+package eventstreams.alerts
 
-case class Signal(signalId: String,
+case class Alert(signalId: String,
                   sequenceId: Long,
                   ts: Long,
                   eventId: String,
-                  level: SignalLevel,
+                  level: AlertLevel,
                   signalClass: String,
                   signalSubclass: Option[String],
                   conflationKey: Option[String],
