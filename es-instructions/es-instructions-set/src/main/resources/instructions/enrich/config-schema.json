@@ -15,26 +15,18 @@
     },
     "fieldToEnrich": {
       "propertyOrder": 30,
-      "title": "Field name",
+      "title": "Field names",
       "type": "string"
     },
     "targetValueTemplate": {
       "propertyOrder": 40,
-      "title": "Value template",
+      "title": "Value templates",
       "type": "string"
     },
     "targetType": {
       "propertyOrder": 50,
-      "title": "Target type",
-      "type": "string",
-      "enum": [
-        "String",
-        "Boolean",
-        "Number",
-        "String array",
-        "Number array",
-        "Boolean array"
-      ]
+      "title": "Target types",
+      "type": "string"
     },
     "simpleCondition": {
       "propertyOrder": 110,

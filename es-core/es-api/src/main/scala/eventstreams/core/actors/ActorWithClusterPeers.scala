@@ -20,7 +20,7 @@ import akka.actor.{Actor, Address}
 import core.sysevents.SyseventOps.stringToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
-import eventstreams.CommMessage
+import eventstreams.{CommMessageJavaSer, CommMessage}
 import play.api.libs.json.{JsValue, Json}
 
 import scala.collection.mutable
@@ -32,9 +32,9 @@ trait ActorWithClusterPeersSysevents extends ComponentWithBaseSysevents {
   val ClusterPeerHandshakeReceived = "Cluster.PeerHandshakeReceived".trace
 }
 
-case class ClusterPeerHandshake() extends CommMessage
+case class ClusterPeerHandshake() extends CommMessageJavaSer
 
-case class ClusterPeerHandshakeResponse(map: String) extends CommMessage
+case class ClusterPeerHandshakeResponse(map: String) extends CommMessageJavaSer
 
 
 trait ActorWithClusterPeers extends ActorWithClusterAwareness with ActorWithClusterPeersSysevents with ActorWithTicks {

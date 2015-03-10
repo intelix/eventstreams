@@ -70,7 +70,7 @@ class FlowDeployerActor(id: String, config: JsValue, instructions: List[Config])
   override def commonFields: Seq[FieldAndValue] = Seq('ID -> id, 'Handler -> self)
 
   override def onNextEvent(e: Acknowledgeable[_]): Unit =
-    destinationFor(e).foreach(_.forward(e))
+    destinationFor(e).foreach(_ ! e)
 
   override def initialiseDeployment(address: String, index: Int, ref: ActorRef): Unit =
     ref ! InitialiseDeployable(index + "@" + address, id, Json.stringify(config), instructions)

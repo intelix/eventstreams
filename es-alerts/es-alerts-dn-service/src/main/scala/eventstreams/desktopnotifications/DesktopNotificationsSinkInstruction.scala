@@ -90,11 +90,6 @@ private class DesktopNotificationsSinkInstructionActor(address: String, config: 
 
   override def getSetOfActiveEndpoints: Set[ActorRef] = remoteActorRef.map(Set(_)).getOrElse(Set())
 
-  override def fullyAcknowledged(correlationId: Long, msg: Batch[EventFrame]): Unit = {
-    logger.info(s"Fully acknowledged $correlationId")
-    //    context.parent ! Acknowledged(correlationId, msg)
-  }
-
   override def execute(value: EventFrame): Option[Seq[EventFrame]] = {
     // TODO log failed condition
     if (!condition.isDefined || condition.get.metFor(value).isRight) {

@@ -22,6 +22,10 @@ trait ServiceSubscriptionMessage[T] extends CommMessage {
   val subj: T
 }
 
+trait CacheableMessage {
+  val canBeCached: Boolean
+}
+
 trait Subj
 
 case class TopicKey(key: String)
@@ -45,12 +49,14 @@ case class Unsubscribe(sourceRef: ActorRef, subj: Any) extends ServiceSubscripti
 
 case class Command(subj: Any, replyToSubj: Option[Any], data: Option[String] = None) extends ServiceSubscriptionMessage[Any]
 
-case class Update(subj: Any, data: String, canBeCached: Boolean = true) extends ServiceSubscriptionMessage[Any]
+case class Update(subj: Any, data: String, override val canBeCached: Boolean = true) extends ServiceSubscriptionMessage[Any] with CacheableMessage
 
 case class CommandOk(subj: Any, data: String) extends ServiceSubscriptionMessage[Any]
 case class CommandErr(subj: Any, data: String) extends ServiceSubscriptionMessage[Any]
 
 
-case class Stale(subj: Any) extends ServiceSubscriptionMessage[Any]
+case class Stale(subj: Any) extends ServiceSubscriptionMessage[Any] with CacheableMessage {
+  override val canBeCached: Boolean = true
+}
 
 case class RegisterComponent(component: ComponentKey, ref: ActorRef)

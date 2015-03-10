@@ -57,7 +57,7 @@ trait AtLeastOnceDeliveryActor[T <: WithID]
 
   def getSetOfActiveEndpoints: Set[ActorRef]
 
-  def fullyAcknowledged(correlationId: Long, msg: Batch[T])
+  def fullyAcknowledged(correlationId: Long, msg: Batch[T]) = {}
 
   def deliverMessage(msg: T): Long = {
     addToBatch(msg)

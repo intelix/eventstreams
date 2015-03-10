@@ -73,7 +73,7 @@ class StatsdPublisher(val props: JsValue)
 
   override def onBecameActive(): Unit = {
     openPort()
-    logger.info(s"Becoming active - new accepting messages from statsd [$id]")
+    logger.info(s"Becoming active - new accepting messages from statsd [$id] at $host:$port")
     super.onBecameActive()
   }
 
@@ -84,8 +84,11 @@ class StatsdPublisher(val props: JsValue)
   }
 
   def handler: Receive = {
-    case Udp.Received(data, remote) => enqueue(data)
-    case Udp.Bound(local) => openSocket = Some(sender())
+    case Udp.Received(data, remote) =>
+      enqueue(data)
+    case Udp.Bound(local) =>
+      logger.info(s"!>>> Bound! $local")
+      openSocket = Some(sender())
     case Udp.Unbound =>
       logger.debug(s"Unbound!")
       context.stop(self)

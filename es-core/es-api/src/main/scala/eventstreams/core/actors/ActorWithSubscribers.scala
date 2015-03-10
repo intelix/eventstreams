@@ -56,17 +56,18 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSu
   def lastSubscriberGone(subject: T) = {}
 
   def collectSubjects(f: T => Boolean) = subscribers.collect { case (sub, set) if f(sub) => sub}
+  def allSubjects = subscribers.keys
 
 //  def collectSubscribers(f: T => Boolean) = subscribers.filter { case (sub, set) => f(sub)}
 
   def subscribersFor(subj: T) = subscribers.collectFirst { case (sub, set) if subjectMatch(sub, subj) => set}
 
-  def updateToAll(subj: T, data: Option[String]) = subscribersFor(subj).foreach(_.foreach(updateTo(subj, _, data)))
+  def updateToAll(subj: T, data: Option[String], canBeCached: Boolean = true) = subscribersFor(subj).foreach(_.foreach(updateTo(subj, _, data, canBeCached)))
 
-  def updateTo(subj: T, ref: ActorRef, data: Option[String]) =
+  def updateTo(subj: T, ref: ActorRef, data: Option[String], canBeCached: Boolean = true) =
     data foreach { d =>
-      ref ! Update(subj, d, canBeCached = true)
-      UpdateForSubject >>('Subject -> subj, 'Target -> ref, 'Data -> d)
+      ref ! Update(subj, d, canBeCached)
+      UpdateForSubject >>('Subject -> subj, 'Target -> ref, 'Data -> d, 'Cached -> canBeCached)
     }
 
 
@@ -106,15 +107,17 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSu
   }
 
   private def addSubscriber(ref: ActorRef, subject: T): Unit = {
-    NewSubjectSubscription >>('Subject -> subject, 'Source -> ref)
-    context.watch(ref)
-    subscribers.get(subject) match {
-      case None =>
-        FirstSubjectSubscriber >> ('Subject -> subject)
-        firstSubscriber(subject)
-      case _ => ()
+    if (!subscribers.get(subject).exists(_.contains(ref))) {
+      NewSubjectSubscription >>('Subject -> subject, 'Source -> ref)
+      context.watch(ref)
+      subscribers.get(subject) match {
+        case None =>
+          FirstSubjectSubscriber >> ('Subject -> subject)
+          firstSubscriber(subject)
+        case _ => ()
+      }
+      subscribers += (subject -> (subscribers.getOrElse(subject, new HashSet[ActorRef]()) + ref))
     }
-    subscribers += (subject -> (subscribers.getOrElse(subject, new HashSet[ActorRef]()) + ref))
     processSubscribeRequest(ref, subject)
   }
 

@@ -90,7 +90,6 @@ private class PassiveInputActor(id: String)
     case Acknowledgeable(m,id) =>
       if (pendingToDownstreamCount < buffer || pendingToDownstreamCount < totalDemand) {
         if (!isDup(sender(), id)) {
-          sender() ! AcknowledgeAsReceived(id)
           sender() ! AcknowledgeAsProcessed(id)
           _rate.mark()
 

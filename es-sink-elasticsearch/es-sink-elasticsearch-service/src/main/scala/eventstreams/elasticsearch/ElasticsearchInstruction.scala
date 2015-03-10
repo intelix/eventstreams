@@ -131,5 +131,4 @@ private class ElasticsearchInstructionActor(config: JsValue)
 
   override implicit val cluster: Cluster = Cluster(context.system)
 
-  override def fullyAcknowledged(correlationId: Long, msg: Batch[StoreInElasticsearch]): Unit = {}
 }

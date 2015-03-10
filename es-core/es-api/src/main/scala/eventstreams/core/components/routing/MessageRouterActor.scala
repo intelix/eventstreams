@@ -29,10 +29,9 @@ import net.ceedubs.ficus.Ficus._
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scalaz.Scalaz._
-import scalaz._
 
 
-trait MessageRouterSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with SubjectSubscriptionSysevents{
+trait MessageRouterSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with SubjectSubscriptionSysevents {
   override def componentId: String = "MessageRouter"
 
   val ForwardedToClient = 'ForwardedToClient.trace
@@ -55,7 +54,7 @@ trait MessageRouterSysevents extends ComponentWithBaseSysevents with BaseActorSy
   val RespondedWithCached = 'RespondedWithCached.trace
 
   val PendingComponentRemoval = 'PendingComponentRemoval.info
-  
+
 }
 
 object MessageRouterActor extends ActorObjWithCluster with MessageRouterSysevents {
@@ -69,6 +68,8 @@ case class ProviderState(ref: ActorRef, active: Boolean)
 
 case class RemoveIfInactive(ref: ActorRef)
 
+case class CachingDisabled()
+
 class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
   extends ActorWithComposableBehavior
   with ActorWithRemoteSubscribers
@@ -77,7 +78,7 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
   with WithSyseventPublisher {
 
   val providerRemoveTimeout = sysconfig.as[Option[FiniteDuration]]("eventstreams.message-router.provider-remove-timeout") | 30.seconds
-  
+
   val updatesCache: mutable.Map[RemoteAddrSubj, Any] = new mutable.HashMap[RemoteAddrSubj, Any]()
   implicit val ec = context.dispatcher
   var staticRoutes: Map[ComponentKey, ProviderState] = Map[ComponentKey, ProviderState]()
@@ -131,28 +132,30 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
     val component = subj.component
     staticRoutes.get(component) match {
       case Some(ProviderState(ref, true)) =>
-        MessageForwarded >> ('Subject -> subj, 'MessageType -> msg.getClass.getSimpleName, 'Target -> ref, 'ComponentKey -> component.key)
+        MessageForwarded >>('Subject -> subj, 'MessageType -> msg.getClass.getSimpleName, 'Target -> ref, 'ComponentKey -> component.key)
         ref ! msg
       case Some(ProviderState(ref, false)) =>
-        MessageDropped >> ('Reason -> "Inactive route", 'Target -> component)
+        MessageDropped >>('Reason -> "Inactive route", 'Target -> component)
       case None =>
-        MessageDropped >> ('Reason -> "Unknown route", 'Target -> component)
+        MessageDropped >>('Reason -> "Unknown route", 'Target -> component)
     }
   }
 
   def register(ref: ActorRef, component: ComponentKey): Unit = {
     staticRoutes += component -> ProviderState(ref, active = true)
     context.watch(ref)
-    RouteAdded >> ('Route -> component.key, 'Ref -> ref)
-    collectSubjects { subj => subj.localSubj.component == component && myNodeIsTarget(subj)}.foreach { subj =>
+    RouteAdded >>('Route -> component.key, 'Ref -> ref)
+    collectSubjects { subj => subj.localSubj.component == component && myNodeIsTarget(subj) }.foreach { subj =>
       NewSubscription >> ('Subject -> subj)
       forwardDownstream(subj, Subscribe(self, subj))
     }
   }
 
-  def remember(subj: RemoteAddrSubj, update: Any) = {
+  def remember(subj: RemoteAddrSubj, update: CacheableMessage) = if (update.canBeCached) {
     AddedToCache >> ('Subject -> subj)
     updatesCache += (subj -> update)
+  } else {
+    updatesCache += subj -> CachingDisabled()
   }
 
   def clearCacheFor(subject: RemoteAddrSubj) = {
@@ -163,21 +166,24 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
   def publishToClients(subj: Any, f: RemoteAddrSubj => Any) =
     convertSubject(subj) foreach { subj =>
       val msg = f(subj)
-      remember(subj, msg)
+      msg match {
+        case x: CacheableMessage => remember(subj, x)
+        case _ => ()
+      }
       subscribersFor(subj) foreach { setOfActors =>
         setOfActors.foreach { actor =>
           actor ! msg
-          ForwardedToClient >> ('Subject -> subj, 'Target -> actor)
+          ForwardedToClient >>('Subject -> subj, 'Target -> actor)
         }
       }
     }
 
   def removeRoute(ref: ActorRef): Unit =
     staticRoutes = staticRoutes.filter {
-      case (component, ProviderState(thatRef, false)) if ref == thatRef =>
-        RouteRemoved >> ('Route -> component.key)
+      case (c, ProviderState(thatRef, false)) if ref == thatRef =>
+        RouteRemoved >> ('Route -> c.key)
         collectSubjects { subj =>
-          subj.localSubj.component == component && myNodeIsTarget(subj)
+          subj.localSubj.component == c && myNodeIsTarget(subj)
         } foreach { subj =>
           publishToClients(subj, Stale(_))
         }
@@ -186,7 +192,7 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
       case _ => true
     }
 
-  def isProviderRef(ref: ActorRef) = staticRoutes.exists { case (_, provState) => provState.ref == ref}
+  def isProviderRef(ref: ActorRef) = staticRoutes.exists { case (_, provState) => provState.ref == ref }
 
   override def firstSubscriber(subject: RemoteAddrSubj) = forwardDownstream(subject, Subscribe(self, subject))
 
@@ -196,9 +202,14 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
   }
 
   override def processSubscribeRequest(ref: ActorRef, subject: RemoteAddrSubj) = {
-    updatesCache.get(subject) foreach { msg => 
-      ref ! msg
-      RespondedWithCached >> ('Subject -> subject, 'Target -> ref)
+    updatesCache.get(subject) match {
+      case Some(CachingDisabled()) =>
+        forwardDownstream(subject, Subscribe(self, subject))
+        RespondedWithCached >>('Subject -> subject, 'Target -> ref)
+      case Some(msg) =>
+        ref ! msg
+        RespondedWithCached >>('Subject -> subject, 'Target -> ref)
+      case _ => ()
     }
   }
 
@@ -212,14 +223,14 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
   override def onTerminated(ref: ActorRef): Unit = {
     if (isProviderRef(ref)) {
       staticRoutes = staticRoutes.map {
-        case (component, state) if ref == state.ref =>
+        case (c, state) if ref == state.ref =>
           collectSubjects { subj =>
-            subj.localSubj.component == component && myNodeIsTarget(subj)
+            subj.localSubj.component == c && myNodeIsTarget(subj)
           } foreach { subj =>
             publishToClients(subj, Stale(_))
           }
-          component -> ProviderState(ref, active = false)
-        case (component, state) => component -> state
+          c -> ProviderState(ref, active = false)
+        case (c, state) => c -> state
       }
       scheduleRemoval(ref)
     }
@@ -228,15 +239,15 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
 
   private def handler: Receive = {
     case Update(subj, data, cacheable) => publishToClients(subj, Update(_, data, cacheable))
-    case CommandErr(subj, data) => convertSubject(subj) foreach { remoteSubj => forwardDownstream(remoteSubj, CommandErr(remoteSubj, data))}
-    case CommandOk(subj, data) => convertSubject(subj) foreach { remoteSubj => forwardDownstream(remoteSubj, CommandOk(remoteSubj, data))}
+    case CommandErr(subj, data) => convertSubject(subj) foreach { remoteSubj => forwardDownstream(remoteSubj, CommandErr(remoteSubj, data)) }
+    case CommandOk(subj, data) => convertSubject(subj) foreach { remoteSubj => forwardDownstream(remoteSubj, CommandOk(remoteSubj, data)) }
     case Stale(subj) => publishToClients(subj, Stale(_))
-    case RegisterComponent(component, ref) => register(ref, component)
+    case RegisterComponent(c, ref) => register(ref, c)
     case RemoveIfInactive(ref) => removeRoute(ref)
   }
 
   private def scheduleRemoval(ref: ActorRef) {
-    PendingComponentRemoval >> ('Ref -> ref, 'Timeout -> providerRemoveTimeout)
+    PendingComponentRemoval >>('Ref -> ref, 'Timeout -> providerRemoveTimeout)
     context.system.scheduler.scheduleOnce(providerRemoveTimeout, self, RemoveIfInactive(ref))
   }
 }

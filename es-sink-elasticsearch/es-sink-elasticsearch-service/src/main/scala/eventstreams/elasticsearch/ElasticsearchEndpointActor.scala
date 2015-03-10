@@ -18,6 +18,7 @@ package eventstreams.elasticsearch
 
 import java.util.Calendar
 
+import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.ActorRef
 import akka.agent.Agent
@@ -27,7 +28,7 @@ import com.sksamuel.elastic4s.ElasticDsl._
 import com.sksamuel.elastic4s.source.StringDocumentSource
 import com.typesafe.config.Config
 import eventstreams._
-import eventstreams.core.actors.{ActorObj, ActorWithComposableBehavior, ActorWithTicks}
+import eventstreams.core.actors.{AutoAcknowledgingService, ActorObj, ActorWithComposableBehavior, ActorWithTicks}
 import net.ceedubs.ficus.Ficus._
 import org.elasticsearch.common.settings.ImmutableSettings
 import play.api.libs.json._
@@ -58,7 +59,8 @@ private case class BatchFailed()
 class ElasticsearchEndpointActor(config: Config, c: Cluster)
   extends ActorWithComposableBehavior
   with ElasticsearchEntpointSysevents
-  with ComponentWithBaseSysevents
+  with AutoAcknowledgingService[StoreInElasticsearch]
+  with WithSyseventPublisher
   with NowProvider with ActorWithTicks {
 
   val id = ElasticsearchEndpointActor.id
@@ -142,17 +144,6 @@ class ElasticsearchEndpointActor(config: Config, c: Cluster)
   }
 
   private def handler: Receive = {
-    case m: Acknowledgeable[_] => m.msg match {
-      case s: StoreInElasticsearch => if (enqueue(s)) sender() ! AcknowledgeAsProcessed(m.id)
-      case b: Batch[_] =>
-        b.entries.foreach {
-          case s: StoreInElasticsearch => enqueue(s, enforce = true)
-        }
-        sender() ! AcknowledgeAsProcessed(m.id)
-      case other =>
-        logger.debug(s"Unsupported request type: $other")
-        sender() ! AcknowledgeAsProcessed(m.id)
-    }
     case BatchSuccessful(_) =>
       runningBatch = None
     case BatchFailed() =>
@@ -163,6 +154,10 @@ class ElasticsearchEndpointActor(config: Config, c: Cluster)
       temp.foreach(enqueue(_, enforce = true))
       runningBatch = None
   }
+
+  override def canAccept(count: Int): Boolean = scheduledForDelivery.size < 1000
+
+  override def onNext(e: StoreInElasticsearch): Unit = enqueue(e, enforce = true)
 }
 
 

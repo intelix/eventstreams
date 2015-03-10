@@ -234,7 +234,8 @@ lazy val node_hub = Project(
     instructions_set % "compile;test->test",
     sink_influxdb_service % "compile;test->test",
     sink_elasticsearch_service % "compile;test->test",
-    alerts_dn_service % "compile;test->test"
+    alerts_dn_service % "compile;test->test",
+    momentum_service % "compile;test->test"
   )
 ).enablePlugins(AkkaAppPackaging)
 

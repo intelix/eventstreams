@@ -52,21 +52,33 @@ class EnrichInstruction extends SimpleInstructionBuilder with EnrichInstructionC
       val fieldValue = props #> CfgFTargetValueTemplate | JsString("")
       val fieldType = props ~> CfgFTargetType | "s"
 
+      val fieldNames = fieldName.split(",").map(_.trim)
+      val fieldValues = fieldValue.split(",").map(_.trim)
+      val fieldTypes = fieldType.split(",").map(_.trim)
+
+      val configs = (fieldNames.toList, fieldValues.toList, fieldTypes.toList).zipped.toList
+
       val uuid = UUIDTools.generateShortUUID
 
       Built >>('Field -> fieldName, 'Value -> fieldValue, 'Type -> fieldType, 'InstructionInstanceId -> uuid)
 
       frame: EventFrame => {
 
-        val keyPath = macroReplacement(frame, fieldName)
-
-        val replacement: String = macroReplacement(frame, fieldValue)
-
-        val value: EventFrame = setValue(fieldType, replacement, keyPath, frame)
-
         val eventId = frame.eventIdOrNA
 
-        Enriched >>('Path -> keyPath, 'Replacement -> replacement, 'NewValue -> value, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
+        val value = configs.foldLeft[EventFrame](frame) {
+          case (f, (n,v,s)) =>
+            val keyPath = macroReplacement(f, n)
+
+            val replacement: String = macroReplacement(f, v)
+
+            val interim = setValue(s, replacement, keyPath, f)
+            Enriched >>('Path -> keyPath, 'Replacement -> replacement, 'NewValue -> interim, 'EventId -> eventId, 'InstructionInstanceId -> uuid)
+
+            interim
+        }
+
+
 
         List(value)
 

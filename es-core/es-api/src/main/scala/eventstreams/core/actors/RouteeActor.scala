@@ -70,14 +70,14 @@ trait RouteeActor
       case t: JsValue => topicUpdate(key, Some(Json.stringify(t)))
       case t => topicUpdate(key, Some(t.toString))
     }
-    final def !!>(data: Any) = data match {
+    final def !!*(data: Any) = data match {
       case Some(x) => x match {
-        case t: JsValue => topicUpdate(key, Some(Json.stringify(t)))
-        case t => topicUpdate(key, Some(t.toString))
+        case t: JsValue => topicUpdate(key, Some(Json.stringify(t)), canBeCached = false)
+        case t => topicUpdate(key, Some(t.toString), canBeCached = false)
       }
-      case None => topicUpdate(key, None)
-      case t: JsValue => topicUpdate(key, Some(Json.stringify(t)))
-      case t => topicUpdate(key, Some(t.toString))
+      case None => topicUpdate(key, None, canBeCached = false)
+      case t: JsValue => topicUpdate(key, Some(Json.stringify(t)), canBeCached = false)
+      case t => topicUpdate(key, Some(t.toString), canBeCached = false)
     }
   }
 
@@ -88,10 +88,12 @@ trait RouteeActor
     super.preStart()
   }
 
-  final def topicUpdate(topic: TopicKey, data: Option[String], singleTarget: Option[ActorRef] = None): Unit =
+  def allTopicKeys = allSubjects.map(_.topic)
+
+  final def topicUpdate(topic: TopicKey, data: Option[String], singleTarget: Option[ActorRef] = None, canBeCached: Boolean = true): Unit =
     singleTarget match {
-      case Some(ref) => updateTo(LocalSubj(key, topic), ref, data)
-      case None => updateToAll(LocalSubj(key, topic), data)
+      case Some(ref) => updateTo(LocalSubj(key, topic), ref, data, canBeCached)
+      case None => updateToAll(LocalSubj(key, topic), data, canBeCached)
     }
 
   final def genericCommandError(cmdTopicKey: TopicKey, replyToSubj: Option[Any], errorMessage: String, singleTarget: ActorRef = sender()) = {

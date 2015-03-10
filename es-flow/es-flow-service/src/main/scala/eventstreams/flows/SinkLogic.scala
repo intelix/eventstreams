@@ -59,6 +59,8 @@ private[flows] trait SinkLogic
   private def handler: Receive = {
     case b : Acknowledgeable[_] if isComponentActive => onNextEvent(b)
     case b : Acknowledgeable[_] => ()
+    case b: AcknowledgeAsProcessed => remoteActorRef.foreach(_ ! b)
+    case b: AcknowledgeAsReceived => remoteActorRef.foreach(_ ! b)
   }
 
 

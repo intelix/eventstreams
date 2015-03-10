@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "title": "Sink: Momentum",
+  "properties": {
+    "class": {
+      "propertyOrder": 10,
+      "title": "Type",
+      "type": "string",
+      "template": "momentum"
+    },
+    "name": {
+      "propertyOrder": 20,
+      "title": "Name",
+      "type": "string"
+    },
+    "simpleCondition": {
+      "propertyOrder": 110,
+      "$ref": "#/definitions/simpleCondition"
+    }
+  }
+}

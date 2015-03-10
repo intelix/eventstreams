@@ -37,6 +37,9 @@ define(['react', 'core_mixin', 'common_nodetabs', './FlowsTable', './FlowsEditor
                 var defaults = {
                     "name": "",
                     "sourceGateName": "",
+                    "deployTo": "",
+                    "instancesPerNode": 1,
+                    "blockGateWhenPassive": true,
                     "pipeline": []
                 };
                 this.setState({editBlock: <EditBlock addr={this.state.selected} mgrRoute="flows" title="Flow configuration" defaults={defaults}  editorId="flow"/>});

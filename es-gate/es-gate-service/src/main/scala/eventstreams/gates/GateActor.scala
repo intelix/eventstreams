@@ -355,7 +355,6 @@ class GateActor(id: String)
     (T_STATS, 5, () => stats, T_STATS !! _)
   )
 
-  override def fullyAcknowledged(correlationId: Long, msg: Batch[EventFrame]): Unit = {}
 }
 
 case class RouteTo(ref: ActorRef, msg: Any)

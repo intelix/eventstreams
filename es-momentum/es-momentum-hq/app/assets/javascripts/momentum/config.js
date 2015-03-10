@@ -16,26 +16,12 @@
 
 (function() {
 
-    require(["/assets/javascripts/common-config.js"]);
-
     require.config({
-
-        /*noinspection */
         packages: [
-            'hq/app'
+            'momentum'
         ]
     });
 
-    require([
-        "/assets/javascripts/agents/config.js",
-        "/assets/javascripts/gates/config.js",
-        "/assets/javascripts/flows/config.js",
-        "/assets/javascripts/auth/config.js",
-        "hq/main"
-    ]);
-
-    /** Add plugins here **/
-    require(["/assets/javascripts/desktopnotifications/config.js"]);
-    require(["/assets/javascripts/momentum/config.js"]);
+    require(["momentum"]);
 
 })();

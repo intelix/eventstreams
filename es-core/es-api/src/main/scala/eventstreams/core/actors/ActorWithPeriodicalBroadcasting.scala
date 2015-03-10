@@ -46,7 +46,8 @@ trait ActorWithPeriodicalBroadcasting
 
   def updateBroadcastCache(key: Key, value: Any): Option[Any] = {
     updatesCache.get(key) match {
-      case Some(v) if v.equals(value) => None
+      case Some(v) if v.equals(value) =>
+        None
       case _ =>
         updatesCache += key -> value
         Some(value)
