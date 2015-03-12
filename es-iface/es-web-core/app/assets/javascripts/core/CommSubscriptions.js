@@ -110,11 +110,12 @@ define(['logging', 'eventing', 'comm_protocol', 'comm_auth'], function (logging,
     function onInboundMessage(e) {
         var data = e.detail;
         var eventId = eventKey(data.addr, data.component, data.topic);
-        updateCache[eventId] = {type: data.type, payload: data.payload};
+        var messageType = data.type;
+        updateCache[eventId] = {type: messageType, payload: data.payload};
         var subscribers = globalSubscribers[eventId];
         if (subscribers && subscribers.length > 0) {
             subscribers.forEach(function (next) {
-                next(data.type, data.payload);
+                next(messageType, data.payload);
             });
         }
     }

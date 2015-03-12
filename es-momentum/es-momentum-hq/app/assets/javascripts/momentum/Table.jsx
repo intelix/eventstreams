@@ -26,23 +26,27 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
         subscriptionConfig: function (props) {
             return [
                 {address: props.addr, route: 'momentum', topic: 'dict_snapshot', onData: this.onDictSnapshot},
-                {address: props.addr, route: 'momentum', topic: 'dict_update', onData: this.onDictUpdate},
                 {address: props.addr, route: 'momentum', topic: 'values:*', onData: this.onValues}
             ];
         },
         getInitialState: function () {
-            return {list: null}
+            return {dict: {}}
         },
 
         handleAddNew: function () {
             this.raiseEvent("addFlow", {});
         },
 
-        onDictSnapshot: function(data) {
-            this.logInfo("!>>> onDictSnapshot: " + JSON.stringify(data));
+
+        parseDict: function(map, data) {
+            data.forEach(function(x) {
+                map[x.id] = x;
+            });
+            return map;
         },
-        onDictUpdate: function(data) {
-            this.logInfo("!>>> onDictUpdate: " + JSON.stringify(data));
+
+        onDictSnapshot: function(data) {
+            this.setState({dict: this.parseDict({}, data)});
         },
         onValues: function(data) {
             this.logInfo("!>>> onValues: " + JSON.stringify(data));
@@ -53,7 +57,14 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
 
             return (
                 <div>
-                    Hello momentum
+                    <h3>Application</h3>
+                    <table className="table table-condensed">
+                        <thead>
+                            <th>Sensor</th>
+                            <th width="10px">Value</th>
+                            <th>Trends</th>
+                        </thead>
+                    </table>
                 </div>
             );
         },
@@ -64,9 +75,11 @@ define(['react', 'core_mixin'], function (React, core_mixin) {
         },
 
         render: function () {
-            return (
-                <div>Hello momentum</div>
-            );
+            if (this.state.dict) {
+                return this.renderData();
+            } else {
+                return this.renderLoading();
+            }
         }
     });
 

@@ -70,8 +70,8 @@ class MessageRouterTest
 
   it should "not subscribe with provider on 2nd subscription (coming from the same subscriber) if already subscribed" in new WithOneSubscriber {
     subscribeFrom1(dummy1System, LocalSubj(componentKeyForRouteeStub1, T_INFO))
-    expectOneOrMoreEvents(MessageRouterActor.NewSubjectSubscription)
     waitAndCheck {
+      expectNoEvents(MessageRouterActor.NewSubjectSubscription)
       expectNoEvents(MessageRouterActor.ForwardedToLocalProviders)
       expectNoEvents(MessageRouterActor.MessageForwarded)
     }
@@ -79,8 +79,8 @@ class MessageRouterTest
 
   it should "not subscribe with provider on 2nd subscription (coming from the same subscriber but using remote subject) if already subscribed" in new WithOneSubscriber {
     subscribeFrom1(dummy1System, RemoteAddrSubj(dummy1Address, LocalSubj(componentKeyForRouteeStub1, T_INFO)))
-    expectOneOrMoreEvents(MessageRouterActor.NewSubjectSubscription)
     waitAndCheck {
+      expectNoEvents(MessageRouterActor.NewSubjectSubscription)
       expectNoEvents(MessageRouterActor.ForwardedToLocalProviders)
       expectNoEvents(MessageRouterActor.MessageForwarded)
     }

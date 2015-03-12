@@ -28,7 +28,6 @@ class MomentumServiceActor(sysconfig: Config, cluster: Cluster)
   with WithSyseventPublisher {
 
   val T_DICT = TopicKey("dict_snapshot")
-  val T_DICT_UPDATE = TopicKey("dict_update")
   private val ValuesTopicId = "values:(.+)".r
   private var buckets: Map[SignalId, Bucket] = Map()
   private var scheduledForUpdate: Map[SignalId, Bucket] = Map()
@@ -66,12 +65,12 @@ class MomentumServiceActor(sysconfig: Config, cluster: Cluster)
       scheduledForUpdate = Map()
     }
     if (scheduledForDictUpdate.nonEmpty) {
-      T_DICT_UPDATE !!* Some(JsArray(scheduledForDictUpdate.values.map(bucketToDict).toSeq))
+      publishDict()
       scheduledForDictUpdate = Map()
     }
   }
 
-  private def publishDict() = T_DICT !!* dict
+  private def publishDict() = T_DICT !! dict
 
   private def bucketToDict(b: Bucket) = Json.obj(
     "id" -> b.uid,

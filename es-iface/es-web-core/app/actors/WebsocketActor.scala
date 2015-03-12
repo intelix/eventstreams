@@ -155,7 +155,7 @@ class WebsocketActor(out: ActorRef)
   
       
       
-    case Update(subj, data, _) =>
+    case Update(subj, data, canBeCached) =>
       path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(data))}
     case CommandErr(subj, data) =>
       val path = subj2path(subj)

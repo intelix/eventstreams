@@ -42,6 +42,7 @@ private[momentum] trait Bucket {
   val id: SignalId
   val uid: Long
 
+  var latestTs: Option[Long] = None
   val metric: SigMetric[Double]
 
   var lastReading: Option[Double] = None
@@ -54,8 +55,7 @@ private[momentum] trait Bucket {
 
   def updateReading(s: SignalEventFrame): Boolean =
     metric.valueFrom(s).map { v =>
-      updateValue(v)
-      true
+      updateValue(v, s.ts)
     } | false
 
 
@@ -86,7 +86,16 @@ private[momentum] trait Bucket {
 
   protected def account(v: Double): Double
 
-  protected def updateValue(v: Double): Unit = lastReading = Some(account(v))
+  protected def updateValue(v: Double, ts: Option[Long]): Boolean =
+    ts match {
+      case Some(t) if latestTs.isEmpty || latestTs.get >= t =>
+        lastReading = Some(account(v))
+        true
+      case _ => false
+    }
+
+
+
 
   protected def updateLevels(v: Seq[EventData]): Unit =
     v match {
@@ -132,6 +141,10 @@ trait NumericMinMaxRange {
 private case class GaugeBucket(uid: Long, id: SignalId) extends Bucket with NumericMinMaxRange with WithMetrics {
   private val m = metrics.histogram(id.toMetricName)
 
+
+
+
+
   override protected def account(v: Double): Double = {
     m += v.toLong
     v
@@ -142,8 +155,6 @@ private case class GaugeBucket(uid: Long, id: SignalId) extends Bucket with Nume
   override def currentValues: Seq[Double] =
     lastReading.map(
       Seq[Double](_,
-        m.snapshot.getMin,
-        m.snapshot.getMax,
         m.snapshot.getMean,
         m.snapshot.getMedian,
         m.snapshot.get95thPercentile(),
@@ -183,8 +194,6 @@ private case class TimingBucket(uid: Long, id: SignalId) extends Bucket with Num
         m.oneMinuteRate,
         m.fiveMinuteRate,
         m.fifteenMinuteRate,
-        m.snapshot.getMin/1000000,
-        m.snapshot.getMax/1000000,
         m.snapshot.getMean/1000000,
         m.snapshot.getMedian/1000000,
         m.snapshot.get95thPercentile()/1000000,

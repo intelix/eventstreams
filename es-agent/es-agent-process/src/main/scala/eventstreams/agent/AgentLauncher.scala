@@ -17,16 +17,24 @@
 package eventstreams.agent
 
 import akka.actor.ActorSystem
+import akka.kernel.Bootable
 import com.typesafe.config.ConfigFactory
 import eventstreams.core.storage.ConfigStorageActor
 
-object AgentLauncher extends App {
+class AgentLauncher extends Bootable {
 
   implicit val config = ConfigFactory.load("agent.conf")
 
   implicit val system = ActorSystem("Agent", config)
+  override def startup(): Unit = {
+    ConfigStorageActor.start
+    AgentControllerActor.start
+  }
+  override def shutdown(): Unit = {
+    system.shutdown()
+  }
+}
 
-  ConfigStorageActor.start
-  AgentControllerActor.start
-
+object AgentLauncherApp extends App {
+  new AgentLauncher().startup()
 }

@@ -51,7 +51,7 @@ lazy val agent_process = Project(
     source_elasticsearch % "compile;test->test",
     source_tcp % "compile;test->test"
   )
-)
+).enablePlugins(AkkaAppPackaging)
 
 lazy val agent_service = Project(
   id = "es-agent-service",
