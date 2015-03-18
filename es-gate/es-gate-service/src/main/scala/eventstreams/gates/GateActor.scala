@@ -133,7 +133,7 @@ class GateActor(id: String)
       val inFlightNow = inFlightCount
       purgeInflights()
       InflightsPurged >> ('Count -> inFlightNow)
-      \/-(OK(message = Some(s"Purged $inFlightNow messages")))
+      OK(message = Some(s"Purged $inFlightNow messages"))
   }
 
 

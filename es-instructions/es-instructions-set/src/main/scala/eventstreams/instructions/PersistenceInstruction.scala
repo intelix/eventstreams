@@ -48,9 +48,9 @@ class PersistenceInstruction extends SimpleInstructionBuilder with PersistenceIn
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      index <- props ~> CfgFIndex \/> Fail(s"Invalid $configId instruction. Missing '$CfgFIndex' value. Contents: ${Json.stringify(props)}");
-      table <- props ~> CfgFTable \/> Fail(s"Invalid $configId instruction. Missing '$CfgFTable' value. Contents: ${Json.stringify(props)}");
-      ttl <- props ~> CfgFTTL \/> Fail(s"Invalid $configId instruction. Missing '$CfgFTTL' value. Contents: ${Json.stringify(props)}")
+      index <- props ~> CfgFIndex orFail s"Invalid $configId instruction. Missing '$CfgFIndex' value. Contents: ${Json.stringify(props)}";
+      table <- props ~> CfgFTable orFail s"Invalid $configId instruction. Missing '$CfgFTable' value. Contents: ${Json.stringify(props)}";
+      ttl <- props ~> CfgFTTL orFail s"Invalid $configId instruction. Missing '$CfgFTTL' value. Contents: ${Json.stringify(props)}"
     ) yield {
 
       val uuid = UUIDTools.generateShortUUID

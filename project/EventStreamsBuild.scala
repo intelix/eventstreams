@@ -7,6 +7,7 @@ import com.typesafe.sbt.less.Import.LessKeys
 import com.typesafe.sbt.license.{DepModuleInfo, LicenseInfo}
 import com.typesafe.sbt.rjs.Import.{RjsKeys, rjs}
 import com.typesafe.sbt.web.SbtWeb.autoImport.{Assets, pipelineStages}
+import playscalajs.PlayScalaJS.autoImport
 import sbt.Keys._
 import sbt._
 
@@ -106,17 +107,18 @@ object EventStreamsBuild {
   }
 
 
+
   // Common settings for every project
   def settings(theName: String) = defaultSettings ++: Seq(
     name := theName,
     organization := "au.com.intelix",
-    version := "1.0-SNAPSHOT",
     scalaVersion := "2.11.4",
     doc in Compile <<= target.map(_ / "none")
   )
 
   // Settings for the app, i.e. the root project
   def coreSettings(appName: String) = settings(appName) ++: Seq(
+    parallelExecution in Global := false
   )
 
   def webModuleSettings(module: String) = settings(module) ++: Seq(
@@ -128,7 +130,7 @@ object EventStreamsBuild {
   def serviceSettings(module: String) = webModuleSettings(module) ++: Seq(
     includeFilter in(Assets, LessKeys.less) := "*.less",
     excludeFilter in(Assets, LessKeys.less) := "_*.less",
-    pipelineStages := Seq(rjs, digest, gzip),
+    pipelineStages := Seq(autoImport.scalaJSProd, rjs, digest, gzip),
     RjsKeys.mainModule := s"main-$module"
   )
 

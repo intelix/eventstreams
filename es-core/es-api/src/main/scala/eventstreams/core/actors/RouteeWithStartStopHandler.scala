@@ -31,17 +31,17 @@ trait RouteeWithStartStopHandler
       lastRequestedState match {
         case Some(Active()) =>
           self ! BecomePassive()
-          \/-(OK())
+          OK()
         case _ =>
-          -\/(Fail("Already stopped"))
+          Fail("Already stopped")
       }
     case T_START =>
       lastRequestedState match {
         case Some(Active()) =>
-          -\/(Fail("Already started"))
+          Fail("Already started")
         case _ =>
           self ! BecomeActive()
-          \/-(OK())
+          OK()
       }
   }
 

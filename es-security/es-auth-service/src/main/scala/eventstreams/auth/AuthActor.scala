@@ -125,13 +125,13 @@ class AuthActor(config: Config, cluster: Cluster)
             sessionMap += newMeta.user -> newMeta
             allowSession(newMeta)
             LoginSuccessful >>()
-            OK().right
+            OK()
           case _ =>
             LoginFailed >>()
             disallowSession(Set(routeKey))
-            Fail(message = Some("Invalid login or password")).left
+            Fail(message = Some("Invalid login or password"))
         }
-      } | Fail().left
+      } | Fail()
 
     case TopicKey("auth_token") =>
       (maybeData ~> 'routeKey).map { routeKey =>
@@ -145,13 +145,13 @@ class AuthActor(config: Config, cluster: Cluster)
             sessionMap += newMeta.user -> newMeta
             allowSession(newMeta)
             LoginSuccessful >>()
-            OK().right
+            OK()
           case _ =>
             LoginFailed >>()
             disallowSession(Set(routeKey))
-            Fail(message = Some("Invalid login or password")).left
+            Fail(message = Some("Invalid login or password"))
         }
-      } | Fail().left
+      } | Fail()
   }
 
   override def processTick(): Unit = {

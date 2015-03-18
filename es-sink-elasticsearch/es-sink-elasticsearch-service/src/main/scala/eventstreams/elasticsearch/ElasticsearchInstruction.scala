@@ -53,7 +53,7 @@ class ElasticsearchInstruction extends BuilderFromConfig[InstructionType] with E
 
   override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
-      _ <- props ~> CfgFIndex \/> Fail(s"Invalid $configId instruction. Missing '$CfgFIndex' value. Contents: ${Json.stringify(props)}")
+      _ <- props ~> CfgFIndex orFail s"Invalid $configId instruction. Missing '$CfgFIndex' value. Contents: ${Json.stringify(props)}"
     ) yield ElasticsearchInstructionActor.props(props)
 
 }

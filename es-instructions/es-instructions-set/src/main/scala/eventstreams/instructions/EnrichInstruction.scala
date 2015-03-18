@@ -47,7 +47,7 @@ class EnrichInstruction extends SimpleInstructionBuilder with EnrichInstructionC
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      fieldName <- props ~> CfgFFieldToEnrich \/> Fail(s"Invalid $configId instruction. Missing '$CfgFFieldToEnrich' value. Contents: ${Json.stringify(props)}")
+      fieldName <- props ~> CfgFFieldToEnrich orFail s"Invalid $configId instruction. Missing '$CfgFFieldToEnrich' value. Contents: ${Json.stringify(props)}"
     ) yield {
       val fieldValue = props #> CfgFTargetValueTemplate | JsString("")
       val fieldType = props ~> CfgFTargetType | "s"

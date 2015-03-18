@@ -16,6 +16,10 @@
 
 package eventstreams
 
+import play.api.libs.json.JsValue
+import scalaz._
+import Scalaz._
+
 trait Fail {
   def message: Option[String]
 }
@@ -26,17 +30,21 @@ trait OK {
 }
 
 object Fail {
-  def apply(cause: => String = "Generic failure", message: Option[String] = None) = new FailWithCause(cause, message)
+  def apply(cause: => String = "Generic failure", message: Option[String] = None) = new FailWithCause(cause, message).left
 }
 
 object OK {
-  def apply() = new JustOK(None)
-  def apply(message: Option[String]) = new JustOK(message)
-  def apply(details: => String, message: Option[String] = None) = new OKWithDetails(details, message)
+  def apply() = Successful(None).right
+  def apply(message: Option[String]) = new Successful(message).right
+  def apply(details: => String, message: Option[String] = None) = new OKWithDetails(details, message).right
+  def apply(payload: JsValue) = new OKWithPayload(payload).right
 }
 
-class JustOK(val message: Option[String]) extends OK {
-  override def +(other: OK): OK = new JustOK(other.message)
+
+
+
+case class Successful(message: Option[String]) extends OK {
+  override def +(other: OK): OK = new Successful(other.message)
 
   override def toString: String = "OK"
 }
@@ -45,8 +53,22 @@ class OKWithDetails(arg: => String, val message: Option[String]) extends OK {
   lazy val details = arg
 
   override def +(other: OK): OK = other match {
-    case x: JustOK => this
-    case x: OKWithDetails => OK(details + " and " + x.details)
+    case x: Successful => this
+    case x: OKWithDetails => new OKWithDetails(details + " and " + x.details, message)
+    case x: OKWithPayload => new OKWithPayload(x.payload)
+  }
+  override def toString: String = "OK: " + arg
+}
+
+class OKWithPayload(arg: JsValue) extends OK {
+  lazy val payload = arg
+
+  override def message: Option[String] = None
+
+  override def +(other: OK): OK = other match {
+    case x: Successful => this
+    case x: OKWithDetails => this
+    case x: OKWithPayload => this
   }
   override def toString: String = "OK: " + arg
 }

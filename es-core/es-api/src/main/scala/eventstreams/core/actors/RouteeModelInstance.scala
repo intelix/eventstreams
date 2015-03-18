@@ -17,6 +17,7 @@
 package eventstreams.core.actors
 
 import akka.actor._
+import eventstreams.Tools.optionsHelper
 import eventstreams.{Fail, OK}
 import play.api.libs.json._
 
@@ -48,10 +49,10 @@ trait RouteeModelInstance
     case T_REMOVE =>
       removeConfig()
       self ! PoisonPill
-      OK().right
+      OK()
     case T_UPDATE_PROPS =>
       for (
-        data <- maybeData \/> Fail("Invalid request");
+        data <- maybeData orFail  "Invalid request";
         result <- updateAndApplyConfigProps(data)
       ) yield {
         publishAvailable()

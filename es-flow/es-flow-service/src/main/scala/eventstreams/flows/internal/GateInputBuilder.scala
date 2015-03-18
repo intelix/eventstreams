@@ -19,7 +19,7 @@ package eventstreams.flows.internal
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.{ActorRefFactory, Props}
-import eventstreams.Tools.configHelper
+import eventstreams.Tools.{optionsHelper, configHelper}
 import eventstreams._
 import eventstreams.core.actors._
 import eventstreams.gates.RegisterSink
@@ -40,7 +40,7 @@ private[internal] object GateInputBuilder extends BuilderFromConfig[TapActorProp
 
   override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, TapActorPropsType] =
     for (
-      address <- props ~> 'sourceGateName \/> Fail(s"Invalid gate input configuration. Missing 'sourceGateName' value. Contents: ${Json.stringify(props)}")
+      address <- props ~> 'sourceGateName orFail s"Invalid gate input configuration. Missing 'sourceGateName' value. Contents: ${Json.stringify(props)}"
     ) yield GateInputActor.props(id | "default", address)
 }
 

@@ -20,7 +20,7 @@ import java.nio.charset.Charset
 
 import akka.actor.Props
 import core.sysevents.WithSyseventPublisher
-import eventstreams.Tools.configHelper
+import eventstreams.Tools.{optionsHelper, configHelper}
 import eventstreams.core.actors.{StandardPublisherSysevents, StateChangeSysevents}
 import eventstreams.{BuilderFromConfig, Fail, OK, Tools}
 import play.api.libs.json.{JsValue, Json}
@@ -68,23 +68,23 @@ class FileTailerEventsource extends BuilderFromConfig[Props] with FileTailerSyse
   def build(config: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, Props] = {
     implicit val fileSystem = new DiskFileSystem()
     for (
-      streamSeed <- id \/> Fail(s"streamSeed must be provided");
-      streamKey <- config ~> 'streamKey \/> Fail(s"streamKey must be provided");
-      props <- config #> 'source \/> Fail(s"Invalid configuration");
-      _ <- props ~> CfgFDirectory \/> Fail(s"Invalid $configId eventsource. Missing '$CfgFDirectory' value. Contents: ${Json.stringify(props)}");
-      mainPattern <- props ~> CfgFMainPattern \/> Fail(s"Invalid $configId eventsource. Missing '$CfgFMainPattern' value. Contents: ${Json.stringify(props)}");
+      streamSeed <- id orFail s"streamSeed must be provided";
+      streamKey <- config ~> 'streamKey orFail s"streamKey must be provided";
+      props <- config #> 'source orFail s"Invalid configuration";
+      _ <- props ~> CfgFDirectory orFail s"Invalid $configId eventsource. Missing '$CfgFDirectory' value. Contents: ${Json.stringify(props)}";
+      mainPattern <- props ~> CfgFMainPattern orFail s"Invalid $configId eventsource. Missing '$CfgFMainPattern' value. Contents: ${Json.stringify(props)}";
       _ <- Try {
         new Regex(mainPattern)
-      }.toOption \/> Fail(s"Invalid $configId eventsource. Invalid '$CfgFMainPattern' value. Contents: ${Json.stringify(props)}");
+      }.toOption orFail s"Invalid $configId eventsource. Invalid '$CfgFMainPattern' value. Contents: ${Json.stringify(props)}";
       _ <- Try {
         (props ~> CfgFRolledPattern).map(new Regex(_))
-      }.toOption \/> Fail(s"Invalid $configId eventsource. Invalid '$CfgFRolledPattern' value. Contents: ${Json.stringify(props)}");
+      }.toOption orFail s"Invalid $configId eventsource. Invalid '$CfgFRolledPattern' value. Contents: ${Json.stringify(props)}";
       _ <- Try {
         Charset.forName(props ~> CfgFCharset | "UTF-8")
-      }.toOption \/> Fail(s"Invalid $configId eventsource. Invalid '$CfgFCharset' value. Contents: ${Json.stringify(props)}");
+      }.toOption orFail s"Invalid $configId eventsource. Invalid '$CfgFCharset' value. Contents: ${Json.stringify(props)}";
       _ <- if ((props +> CfgFBlockSize | 16*1024) < 32)
-        Fail(s"Invalid $configId eventsource. Invalid '$CfgFBlockSize' value. Must be more than 32. Contents: ${Json.stringify(props)}").left
-      else OK.right
+        Fail(s"Invalid $configId eventsource. Invalid '$CfgFBlockSize' value. Must be more than 32. Contents: ${Json.stringify(props)}")
+      else OK()
     ) yield {
       Built >>('Config -> props, 'State -> maybeState)
       LocationMonitorActor.props(streamKey, props, maybeState)

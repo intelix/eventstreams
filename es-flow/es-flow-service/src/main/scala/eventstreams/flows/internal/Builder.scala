@@ -49,16 +49,16 @@ object Builder extends StrictLogging {
       Class.forName(cfg.getString("class")).newInstance().asInstanceOf[BuilderFromConfig[InstructionType]]
     }
     for (
-      instClass <- config ~> 'class \/> Fail("Invalid instruction config: missing 'class' value");
+      instClass <- config ~> 'class orFail "Invalid instruction config: missing 'class' value";
       builder <- allBuilders.find(_.configId == instClass)
-        \/> Fail(s"Unsupported or invalid instruction class $instClass. Supported classes: ${allBuilders.map(_.configId)}");
+        orFail s"Unsupported or invalid instruction class $instClass. Supported classes: ${allBuilders.map(_.configId)}";
       instr <- builder.build(config, None, Some(id))
     ) yield instr
   }
 
   def buildProcessingPipeline(implicit instructionConfigs: List[Config], config: JsValue, id: String): \/[Fail, Seq[InstructionType]] =
     for (
-      instructions <- config ##> 'pipeline \/> Fail("Invalid pipeline config: missing 'pipeline' value");
+      instructions <- config ##> 'pipeline orFail "Invalid pipeline config: missing 'pipeline' value";
       folded <- instructions.foldLeft[\/[Fail, Seq[InstructionType]]](\/-(List())) { (agg, next) =>
         for (
           list <- agg;

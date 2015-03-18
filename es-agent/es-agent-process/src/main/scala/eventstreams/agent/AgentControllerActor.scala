@@ -22,6 +22,7 @@ import com.typesafe.config.Config
 import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
+import eventstreams.Tools.optionsHelper
 import eventstreams.agent.AgentMessagesV1.{AgentEventsourceConfigs, AgentEventsources, AgentInfo}
 import eventstreams.core.actors._
 import eventstreams.{ComponentKey, Fail, NowProvider, UUIDTools}
@@ -144,7 +145,7 @@ class AgentControllerActor(implicit sysconfig: Config)
 
   private def addEventsource(key: Option[String], maybeData: Option[JsValue], maybeMeta: Option[JsValue], maybeState: Option[JsValue]) =
     for (
-      data <- maybeData \/> Fail("Invalid payload")
+      data <- maybeData orFail "Invalid payload"
     ) yield {
       val eventsourceKey = key | "esource/" + UUIDTools.generateShortUUID
       var meta = maybeMeta | Json.obj()

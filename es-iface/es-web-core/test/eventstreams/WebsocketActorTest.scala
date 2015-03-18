@@ -228,7 +228,7 @@ class WebsocketActorTest
   def buildValidSubjectKey(locAlias: String, route: String, topic: String) = locAlias + opSplitChar + route + opSplitChar + topic
   def buildValidSubscribe(key: String) = "S" + key + opSplitChar
   def buildValidUnsubscribe(key: String) = "U" + key + opSplitChar
-  def buildValidCommand(key: String, payload: Option[JsValue]) = "C" + key + opSplitChar + (payload.map(Json.stringify) | "")
+  def buildValidCommand(replySubj: String, key: String, payload: Option[JsValue]) = "C" + replySubj + opSplitChar + key + opSplitChar + (payload.map(Json.stringify) | "")
 
 
 
@@ -348,7 +348,7 @@ class WebsocketActorTest
   it should "ignore invalid C message - unknown alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
     sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "unsecured_cluster", "nodes"))
-    sendToWebsocketOn1(buildValidCommand("2", None))
+    sendToWebsocketOn1(buildValidCommand("cmd", "2", None))
     waitAndCheck {
       expectNoEvents(RouteeComponentStubOps.NewCommand)
       expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
@@ -372,7 +372,7 @@ class WebsocketActorTest
   it should "ignore invalid C message - missing alias" in new WithTwoWebsocketActors {
     sendToWebsocketOn1("B1" + opSplitChar + localAddress1)
     sendToWebsocketOn1("A1" + opSplitChar + buildValidSubjectKey("1", "unsecured_cluster", "nodes"))
-    sendToWebsocketOn1(buildValidCommand("", None))
+    sendToWebsocketOn1(buildValidCommand("cmd", "", None))
     waitAndCheck {
       expectNoEvents(WebsocketClientStub.WebsocketMessageReceived)
       expectNoEvents(RouteeComponentStubOps.NewCommand)
@@ -577,7 +577,22 @@ class WebsocketActorTest
 
 
     sendToWebsocketOn1("ACmdOkWithMsg" + opSplitChar + buildValidSubjectKey("1", RouteeComponentStubOps.componentKeyForRouteeStub1.key, "okwithmessage"))
-    sendToWebsocketOn1(buildValidCommand("CmdOkWithMsg", Some(Json.obj("a"->123))))
+    sendToWebsocketOn1(buildValidCommand("cmd", "CmdOkWithMsg", Some(Json.obj("a"->123))))
+    expectOneOrMoreEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "c", 'Payload -> "{\"ok\":{\"key\":\"okwithmessage\",\"msg\":\"message\"}}", 'InstanceId -> websocket1ClientId)
+    waitAndCheck {
+      expectNoEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "2")
+    }
+  }
+
+  it should "be able to send command and get a response (different topic)" in new WithTwoSubscriptions {
+    sendToWebsocketOn1("Ac" + opSplitChar + buildValidSubjectKey(localAddress1, "_", "t1"))
+    sendToWebsocketOn2("Ac" + opSplitChar + buildValidSubjectKey(localAddress2, "_", "t1"))
+    sendToWebsocketOn1(buildValidSubscribe("c"))
+    sendToWebsocketOn2(buildValidSubscribe("c"))
+
+
+    sendToWebsocketOn1("ACmdOkWithMsg" + opSplitChar + buildValidSubjectKey("1", RouteeComponentStubOps.componentKeyForRouteeStub1.key, "okwithmessage"))
+    sendToWebsocketOn1(buildValidCommand("t1", "CmdOkWithMsg", Some(Json.obj("a"->123))))
     expectOneOrMoreEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "c", 'Payload -> "{\"ok\":{\"key\":\"okwithmessage\",\"msg\":\"message\"}}", 'InstanceId -> websocket1ClientId)
     waitAndCheck {
       expectNoEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "2")
@@ -592,7 +607,7 @@ class WebsocketActorTest
 
 
     sendToWebsocketOn2("ACmdOkWithMsg" + opSplitChar + buildValidSubjectKey("2", RouteeComponentStubOps.componentKeyForRouteeStub1.key, "okwithmessage"))
-    sendToWebsocketOn2(buildValidCommand("CmdOkWithMsg", Some(Json.obj("a"->123))))
+    sendToWebsocketOn2(buildValidCommand("cmd", "CmdOkWithMsg", Some(Json.obj("a"->123))))
     expectOneOrMoreEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "c", 'Payload -> "{\"ok\":{\"key\":\"okwithmessage\",\"msg\":\"message\"}}", 'InstanceId -> websocket2ClientId)
     waitAndCheck {
       expectNoEvents(WebsocketClientStub.WebsocketUpdateReceived, 'Alias -> "1")

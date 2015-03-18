@@ -80,7 +80,7 @@ object SimpleCondition extends StrictLogging {
                 case is(a, b) => \/-(("is", a, b))
                 case isLess(a, b) => \/-(("isless", a, b))
                 case isMore(a, b) => \/-(("ismore", a, b))
-                case x => -\/(Fail(s"Invalid expression $x source ${eachAnd.trim}"))
+                case x => Fail(s"Invalid expression $x source ${eachAnd.trim}")
               };
               (cond, fieldOrTag, value) = x;
               y <- fieldOrTag.trim match {
@@ -138,25 +138,25 @@ object SimpleCondition extends StrictLogging {
 }
 
 case class AlwaysTrueCondition() extends Condition {
-  override def metFor(frame: EventFrame): CheckResult = OK("always true condition").right
+  override def metFor(frame: EventFrame): CheckResult = OK("always true condition")
 }
 
 case class NeverTrueCondition() extends Condition {
-  override def metFor(frame: EventFrame): CheckResult = Fail("always false condition").left
+  override def metFor(frame: EventFrame): CheckResult = Fail("always false condition")
 }
 
 private case class AnyCondition(conditions: Seq[Condition]) extends Condition {
   override def metFor(frame: EventFrame): CheckResult =
     conditions.map(_.metFor(frame)).collectFirst {
       case c if c.isRight => c
-    } | Fail(s"All conditions failed for $frame").left
+    } | Fail(s"All conditions failed for $frame")
 }
 
 private case class AllCondition(conditions: Seq[Condition]) extends Condition {
   override def metFor(frame: EventFrame): CheckResult =
     conditions.map(_.metFor(frame)).collectFirst {
       case c if c.isLeft => c
-    } | OK().right
+    } | OK()
 }
 
 private case class FieldCondition(name: String, criteriaValue: Option[String], criteriaCondition: Option[String]) extends Condition {
@@ -165,106 +165,106 @@ private case class FieldCondition(name: String, criteriaValue: Option[String], c
 
   def checkConditions(valueToCheck: EventData): CheckResult =
     criteriaCondition match {
-      case None => OK("condition not defined. skipped").right
+      case None => OK("condition not defined. skipped")
       case Some("is") => criteriaValue match {
         case Some(expectedValue) => valueToCheck match {
           case EventDataValueNumber(numericValueToCheck) => Try {
             if (numericValueToCheck ==  BigDecimal(expectedValue))
-              OK(s"'is' condition succeeded: $numericValueToCheck == $expectedValue").right
+              OK(s"'is' condition succeeded: $numericValueToCheck == $expectedValue")
             else
-              Fail(s"'is' condition failed: $numericValueToCheck is not == $expectedValue").left
+              Fail(s"'is' condition failed: $numericValueToCheck is not == $expectedValue")
           }.recover {
-            case _ => Fail(s"'is' condition failed: Unparsable number $expectedValue in criteria").left
+            case _ => Fail(s"'is' condition failed: Unparsable number $expectedValue in criteria")
           }.get
           case EventDataValueBoolean(booleanValueToCheck) => Try {
             if (booleanValueToCheck ==  expectedValue.toBoolean)
-              OK(s"'is' condition succeeded: $booleanValueToCheck == $expectedValue").right
+              OK(s"'is' condition succeeded: $booleanValueToCheck == $expectedValue")
             else
-              Fail(s"'is' condition failed: $booleanValueToCheck is not == $expectedValue").left
+              Fail(s"'is' condition failed: $booleanValueToCheck is not == $expectedValue")
           }.recover {
-            case _ => Fail(s"'is' condition failed: Invalid boolean $expectedValue in criteria").left
+            case _ => Fail(s"'is' condition failed: Invalid boolean $expectedValue in criteria")
           }.get
           case other => other.asString.map { stringValueToCheck =>
             Support.regexFor(criteriaValue) match {
               case Some(regex) => regex.findFirstIn(stringValueToCheck) match {
-                case None => Fail(s"'is' condition failed: $regex in $stringValueToCheck. ").left
-                case Some(_) => OK(s"'is' condition succeeded: $regex in $stringValueToCheck. ").right
+                case None => Fail(s"'is' condition failed: $regex in $stringValueToCheck. ")
+                case Some(_) => OK(s"'is' condition succeeded: $regex in $stringValueToCheck. ")
               }
-              case None => Fail(s"'is' condition not defined (value is blank), failed. ").left
+              case None => Fail(s"'is' condition not defined (value is blank), failed. ")
             }
-          } | Fail(s"'is' condition failed: $other is not comparable").left
+          } | Fail(s"'is' condition failed: $other is not comparable")
         }
-        case None => OK(s"'is' condition not defined (value is blank), skipped. ").right
+        case None => OK(s"'is' condition not defined (value is blank), skipped. ")
       }
       case Some("isnot") => criteriaValue match {
         case Some(expectedValue) => valueToCheck match {
           case EventDataValueNumber(numericValueToCheck) => Try {
             if (numericValueToCheck !=  BigDecimal(expectedValue))
-              OK(s"'isnot' condition succeeded: $numericValueToCheck != $expectedValue").right
+              OK(s"'isnot' condition succeeded: $numericValueToCheck != $expectedValue")
             else
-              Fail(s"'isnot' condition failed: $numericValueToCheck is == $expectedValue").left
+              Fail(s"'isnot' condition failed: $numericValueToCheck is == $expectedValue")
           }.recover {
-            case _ => Fail(s"'isnot' condition failed: Unparsable number $expectedValue in criteria").left
+            case _ => Fail(s"'isnot' condition failed: Unparsable number $expectedValue in criteria")
           }.get
           case EventDataValueBoolean(booleanValueToCheck) => Try {
             if (booleanValueToCheck !=  expectedValue.toBoolean)
-              OK(s"'isnot' condition succeeded: $booleanValueToCheck != $expectedValue").right
+              OK(s"'isnot' condition succeeded: $booleanValueToCheck != $expectedValue")
             else
-              Fail(s"'isnot' condition failed: $booleanValueToCheck is == $expectedValue").left
+              Fail(s"'isnot' condition failed: $booleanValueToCheck is == $expectedValue")
           }.recover {
-            case _ => Fail(s"'isnot' condition failed: Invalid boolean $expectedValue in criteria").left
+            case _ => Fail(s"'isnot' condition failed: Invalid boolean $expectedValue in criteria")
           }.get
           case other => other.asString.map { stringValueToCheck =>
             Support.regexFor(criteriaValue) match {
               case Some(regex) => regex.findFirstIn(stringValueToCheck) match {
-                case Some(_) => Fail(s"'isnot' condition failed: $regex in $stringValueToCheck. ").left
-                case None => OK(s"'isnot' condition succeeded: $regex in $stringValueToCheck. ").right
+                case Some(_) => Fail(s"'isnot' condition failed: $regex in $stringValueToCheck. ")
+                case None => OK(s"'isnot' condition succeeded: $regex in $stringValueToCheck. ")
               }
-              case None => Fail(s"'isnot' condition not defined (value is blank), failed. ").left
+              case None => Fail(s"'isnot' condition not defined (value is blank), failed. ")
             }
-          } | Fail(s"'is' condition failed: $other is not comparable").left
+          } | Fail(s"'is' condition failed: $other is not comparable")
         }
-        case None => Fail(s"'isnot' condition not defined (value is blank), failed. ").left
+        case None => Fail(s"'isnot' condition not defined (value is blank), failed. ")
       }
       case Some("isless") => criteriaValue match {
         case Some(expectedValue) => valueToCheck match {
           case EventDataValueNumber(numericValueToCheck) => Try {
             if (numericValueToCheck <  BigDecimal(expectedValue))
-              OK(s"'isless' condition succeeded: $numericValueToCheck < $expectedValue").right
+              OK(s"'isless' condition succeeded: $numericValueToCheck < $expectedValue")
             else
-              Fail(s"'isless' condition failed: $numericValueToCheck is not < $expectedValue").left
+              Fail(s"'isless' condition failed: $numericValueToCheck is not < $expectedValue")
           }.recover {
-            case _ => Fail(s"'isless' condition failed: Unparsable number $expectedValue in criteria").left
+            case _ => Fail(s"'isless' condition failed: Unparsable number $expectedValue in criteria")
           }.get
           case other => other.asString.map { stringValueToCheck =>
             if (stringValueToCheck < expectedValue)
-              OK(s"'isless' condition succeeded: $stringValueToCheck < $expectedValue").right
+              OK(s"'isless' condition succeeded: $stringValueToCheck < $expectedValue")
             else
-              Fail(s"'isless' condition failed: $stringValueToCheck is not < $expectedValue").left
-          } | Fail(s"'isless' condition failed: $other is not comparable").left
+              Fail(s"'isless' condition failed: $stringValueToCheck is not < $expectedValue")
+          } | Fail(s"'isless' condition failed: $other is not comparable")
         }
-        case None => Fail(s"'isless' condition not defined (value is blank), failed. ").left
+        case None => Fail(s"'isless' condition not defined (value is blank), failed. ")
       }
       case Some("ismore") => criteriaValue match {
         case Some(expectedValue) => valueToCheck match {
           case EventDataValueNumber(numericValueToCheck) => Try {
             if (numericValueToCheck > BigDecimal(expectedValue))
-              OK(s"'ismore' condition succeeded: $numericValueToCheck > $expectedValue").right
+              OK(s"'ismore' condition succeeded: $numericValueToCheck > $expectedValue")
             else
-              Fail(s"'ismore' condition failed: $numericValueToCheck is not > $expectedValue").left
+              Fail(s"'ismore' condition failed: $numericValueToCheck is not > $expectedValue")
           }.recover {
-            case _ => Fail(s"'ismore' condition failed: Unparsable number $expectedValue in criteria").left
+            case _ => Fail(s"'ismore' condition failed: Unparsable number $expectedValue in criteria")
           }.get
           case other => other.asString.map { stringValueToCheck =>
             if (stringValueToCheck > expectedValue)
-              OK(s"'ismore' condition succeeded: $stringValueToCheck > $expectedValue").right
+              OK(s"'ismore' condition succeeded: $stringValueToCheck > $expectedValue")
             else
-              Fail(s"'ismore' condition failed: $stringValueToCheck is not > $expectedValue").left
-          } | Fail(s"'ismore' condition failed: $other is not comparable").left
+              Fail(s"'ismore' condition failed: $stringValueToCheck is not > $expectedValue")
+          } | Fail(s"'ismore' condition failed: $other is not comparable")
         }
-        case None => Fail(s"'ismore' condition not defined (value is blank), failed. ").left
+        case None => Fail(s"'ismore' condition not defined (value is blank), failed. ")
       }
-      case x => Fail("Unsupported condition $x").left
+      case x => Fail("Unsupported condition $x")
     }
 
   override def toString = s"Field $name cond: $criteriaCondition val: $criteriaValue"
@@ -277,7 +277,7 @@ private case class TagCondition(name: String, criteriaValue: Option[String], cri
   }
   def checkConditions(value: Option[Seq[String]]): CheckResult =
     criteriaCondition match {
-      case None => OK("condition not defined. skipped").right
+      case None => OK("condition not defined. skipped")
       case Some("is") =>
         Support.regexFor(criteriaValue) match {
           case Some(regex) =>
@@ -286,10 +286,10 @@ private case class TagCondition(name: String, criteriaValue: Option[String], cri
               case Some(_) => true
             }))
             if (exists)
-              OK(s"'is' condition succeeded: $regex in $value. ").right
+              OK(s"'is' condition succeeded: $regex in $value. ")
             else
-              Fail(s"'is' condition failed: $regex in $value. ").left
-          case None => Fail(s"'is' condition not defined, failed. ").left
+              Fail(s"'is' condition failed: $regex in $value. ")
+          case None => Fail(s"'is' condition not defined, failed. ")
         }
       case Some("isnot") =>
         Support.regexFor(criteriaValue) match {
@@ -299,12 +299,12 @@ private case class TagCondition(name: String, criteriaValue: Option[String], cri
               case Some(_) => true
             }))
             if (!exists)
-              OK(s"'isnot' condition succeeded: $regex in $value. ").right
+              OK(s"'isnot' condition succeeded: $regex in $value. ")
             else
-              Fail(s"'isnot' condition failed: $regex in $value. ").left
-          case None => Fail(s"'isnot' condition not defined, failed. ").left
+              Fail(s"'isnot' condition failed: $regex in $value. ")
+          case None => Fail(s"'isnot' condition not defined, failed. ")
         }
-      case x => Fail("Unsupported condition $x").left
+      case x => Fail("Unsupported condition $x")
     }
 
   override def toString = s"Tag $name $name cond: $criteriaCondition val: $criteriaValue"
@@ -327,7 +327,7 @@ object Condition {
           case "all" => \/-(all(_))
           case "tag" => \/-(tag(_))
           case "field" => \/-(field(_))
-          case x => -\/(Fail(s"Invalid condition configuration, invalid condition class $x"))
+          case x => Fail(s"Invalid condition configuration, invalid condition class $x")
         };
         condition <- builder(config)
       ) yield condition
@@ -336,7 +336,7 @@ object Condition {
 
   private def tag(config: JsValue): \/[Fail, Condition] =
     for (
-      name <- config ~> 'name \/> Fail(s"Invalid tag config. Missing 'name' value. Contents: ${Json.stringify(config)}");
+      name <- config ~> 'name orFail s"Invalid tag config. Missing 'name' value. Contents: ${Json.stringify(config)}";
       v = config ~> 'value ;
       c = config ~> 'cond
     ) yield TagCondition(name, v, c)
@@ -344,7 +344,7 @@ object Condition {
 
   private def field(config: JsValue): \/[Fail, Condition] =
     for (
-      name <- config ~> 'name \/> Fail(s"Invalid field config. Missing 'name' value. Contents: ${Json.stringify(config)}");
+      name <- config ~> 'name orFail s"Invalid field config. Missing 'name' value. Contents: ${Json.stringify(config)}";
       v = config ~> 'value ;
       c = config ~> 'cond
     ) yield FieldCondition(name, v, c)
@@ -360,13 +360,13 @@ object Condition {
 
   private def any(config: JsValue): \/[Fail, Condition] =
     for (
-      seq <- config ##> 'list \/> Fail(s"Invalid 'any' condition - missing 'list' branch. Contents: ${Json.stringify(config)}");
+      seq <- config ##> 'list orFail s"Invalid 'any' condition - missing 'list' branch. Contents: ${Json.stringify(config)}";
       conditions <- conditionSequence(seq)
     ) yield AnyCondition(conditions)
 
   private def all(config: JsValue): \/[Fail, Condition] =
     for (
-      seq <- config ##> 'list \/> Fail(s"Invalid 'all' condition - missing 'list' branch. Contents: ${Json.stringify(config)}");
+      seq <- config ##> 'list orFail s"Invalid 'all' condition - missing 'list' branch. Contents: ${Json.stringify(config)}";
       conditions <- conditionSequence(seq)
     ) yield AllCondition(conditions)
 

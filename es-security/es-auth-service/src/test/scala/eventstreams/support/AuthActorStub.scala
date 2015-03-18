@@ -37,8 +37,8 @@ class AuthActorStub(id: String)
           "allow" -> true,
           "permissions" -> Seq(RolePermissions(Seq(DomainPermissions(SecuredDomain("*"), Seq(FunctionPermission(".+"))))))
         )
-        OK().right
-      }.getOrElse(Fail().left)
+        OK()
+      }.getOrElse(Fail())
 
     case TopicKey("auth_token") =>
       (maybeData ~> 'routeKey).map { routeKey =>
@@ -47,8 +47,8 @@ class AuthActorStub(id: String)
           "allow" -> true,
           "permissions" -> Seq(RolePermissions(Seq(DomainPermissions(SecuredDomain("*"), Seq(FunctionPermission(".+"))))))
         )
-        OK().right
-      }.getOrElse(Fail().left)
+        OK()
+      }.getOrElse(Fail())
   }
 
 

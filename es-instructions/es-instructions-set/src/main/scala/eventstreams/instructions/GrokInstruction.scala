@@ -69,21 +69,21 @@ class GrokInstruction extends SimpleInstructionBuilder with GrokInstructionConst
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      pattern <- props ~> CfgFPattern \/> Fail(s"Invalid $configId instruction. Missing '$CfgFPattern' value. Contents: ${Json.stringify(props)}");
+      pattern <- props ~> CfgFPattern orFail s"Invalid $configId instruction. Missing '$CfgFPattern' value. Contents: ${Json.stringify(props)}";
       regex = new Regex(pattern);
 
-      source <- props ~> CfgFSource \/> Fail(s"Invalid $configId instruction. Missing '$CfgFSource' value. Contents: ${Json.stringify(props)}");
+      source <- props ~> CfgFSource orFail s"Invalid $configId instruction. Missing '$CfgFSource' value. Contents: ${Json.stringify(props)}";
 
-      fieldsList <- props ~> CfgFFields \/> Fail(s"Invalid $configId instruction. Missing '$CfgFFields' value. Contents: ${Json.stringify(props)}");
+      fieldsList <- props ~> CfgFFields orFail s"Invalid $configId instruction. Missing '$CfgFFields' value. Contents: ${Json.stringify(props)}";
       fields = fieldsList.split(',').map(_.trim);
 
-      typesList <- props ~> CfgFTypes \/> Fail(s"Invalid $configId instruction. Missing '$CfgFTypes' value. Contents: ${Json.stringify(props)}");
+      typesList <- props ~> CfgFTypes orFail s"Invalid $configId instruction. Missing '$CfgFTypes' value. Contents: ${Json.stringify(props)}";
       types = typesList.split(',').map(_.trim);
 
-      groupsList <- props ~> CfgFGroups \/> Fail(s"Invalid $configId instruction. Missing '$CfgFGroups' value. Contents: ${Json.stringify(props)}");
+      groupsList <- props ~> CfgFGroups orFail s"Invalid $configId instruction. Missing '$CfgFGroups' value. Contents: ${Json.stringify(props)}";
       groups = groupsList.split(',').map(_.trim);
 
-      valuesList <- props ~> CfgFValues \/> Fail(s"Invalid $configId instruction. Missing '$CfgFValues' value. Contents: ${Json.stringify(props)}");
+      valuesList <- props ~> CfgFValues orFail s"Invalid $configId instruction. Missing '$CfgFValues' value. Contents: ${Json.stringify(props)}";
       values = valuesList.split(',').map(_.trim)
     ) yield {
 

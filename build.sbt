@@ -1,10 +1,10 @@
 import eventstreams.EventStreamsBuild
 
-
 EventStreamsBuild.coreSettings("eventstreams")
 
 parallelExecution in Global := false
 
+import sbt.Project.projectToRef
 
 /* Core */
 
@@ -200,16 +200,21 @@ lazy val instructions_set = Project(
 
 /* Interface */
 
+//lazy val scripts = Seq(web_scripts)
+
 lazy val web_core = Project(
   id = "es-web-core",
   base = file("es-iface/es-web-core"),
+  settings = EventStreamsBuild.serviceSettings("es-web-core"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
     api  % "compile;test->test",
     auth_api  % "compile;test->test",
     auth_service  % "test->test"
   )
-).enablePlugins(PlayScala,SbtWeb)
+).enablePlugins(PlayScala)
+
+
 
 
 
@@ -235,7 +240,7 @@ lazy val node_hub = Project(
     sink_influxdb_service % "compile;test->test",
     sink_elasticsearch_service % "compile;test->test",
     alerts_dn_service % "compile;test->test",
-    momentum_service % "compile;test->test"
+    gauges_service % "compile;test->test"
   )
 ).enablePlugins(AkkaAppPackaging)
 
@@ -252,7 +257,7 @@ lazy val node_hq = Project(
     flow_hq,
     gate_hq,
     alerts_dn_hq,
-    momentum_hq
+    gauges_hq
   )
 ).enablePlugins(PlayScala,SbtWeb)
 
@@ -335,12 +340,12 @@ lazy val signals_service = Project(
 
 
 
-/* Momentum */
+/* gauges */
 
 
-lazy val momentum_service = Project(
-  id = "es-momentum-service",
-  base = file("es-momentum/es-momentum-service"),
+lazy val gauges_service = Project(
+  id = "es-gauges-service",
+  base = file("es-gauges/es-gauges-service"),
   dependencies = Seq(
     sysevents  % "compile;test->test",
     api  % "compile;test->test",
@@ -349,9 +354,9 @@ lazy val momentum_service = Project(
   )
 )
 
-lazy val momentum_hq = Project(
-  id = "es-momentum-hq",
-  base = file("es-momentum/es-momentum-hq"),
+lazy val gauges_hq = Project(
+  id = "es-gauges-hq",
+  base = file("es-gauges/es-gauges-hq"),
   dependencies = Seq(
     web_core,
     sysevents  % "compile;test->test",

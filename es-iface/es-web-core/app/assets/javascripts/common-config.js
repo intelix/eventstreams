@@ -29,6 +29,7 @@
             bootstrap: "../lib/bootstrap/js/bootstrap",
             toastr: "../lib/toastr/toastr",
             lz: "/assets/javascripts/lz-string",
+            packery: "/assets/javascripts/packery.pkgd.min",
 
             logging: "/assets/javascripts/core/Logging",
             eventing: "/assets/javascripts/core/Eventing",
@@ -66,6 +67,9 @@
             crypto_sha256: {
                 deps: ["crypto_core"]
             },
+            packery: {
+                deps: ["jquery"]
+            },
             toastr: {
                 deps: ["jquery"]
             },
@@ -76,5 +80,6 @@
     });
 
     require(['common_link_edit']);
+    require(['packery']);
 
 })();

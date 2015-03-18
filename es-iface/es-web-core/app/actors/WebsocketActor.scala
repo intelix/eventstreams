@@ -76,12 +76,10 @@ class WebsocketActor(out: ActorRef)
   var aggregator: mutable.Map[String, String] = new mutable.HashMap[String, String]()
 
   val localToken = shortUUID
-  val cmdReplySubj = Some(LocalSubj(ComponentKey(localToken), TopicKey("cmd")))
-
 
 
   val authComponent = localToken + ":auth"
-  
+
   override def tickInterval: FiniteDuration = 200.millis
 
   override def preStart(): Unit = {
@@ -90,7 +88,7 @@ class WebsocketActor(out: ActorRef)
     AcceptedConnection >>('ProxyActor -> out, 'ThisActor -> self)
 
     LocalClusterAwareActor.path ! InfoRequest()
-    
+
     proxy = Some(SecurityProxyActor.start(authComponent, self))
     proxy.foreach(_ ! Trusted(RegisterComponent(ComponentKey(localToken), self)))
 
@@ -120,7 +118,7 @@ class WebsocketActor(out: ActorRef)
     if (msg == "") msg = "f" + str
     msg
   }
-  
+
   override def processTick(): Unit = {
     val str = aggregator.values.foldRight("") { (value, aggr) =>
       if (aggr != "") {
@@ -152,11 +150,10 @@ class WebsocketActor(out: ActorRef)
     case AuthorizationUpdate(v) =>
       AuthorizationUpdateReceived >> ('Contents -> v)
       sendToSocket(encode("A" + v))
-  
-      
-      
+
+
     case Update(subj, data, canBeCached) =>
-      path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(data))}
+      path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(data)) }
     case CommandErr(subj, data) =>
       val path = subj2path(subj)
       val alias = path2alias get path
@@ -164,9 +161,9 @@ class WebsocketActor(out: ActorRef)
         scheduleOut(path, buildClientMessage("U", path)(data))
       }
     case CommandOk(subj, data) =>
-      path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(data))}
+      path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("U", path)(data)) }
     case Stale(subj) =>
-      path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("D", path)())}
+      path2alias get subj2path(subj) foreach { path => scheduleOut(path, buildClientMessage("D", path)()) }
 
     case payload: String if payload.length > 0 =>
 
@@ -190,23 +187,53 @@ class WebsocketActor(out: ActorRef)
           val data = msgContents.tail
 
           mtype match {
-            case 'H' => ClientHandshaking >> ()
+            case 'H' => ClientHandshaking >>()
             case 'A' => addOrReplaceAlias(data)
             case 'B' => addOrReplaceLocationAlias(data)
             case 'T' => performTokenAuthentication(data)
             case 'X' => performCredentialsAuthentication(data)
-            case _ => extractByAlias(data) foreach { str =>
-              extractSubjectAndPayload(str,
-                processRequestByType(mtype, _, _) foreach { msg =>
-                  MessageToDownstream >> ('Message -> msg)
-                  proxy.foreach(_ ! Untrusted(msg))
-                }
-              )
-            }
+            case 'C' => processPrivateCommand(data)
+            case _ => processSubjectMessage(mtype, data)
           }
         case _ => ()
       }
   }
+
+
+  private def processPrivateCommand(value: String) = {
+    val idx: Int = value.indexOf(opSplitChar)
+
+    var replyTopic = "cmd"
+    var data = value
+
+    if (idx > 0) {
+      val providedTopic = value.substring(0, idx)
+      data = value.substring(idx + 1)
+
+      if (!providedTopic.isEmpty) {
+        replyTopic = providedTopic
+      }
+    }
+
+    extractByAlias(data) foreach { str =>
+      extractSubjectAndPayload(str, (subj, payload) => {
+        val msg = Command(subj, Some(LocalSubj(ComponentKey(localToken), TopicKey(replyTopic))), payload)
+        MessageToDownstream >> ('Message -> msg)
+        proxy.foreach(_ ! Untrusted(msg))
+      })
+    }
+
+  }
+
+  private def processSubjectMessage(mtype: Char, data: String) =
+    extractByAlias(data) foreach { str =>
+      extractSubjectAndPayload(str,
+        processRequestByType(mtype, _, _) foreach { msg =>
+          MessageToDownstream >> ('Message -> msg)
+          proxy.foreach(_ ! Untrusted(msg))
+        }
+      )
+    }
 
   private def scheduleOut(path: String, content: String) = {
     aggregator += path -> content
@@ -258,7 +285,7 @@ class WebsocketActor(out: ActorRef)
       val p = value.substring(idx + 1)
 
       proxy.foreach(_ ! CredentialsAuth(u, p))
-      
+
     } else {
       Warning >> ('Message -> s"Invalid cred auth - invalid payload: $value")
     }
@@ -275,7 +302,6 @@ class WebsocketActor(out: ActorRef)
       Warning >> ('Message -> s"Invalid token auth - invalid payload: $value")
     }
   }
-
 
 
   private def addOrReplaceLocationAlias(value: String) = {
@@ -303,7 +329,6 @@ class WebsocketActor(out: ActorRef)
   private def processRequestByType(msgType: Char, subj: Subj, payload: Option[String]) = msgType match {
     case 'S' => Some(Subscribe(self, subj))
     case 'U' => Some(Unsubscribe(self, subj))
-    case 'C' => Some(Command(subj, cmdReplySubj, payload))
     case _ =>
       Error >> ('Message -> s"Invalid message type: $msgType")
       None

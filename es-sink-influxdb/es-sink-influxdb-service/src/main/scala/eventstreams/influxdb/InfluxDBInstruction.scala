@@ -42,7 +42,7 @@ class InfluxDBInstruction extends BuilderFromConfig[InstructionType] {
 
   override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
-      series <- props ~> 'series \/> Fail(s"Invalid influx instruction configuration. Missing 'series' value. Contents: ${Json.stringify(props)}")
+      series <- props ~> 'series orFail s"Invalid influx instruction configuration. Missing 'series' value. Contents: ${Json.stringify(props)}"
     ) yield InfluxDBInstructionActor.props(series, props)
 
 }

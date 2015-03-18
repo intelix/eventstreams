@@ -84,7 +84,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
   override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
     case T_ADD =>
       maybeData.foreach { j => ref ! CreateEventsource(Json.stringify(j)) }
-      OK().right
+      OK()
   }
 
   override def onTerminated(ref: ActorRef): Unit = {

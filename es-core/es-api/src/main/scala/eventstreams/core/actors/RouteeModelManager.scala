@@ -17,6 +17,7 @@
 package eventstreams.core.actors
 
 import akka.actor._
+import eventstreams.Tools.optionsHelper
 import eventstreams.{Fail, NowProvider, OK, _}
 import play.api.libs.json._
 import play.api.libs.json.extensions._
@@ -64,7 +65,7 @@ trait RouteeModelManager[T <: Model]
 
   private def createModelInstance(k: Option[String], maybeData: Option[JsValue], meta: Option[JsValue], maybeState: Option[JsValue]) =
     for (
-      data <- maybeData \/> Fail("Invalid payload")
+      data <- maybeData orFail "Invalid payload"
     ) yield {
       val entryKey = k | (key / shortUUID).key
       var json = meta | Json.obj()
@@ -72,11 +73,11 @@ trait RouteeModelManager[T <: Model]
       val actor = startModelActor(entryKey)
       context.watch(actor)
       actor ! InitialConfig(data, json, maybeState)
-      onSuccessfulAdd()
+      Successful(Some(onSuccessfulAdd()))
     }
 
 
-  def onSuccessfulAdd() = OK("Successfully created")
+  def onSuccessfulAdd() = "Successfully created"
 
 
 }

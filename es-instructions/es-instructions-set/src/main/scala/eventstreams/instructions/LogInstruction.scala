@@ -51,8 +51,8 @@ class LogInstruction extends SimpleInstructionBuilder with LogInstructionConstan
 
     val level = props ~> CfgFLevel | "INFO"
     props ~> CfgFEvent match {
-      case None => -\/(Fail(s"Invalid $configId instruction. Missing '$CfgFEvent' value. Contents: ${Json.stringify(props)}"))
-      case Some(loggerName) if "^\\w[\\w\\d]*$".r.findFirstMatchIn(loggerName).isEmpty => -\/(Fail(s"Invalid $configId instruction. $CfgFEvent must start with a character and contain only characters and numbers. Contents: ${Json.stringify(props)}"))
+      case None => Fail(s"Invalid $configId instruction. Missing '$CfgFEvent' value. Contents: ${Json.stringify(props)}")
+      case Some(loggerName) if "^\\w[\\w\\d]*$".r.findFirstMatchIn(loggerName).isEmpty => Fail(s"Invalid $configId instruction. $CfgFEvent must start with a character and contain only characters and numbers. Contents: ${Json.stringify(props)}")
       case Some(loggerName) =>
         val baseLogger = Logger(LoggerFactory getLogger loggerName)
         val loggerForLevel = level.toUpperCase match {

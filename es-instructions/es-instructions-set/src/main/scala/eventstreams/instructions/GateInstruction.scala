@@ -23,7 +23,7 @@ import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import _root_.core.sysevents.{FieldAndValue, WithSyseventPublisher}
 import akka.actor.{ActorRef, Props}
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
-import eventstreams.Tools.configHelper
+import eventstreams.Tools.{optionsHelper, configHelper}
 import eventstreams._
 import eventstreams.core.actors._
 import eventstreams.gates.GateState
@@ -72,7 +72,7 @@ class GateInstruction extends BuilderFromConfig[InstructionType] with GateInstru
 
   override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
-      address <- props ~> CfgFAddress \/> Fail(s"Invalid $configId instruction configuration. Missing '$CfgFAddress' value. Contents: ${Json.stringify(props)}")
+      address <- props ~> CfgFAddress orFail s"Invalid $configId instruction configuration. Missing '$CfgFAddress' value. Contents: ${Json.stringify(props)}"
     ) yield {
       val uuid = UUIDTools.generateShortUUID
       Built >>('Address -> address, 'Config -> Json.stringify(props), 'InstructionInstanceId -> uuid)

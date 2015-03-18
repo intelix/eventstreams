@@ -84,11 +84,11 @@ class TransactionInstruction extends BuilderFromConfig[InstructionType] with Tra
   override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
       _ <- props ~> CfgFCorrelationIdTemplates
-        \/> Fail(s"Invalid $configId instruction. Missing '$CfgFCorrelationIdTemplates' value. Contents: ${Json.stringify(props)}");
+        orFail s"Invalid $configId instruction. Missing '$CfgFCorrelationIdTemplates' value. Contents: ${Json.stringify(props)}";
       _ <- props ~> CfgFTxStartCondition
-        \/> Fail(s"Invalid $configId instruction. Missing '$CfgFTxStartCondition' value. Contents: ${Json.stringify(props)}");
+        orFail s"Invalid $configId instruction. Missing '$CfgFTxStartCondition' value. Contents: ${Json.stringify(props)}";
       _ <- SimpleCondition.optionalCondition(props ~> CfgFTxEndSuccessCondition)
-        \/> Fail(s"Invalid $configId instruction. Missing or invalid '$CfgFTxEndSuccessCondition' value. Contents: ${Json.stringify(props)}")
+        orFail s"Invalid $configId instruction. Missing or invalid '$CfgFTxEndSuccessCondition' value. Contents: ${Json.stringify(props)}"
     ) yield TransactionInstructionActor.props(props)
 
 }

@@ -105,14 +105,14 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithCon
     pendingStorageProps = true
     pendingStorageState = true
     cacheAndApplyConfig(props, state)
-    OK().right
+    OK()
   }
 
   def updateWithoutApplyConfigSnapshot(props: JsValue, state: Option[JsValue]): \/[Fail, OK] = {
     pendingStorageProps = true
     pendingStorageState = true
     cacheConfig(props, state)
-    OK().right
+    OK()
   }
 
   def updateConfigMeta(values: Tuple2[JsPath, JsValue]*): \/[Fail, OK] = updateConfigMeta(metaConfig.set(values:_*))
@@ -120,32 +120,32 @@ trait ActorWithConfigStore extends ActorWithComposableBehavior with ActorWithCon
   def updateConfigMeta(meta: JsValue): \/[Fail, OK] = {
     pendingStorageMeta = true
     metaConfig = meta
-    OK().right
+    OK()
   }
 
   def updateAndApplyConfigProps(props: JsValue): \/[Fail, OK] = {
     pendingStorageProps = true
     cacheAndApplyConfig(props, stateConfig)
-    OK().right
+    OK()
   }
 
   def updateWithoutApplyConfigProps(props: JsValue): \/[Fail, OK] = {
     pendingStorageProps = true
     storeConfigProps(props)
     cacheConfig(props, stateConfig)
-    OK().right
+    OK()
   }
 
   def updateAndApplyConfigState(state: Option[JsValue]): \/[Fail, OK] = {
     pendingStorageState = true
     propsConfig.foreach(cacheAndApplyConfig(_, state))
-    OK().right
+    OK()
   }
 
   def updateWithoutApplyConfigState(state: Option[JsValue]): \/[Fail, OK] = {
     pendingStorageState = true
     propsConfig.foreach(cacheConfig(_, state))
-    OK().right
+    OK()
   }
 
   def onInitialConfigApplied(): Unit = {}

@@ -36,6 +36,6 @@
 
     /** Add plugins here **/
     require(["/assets/javascripts/desktopnotifications/config.js"]);
-    require(["/assets/javascripts/momentum/config.js"]);
+    require(["/assets/javascripts/gauges/config.js"]);
 
 })();

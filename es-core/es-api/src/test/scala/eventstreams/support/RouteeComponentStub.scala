@@ -78,16 +78,16 @@ class RouteeComponentStubActor(instanceId: String)
   override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
     case topic @ TopicKey("okwithmessage") =>
       RouteeComponentCommandReceived >> ('Command -> topic.key, 'Data -> maybeData)
-      \/-(OK(message = Some("message")))
+      OK(message = Some("message"))
     case topic @ TopicKey("ok") =>
       RouteeComponentCommandReceived >> ('Command -> topic.key, 'Data -> maybeData)
-      \/-(OK())
+      OK()
     case topic @ TopicKey("failwithmessage") =>
       RouteeComponentCommandReceived >> ('Command -> topic.key, 'Data -> maybeData)
-      -\/(Fail(message = Some("message")))
+      Fail(message = Some("message"))
     case topic @ TopicKey("fail") =>
       RouteeComponentCommandReceived >> ('Command -> topic.key, 'Data -> maybeData)
-      -\/(Fail())
+      Fail()
   }
 
   override def key: ComponentKey = RouteeComponentStubOps.componentKeyForRouteeStub(instanceId)

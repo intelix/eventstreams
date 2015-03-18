@@ -18,7 +18,7 @@ package eventstreams.sources.elasticsearch
 
 import akka.actor.Props
 import com.typesafe.scalalogging.StrictLogging
-import eventstreams.Tools.configHelper
+import eventstreams.Tools.{optionsHelper, configHelper}
 import eventstreams.{BuilderFromConfig, Fail}
 import play.api.libs.json.JsValue
 
@@ -30,9 +30,9 @@ class ElasticsearchEventsource extends BuilderFromConfig[Props] with StrictLoggi
 
   def build(config: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, Props] =
     for (
-      streamSeed <- id \/> Fail(s"streamSeed must be provided");
-      streamKey <- config ~> 'streamKey \/> Fail(s"streamKey must be provided");
-      props <- config #> 'source \/> Fail(s"Invalid configuration")
+      streamSeed <- id orFail s"streamSeed must be provided";
+      streamKey <- config ~> 'streamKey orFail s"streamKey must be provided";
+      props <- config #> 'source orFail s"Invalid configuration"
     ) yield ElasticsearchPublisher.props(streamKey, streamSeed, props, maybeState)
 
 }

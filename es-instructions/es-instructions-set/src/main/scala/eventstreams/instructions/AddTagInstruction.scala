@@ -46,7 +46,7 @@ class AddTagInstruction extends SimpleInstructionBuilder with AddTagInstructionC
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      tagName <- props ~> CfgFTagToAdd \/> Fail(s"Invalid $configId instruction. Missing '$CfgFTagToAdd' value. Contents: ${Json.stringify(props)}")
+      tagName <- props ~> CfgFTagToAdd orFail s"Invalid $configId instruction. Missing '$CfgFTagToAdd' value. Contents: ${Json.stringify(props)}"
     ) yield {
 
       val uuid = UUIDTools.generateShortUUID

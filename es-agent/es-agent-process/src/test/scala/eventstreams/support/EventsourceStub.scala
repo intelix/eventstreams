@@ -14,7 +14,7 @@ class EventsourceStub extends BuilderFromConfig[Props] with StrictLogging {
 
   def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, Props] = {
     if (props ?> 'fail | false)
-      Fail("on request").left
+      Fail("on request")
     else
       PublisherStubActor.props(maybeState).right
   }

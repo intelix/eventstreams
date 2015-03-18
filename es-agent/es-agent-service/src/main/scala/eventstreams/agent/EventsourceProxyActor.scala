@@ -72,19 +72,19 @@ class EventsourceProxyActor(val key: ComponentKey, ref: ActorRef)
   override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
     case T_START =>
       ref ! BecomeActive()
-      \/-(OK())
+      OK()
     case T_STOP =>
       ref ! BecomePassive()
-      \/-(OK())
+      OK()
     case T_REMOVE =>
       ref ! RemoveEventsource()
-      \/-(OK())
+      OK()
     case T_RESET =>
       ref ! ResetEventsourceState()
-      \/-(OK())
+      OK()
     case T_UPDATE_PROPS =>
       maybeData.foreach { data => ref ! ReconfigureEventsource(Json.stringify(data))}
-      \/-(OK(message = Some("Successfully reconfigured")))
+      OK(message = Some("Successfully reconfigured"))
   }
 
   private def publishInfo() = T_INFO !! info

@@ -46,7 +46,7 @@ class DropTagInstruction extends SimpleInstructionBuilder with DropTagInstructio
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      tagName <- props ~> CfgFTagToDrop \/> Fail(s"Invalid $configId instruction. Missing '$CfgFTagToDrop' value. Contents: ${Json.stringify(props)}")
+      tagName <- props ~> CfgFTagToDrop orFail s"Invalid $configId instruction. Missing '$CfgFTagToDrop' value. Contents: ${Json.stringify(props)}"
     ) yield {
 
       val uuid = UUIDTools.generateShortUUID

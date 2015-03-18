@@ -20,7 +20,7 @@ import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.{ActorRef, Props}
 import akka.stream.actor.{MaxInFlightRequestStrategy, RequestStrategy}
-import eventstreams.Tools.configHelper
+import eventstreams.Tools.{optionsHelper, configHelper}
 import eventstreams._
 import eventstreams.instructions.Types
 import Types._
@@ -39,7 +39,7 @@ class DesktopNotificationsSinkInstruction extends BuilderFromConfig[InstructionT
 
   override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
-      address <- props ~> 'signalmgrAddress \/> Fail(s"Invalid signal sink instruction configuration. Missing 'signalmgrAddress' value. Contents: ${Json.stringify(props)}")
+      address <- props ~> 'signalmgrAddress orFail s"Invalid signal sink instruction configuration. Missing 'signalmgrAddress' value. Contents: ${Json.stringify(props)}"
     ) yield DesktopNotificationsSinkInstructionActor.props(address, props)
 
 }

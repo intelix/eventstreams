@@ -57,12 +57,12 @@ class SplitInstruction extends SimpleInstructionBuilder with NowProvider with Sp
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      source <- props ~> CfgFSource \/>
-        Fail(s"Invalid $configId instruction. Missing '$CfgFSource' value. Contents: ${Json.stringify(props)}");
-      patternString <- (props ~> CfgFPattern) \/>
-        Fail(s"Invalid $configId instruction. Missing '$CfgFPattern' value. Contents: ${Json.stringify(props)}");
-      pattern <- Try(new Regex(patternString)).toOption \/>
-        Fail(s"Invalid $configId instruction. Invalid '$CfgFPattern' value. Contents: ${Json.stringify(props)}")
+      source <- props ~> CfgFSource orFail
+        s"Invalid $configId instruction. Missing '$CfgFSource' value. Contents: ${Json.stringify(props)}";
+      patternString <- (props ~> CfgFPattern) orFail
+        s"Invalid $configId instruction. Missing '$CfgFPattern' value. Contents: ${Json.stringify(props)}";
+      pattern <- Try(new Regex(patternString)).toOption orFail
+        s"Invalid $configId instruction. Invalid '$CfgFPattern' value. Contents: ${Json.stringify(props)}"
     ) yield {
 
       var sequence: Long = 0

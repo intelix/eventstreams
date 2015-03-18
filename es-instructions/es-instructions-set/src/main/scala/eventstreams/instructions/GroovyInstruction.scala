@@ -21,7 +21,7 @@ import java.util
 import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
-import eventstreams.Tools.configHelper
+import eventstreams.Tools.{optionsHelper, configHelper}
 import eventstreams._
 import eventstreams.instructions.Types.SimpleInstructionType
 import groovy.json.{JsonBuilder, JsonSlurper}
@@ -59,11 +59,11 @@ class GroovyInstruction extends SimpleInstructionBuilder with GroovyInstructionC
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      code <- props ~> CfgFCode \/> Fail(s"Invalid $configId instruction. Missing '$CfgFCode' value. Contents: ${Json.stringify(props)}");
+      code <- props ~> CfgFCode orFail s"Invalid $configId instruction. Missing '$CfgFCode' value. Contents: ${Json.stringify(props)}";
       script <- Try {
         new GroovyShell().parse(code).right
       }.recover {
-        case t => -\/(Fail(s"Invalid $configId instruction. Invalid '$CfgFCode'. Contents: $props"))
+        case t => Fail(s"Invalid $configId instruction. Invalid '$CfgFCode'. Contents: $props")
       }.get
     ) yield {
 

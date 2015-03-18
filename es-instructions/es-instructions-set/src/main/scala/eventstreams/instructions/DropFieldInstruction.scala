@@ -45,7 +45,7 @@ class DropFieldInstruction extends SimpleInstructionBuilder with DropFieldInstru
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      fieldName <- props ~> CfgFFieldToDrop \/> Fail(s"Invalid $configId instruction. Missing '$CfgFFieldToDrop' value. Contents: ${Json.stringify(props)}")
+      fieldName <- props ~> CfgFFieldToDrop orFail s"Invalid $configId instruction. Missing '$CfgFFieldToDrop' value. Contents: ${Json.stringify(props)}"
     ) yield {
 
       val uuid = UUIDTools.generateShortUUID

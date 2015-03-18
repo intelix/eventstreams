@@ -53,9 +53,9 @@ class IntervalCalcInstruction extends SimpleInstructionBuilder with IntervalCalc
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      fieldName <- props ~> CfgFIntervalFieldName \/> Fail(s"Invalid $configId instruction. Missing '$CfgFIntervalFieldName' value. Contents: ${Json.stringify(props)}");
-      streamKeyTemplate <- props ~> CfgFStreamKey \/> Fail(s"Invalid $configId instruction. Missing '$CfgFStreamKey' value. Contents: ${Json.stringify(props)}");
-      tsField <- props ~> CfgFTimestampField \/> Fail(s"Invalid $configId instruction. Missing '$CfgFTimestampField' value. Contents: ${Json.stringify(props)}")
+      fieldName <- props ~> CfgFIntervalFieldName orFail s"Invalid $configId instruction. Missing '$CfgFIntervalFieldName' value. Contents: ${Json.stringify(props)}";
+      streamKeyTemplate <- props ~> CfgFStreamKey orFail s"Invalid $configId instruction. Missing '$CfgFStreamKey' value. Contents: ${Json.stringify(props)}";
+      tsField <- props ~> CfgFTimestampField orFail s"Invalid $configId instruction. Missing '$CfgFTimestampField' value. Contents: ${Json.stringify(props)}"
     ) yield {
 
       // TODO clean old entries

@@ -52,8 +52,8 @@ class CherrypickInstruction extends SimpleInstructionBuilder with CherrypickInst
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      fieldName <- props ~> CfgFFieldName \/> Fail(s"Invalid $configId instruction. Missing '$CfgFFieldName' value. Contents: ${Json.stringify(props)}");
-      valuePath <- props ~> CfgFFieldValuePath \/> Fail(s"Invalid $configId instruction. Missing '$CfgFFieldValuePath' value. Contents: ${Json.stringify(props)}")
+      fieldName <- props ~> CfgFFieldName orFail s"Invalid $configId instruction. Missing '$CfgFFieldName' value. Contents: ${Json.stringify(props)}";
+      valuePath <- props ~> CfgFFieldValuePath orFail s"Invalid $configId instruction. Missing '$CfgFFieldValuePath' value. Contents: ${Json.stringify(props)}"
     ) yield {
 
       val eventIdTemplate = props ~> CfgFEventIdTemplate | "${eventId}_picked"

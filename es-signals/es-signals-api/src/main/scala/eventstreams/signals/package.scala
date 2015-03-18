@@ -1,95 +1,190 @@
 package eventstreams
 
+import eventstreams.EventFrameConverter.optionsConverter
+
 import scala.language.implicitConversions
+import scalaz.Scalaz._
 
 package object signals {
 
-  sealed trait SigClass
-
-  case class SigClassCritical() extends SigClass
-
-  case class SigClassEssential() extends SigClass
-
-  case class SigClassInfo() extends SigClass
-
-  case class SigClassNonImportant() extends SigClass
-
-  sealed trait SigMetric[T] {
+  sealed trait SigMetricType {
     def id: String
-
-    def valueFrom(s: SignalEventFrame): Option[T]
-    def valueFrom(e: EventData): Option[T]
   }
 
-  trait NumericMetric extends SigMetric[Double] {
-    override def valueFrom(s: SignalEventFrame): Option[Double] = s.valDouble
-    override def valueFrom(e: EventData): Option[Double] = e.asNumber.map(_.doubleValue())
+  case class SigMetricTypeGauge() extends SigMetricType {
+    override def id: String = SignalConst.MetricTypeGauge
   }
 
-  case class SigMetricGauge() extends NumericMetric {
-    override def id: String = "g"
+  case class SigMetricTypeTiming() extends SigMetricType {
+    override def id: String = SignalConst.MetricTypeTiming
   }
 
-  case class SigMetricTiming() extends NumericMetric {
-    override def id: String = "t"
+  case class SigMetricTypeOccurrence() extends SigMetricType {
+    override def id: String = SignalConst.MetricTypeOccurrence
   }
 
-  case class SigMetricOccurrence() extends NumericMetric {
-    override def id: String = "o"
+  case class SigMetricTypeState() extends SigMetricType {
+    override def id: String = SignalConst.MetricTypeState
   }
 
-  case class SigMetricState() extends NumericMetric {
-    override def id: String = "s"
+
+  object SignalConst {
+    val Unspecified = "_"
+    val SegmentsSeparator = "~"
+    val DefaultPriority = "M"
+
+    val nameSetter = EventValuePath("sig.n")
+
+    val fieldSig = "sig"
+    val fieldSigPriority = "p"
+    val fieldSigName = "a"
+    val fieldSigLocation = "L"
+    val fieldSigSystem = "S"
+    val fieldSigComponent = "C"
+    val fieldSigMetric = "M"
+    val fieldSigMetricType = "t"
+    val fieldSigStrValue = "s"
+    val fieldSigNumValue = "n"
+    val fieldSigTimestamp = "t"
+    val fieldSigTTL = "l"
+    val fieldSigUnit = "u"
+    val fieldSigSampleRate = "r"
+    val fieldSigRanges = "a"
+    val fieldSigLevels = "e"
+
+
+    val MetricTypeGauge = "g"
+    val MetricTypeTiming = "t"
+    val MetricTypeOccurrence = "m"
+    val MetricTypeState = "s"
+
   }
 
+  case class SignalKey(location: Option[String], system: Option[String], component: Option[String], metric: String) {
+
+    import SignalConst._
+
+    lazy val toMetricName: String = Seq(location | Unspecified, system | Unspecified, component | Unspecified, metric).mkString("~")
+
+    def matchesQuery(q: String) = q match {
+      case "all" | "*" => true
+      case s if s.endsWith("*") && s.startsWith("*") => toMetricName.contains(s.substring(1, s.length - 1))
+      case s if s.startsWith("*") => toMetricName.endsWith(s.substring(1))
+      case s if s.endsWith("*") => toMetricName.endsWith(s.substring(0, s.length - 1))
+      case s => s == toMetricName
+    }
+
+    lazy val locationAsSeq: Seq[String] = location.map(toSeq) | Seq(Unspecified)
+    lazy val systemAsSeq: Seq[String] = system.map(toSeq) | Seq(Unspecified)
+    lazy val componentAsSeq: Seq[String] = component.map(toSeq) | Seq(Unspecified)
+    lazy val metricAsSeq: Seq[String] = toSeq(metric)
+
+    private def toSeq(s: String) =
+      s.split('.').filterNot(_.isEmpty).toSeq match {
+        case b if b.isEmpty => Seq(Unspecified)
+        case b => b
+      }
+  }
 
   trait Signal {
 
+    import SignalConst._
+
     protected def evt: EventFrame
 
-    def location = evt ~> 'loc
+    private lazy val signal = evt #> fieldSig
 
-    def group = evt ~> 'grp
+    lazy val sigKey = sigMetric.map(SignalKey(sigLocation, sigSystem, sigComponent, _))
+    
+    lazy val sigName: Option[String] = signal ~> fieldSigName
 
-    def subgroup = evt ~> 'grp2
+    private lazy val sigKeyFromName =
+      sigName.flatMap { maybeName =>
+        maybeName.split(SegmentsSeparator).toSeq.map {
+          case Unspecified => None
+          case x => Some(x)
+        } match {
+          case Seq(Some(d)) => Some(SignalKey(None, None, None, d))
+          case Seq(c, Some(d)) => Some(SignalKey(None, None, c, d))
+          case Seq(b, c, Some(d)) => Some(SignalKey(None, b, c, d))
+          case Seq(a, b, c, Some(d)) => Some(SignalKey(a, b, c, d))
+          case Seq(a, b, c, Some(d), tail @ _*) => Some(SignalKey(a, b, c, (Seq(d) ++ tail.flatten).mkString("/")))
+          case _ => None
+        }
+      }
+    lazy val sigLocation = signal ~> fieldSigLocation orElse sigKeyFromName.flatMap(_.location)
 
-    def sensor = evt ~> 'sen
+    lazy val sigSystem = signal ~> fieldSigSystem orElse sigKeyFromName.flatMap(_.system)
 
-    def sclass: Option[SigClass] = (evt ~> 'cls).map {
-      case "c" | "critical" | "3" => SigClassCritical()
-      case "e" | "essential" | "2" => SigClassEssential()
-      case "i" | "info" | "1" => SigClassInfo()
-      case _ => SigClassNonImportant()
+    lazy val sigComponent = signal ~> fieldSigComponent orElse sigKeyFromName.flatMap(_.component)
+
+    lazy val sigMetric = signal ~> fieldSigMetric orElse sigKeyFromName.map(_.metric)
+
+    lazy val sigPriority = signal ~> fieldSigPriority | DefaultPriority
+
+
+    lazy val sigMetricType: Option[SigMetricType] = (signal ~> fieldSigMetricType).collect {
+      case MetricTypeGauge => SigMetricTypeGauge()
+      case MetricTypeTiming => SigMetricTypeTiming()
+      case MetricTypeOccurrence => SigMetricTypeOccurrence()
+      case _ => SigMetricTypeState()
     }
 
-    def metric: Option[SigMetric[_]] = (evt ~> 'metr).collect {
-      case "g" | "gauge" => SigMetricGauge()
-      case "t" | "timing" => SigMetricTiming()
-      case "o" | "occurrence" => SigMetricOccurrence()
-      case "s" | "state" => SigMetricState()
-    }
+    lazy val sigTs = signal ++> fieldSigTimestamp orElse evt ++> 'date_ts
 
-    def ts = evt ++> 'date_ts
+    lazy val sigTTLMs = signal ++> fieldSigTTL
 
-    def ttl = evt ++> 'sttl
+    lazy val sigValueNumeric = signal +&> fieldSigNumValue
+    lazy val sigValueString = signal ~> fieldSigStrValue orElse sigValueNumeric.map("%.2f" format _)
 
-    def valLong = evt ++> 'valn
-
-    def valInt = evt +> 'valn
-
-    def valDouble = evt +&> 'valn
-
-    def valString = evt ~> 'vals
-
-    def unit = evt ~> 'unit
-    def samplingRate = evt +&> 'srt
-    def ranges = evt ##> 'rng
-    def levels = evt ##> 'lvl
+    lazy val sigUnit = signal ~> fieldSigUnit
+    lazy val sigSamplingRateMs = signal +> fieldSigSampleRate
+    lazy val sigRanges = signal ~> fieldSigRanges
+    lazy val sigLevels = signal ~> fieldSigLevels
 
 
   }
 
-  class SignalEventFrame(protected val evt: EventFrame) extends Signal
+  class SignalEventFrame(val evt: EventFrame) extends Signal {
+    def this(
+              metric: Option[String] = None,
+              strValue: Option[String] = None,
+              numValue: Option[Double] = None,
+              name: Option[String] = None,
+              location: Option[String] = None,
+              system: Option[String] = None,
+              component: Option[String] = None,
+              metricType: Option[SigMetricType] = None,
+              priority: Option[String] = None,
+              timestamp: Option[Long] = None,
+              ttlMs: Option[Long] = None,
+              unit: Option[String] = None,
+              samplingRateMs: Option[Long] = None,
+              ranges: Option[String] = None,
+              level: Option[String] = None
+              ) =
+      this(
+        EventFrame(
+          SignalConst.fieldSig -> EventFrame(
+              name.map(SignalConst.fieldSigName -> _).toList ++
+              location.map(SignalConst.fieldSigLocation -> _).toList ++
+              system.map(SignalConst.fieldSigSystem -> _).toList ++
+              component.map(SignalConst.fieldSigComponent -> _).toList ++
+              metricType.map(SignalConst.fieldSigMetricType -> _).toList ++
+              priority.map(SignalConst.fieldSigPriority -> _).toList ++
+              strValue.map(SignalConst.fieldSigStrValue -> _).toList ++
+              numValue.map(SignalConst.fieldSigNumValue -> _).toList ++
+              timestamp.map(SignalConst.fieldSigTimestamp -> _).toList ++
+              ttlMs.map(SignalConst.fieldSigTTL -> _).toList ++
+              unit.map(SignalConst.fieldSigUnit -> _).toList ++
+              samplingRateMs.map(SignalConst.fieldSigSampleRate -> _).toList ++
+              ranges.map(SignalConst.fieldSigRanges -> _).toList ++
+              level.map(SignalConst.fieldSigLevels -> _).toList
+              : _*
+          )
+        )
+      )
+  }
 
   implicit def eventToSignal(f: EventFrame): SignalEventFrame = new SignalEventFrame(f)
 

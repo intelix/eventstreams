@@ -43,7 +43,7 @@ class SignalSensorInstruction extends BuilderFromConfig[InstructionType] {
 
   override def build(props: JsValue, maybeState: Option[JsValue], id: Option[String] = None): \/[Fail, InstructionType] =
     for (
-      signalClass <- props ~> 'signalClass \/> Fail(s"Invalid sensor instruction. Missing 'signalClass' value. Contents: ${Json.stringify(props)}")
+      signalClass <- props ~> 'signalClass orFail s"Invalid sensor instruction. Missing 'signalClass' value. Contents: ${Json.stringify(props)}"
     ) yield SignalSensorInstructionActor.props(signalClass, props)
 
 }

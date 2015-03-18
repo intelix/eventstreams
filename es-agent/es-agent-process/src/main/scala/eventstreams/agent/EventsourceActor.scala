@@ -26,7 +26,7 @@ import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
 import com.typesafe.config.Config
-import eventstreams.Tools.configHelper
+import eventstreams.Tools.{optionsHelper, configHelper}
 import eventstreams._
 import eventstreams.agent.AgentMessagesV1.{EventsourceConfig, EventsourceInfo}
 import eventstreams.core.actors._
@@ -194,9 +194,9 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
       CreatingProducer >>('Props -> config, 'StreamSeed -> streamSeed)
 
       for (
-        instClass <- config #> 'source ~> 'class \/> Fail("Invalid eventsource config: missing 'class' value");
+        instClass <- config #> 'source ~> 'class orFail  "Invalid eventsource config: missing 'class' value";
         builder <- allBuilders.find(_.configId == instClass)
-          \/> Fail(s"Unsupported or invalid eventsource class $instClass. Supported classes: ${allBuilders.map(_.configId)}");
+          orFail s"Unsupported or invalid eventsource class $instClass. Supported classes: ${allBuilders.map(_.configId)}";
         impl <- builder.build(config, stateConfig, Some(streamSeed))
       ) yield impl
 
@@ -207,7 +207,7 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
       CreatingSink >>('Props -> propsConfig, 'StreamSeed -> streamSeed)
 
       for (
-        endpoint <- props ~> 'targetGate \/> Fail("Invalid eventsource config: missing 'targetGate' value");
+        endpoint <- props ~> 'targetGate orFail "Invalid eventsource config: missing 'targetGate' value";
         impl <- SubscriberBoundaryInitiatingActor.props(endpoint, props +> 'maxInFlight | 1000, props +> 'maxBatchSize | 100).right
       ) yield {
         endpointDetails = endpoint
@@ -220,7 +220,7 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
     val streamSeed = UUIDTools.generateShortUUID
 
     val result = for (
-      config <- propsConfig \/> Fail("Configuration missing");
+      config <- propsConfig orFail "Configuration missing";
       publisherProps <- buildProducer(streamSeed, config );
       sinkProps <- buildSink(streamSeed, config)
     ) yield {

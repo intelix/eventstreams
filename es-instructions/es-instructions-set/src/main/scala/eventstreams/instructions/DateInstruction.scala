@@ -97,11 +97,11 @@ class DateInstruction extends SimpleInstructionBuilder with DateInstructionConst
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      source <- props ~> CfgFSource \/> Fail(s"Invalid $configId instruction. Missing '$CfgFSource' value. Contents: ${Json.stringify(props)}");
+      source <- props ~> CfgFSource orFail s"Invalid $configId instruction. Missing '$CfgFSource' value. Contents: ${Json.stringify(props)}";
       targetZone = props ~> CfgFTargetZone;
       zone = props ~> CfgFSourceZone;
-      _ <- Try(targetZone.foreach(DateTimeZone.forID)).toOption \/> Fail(s"Invalid $configId instruction. Invalid '$CfgFTargetZone' value. Contents: $targetZone");
-      _ <- Try(zone.foreach(DateTimeZone.forID)).toOption \/> Fail(s"Invalid $configId instruction. Invalid '$CfgFSourceZone' value. Contents: $zone")
+      _ <- Try(targetZone.foreach(DateTimeZone.forID)).toOption orFail s"Invalid $configId instruction. Invalid '$CfgFTargetZone' value. Contents: $targetZone";
+      _ <- Try(zone.foreach(DateTimeZone.forID)).toOption orFail s"Invalid $configId instruction. Invalid '$CfgFSourceZone' value. Contents: $zone"
     ) yield {
 
       val pattern = (props ~> CfgFPattern).map(DateTimeFormat.forPattern)

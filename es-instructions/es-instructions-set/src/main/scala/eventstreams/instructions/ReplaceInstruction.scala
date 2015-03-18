@@ -52,9 +52,9 @@ class ReplaceInstruction extends SimpleInstructionBuilder with ReplaceInstructio
 
   override def simpleInstruction(props: JsValue, id: Option[String] = None): \/[Fail, SimpleInstructionType] =
     for (
-      fieldName <- props ~> CfgFFieldName \/> Fail(s"Invalid replace instruction. Missing '$CfgFFieldName' value. Contents: ${Json.stringify(props)}");
-      pattern <- props ~> CfgFPattern \/> Fail(s"Invalid replace instruction. Missing '$CfgFPattern' value. Contents: ${Json.stringify(props)}");
-      _ <- Try(new Regex(pattern)).toOption \/> Fail(s"Invalid replace instruction. Invalid '$CfgFPattern' value. Contents: ${Json.stringify(props)}")
+      fieldName <- props ~> CfgFFieldName orFail s"Invalid replace instruction. Missing '$CfgFFieldName' value. Contents: ${Json.stringify(props)}";
+      pattern <- props ~> CfgFPattern orFail s"Invalid replace instruction. Missing '$CfgFPattern' value. Contents: ${Json.stringify(props)}";
+      _ <- Try(new Regex(pattern)).toOption orFail s"Invalid replace instruction. Invalid '$CfgFPattern' value. Contents: ${Json.stringify(props)}"
     ) yield {
       val replacementValue = props ~> CfgFReplacementValue | ""
 

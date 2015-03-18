@@ -6,6 +6,8 @@ import sbt._
 object Dependencies {
 
   object Versions {
+
+
     val scalaVersion = "2.11.4"
     val scalaTestVersion = "2.2.1"
 
@@ -65,6 +67,7 @@ object Dependencies {
   object Compile {
     
     import Versions._
+
 
     val playCache       = "com.typesafe.play"           %%  "play-cache"                    % playCacheVersion
     val playJson        = "com.typesafe.play"           %%  "play-json"                     % playJsonVersion
@@ -130,6 +133,7 @@ object Dependencies {
 
 
   val essentials = Seq(
+
     ficus,
     scalaz,
     uuid,

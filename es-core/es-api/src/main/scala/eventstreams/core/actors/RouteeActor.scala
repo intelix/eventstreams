@@ -59,6 +59,7 @@ trait RouteeActor
   type CommandHandler = PartialFunction[TopicKey, \/[Fail, OK]]
 
   def key: ComponentKey
+  implicit def stringToComponentKey(keyAsString: String): ComponentKey = ComponentKey(keyAsString)
 
   case class Publisher(key: TopicKey) {
     final def !!(data: Any) = data match {
@@ -155,7 +156,7 @@ trait RouteeActor
         func(subject.topic)
       } else {
         Warning >> ('Message -> s"Unhandled topic command", 'Topic -> subject.topic.key, 'Data -> maybeData)
-        \/-(OK())
+        OK()
       }
 
     } match {
