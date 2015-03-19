@@ -53,9 +53,12 @@ trait GaugesServiceNodeTestContext extends MultiNodeTestingSupport {
 
       }
 
-    def sendEventFrameToGaugeService(systemIndex: Int, e: EventFrame) = withSystem(GaugesSystemPrefix, systemIndex) { implicit sys =>
+    def sendToGaugeService(systemIndex: Int, e: Any) = withSystem(GaugesSystemPrefix, systemIndex) { implicit sys => sys.rootUserActorSelection(GaugesManagerConstants.id) ! e }
+
+
+    def sendEventFrameToGaugeService(systemIndex: Int, e: EventFrame) = {
       counter = counter + 1
-      sys.rootUserActorSelection(GaugesManagerConstants.id) ! Acknowledgeable(e, counter)
+      sendToGaugeService(systemIndex, Acknowledgeable(e, counter))
     }
 
 
@@ -76,6 +79,7 @@ trait GaugesServiceNodeTestContext extends MultiNodeTestingSupport {
     def restartGaugesNode1(): Unit = restartGaugesNode(1)
 
     def sendEventFrameToGaugeService1(e: EventFrame) = sendEventFrameToGaugeService(1, e)
+    def sendToGaugeService1(e: Any) = sendToGaugeService(1, e)
 
     startGaugesNode1()
   }

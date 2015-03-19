@@ -1,6 +1,7 @@
 package eventstreams
 
 import eventstreams.Tools.configHelper
+import eventstreams.gauges.UpdateLevel
 import eventstreams.signals.SignalEventFrame
 import eventstreams.support._
 import org.scalatest.FlatSpec
@@ -502,39 +503,74 @@ class GaugesServiceTest
 
   }
 
-
-  /*
-
-  it should "get three matching metrics" in new WithMetricsCreated {
+  it should "not return any metrics if none matching required warning level" in new WithMetricsCreated {
 
     mfilterCmd( """
         {
-         "h": [
-           {"s": [], "q": "*"},
-           {"s": [], "q": "*"}
-         ],
-         "s": [
-           {"s": [], "q": "*"}
-         ],
-         "c": [
-           {"s": ["Actors"], "q": "*"},
-           {"s": [], "q": "*3"}
-         ],
-         "m": [
-           {"s": [], "q": "*"}
-        ],
-         "lim": 3, "limm": 3
-        }
-                """)
+         "h": [{"s": [], "q": "*"}],
+         "s": [{"s": [], "q": "*"}],
+         "c": [{"s": ["Actors"], "q": "*"}],
+         "m": [{"s": ["R/s"], "q": "R*"}],
+         "lim": 3, "limm": 3, "lvl": 1
+        }""")
 
-println("\n" + cmdResponseAsStr + "\n\n\n")
-    cmdResponseAsStr should include ("""{"h":[{"i":[{"n":"Lon","q":true}],"c":1}""")
-    cmdResponseAsStr should include ("""{"h":[{"i":[{"n":"Lon","q":true}],"c":1}""")
+    cmdResponseAsStr should include (""""h":[{"i":[{"n":"Lon","q":true}],"c":1}]""")
+    cmdResponseAsStr should include (""""s":[{"i":[{"n":"Foo","q":true}],"c":1}]""")
+    cmdResponseAsStr should include (""""c":[{"i":[{"n":"Actors","q":true},{"n":"C3","q":true},{"n":"C1","q":true},{"n":"C2","q":true}],"c":4},{"i":[{"n":"A1","q":true},{"n":"A2","q":true},{"n":"A3","q":true}],"c":10}]""")
+    cmdResponseAsStr should include (""""m":[{"i":[{"n":"R/s","q":true}],"c":1}]""")
+    cmdResponseAsStr should include (""""m":[]}""")
 
 
   }
-  */
+  it should "not return all metrics matching required warning level" in new WithMetricsCreated {
+
+    sendToGaugeService1(UpdateLevel(new SignalEventFrame(name = Some("Lon.Host2~Foo.XB~Actors.A5~Queue")).sigKey.get, 1))
+    sendToGaugeService1(UpdateLevel(new SignalEventFrame(name = Some("Lon.Host2~Foo.XB~Actors.A2~R/s")).sigKey.get, 1))
+    sendToGaugeService1(UpdateLevel(new SignalEventFrame(name = Some("Lon.Host2~Foo.XB~Actors.A3~R/s")).sigKey.get, 1))
 
 
+    mfilterCmd( """
+        {
+         "h": [{"s": [], "q": "*"}],
+         "s": [{"s": [], "q": "*"}],
+         "c": [{"s": ["Actors"], "q": "*"}],
+         "m": [{"s": ["R/s"], "q": "R*"}],
+         "lim": 3, "limm": 3, "lvl": 1
+        }""")
+
+    cmdResponseAsStr should include (""""h":[{"i":[{"n":"Lon","q":true}],"c":1}]""")
+    cmdResponseAsStr should include (""""s":[{"i":[{"n":"Foo","q":true}],"c":1}]""")
+    cmdResponseAsStr should include (""""c":[{"i":[{"n":"Actors","q":true},{"n":"C3","q":true},{"n":"C1","q":true},{"n":"C2","q":true}],"c":4},{"i":[{"n":"A1","q":true},{"n":"A2","q":true},{"n":"A3","q":true}],"c":10}]""")
+    cmdResponseAsStr should include (""""m":[{"i":[{"n":"R/s","q":true}],"c":1}]""")
+    cmdResponseAsStr should include ("Lon.Host2~Foo.XB~Actors.A2~R/s")
+    cmdResponseAsStr should include ("Lon.Host2~Foo.XB~Actors.A3~R/s")
+
+
+  }
+  it should "not return all metrics matching or higher than required warning level" in new WithMetricsCreated {
+
+    sendToGaugeService1(UpdateLevel(new SignalEventFrame(name = Some("Lon.Host2~Foo.XB~Actors.A5~Queue")).sigKey.get, 2))
+    sendToGaugeService1(UpdateLevel(new SignalEventFrame(name = Some("Lon.Host2~Foo.XB~Actors.A2~R/s")).sigKey.get, 2))
+    sendToGaugeService1(UpdateLevel(new SignalEventFrame(name = Some("Lon.Host2~Foo.XB~Actors.A3~R/s")).sigKey.get, 2))
+
+
+    mfilterCmd( """
+        {
+         "h": [{"s": [], "q": "*"}],
+         "s": [{"s": [], "q": "*"}],
+         "c": [{"s": ["Actors"], "q": "*"}],
+         "m": [{"s": ["R/s"], "q": "R*"}],
+         "lim": 3, "limm": 3, "lvl": 1
+        }""")
+
+    cmdResponseAsStr should include (""""h":[{"i":[{"n":"Lon","q":true}],"c":1}]""")
+    cmdResponseAsStr should include (""""s":[{"i":[{"n":"Foo","q":true}],"c":1}]""")
+    cmdResponseAsStr should include (""""c":[{"i":[{"n":"Actors","q":true},{"n":"C3","q":true},{"n":"C1","q":true},{"n":"C2","q":true}],"c":4},{"i":[{"n":"A1","q":true},{"n":"A2","q":true},{"n":"A3","q":true}],"c":10}]""")
+    cmdResponseAsStr should include (""""m":[{"i":[{"n":"R/s","q":true}],"c":1}]""")
+    cmdResponseAsStr should include ("Lon.Host2~Foo.XB~Actors.A2~R/s")
+    cmdResponseAsStr should include ("Lon.Host2~Foo.XB~Actors.A3~R/s")
+
+
+  }
 
 }

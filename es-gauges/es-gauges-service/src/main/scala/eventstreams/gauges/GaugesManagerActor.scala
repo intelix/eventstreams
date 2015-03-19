@@ -1,6 +1,6 @@
 package eventstreams.gauges
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.cluster.Cluster
 import com.typesafe.config.Config
 import core.sysevents.SyseventOps.symbolToSyseventOps
@@ -26,11 +26,10 @@ trait GaugesManagerSysevents extends ComponentWithBaseSysevents with BaseActorSy
 
 object GaugesManagerConstants extends GaugesManagerSysevents {
   val id = "gauges"
-
-
-
 }
 
+
+case class UpdateLevel(key: SignalKey, level: Int)
 
 class GaugesManagerActor(sysconfig: Config, cluster: Cluster)
   extends AutoAcknowledgingService[EventFrame]
@@ -52,11 +51,19 @@ class GaugesManagerActor(sysconfig: Config, cluster: Cluster)
   override def key: ComponentKey = GaugesManagerConstants.id
 
 
+  override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
+
   override def onCommand(maybeData: Option[JsValue]): CommandHandler = cmdHandler(maybeData) orElse super.onCommand(maybeData)
 
 
   private def cmdHandler(maybeData: Option[JsValue]): CommandHandler = {
     case T_METRIC_FILTER => OK(metricFilter(maybeData | Json.obj()))
+  }
+
+  private def handler: Receive = {
+    case UpdateLevel(key, l) => liveMetrics.get(key) foreach { m =>
+      liveMetrics += key -> m.copy(level = l)
+    }
   }
 
   private def metricFilter(data: JsValue): JsValue = {
