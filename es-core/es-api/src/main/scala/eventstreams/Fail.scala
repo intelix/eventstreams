@@ -16,7 +16,7 @@
 
 package eventstreams
 
-import play.api.libs.json.JsValue
+import play.api.libs.json.{Json, JsValue}
 import scalaz._
 import Scalaz._
 
@@ -36,8 +36,8 @@ object Fail {
 object OK {
   def apply() = Successful(None).right
   def apply(message: Option[String]) = new Successful(message).right
-  def apply(details: => String, message: Option[String] = None) = new OKWithDetails(details, message).right
-  def apply(payload: JsValue) = new OKWithPayload(payload).right
+  def apply(details: => String, message: Option[String] = None) = new SuccessfulWithDetails(details, message).right
+  def apply(payload: JsValue) = new Successful(Some(Json.stringify(payload))).right
 }
 
 
@@ -49,29 +49,16 @@ case class Successful(message: Option[String]) extends OK {
   override def toString: String = "OK"
 }
 
-class OKWithDetails(arg: => String, val message: Option[String]) extends OK {
+class SuccessfulWithDetails(arg: => String, val message: Option[String]) extends OK {
   lazy val details = arg
 
   override def +(other: OK): OK = other match {
     case x: Successful => this
-    case x: OKWithDetails => new OKWithDetails(details + " and " + x.details, message)
-    case x: OKWithPayload => new OKWithPayload(x.payload)
+    case x: SuccessfulWithDetails => new SuccessfulWithDetails(details + " and " + x.details, message)
   }
   override def toString: String = "OK: " + arg
 }
 
-class OKWithPayload(arg: JsValue) extends OK {
-  lazy val payload = arg
-
-  override def message: Option[String] = None
-
-  override def +(other: OK): OK = other match {
-    case x: Successful => this
-    case x: OKWithDetails => this
-    case x: OKWithPayload => this
-  }
-  override def toString: String = "OK: " + arg
-}
 
 class FailWithCause(arg: => String, val message: Option[String]) extends Fail {
   lazy val cause = arg

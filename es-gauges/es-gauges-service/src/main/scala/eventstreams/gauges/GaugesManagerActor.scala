@@ -61,11 +61,22 @@ class GaugesManagerActor(sysconfig: Config, cluster: Cluster)
 
   private def metricFilter(data: JsValue): JsValue = {
 
-    val maxMatching = 3
-    val maxSelected = 50
+
+    var limit = data +> 'lim match {
+      case Some(i) if i < 2000 => i
+      case _ => 2000
+    }
+
+    val maxMatching = data +> 'limm | 20
+    val maxSelected = data +> 'lims | 50
+
+    var warningLevel = data +> 'lvl | 0
+
 
     class SelectedGroupLevelItems(val items: Seq[String])
-    class GroupLevel(val selection: SelectedGroupLevelItems, val query: String)
+    class GroupLevel(val selection: SelectedGroupLevelItems, val query: String) {
+      def this() = this(new SelectedGroupLevelItems(Seq()), "*")
+    }
     class Group(val levels: Seq[GroupLevel])
     class Selector(val groups: Map[Symbol, Group])
 
@@ -120,19 +131,9 @@ class GaugesManagerActor(sysconfig: Config, cluster: Cluster)
         new Group(j.asOpt[JsArray].map(_.value.map { j1 =>
           new GroupLevel(jsonToGroupItemSelection(j1 #> 's), j1 ~> 'q | "*")
         }) | Seq())
-      } | new Group(Seq[GroupLevel]())
-
-    var limit = data +> 'lim match {
-      case Some(i) if i < 2000 => i
-      case _ => 2000
-    }
-
-    var warningLevel = data +> 'lvl | 0
+      } | new Group(Seq[GroupLevel](new GroupLevel()))
 
     val selector: Selector = new Selector(Seq('h, 's, 'c, 'm).map { k => k -> jsonToGroup(data #> k) }.toMap)
-
-    println(s"!>>>>> data: $data")
-    println(s"!>>>>> selector: $selector")
 
     type Extractor = SignalKey => Seq[String]
     val extractors = Map[Symbol, Extractor]('h -> (_.locationAsSeq), 's -> (_.systemAsSeq), 'c -> (_.componentAsSeq), 'm -> (_.metricAsSeq))
@@ -161,12 +162,13 @@ class GaugesManagerActor(sysconfig: Config, cluster: Cluster)
         case x if x.endsWith("*") => name.startsWith(x.substring(0, x.length - 1))
         case _ => false
       }
-      case _ => false
+      case _ => true
     }
     def isSelectedItem(name: String, groupLevel: Option[GroupLevel]) = groupLevel match {
       case Some(gl) => gl.selection.items.contains(name)
       case _ => false
     }
+
 
 
     val sr = sortedMetrics.foldLeft[SelectorResult](new SelectorResult()) {
@@ -181,7 +183,7 @@ class GaugesManagerActor(sysconfig: Config, cluster: Cluster)
 
             @tailrec
             def process(idx: Int): Unit =
-              if (idx <= extractedLevels.size) {
+              if (idx < extractedLevels.size) {
                 val nextItem = extractedLevels(idx)
                 val selectedLevel = if (selectedLevels.size <= idx) None else Some(selectedLevels(idx))
                 if (addedLevels.size <= idx) addedLevels += new LevelItems()

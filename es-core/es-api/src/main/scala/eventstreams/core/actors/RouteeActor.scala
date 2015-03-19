@@ -162,7 +162,7 @@ trait RouteeActor
     } match {
       case Failure(failure) =>
         genericCommandError(subject.topic, replyToSubj, "Invalid operation")
-        CommandFailed >> ('Topic -> subject.topic.key, 'Error -> "Invalid operation")
+        CommandFailed >> ('Topic -> subject.topic.key, 'Message -> "Invalid operation", 'Error -> failure)
       case Success(result) => result match {
         case -\/(fail) =>
           fail.message.foreach { msg =>
@@ -173,7 +173,7 @@ trait RouteeActor
           ok.message.foreach { msg =>
             genericCommandSuccess(subject.topic, replyToSubj, Some(msg))
           }
-          CommandSuccessful >> ('Topic -> subject.topic.key, 'Message -> ok)
+          CommandSuccessful >> ('Topic -> subject.topic.key, 'Message -> ok, 'ReplyTo -> replyToSubj)
       }
     }
   }
