@@ -63,7 +63,7 @@ private class GaugesInstructionActor(config: JsValue)
 
   val maxInFlight = 1000
 
-  val endpointId = ActorWithRoleId(GaugesServiceConstants.id, "gauges")
+  val endpointId = ActorWithRoleId(GaugesManagerConstants.id, "gauges")
   var endpoint: Set[ActorRef] = Set.empty
 
   override def preStart(): Unit = {

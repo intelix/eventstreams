@@ -30,13 +30,23 @@ trait Subj
 
 case class TopicKey(key: String)
 
+object TopicWithPrefix {
+  def unapply(t: TopicKey): Option[(String, String)] =
+    t.key.indexOf(":") match {
+      case i if i < 0 => None
+      case i => Some(t.key.substring(0, i), t.key.substring(i + 1))
+    }
+
+}
+
 case class ComponentKey(key: String) {
   def /(s: String) = ComponentKey(key + "/" + s)
-  def toActorId = key.replaceAll("""[\W]""", "_").replaceAll("__", "_")
+
+  def toActorId = key.replaceAll( """[\W]""", "_").replaceAll("__", "_")
 }
 
 case class LocalSubj(component: ComponentKey, topic: TopicKey) extends Subj {
-  override def toString: String = component.key + "#" + topic.key 
+  override def toString: String = component.key + "#" + topic.key
 }
 
 case class RemoteAddrSubj(address: String, localSubj: LocalSubj) extends Subj {
@@ -52,6 +62,7 @@ case class Command(subj: Any, replyToSubj: Option[Any], data: Option[String] = N
 case class Update(subj: Any, data: String, override val canBeCached: Boolean = true) extends ServiceSubscriptionMessage[Any] with CacheableMessage
 
 case class CommandOk(subj: Any, data: String) extends ServiceSubscriptionMessage[Any]
+
 case class CommandErr(subj: Any, data: String) extends ServiceSubscriptionMessage[Any]
 
 

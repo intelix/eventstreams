@@ -1,49 +1,38 @@
+/*
+ * Copyright 2014-15 Intelix Pty Ltd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package eventstreams.gauges
 
+import akka.actor.Props
 import eventstreams.signals._
 
-import eventstreams.{TopicKey, EventFrame, ComponentKey}
-import eventstreams.core.actors.{ActorWithTicks, RouteeActor}
 
-class GaugeActor(id: String, signalKey: SignalKey)
-  extends RouteeActor
-  with ActorWithTicks {
+object GaugeActor {
 
-  private val T_DATA = TopicKey("data")
-
-  private var bucket: Option[GaugeBucket] = None
-
-  override def key: ComponentKey = id
-  override def componentId: String = "Metric." + signalKey.toMetricName
-
-
-  override def commonBehavior: Receive = handler orElse super.commonBehavior
-
-  override def preStart(): Unit = {
-    super.preStart()
-  }
-
-
-  private def update(s: SignalEventFrame) = {
-//    val bucket = bucketFor(s)
-//    bucket.update(s)
-//    T_DATA !! bucket.toData
-  }
-
-
-
-//  private def bucketFor(s: SignalEventFrame): GaugeBucket = bucket match {
-//    case Some(b) => b
-//    case None =>
-//      val b = createBucketFor(s)
-//      bucket = Some(b)
-//      b
-//  }
-
-  private def createBucketFor(s: SignalEventFrame) = {}
-
-  private def handler: Receive = {
-    case e: SignalEventFrame => update(e)
+  def apply(t: SigMetricType, id: String, signalKey: SignalKey) = t match {
+    case SigMetricTypeGauge() => Props(new GaugeTypeGaugeActor(id, signalKey))
+    case SigMetricTypeTiming() => Props(new TimingTypeGaugeActor(id, signalKey))
+    case SigMetricTypeOccurrence() => Props(new OccurrenceTypeGaugeActor(id, signalKey))
+    case SigMetricTypeState() => Props(new StateTypeGaugeActor(id, signalKey))
   }
 
 }
+
+class GaugeTypeGaugeActor(val id: String, val signalKey: SignalKey) extends GaugeMetricAccounting with BaseGaugeActor
+class TimingTypeGaugeActor(val id: String, val signalKey: SignalKey) extends TimingMetricAccounting with BaseGaugeActor
+class OccurrenceTypeGaugeActor(val id: String, val signalKey: SignalKey) extends OccurrenceMetricAccounting with BaseGaugeActor
+class StateTypeGaugeActor(val id: String, val signalKey: SignalKey) extends StateMetricAccounting with BaseGaugeActor
+
