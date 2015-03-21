@@ -31,8 +31,8 @@ object GaugeActor {
 
 }
 
-class GaugeTypeGaugeActor(val id: String, val signalKey: SignalKey) extends GaugeMetricAccounting with BaseGaugeActor
-class TimingTypeGaugeActor(val id: String, val signalKey: SignalKey) extends TimingMetricAccounting with BaseGaugeActor
-class OccurrenceTypeGaugeActor(val id: String, val signalKey: SignalKey) extends OccurrenceMetricAccounting with BaseGaugeActor
-class StateTypeGaugeActor(val id: String, val signalKey: SignalKey) extends StateMetricAccounting with BaseGaugeActor
+class GaugeTypeGaugeActor(val id: String, val signalKey: SignalKey) extends BaseGaugeActor with GaugeMetricAccounting
+class TimingTypeGaugeActor(val id: String, val signalKey: SignalKey) extends BaseGaugeActor with TimingMetricAccounting
+class OccurrenceTypeGaugeActor(val id: String, val signalKey: SignalKey) extends  BaseGaugeActor with OccurrenceMetricAccounting
+class StateTypeGaugeActor(val id: String, val signalKey: SignalKey) extends BaseGaugeActor with StateMetricAccounting
 

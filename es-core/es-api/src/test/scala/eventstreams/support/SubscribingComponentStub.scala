@@ -66,7 +66,14 @@ class SubscribingComponentStubActor(instanceId: String) extends ActorWithComposa
       MessageRouterActor.path(context) ! RegisterComponent(ComponentKey(uuid), self)
       MessageRouterActor.path(context) ! Command(subj, Some(LocalSubj(ComponentKey(uuid), TopicKey("_"))), data.map(Json.stringify))
     case x : Stale => StaleReceived >> ('Message -> x)
-    case x : Update => UpdateReceived >> ('Message -> x, 'Subject -> x.subj, 'Contents -> (Json.parse(x.data) ~> 'msg | "n/a"), 'Data -> x.data)
+    case x : Update => x.subj match {
+      case RemoteAddrSubj(addr, LocalSubj(k,t)) =>
+        UpdateReceived >>> Seq('Message -> x, 'Subject -> x.subj, 'Address -> addr, 'ComponentKey -> k.key, 'Topic -> t.key, 'Contents -> (Json.parse(x.data) ~> 'msg | "n/a"), 'Data -> x.data)
+      case LocalSubj(k,t) =>
+        UpdateReceived >>> Seq('Message -> x, 'Subject -> x.subj, 'Address -> "local", 'ComponentKey -> k.key, 'Topic -> t.key, 'Contents -> (Json.parse(x.data) ~> 'msg | "n/a"), 'Data -> x.data)
+      case _ =>
+        UpdateReceived >>> Seq('Message -> x, 'Subject -> x.subj, 'Contents -> (Json.parse(x.data) ~> 'msg | "n/a"), 'Data -> x.data)
+    }
     case x : CommandErr => CommandErrReceived >> ('Message -> x, 'Subject -> x.subj, 'Contents -> ((Json.parse(x.data) #> 'error ~> 'msg) | "n/a"))
     case x : CommandOk => CommandOkReceived >> ('Message -> x, 'Subject -> x.subj, 'Contents -> ((Json.parse(x.data) #> 'ok ~> 'msg) | "n/a"))
     case x => UnknownMessageReceived >> ('Message -> x)

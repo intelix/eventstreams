@@ -31,6 +31,8 @@ trait BaseGaugeActor
   var lastLevel: Int = 0
   var lastPublishAt: Option[Long] = None
 
+  var publishIntervalMs = 3000
+
   def id: String
 
   private val T_DATA = TopicKey("data")
@@ -50,9 +52,9 @@ trait BaseGaugeActor
   override def processTick(): Unit = {
     super.processTick()
     lastPublishAt = lastPublishAt match {
-      case Some(t) if !tsOfLastSignal.isDefined || tsOfLastSignal.get < t => lastPublishAt
+      case Some(t) if (!tsOfLastSignal.isDefined || tsOfLastSignal.get < t) && (now - t < publishIntervalMs)  => lastPublishAt
       case _ =>
-        val newData = toValuesData
+        val newData = toData
         if (newData != lastDataValue) {
           lastDataValue = newData
           T_DATA !!* lastDataValue
@@ -60,7 +62,7 @@ trait BaseGaugeActor
         lastLevel = currentLevel match {
           case newLevel if newLevel != lastLevel =>
             context.parent ! LevelUpdateNotification(signalKey, newLevel)
-            lastLevel
+            newLevel
           case _ => lastLevel
         }
         Some(now)

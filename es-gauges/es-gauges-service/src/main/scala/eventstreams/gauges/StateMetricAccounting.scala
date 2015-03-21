@@ -39,9 +39,10 @@ trait StateMetricAccounting extends MetricAccounting {
 
   override def currentLevel: Int =
     valueForLevels match {
-      case Some(v) if levelRed.isDefined && levelRed.get.findFirstIn(v).isDefined => 2
-      case Some(v) if levelYellow.isDefined && levelYellow.get.findFirstIn(v).isDefined => 1
-      case _ => 0
+      case Some(v) if levelRed.isDefined && levelRed.get.findFirstIn(v).isDefined => LevelRed
+      case Some(v) if levelYellow.isDefined && levelYellow.get.findFirstIn(v).isDefined => LevelYellow
+      case Some(_) => LevelGreen
+      case _ => LevelUnknown
     }
 
   private def toLevel(s: String): Option[Regex] = s match {

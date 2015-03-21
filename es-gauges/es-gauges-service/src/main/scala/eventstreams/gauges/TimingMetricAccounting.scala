@@ -18,20 +18,21 @@ package eventstreams.gauges
 
 import java.util.concurrent.TimeUnit
 
-import eventstreams.WithMetrics
 import eventstreams.signals.SignalEventFrame
+import nl.grons.metrics.scala.Timer
 import play.api.libs.json.{JsString, JsValue}
 
 import scalaz.Scalaz._
 
-trait TimingMetricAccounting extends NumericMetricAccounting with WithMetrics {
+trait TimingMetricAccounting extends NumericMetricAccounting with WithMetric[Timer] {
 
-  private val m = metrics.timer(signalKey.toMetricName)
   private var timeUnit: TimeUnit = TimeUnit.MILLISECONDS
+
+  override def createMetric(metricName: String): Timer = metrics.timer(metricName)
 
   override def updateValue(v: Double): Unit = {
     val ms = calculateMsFrom(v)
-    m.update(v.toLong, TimeUnit.MILLISECONDS)
+    m.foreach(_.update((ms * 1000).toLong, TimeUnit.MICROSECONDS))
     super.updateValue(ms)
   }
 
@@ -60,12 +61,14 @@ trait TimingMetricAccounting extends NumericMetricAccounting with WithMetrics {
 
 
   override def toValuesData: Option[JsValue] =
-    Some(JsString(Seq(
-      valueForLevels,
-      m.snapshot.getMean,
-      m.snapshot.getStdDev,
-      m.snapshot.get95thPercentile(),
-      m.snapshot.get99thPercentile()
-    ).map(fmt).mkString(",")))
+    m.map { metric =>
+      JsString(Seq(
+        valueForLevels,
+        metric.snapshot.getMean / 1000000,
+        metric.snapshot.getStdDev / 1000000,
+        metric.snapshot.get95thPercentile() / 1000000,
+        metric.snapshot.get99thPercentile() / 1000000
+      ).map(fmt).mkString(","))
+    }
 
 }

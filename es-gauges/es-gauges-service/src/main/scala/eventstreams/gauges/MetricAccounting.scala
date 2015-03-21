@@ -16,13 +16,19 @@
 
 package eventstreams.gauges
 
-import eventstreams.NowProvider
+import eventstreams.core.actors.ActorWithComposableBehavior
 import eventstreams.signals.{SignalEventFrame, SignalKey}
-import play.api.libs.json.{Json, JsValue}
-import scalaz._
-import Scalaz._
+import eventstreams.{NowProvider, WithMetrics}
+import play.api.libs.json.{JsValue, Json}
 
-trait MetricAccounting extends NowProvider {
+import scalaz.Scalaz._
+
+trait MetricAccounting extends NowProvider with WithMetrics with ActorWithComposableBehavior {
+
+  val LevelUnknown = 0
+  val LevelGreen = 1
+  val LevelYellow = 2
+  val LevelRed = 3
 
   protected var tsOfLastSignal: Option[Long] = None
 

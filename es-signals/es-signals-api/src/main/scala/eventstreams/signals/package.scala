@@ -177,7 +177,7 @@ package object signals {
               unit: Option[String] = None,
               samplingRateMs: Option[Long] = None,
               ranges: Option[String] = None,
-              level: Option[Int] = None
+              levels: Option[String] = None
               ) =
       this(
         EventFrame(
@@ -195,7 +195,7 @@ package object signals {
               unit.map(SignalConst.fieldSigUnit -> _).toList ++
               samplingRateMs.map(SignalConst.fieldSigSampleRate -> _).toList ++
               ranges.map(SignalConst.fieldSigRanges -> _).toList ++
-              level.map(SignalConst.fieldSigLevels -> _).toList
+              levels.map(SignalConst.fieldSigLevels -> _).toList
               : _*
           )
         )

@@ -251,6 +251,7 @@ class GaugesManagerActor(sysconfig: Config, cluster: Cluster)
   private def filterPayload(sortedMetrics: List[(SignalKey, MetricMeta)], data: String) = {
     val selector = new Selector(Json.parse(data))
     val payload = selector.toPayload(sortedMetrics)
+
     FilterPayload(selector, payload)
   }
 
@@ -278,7 +279,7 @@ class GaugesManagerActor(sysconfig: Config, cluster: Cluster)
 
   private def rebuildFilters() = {
     val sm = sortedMetrics
-    liveMetricFilters.map {
+    liveMetricFilters = liveMetricFilters.map {
       case current@(topicKey@TopicWithPrefix(_, data), payload) =>
 
         filterPayload(sm, data) match {

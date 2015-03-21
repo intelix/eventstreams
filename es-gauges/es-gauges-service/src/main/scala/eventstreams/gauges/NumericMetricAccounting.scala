@@ -31,6 +31,7 @@ trait NumericMetricAccounting extends MetricAccounting {
   private var levelUpperRed: Option[Double] = None
 
 
+
   def valueForLevels: Option[Double] =
     isSignalValueExpired match {
       case true => None
@@ -39,11 +40,12 @@ trait NumericMetricAccounting extends MetricAccounting {
 
   override def currentLevel: Int =
     valueForLevels match {
-      case Some(v) if levelLowerRed.isDefined && levelLowerRed.get > v => 2
-      case Some(v) if levelUpperRed.isDefined && levelUpperRed.get < v => 2
-      case Some(v) if levelLowerYellow.isDefined && levelLowerYellow.get > v => 1
-      case Some(v) if levelUpperYellow.isDefined && levelUpperYellow.get < v => 1
-      case _ => 0
+      case Some(v) if levelLowerRed.isDefined && levelLowerRed.get >= v => LevelRed
+      case Some(v) if levelUpperRed.isDefined && levelUpperRed.get <= v => LevelRed
+      case Some(v) if levelLowerYellow.isDefined && levelLowerYellow.get >= v => LevelYellow
+      case Some(v) if levelUpperYellow.isDefined && levelUpperYellow.get <= v => LevelYellow
+      case Some(_) => LevelGreen
+      case _ => LevelUnknown
     }
 
   private def toLevel(s: String): Option[Double] = s match {

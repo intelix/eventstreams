@@ -17,24 +17,30 @@
 package eventstreams.gauges
 
 import eventstreams.WithMetrics
+import nl.grons.metrics.scala.Meter
 import play.api.libs.json.{JsString, JsValue}
 
-trait OccurrenceMetricAccounting extends NumericMetricAccounting with WithMetrics {
+trait OccurrenceMetricAccounting extends NumericMetricAccounting with WithMetric[Meter] {
 
-  private val m = metrics.meter(signalKey.toMetricName)
+
+  override def createMetric(metricName: String): Meter = metrics.meter(metricName)
 
   override def updateValue(v: Double): Unit = {
-    m.mark(v.toLong)
-    super.updateValue(m.oneMinuteRate)
+    m.foreach { metric =>
+      metric.mark(v.toLong)
+      super.updateValue(metric.oneMinuteRate)
+    }
   }
 
   override def toValuesData: Option[JsValue] =
-    Some(JsString(Seq(
-      valueForLevels,
-      m.meanRate,
-      m.oneMinuteRate,
-      m.fiveMinuteRate,
-      m.fifteenMinuteRate
-    ).map(fmt).mkString(",")))
+    m.map { metric =>
+      JsString(Seq(
+        valueForLevels,
+        metric.meanRate,
+        metric.oneMinuteRate,
+        metric.fiveMinuteRate,
+        metric.fifteenMinuteRate
+      ).map(fmt).mkString(","))
+    }
 
 }

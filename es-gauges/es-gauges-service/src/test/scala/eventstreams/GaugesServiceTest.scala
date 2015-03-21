@@ -108,10 +108,11 @@ class GaugesServiceTest
     subscribeFrom1(gauges1System, LocalSubj(timingComponentKey, TopicKey("data")))
     subscribeFrom1(gauges1System, LocalSubj(stateComponentKey, TopicKey("data")))
     subscribeFrom1(gauges1System, LocalSubj(occurrenceComponentKey, TopicKey("data")))
+    expectSomeEventsWithTimeout(5000, 5, UpdateReceived, 'Topic -> "data")
     clearEvents()
-    mfilterSub( """{"lim": 3, "limm": 3}""")
+    mfilterSub( """{"c":[{"s": ["C1"], "q": "*"}],"lim": 5, "limm": 3, "lvl": 2}""")
     expectSomeEventsWithTimeout(5000, UpdateReceived)
-    lastUpdateAsStr should include("Syd.Host1~Foo.XL~C1~Occurrence")
+    lastUpdateAsStr should include( """"m":[]""")
     clearEvents()
   }
 
@@ -717,9 +718,726 @@ class GaugesServiceTest
   }
 
 
-  "gauge metric" should "be used as a default" taggedAs OnlyThisTest in new SubscribedToDifferentMetricTypes {
+  "gauge metric" should "should update" in new SubscribedToDifferentMetricTypes {
     sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now)).evt)
-    collectAndPrintEvents()
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"v":"10.00,10.00,0.00,10.00,10.00""".r)
+  }
+
+  it should "affect no other metrics when updated" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    waitAndCheck {
+      expectSomeEventsWithTimeout(3000, 1, UpdateReceived)
+    }
+  }
+
+  it should "reflect the latest value and correctly calculate all values" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(15), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(20), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"v":"20.00,15.00,4.08,20.00,20.00""".r)
+  }
+
+  it should "not expire the ttlMs was never set" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"v":"10.00,10.00,0.00,10.00,10.00""".r)
+    clearEvents()
+    waitWithTimeout(5000) {
+      expectNoEvents(UpdateReceived)
+    }
+
+  }
+
+  it should "expire the value after 1.5 seconds if ttlMs=1500" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), ttlMs = Some(1500)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"v":"10.00,10.00,0.00,10.00,10.00""".r)
+    expectSomeEventsWithTimeout(10000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"v":"_,10.00,0.00,10.00,10.00""".r)
+  }
+
+  it should "once ttlMs=1500 is set, it would apply to all other updates" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), ttlMs = Some(1500)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(15), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(20), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"v":"20.00,15.00,4.08,20.00,20.00""".r)
+    expectSomeEventsWithTimeout(10000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"v":"_,15.00,4.08,20.00,20.00""".r)
+  }
+
+  it should "ignore signals out of order" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(20), timestamp = Some(now - 100000)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(15), timestamp = Some(now - 10000)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"v":"10.00,10.00,0.00,10.00,10.00""".r)
+    clearEvents()
+    waitWithTimeout(2000) {
+      expectNoEvents(UpdateReceived)
+    }
+
+  }
+
+  it should "ignore signals without timestamp" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10)).evt)
+    waitAndCheck {
+      expectNoEvents(UpdateReceived)
+    }
+
+  }
+
+  it should "ignore signals without value" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, timestamp = Some(now)).evt)
+    waitAndCheck {
+      expectNoEvents(UpdateReceived)
+    }
+  }
+
+  it should "stay on level 1 (green) if levels are not set" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+  }
+
+  it should "stay on level 1 if levels are not set - regardless of the values" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(-85), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(-50), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(0), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(80), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(85), timestamp = Some(now)).evt)
+    expectOneOrMoreEvents(UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    waitAndCheck {
+      expectNoEvents(UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+      expectNoEvents(UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+    }
+  }
+
+  it should "stay on level 1 when levels configured like [_,_,60,80] and updates are 10, 59.99" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(59.99), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+  }
+
+  it should "stay on level 1 when levels configured like [_,_,60.01,80] and updates are 10, 60" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60.01,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(59.99), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [_,_,60,80] and updates are 10, 60" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(60), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [_,_,60.01,80] and updates are 10, 60.01" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60.01,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(60.01), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [_,_,60.01,_] and updates are 10, 60.01" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60.01,_")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(60.01), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [2,5,60.01,61] and updates are 10, 60.01" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("2,5,60.01,61")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(60.01), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [2,5,60.01,61] and updates are 10, 5" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("2,5,60.01,61")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(5), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [2,5,60.01,61] and updates are 5.01, 4.99" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(5.01), timestamp = Some(now), levels = Some("2,5,60.01,61")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(4.99), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+  it should "detect level 2 (yellow) when levels configured like [-10,-5,60.01,61] and updates are -4.99,-5.01" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(-4.99), timestamp = Some(now), levels = Some("-10,-5,60.01,61")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(-5.01), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [_,_,60,80], and reconfigured [_,_,50,80] and updates are 50,50" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(50), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(50), timestamp = Some(now), levels = Some("_,_,50,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [_,_,60,80] and updates are 10,80" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(80), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [_,_,60,80] and updates are 10,60,80" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(60), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(80), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [_,_,60,80] and updates are 10,80.01" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(80.01), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [_,_,60,80.01] and updates are 10,80.01" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80.01")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(80.01), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [_,_,60,80.01] and updates are 10,80000" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80.01")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(80000), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [2,5,60,80.01] and updates are 10,2" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("2,5,60,80.01")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(2), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [1.99,5,60,80.01] and updates are 10,2,1.99" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("1.99,5,60,80.01")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(2), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(1.99), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [-20,-19,60,80.01] and updates are -19.5,-20" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(-19.5), timestamp = Some(now), levels = Some("-20,-19,60,80.01")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(-20), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [-20,-19,_,_] and updates are -19.5,-20" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(-19.5), timestamp = Some(now), levels = Some("-20,-19,_,_")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(-20), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [-20,_,_,_] and updates are -19.5,-20" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(-19.5), timestamp = Some(now), levels = Some("-20,_,_,_")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(-20), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "properly update levels when levels configured like [-20,-19,60,80.01] and updates are 0,10,60,65,90,60,10,-19,-30" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(0), timestamp = Some(now), levels = Some("-20,-19,60,80.01")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(60), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(65), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(90), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(60), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(-19), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(-30), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+    clearEvents()
+  }
+
+  it should "report unknown level when value expired" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80"), ttlMs = Some(1500)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(60), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    expectSomeEventsWithTimeout(10000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":0""".r)
+  }
+
+  it should "report level changes to the parent which will result in mfilter update to happen" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(60), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> "gauges", 'Data -> s"""${gauge1SignalName.get}""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = gauge1SignalName, numValue = Some(50), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> gauge1ComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    expectSomeEventsWithTimeout(5000, 1, UpdateReceived, 'ComponentKey -> "gauges", 'Data -> s""""m":\\[\\]""".r)
+  }
+
+
+
+
+
+  "timing metric" should "should update" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"v":"10.00,10.00,0.00,10.00,10.00""".r)
+  }
+
+  it should "affect no other metrics when updated" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    waitAndCheck {
+      expectSomeEventsWithTimeout(3000, 1, UpdateReceived)
+    }
+  }
+
+  it should "reflect the latest value and correctly calculate all values" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(15), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(20), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"v":"20.00,15.00,4.08,20.00,20.00""".r)
+  }
+
+  it should "reflect the latest value and correctly calculate all values - various units" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(0.01), timestamp = Some(now), unit = Some("s")).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(15), timestamp = Some(now), unit = Some("millis")).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(0.02), timestamp = Some(now), unit = Some("sec")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"v":"20.00,15.00,4.08,20.00,20.00""".r)
+  }
+
+  it should "not expire the ttlMs was never set" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"v":"10.00,10.00,0.00,10.00,10.00""".r)
+    clearEvents()
+    waitWithTimeout(5000) {
+      expectNoEvents(UpdateReceived)
+    }
+
+  }
+
+  it should "expire the value after 1.5 seconds if ttlMs=1500" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), ttlMs = Some(1500)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"v":"10.00,10.00,0.00,10.00,10.00""".r)
+    expectSomeEventsWithTimeout(10000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"v":"_,10.00,0.00,10.00,10.00""".r)
+  }
+
+  it should "once ttlMs=1500 is set, it would apply to all other updates" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), ttlMs = Some(1500)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(15), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(20), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"v":"20.00,15.00,4.08,20.00,20.00""".r)
+    expectSomeEventsWithTimeout(10000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"v":"_,15.00,4.08,20.00,20.00""".r)
+  }
+
+  it should "ignore signals out of order" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(20), timestamp = Some(now - 100000)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(15), timestamp = Some(now - 10000)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"v":"10.00,10.00,0.00,10.00,10.00""".r)
+    clearEvents()
+    waitWithTimeout(2000) {
+      expectNoEvents(UpdateReceived)
+    }
+
+  }
+
+  it should "ignore signals without timestamp" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10)).evt)
+    waitAndCheck {
+      expectNoEvents(UpdateReceived)
+    }
+
+  }
+
+  it should "ignore signals without value" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, timestamp = Some(now)).evt)
+    waitAndCheck {
+      expectNoEvents(UpdateReceived)
+    }
+  }
+
+  it should "stay on level 1 (green) if levels are not set" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+  }
+
+  it should "stay on level 1 if levels are not set - regardless of the values" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(-85), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(-50), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(0), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(80), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(85), timestamp = Some(now)).evt)
+    expectOneOrMoreEvents(UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    waitAndCheck {
+      expectNoEvents(UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+      expectNoEvents(UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+    }
+  }
+
+  it should "stay on level 1 when levels configured like [_,_,60,80] and updates are 10, 59.99" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(59.99), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+  }
+
+  it should "stay on level 1 when levels configured like [_,_,60.01,80] and updates are 10, 60" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60.01,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(59.99), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [_,_,60,80] and updates are 10, 60" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(60), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [_,_,60.01,80] and updates are 10, 60.01" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60.01,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(60.01), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [_,_,60.01,_] and updates are 10, 60.01" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60.01,_")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(60.01), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [2,5,60.01,61] and updates are 10, 60.01" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("2,5,60.01,61")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(60.01), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [2,5,60.01,61] and updates are 10, 5" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("2,5,60.01,61")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(5), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [2,5,60.01,61] and updates are 5.01, 4.99" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(5.01), timestamp = Some(now), levels = Some("2,5,60.01,61")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(4.99), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+  it should "detect level 2 (yellow) when levels configured like [-10,-5,60.01,61] and updates are -4.99,-5.01" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(-4.99), timestamp = Some(now), levels = Some("-10,-5,60.01,61")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(-5.01), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [_,_,60,80], and reconfigured [_,_,50,80] and updates are 50,50" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(50), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(50), timestamp = Some(now), levels = Some("_,_,50,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [_,_,60,80] and updates are 10,80" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(80), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [_,_,60,80] and updates are 10,60,80" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(60), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(80), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [_,_,60,80] and updates are 10,80.01" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(80.01), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [_,_,60,80.01] and updates are 10,80.01" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80.01")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(80.01), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [_,_,60,80.01] and updates are 10,80000" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80.01")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(80000), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [2,5,60,80.01] and updates are 10,2" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("2,5,60,80.01")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(2), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [1.99,5,60,80.01] and updates are 10,2,1.99" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("1.99,5,60,80.01")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(2), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(1.99), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [-20,-19,60,80.01] and updates are -19.5,-20" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(-19.5), timestamp = Some(now), levels = Some("-20,-19,60,80.01")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(-20), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [-20,-19,_,_] and updates are -19.5,-20" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(-19.5), timestamp = Some(now), levels = Some("-20,-19,_,_")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(-20), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "detect level 3 (red) when levels configured like [-20,_,_,_] and updates are -19.5,-20" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(-19.5), timestamp = Some(now), levels = Some("-20,_,_,_")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(-20), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+
+  it should "properly update levels when levels configured like [-20,-19,60,80.01] and updates are 0,10,60,65,90,60,10,-19,-30" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(0), timestamp = Some(now), levels = Some("-20,-19,60,80.01")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(60), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(65), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(90), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(60), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(-19), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(-30), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+    clearEvents()
+  }
+
+  it should "report unknown level when value expired" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(10), timestamp = Some(now), levels = Some("_,_,60,80"), ttlMs = Some(1500)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(60), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    expectSomeEventsWithTimeout(10000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":0""".r)
+  }
+
+  it should "report level changes to the parent which will result in mfilter update to happen" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(60), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> "gauges", 'Data -> s"""${timingSignalName.get}""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = timingSignalName, numValue = Some(50), timestamp = Some(now), levels = Some("_,_,60,80")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> timingComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    expectSomeEventsWithTimeout(5000, 1, UpdateReceived, 'ComponentKey -> "gauges", 'Data -> s""""m":\\[\\]""".r)
+  }
+
+
+
+
+
+
+  "state metric" should "should update" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("active"), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"v":"active""".r)
+  }
+
+  it should "should pick value from numValue if strValue not available" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"v":"10""".r)
+  }
+
+  it should "affect no other metrics when updated" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("active"), timestamp = Some(now)).evt)
+    waitAndCheck {
+      expectSomeEventsWithTimeout(3000, 1, UpdateReceived)
+    }
+  }
+
+  it should "reflect the latest value " in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("active"), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("passive"), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("pending"), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"v":"pending""".r)
+  }
+
+  it should "not expire the ttlMs was never set" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("active"), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"v":"active""".r)
+    clearEvents()
+    waitWithTimeout(5000) {
+      expectNoEvents(UpdateReceived)
+    }
+
+  }
+
+  it should "expire the value after 1.5 seconds if ttlMs=1500" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("active"), timestamp = Some(now), ttlMs = Some(1500)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"v":"active""".r)
+    expectSomeEventsWithTimeout(10000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"v":"_""".r)
+  }
+
+  it should "once ttlMs=1500 is set, it would apply to all other updates" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("active"), timestamp = Some(now), ttlMs = Some(1500)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("pending"), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"v":"pending""".r)
+    expectSomeEventsWithTimeout(10000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"v":"_""".r)
+  }
+
+  it should "ignore signals out of order" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("active"), timestamp = Some(now)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("passive"), timestamp = Some(now - 100000)).evt)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("pending"), timestamp = Some(now - 10000)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"v":"active""".r)
+    clearEvents()
+    waitWithTimeout(2000) {
+      expectNoEvents(UpdateReceived)
+    }
+
+  }
+
+  it should "ignore signals without timestamp" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("active")).evt)
+    waitAndCheck {
+      expectNoEvents(UpdateReceived)
+    }
+
+  }
+
+  it should "ignore signals without value" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, timestamp = Some(now)).evt)
+    waitAndCheck {
+      expectNoEvents(UpdateReceived)
+    }
+  }
+
+  it should "stay on level 1 (green) if levels are not set" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, numValue = Some(10), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+  }
+
+
+  it should "stay on level 1 when levels configured like [(^y.*|^o.+),_] and updates are green, pink" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("green"), timestamp = Some(now), levels = Some("(^y.*|^o.+),_")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("pink"), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+  }
+
+  it should "detect level 2 (yellow) when levels configured like [(^y.*|^o.+),_] and updates are green, yellow" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("green"), timestamp = Some(now), levels = Some("(^y.*|^o.+),_")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("yellow"), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+  it should "detect level 2 (yellow) when levels configured like [(^y.*|^o.+),_] and updates are green, orange" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("green"), timestamp = Some(now), levels = Some("(^y.*|^o.+),_")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("orange"), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+  it should "detect level 2 (yellow) when levels configured like [(^y.*|^o.+),^r.*] and updates are green, orange" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("green"), timestamp = Some(now), levels = Some("(^y.*|^o.+),^r.*")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("orange"), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+  }
+  it should "detect level 3 (red) when levels configured like [(^y.*|^o.+),^r.*] and updates are green, red" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("green"), timestamp = Some(now), levels = Some("(^y.*|^o.+),^r.*")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("red"), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+  }
+  it should "properly update levels when levels configured like [(^y.*|^o.+),^r.*] and updates are green, yellow, red, orange, unknown" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("green"), timestamp = Some(now), levels = Some("(^y.*|^o.+),^r.*")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("yellow"), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("red"), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("orange"), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":2""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("unknown"), timestamp = Some(now)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    clearEvents()
+  }
+
+
+  it should "report unknown level when value expired" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("green"), timestamp = Some(now), levels = Some("(^y.*|^o.+),^r.*"), ttlMs = Some(1500)).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    expectSomeEventsWithTimeout(10000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":0""".r)
+  }
+
+  it should "report level changes to the parent which will result in mfilter update to happen" in new SubscribedToDifferentMetricTypes {
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("red"), timestamp = Some(now), levels = Some("(^y.*|^o.+),^r.*")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":3""".r)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> "gauges", 'Data -> s"""${stateSignalName.get}""".r)
+    clearEvents()
+    sendEventFrameToGaugeService1(new SignalEventFrame(name = stateSignalName, strValue = Some("green"), timestamp = Some(now), levels = Some("(^y.*|^o.+),^r.*")).evt)
+    expectSomeEventsWithTimeout(3000, 1, UpdateReceived, 'ComponentKey -> stateComponentKey.key, 'Topic -> "data", 'Data -> """"l":1""".r)
+    expectSomeEventsWithTimeout(5000, 1, UpdateReceived, 'ComponentKey -> "gauges", 'Data -> s""""m":\\[\\]""".r)
   }
 
 
