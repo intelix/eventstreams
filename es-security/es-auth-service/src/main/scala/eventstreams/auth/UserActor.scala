@@ -50,7 +50,7 @@ class UserActor(id: String)
   with RouteeActor
   with RouteeModelInstance
   with ActorWithTicks
-  with WithMetrics
+  with WithCHMetrics
   with UserSysevents
   with WithSyseventPublisher {
 

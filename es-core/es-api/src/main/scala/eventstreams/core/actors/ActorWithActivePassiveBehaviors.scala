@@ -20,6 +20,8 @@ import akka.actor.Actor
 import core.sysevents.SyseventOps.symbolToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
+import eventstreams.core.metrics.MetricGroups._
+import eventstreams.core.metrics.StateSensorConstants._
 import eventstreams.{BecomeActive, BecomePassive, NowProvider}
 
 import scalaz.Scalaz._
@@ -30,7 +32,11 @@ trait StateChangeSysevents extends ComponentWithBaseSysevents {
   val BecomingPassive = 'BecomingPassive.info
 }
 
-trait ActorWithActivePassiveBehaviors extends ActorWithComposableBehavior with NowProvider with StateChangeSysevents with WithSyseventPublisher {
+trait ActorWithActivePassiveBehaviors extends WithInstrumentationHooks with ActorWithComposableBehavior with NowProvider with ActorWithTicks with StateChangeSysevents with WithSyseventPublisher {
+
+  private lazy val ComponentActivityState = stateSensor(ActorMetricGroup, "ActivityState")
+  private lazy val TimeInState = stateSensor(ActorMetricGroup, "TimeInState")
+
 
   private var requestedState: Option[RequestedState] = None
   private var date: Option[Long] = None
@@ -55,21 +61,35 @@ trait ActorWithActivePassiveBehaviors extends ActorWithComposableBehavior with N
     case Some(l) => prettyTimeFormat(l)
   }
 
+  @throws[Exception](classOf[Exception]) override
+  def preStart(): Unit = {
+    ComponentActivityState.update(StdStateUnknown)
+    super.preStart()
+  }
+
+
   final def becomeActive() = {
+    ComponentActivityState.update(StdStateActive)
     BecomingActive >>()
     requestedState = Some(Active())
     date = Some(now)
     onBecameActive()
   }
-  
+
   final def becomePassive() = {
+    ComponentActivityState.update(StdStatePassive)
     BecomingPassive >>()
     requestedState = Some(Passive())
     date = Some(now)
     onBecamePassive()
   }
-  
+
   override def commonBehavior: Actor.Receive = handlePipelineStateChanges orElse super.commonBehavior
+
+  override def processTick(): Unit = {
+    super.processTick()
+    TimeInState.update(prettyTimeSinceStateChange)
+  }
 
   private def handlePipelineStateChanges: Actor.Receive = {
     case BecomeActive() => becomeActive()

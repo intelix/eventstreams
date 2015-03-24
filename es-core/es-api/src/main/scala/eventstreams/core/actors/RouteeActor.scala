@@ -122,6 +122,7 @@ trait RouteeActor
   def onCommand(maybeData: Option[JsValue]): CommandHandler = PartialFunction.empty
 
   override final def processSubscribeRequest(sourceRef: ActorRef, subject: LocalSubj): Unit = Try {
+    super.processSubscribeRequest(sourceRef, subject)
     if (onSubscribe.isDefinedAt(subject.topic)) {
       onSubscribe(subject.topic)
     } else {
@@ -134,6 +135,7 @@ trait RouteeActor
   }
 
   override final def processUnsubscribeRequest(sourceRef: ActorRef, subject: LocalSubj): Unit = Try {
+    super.processUnsubscribeRequest(sourceRef, subject)
     if (onUnsubscribe.isDefinedAt(subject.topic)) {
       onUnsubscribe(subject.topic)
     } else {
@@ -146,6 +148,7 @@ trait RouteeActor
   }
 
   override final def processCommand(subject: LocalSubj, replyToSubj: Option[Any], maybeData: Option[String]): Unit = {
+    super.processCommand(subject, replyToSubj, maybeData)
     NewCommand >> ('Topic -> subject.topic.key, 'ReplyTo -> replyToSubj)
 
     Try{

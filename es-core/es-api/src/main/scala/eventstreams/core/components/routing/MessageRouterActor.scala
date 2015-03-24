@@ -202,6 +202,7 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
   }
 
   override def processSubscribeRequest(ref: ActorRef, subject: RemoteAddrSubj) = {
+    super.processSubscribeRequest(ref, subject)
     updatesCache.get(subject) match {
       case Some(CachingDisabled()) =>
         forwardDownstream(subject, Subscribe(self, subject))
@@ -216,8 +217,10 @@ class MessageRouterActor(implicit val cluster: Cluster, sysconfig: Config)
   override def processUnsubscribeRequest(ref: ActorRef, subject: RemoteAddrSubj) =
     super.processUnsubscribeRequest(ref, subject)
 
-  override def processCommand(subject: RemoteAddrSubj, replyToSubj: Option[Any], maybeData: Option[String]) =
+  override def processCommand(subject: RemoteAddrSubj, replyToSubj: Option[Any], maybeData: Option[String]) = {
+    super.processCommand(subject, replyToSubj, maybeData)
     forwardDownstream(subject, Command(subject, convertSubject(replyToSubj.getOrElse(None)), maybeData))
+  }
 
 
   override def onTerminated(ref: ActorRef): Unit = {

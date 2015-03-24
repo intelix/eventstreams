@@ -49,7 +49,7 @@ class UserRoleActor(id: String, availableDomains: List[SecuredDomainPermissions]
   with RouteeActor
   with RouteeModelInstance
   with ActorWithTicks
-  with WithMetrics
+  with WithCHMetrics
   with UserRoleSysevents
   with WithSyseventPublisher {
 

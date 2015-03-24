@@ -58,7 +58,7 @@ class FlowDeployerActor(id: String, config: JsValue, instructions: List[Config])
   with SinkLogic
   with FlowDeployerActorSysevents
   with WithSyseventPublisher
-  with WithMetrics {
+  with WithCHMetrics {
 
   override implicit val cluster: Cluster = Cluster(context.system)
   var provisionOnNodesWithRoles: Set[String] = (config ~> 'deployTo).map(_.split(",").map(_.trim).filter(!_.isEmpty).toSet) | Set()

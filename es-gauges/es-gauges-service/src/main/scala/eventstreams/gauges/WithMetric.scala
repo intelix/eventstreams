@@ -16,14 +16,7 @@
 
 package eventstreams.gauges
 
-import java.util.concurrent.TimeUnit
-
-import eventstreams.signals.SignalEventFrame
-import nl.grons.metrics.scala.Timer
-import play.api.libs.json.{JsString, JsValue}
-
 import scala.util.Random
-import scalaz.Scalaz._
 
 trait WithMetric[T] extends MetricAccounting {
 

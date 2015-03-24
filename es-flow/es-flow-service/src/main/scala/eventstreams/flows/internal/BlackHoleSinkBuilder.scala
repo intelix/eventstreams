@@ -50,7 +50,7 @@ private class BlackholeAutoAckSinkActor(maybeId: Option[String])
   extends ActorWithComposableBehavior
   with StoppableSubscriberActor
   with ActorWithActivePassiveBehaviors
-  with WithMetrics
+  with WithCHMetrics
   with BlackHoleSinkSysevents
   with WithSyseventPublisher {
 

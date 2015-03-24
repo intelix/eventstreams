@@ -18,8 +18,11 @@ package eventstreams
 
 object Global {
   val metricRegistry = new com.codahale.metrics.MetricRegistry()
+
 }
 
-trait WithMetrics extends nl.grons.metrics.scala.InstrumentedBuilder {
+trait WithCHMetrics extends nl.grons.metrics.scala.InstrumentedBuilder {
   val metricRegistry = Global.metricRegistry
+
+
 }

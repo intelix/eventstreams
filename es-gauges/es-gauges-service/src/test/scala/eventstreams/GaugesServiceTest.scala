@@ -117,7 +117,7 @@ class GaugesServiceTest
   }
 
 
-  "Blank mfilter request" should "give up to three results on 1st level for each group, in a particular order with respect to priority" in new WithMetricsCreated {
+  "Blank mfilter request" should "give up to three results on 1st level for each group, in a particular order with respect to priority" taggedAs OnlyThisTest in new WithMetricsCreated {
 
     mfilterSub( """
         {

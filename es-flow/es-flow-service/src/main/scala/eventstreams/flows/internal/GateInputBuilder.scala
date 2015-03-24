@@ -56,7 +56,7 @@ private class GateInputActor(id: String, address: String)
   with ReconnectingActor
   with ActorWithActivePassiveBehaviors
   with ActorWithDupTracking
-  with WithMetrics
+  with WithCHMetrics
   with PassiveInputSysevents
   with WithSyseventPublisher {
 

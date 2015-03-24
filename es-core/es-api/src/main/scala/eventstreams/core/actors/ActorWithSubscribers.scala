@@ -41,7 +41,17 @@ trait SubjectSubscriptionSysevents extends ComponentWithBaseSysevents {
 trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSubscriptionSysevents {
   _: WithSyseventPublisher =>
 
+  private lazy val CommandRate = meterSensor("CommandRate")
+  private lazy val SubscribeRate = meterSensor("SubscribeRate")
+  private lazy val TotalSubscribers = histogramSensor("TotalSubscribers")
+  private lazy val SubscribedSubjects = histogramSensor("SubscribedSubjects")
+
+
   private val subscribers: mutable.Map[T, Set[ActorRef]] = new mutable.HashMap[T, Set[ActorRef]]()
+
+  def subscribersCount = subscribers.map(_._2.size).sum
+
+  def subjectsCount = subscribers.size
 
   override def commonBehavior: Actor.Receive = handleMessages orElse super.commonBehavior
 
@@ -57,8 +67,6 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSu
 
   def collectSubjects(f: T => Boolean) = subscribers.collect { case (sub, set) if f(sub) => sub}
   def allSubjects = subscribers.keys
-
-//  def collectSubscribers(f: T => Boolean) = subscribers.filter { case (sub, set) => f(sub)}
 
   def subscribersFor(subj: T) = subscribers.collectFirst { case (sub, set) if subjectMatch(sub, subj) => set}
 
@@ -102,6 +110,7 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSu
     case Subscribe(sourceRef, subj) => convertSubject(subj) foreach (addSubscriber(sourceRef, _))
     case Unsubscribe(sourceRef, subj) => convertSubject(subj) foreach (removeSubscriber(sourceRef, _))
     case Command(subj, replyToSubj, data) =>
+      CommandRate.update(1)
       convertSubject(subj) foreach (processCommand(_, replyToSubj, data))
 
   }
@@ -119,6 +128,8 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSu
       subscribers += (subject -> (subscribers.getOrElse(subject, new HashSet[ActorRef]()) + ref))
     }
     processSubscribeRequest(ref, subject)
+    SubscribeRate.update(1)
+    updateTotals()
   }
 
   private def removeSubscriber(ref: ActorRef): Unit = {
@@ -137,6 +148,12 @@ trait ActorWithSubscribers[T] extends ActorWithComposableBehavior with SubjectSu
       lastSubscriberGone(subject)
     } else subscribers += (subject -> refs)
     processUnsubscribeRequest(ref, subject)
+    updateTotals()
+  }
+
+  private def updateTotals(): Unit = {
+    TotalSubscribers.update(subscribersCount)
+    SubscribedSubjects.update(subjectsCount)
   }
 
 

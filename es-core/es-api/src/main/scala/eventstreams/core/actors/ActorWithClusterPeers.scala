@@ -37,11 +37,14 @@ case class ClusterPeerHandshake() extends CommMessageJavaSer
 case class ClusterPeerHandshakeResponse(map: String) extends CommMessageJavaSer
 
 
-trait ActorWithClusterPeers extends ActorWithClusterAwareness with ActorWithClusterPeersSysevents with ActorWithTicks {
+trait ActorWithClusterPeers extends WithInstrumentationHooks with ActorWithClusterAwareness with ActorWithClusterPeersSysevents with ActorWithTicks {
   _: WithSyseventPublisher =>
 
+  private lazy val ConfirmedPeers = histogramSensor("ConfirmedPeers")
+  private lazy val PendingPeers = histogramSensor("PendingPeers")
+
   private val peers = mutable.Map[Address, JsValue]()
-  private var pendingPeers = Set[Address]()
+  protected var pendingPeers = Set[Address]()
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
@@ -53,11 +56,16 @@ trait ActorWithClusterPeers extends ActorWithClusterAwareness with ActorWithClus
     case next if peers.contains(next.address) => (next, peers.get(next.address))
   }
 
+  private def updatePendingPeers(v: Set[Address]) = {
+    pendingPeers = v
+    PendingPeers.update(pendingPeers.size)
+  }
+
   override def onClusterMemberUp(info: NodeInfo): Unit = {
     if (info.address == cluster.selfAddress) {
       addPeer(info.address, peerData)
     } else {
-      pendingPeers = pendingPeers + info.address
+      updatePendingPeers(pendingPeers + info.address)
       handshakeWith(info.address)
       context.actorSelection(self.path.toStringWithAddress(info.address)) ! ClusterPeerHandshake()
     }
@@ -72,16 +80,17 @@ trait ActorWithClusterPeers extends ActorWithClusterAwareness with ActorWithClus
   override def onClusterMemberRemoved(info: NodeInfo): Unit = {
     super.onClusterMemberRemoved(info)
     peers.remove(info.address)
-    pendingPeers = pendingPeers - info.address
+    updatePendingPeers(pendingPeers - info.address)
     onConfirmedPeersChanged()
   }
 
   private def addPeer(address: Address, data: JsValue) = peers get address match {
     case Some(existingData) if existingData == data =>
-      pendingPeers = pendingPeers - address
+      updatePendingPeers(pendingPeers - address)
     case _ =>
       peers.put(address, data)
-      pendingPeers = pendingPeers - address
+      updatePendingPeers(pendingPeers - address)
+      ConfirmedPeers.update(confirmedPeers.size)
       onConfirmedPeersChanged()
   }
 

@@ -18,12 +18,12 @@ package eventstreams.gauges
 
 import eventstreams.core.actors.ActorWithComposableBehavior
 import eventstreams.signals.{SignalEventFrame, SignalKey}
-import eventstreams.{NowProvider, WithMetrics}
+import eventstreams.{NowProvider, WithCHMetrics}
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
 
-trait MetricAccounting extends NowProvider with WithMetrics with ActorWithComposableBehavior {
+trait MetricAccounting extends NowProvider with WithCHMetrics with ActorWithComposableBehavior {
 
   val LevelUnknown = 0
   val LevelGreen = 1

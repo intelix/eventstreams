@@ -29,7 +29,7 @@ trait ActorWithDupTracking extends ActorWithTicks with NowProvider {
   private val lastMessageTrackingMap = mutable.Map[ActorRef, LastMessage]()
   private var maintenanceTs = 0L
 
-  def isDup(ref: ActorRef, id: Long) =
+  def isDup(ref: ActorRef, id: Long): Boolean =
     lastMessageTrackingMap.getOrElse(ref, LastMessage(ref, 0, None)) match {
       case LastMessage(_, _, Some(lastId)) if lastId >= id => true
       case e =>

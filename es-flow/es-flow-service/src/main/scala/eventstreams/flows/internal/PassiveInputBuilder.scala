@@ -51,7 +51,7 @@ private class PassiveInputActor(id: String)
   with StoppablePublisherActor[EventFrame]
   with ActorWithActivePassiveBehaviors
   with ActorWithDupTracking
-  with WithMetrics
+  with WithCHMetrics
   with PassiveInputSysevents
   with WithSyseventPublisher {
 

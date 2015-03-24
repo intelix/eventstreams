@@ -71,7 +71,7 @@ class FlowProxyActor(id: String, instructions: List[Config])
   with RouteeWithStartStopHandler
   with RouteeModelInstance
   with ActorWithPeriodicalBroadcasting
-  with WithMetrics {
+  with WithCHMetrics {
 
   var name = "default"
   var created = prettyTimeFormat(now)

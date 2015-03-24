@@ -81,7 +81,7 @@ class GateActor(id: String)
   with ActorWithDupTracking
   with ActorWithPeriodicalBroadcasting
   with ActorWithTicks
-  with WithMetrics
+  with WithCHMetrics
   with GateSysevents
   with WithSyseventPublisher {
 

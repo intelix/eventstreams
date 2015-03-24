@@ -39,6 +39,12 @@ trait AtLeastOnceDeliveryActor[T <: WithID]
   with AtLeastOnceDeliveryActorSysevents
   with WithSyseventPublisher {
 
+  private lazy val BatchSize = histogramSensor("Downstream_Delivery_Manager.BatchSize")
+  private lazy val TotalInFlight = histogramSensor("Downstream_Delivery_Manager.TotalInFlight")
+  private lazy val BatchesQueued = histogramSensor("Downstream_Delivery_Manager.BatchesQueued")
+  private lazy val Attempts = histogramSensor("Downstream_Delivery_Manager.Attempts")
+  private lazy val WaitTime = timerSensor("Downstream_Delivery_Manager.WaitTime")
+
   private var unscheduledBatch: List[T] = List()
   private var batchAggregationKey: Option[String] = None
   private var batchId = new Random().nextLong().abs
@@ -59,10 +65,12 @@ trait AtLeastOnceDeliveryActor[T <: WithID]
 
   def fullyAcknowledged(correlationId: Long, msg: Batch[T]) = {}
 
+  def batchDeliveryQueueDepth = list.size
+
   def deliverMessage(msg: T): Long = {
     addToBatch(msg)
 
-    val deliveryQueueDepth = list.size
+    val deliveryQueueDepth = batchDeliveryQueueDepth
 
     ScheduledForDelivery >>(
       'EntityId -> msg.entityId, 'CorrelationId -> batchId, 'EntityQueueDepth -> inFlightCount, 'DeliveryQueueDepth -> deliveryQueueDepth)
@@ -77,16 +85,24 @@ trait AtLeastOnceDeliveryActor[T <: WithID]
     unscheduledBatch = List()
     batchAggregationKey = None
     inFlightCount = 0
+    TotalInFlight.update(0)
+    BatchesQueued.update(0)
   }
 
-  private def filter() =
+  private def filter() = {
+    val ts = now
     list = list.filter {
       case m: InFlight[_] if m.endpoints.isEmpty && m.processedAck.nonEmpty =>
         inFlightCount = inFlightCount - m.msg.entries.size
+        Attempts.update(m.sendAttempts)
+        WaitTime.updateMs(now - m.enqueuedTime)
         fullyAcknowledged(m.correlationId, m.msg)
         false
       case _ => true
     }
+    TotalInFlight.update(inFlightCount)
+    BatchesQueued.update(list.size)
+  }
 
 
   private def acknowledgeProcessed(correlationId: Long, ackedByRef: ActorRef) = {
@@ -136,9 +152,12 @@ trait AtLeastOnceDeliveryActor[T <: WithID]
   }
 
   private def rollBatch() = {
-    list = list :+ InFlight[Batch[T]](0, Batch(unscheduledBatch), batchId, getSetOfActiveEndpoints, Set(), Set(), 0)
+    val b = Batch(unscheduledBatch)
+    list = list :+ InFlight[Batch[T]](0, b, batchId, getSetOfActiveEndpoints, Set(), Set(), 0)
     unscheduledBatch = List()
     batchId = generateCorrelationId()
+    BatchSize.update(b.entries.size)
+    BatchesQueued.update(list.size)
   }
 
   def batchAggregationKeyFor(msg: T): Option[String] = None
@@ -152,6 +171,7 @@ trait AtLeastOnceDeliveryActor[T <: WithID]
     unscheduledBatch = unscheduledBatch :+ msg
     inFlightCount = inFlightCount + 1
     if (unscheduledBatch.size >= configMaxBatchSize) rollBatch()
+    TotalInFlight.update(inFlightCount)
   }
 
   def deliverIfPossible(forceResend: Boolean = false) =
@@ -208,5 +228,6 @@ private case class InFlight[T](
                                 endpoints: Set[ActorRef],
                                 processedAck: Set[ActorRef],
                                 receivedAck: Set[ActorRef],
-                                sendAttempts: Int)
+                                sendAttempts: Int,
+                                enqueuedTime: Long = System.currentTimeMillis())
 

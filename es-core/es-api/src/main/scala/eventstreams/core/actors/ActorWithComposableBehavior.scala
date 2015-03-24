@@ -21,6 +21,9 @@ import com.typesafe.scalalogging.StrictLogging
 import core.sysevents.SyseventOps.{stringToSyseventOps, symbolToSyseventOps}
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
+import eventstreams.core.metrics.MetricGroups.ActorMetricGroup
+import eventstreams.core.metrics.Metrics._
+import eventstreams.core.metrics.{MeterSensor, TimerSensor}
 
 trait BaseActorSysevents extends ComponentWithBaseSysevents {
   val WatchedActorTerminated = 'WatchedActorTerminated.info
@@ -32,16 +35,20 @@ trait BaseActorSysevents extends ComponentWithBaseSysevents {
 }
 
 
-trait ActorWithComposableBehavior extends ActorUtils with StrictLogging with BaseActorSysevents with WithSyseventPublisher {
+trait ActorWithComposableBehavior extends ActorUtils with WithInstrumentationHooks with StrictLogging with BaseActorSysevents with WithSyseventPublisher {
 
-  def onTerminated(ref:ActorRef) = {
+  private lazy val MessageProcessingTimer = timerSensor(ActorMetricGroup, ProcessingTime)
+  private lazy val ArrivalRateMeter = meterSensor(ActorMetricGroup, ArrivalRate)
+  private lazy val FailureRateMeter = meterSensor(ActorMetricGroup, FailureRate)
+
+  def onTerminated(ref: ActorRef) = {
     WatchedActorTerminated >> ('Actor -> ref)
   }
 
 
   @throws[Exception](classOf[Exception])
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
-    PreRestart >> ('Reason -> reason.getMessage, 'Message -> message, 'ActorInstance -> self.path.toSerializationFormat)
+    PreRestart >>('Reason -> reason.getMessage, 'Message -> message, 'ActorInstance -> self.path.toSerializationFormat)
     super.preRestart(reason, message)
   }
 
@@ -49,12 +56,12 @@ trait ActorWithComposableBehavior extends ActorUtils with StrictLogging with Bas
   @throws[Exception](classOf[Exception])
   override def postRestart(reason: Throwable): Unit = {
     super.postRestart(reason)
-    PostRestart >> ('Reason -> reason.getMessage, 'ActorInstance -> self.path.toSerializationFormat)
+    PostRestart >>('Reason -> reason.getMessage, 'ActorInstance -> self.path.toSerializationFormat)
   }
 
   @throws[Exception](classOf[Exception])
   override def preStart(): Unit = {
-    PreStart >> ('Path -> self.path, 'ActorInstance -> self.path.toSerializationFormat)
+    PreStart >>('Path -> self.path, 'ActorInstance -> self.path.toSerializationFormat)
     super.preStart()
   }
 
@@ -80,13 +87,37 @@ trait ActorWithComposableBehavior extends ActorUtils with StrictLogging with Bas
   }
 
   def beforeMessage() = {}
+
   def afterMessage() = {}
 
   def wrapped(c: scala.PartialFunction[scala.Any, scala.Unit]): Receive = {
     case x =>
+      val startStamp = System.nanoTime()
+
+      var ArrivalRateMeterByType: Option[MeterSensor] = None
+      var MessageProcessingTimerByType: Option[TimerSensor] = None
+
+      if (!x.getClass.isArray) {
+        val simpleName = x.getClass.getSimpleName
+        ArrivalRateMeterByType = Some(meterSensor(ActorMetricGroup, "By_Message_Type." + simpleName + "." + ArrivalRate))
+        MessageProcessingTimerByType = Some(timerSensor(ActorMetricGroup, "By_Message_Type." + simpleName + "." + ProcessingTime))
+      }
+
+      ArrivalRateMeter.update(1)
+      ArrivalRateMeterByType.foreach(_.update(1))
       beforeMessage()
-      if (c.isDefinedAt(x)) c(x)
+      if (c.isDefinedAt(x)) try {
+        c(x)
+      } catch {
+        case x: Throwable =>
+          Error >>('Context -> "Error during message processing", 'Message -> x.getMessage)
+          FailureRateMeter.update(1)
+
+      }
       afterMessage()
+      val ns: Long = System.nanoTime() - startStamp
+      MessageProcessingTimer.updateNs(ns)
+      MessageProcessingTimerByType.foreach(_.updateNs(ns))
   }
 
   final override def receive: Receive = wrapped(commonBehavior)

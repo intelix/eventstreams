@@ -16,7 +16,7 @@
 
 package eventstreams.gauges
 
-import eventstreams.WithMetrics
+import eventstreams.WithCHMetrics
 import nl.grons.metrics.scala.Meter
 import play.api.libs.json.{JsString, JsValue}
 

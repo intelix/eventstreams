@@ -16,9 +16,9 @@
 
 package eventstreams.gauges
 
-import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
-import _root_.core.sysevents.WithSyseventPublisher
-import _root_.core.sysevents.ref.ComponentWithBaseSysevents
+import core.sysevents.SyseventOps.symbolToSyseventOps
+import core.sysevents.WithSyseventPublisher
+import core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.{Actor, ActorRef}
 import akka.cluster.Cluster
 import com.typesafe.config.Config
@@ -26,6 +26,7 @@ import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.core.actors.{ActorWithTicks, AutoAcknowledgingService, BaseActorSysevents, RouteeActor}
 import eventstreams.signals._
+import net.ceedubs.ficus.FicusConfig._
 import play.api.libs.json.{JsArray, JsValue, Json}
 
 import scala.annotation.tailrec
@@ -59,6 +60,7 @@ class GaugesManagerActor(sysconfig: Config, cluster: Cluster)
 
   case class FilterPayload(selector: Selector, payload: JsValue)
 
+  println("!>>>> " + context.props.deploy.config)
 
   class Selector(data: JsValue) {
 
@@ -227,14 +229,6 @@ class GaugesManagerActor(sysconfig: Config, cluster: Cluster)
 
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
-
-  //
-  //  override def onCommand(maybeData: Option[JsValue]): CommandHandler = cmdHandler(maybeData) orElse super.onCommand(maybeData)
-  //
-  //
-  //  private def cmdHandler(maybeData: Option[JsValue]): CommandHandler = {
-  //    case T_METRIC_FILTER => OK(metricFilter(maybeData | Json.obj()))
-  //  }
 
 
   override def onSubscribe: SubscribeHandler = {
