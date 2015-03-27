@@ -133,7 +133,7 @@ BSD | [BSD](https://github.com/nbronson/scala-stm/blob/master/LICENSE.txt) | org
 BSD | [BSD 3-Clause](http://www.scala-lang.org/license.html) | org.scala-lang # scala-compiler # 2.11.1 | <notextile></notextile>
 BSD | [BSD 3-Clause](http://www.scala-lang.org/license.html) | org.scala-lang # scala-library # 2.11.1 | <notextile></notextile>
 BSD | [BSD 3-Clause](http://www.scala-lang.org/license.html) | org.scala-lang # scala-library # 2.11.2 | <notextile></notextile>
-BSD | [BSD 3-Clause](http://www.scala-lang.org/license.html) | org.scala-lang # scala-library # 2.11.4 | <notextile></notextile>
+BSD | [BSD 3-Clause](http://www.scala-lang.org/license.html) | org.scala-lang # scala-library # 2.11.6 | <notextile></notextile>
 BSD | [BSD 3-Clause](http://www.scala-lang.org/license.html) | org.scala-lang # scala-reflect # 2.11.0 | <notextile></notextile>
 BSD | [BSD 3-Clause](http://www.scala-lang.org/license.html) | org.scala-lang # scala-reflect # 2.11.1 | <notextile></notextile>
 BSD | [BSD 3-Clause](http://www.scala-lang.org/license.html) | org.scala-lang # scala-reflect # 2.11.2 | <notextile></notextile>

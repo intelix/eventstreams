@@ -33,6 +33,12 @@ trait RouteeModelManager[T <: Model]
 
   def publishConfigTpl(): Unit = T_CONFIGTPL !! configSchema
 
+
+  override def onModelListChange(): Unit = {
+    publishList()
+    super.onModelListChange()
+  }
+
   override def onSubscribe: SubscribeHandler = super.onSubscribe orElse {
     case T_LIST => publishList()
     case T_CONFIGTPL => publishConfigTpl()

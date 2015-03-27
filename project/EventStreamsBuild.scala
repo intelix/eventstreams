@@ -111,7 +111,7 @@ object EventStreamsBuild {
   def settings(theName: String) = defaultSettings ++: Seq(
     name := theName,
     organization := "au.com.intelix",
-    scalaVersion := "2.11.4",
+    scalaVersion := "2.11.6",
     doc in Compile <<= target.map(_ / "none")
   )
 

@@ -73,13 +73,11 @@ trait GenericModelManager[T <: Model]
 
   override def onTerminated(ref: ActorRef): Unit = {
     entries = entries.filter(_.ref != ref)
-    restartPending.get(ref) match {
-      case Some(RestartRequest(eId, cfg)) =>
+    pendingListPublish = true
+    restartPending.get(ref) foreach {
+      case RestartRequest(eId, cfg) =>
         restartPending -= ref
         createModelInstance(Some(eId), Some(cfg.config), Some(cfg.meta), cfg.state)
-        pendingListPublish = true
-      case None =>
-        pendingListPublish = true
     }
     super.onTerminated(ref)
   }

@@ -8,7 +8,7 @@ object Dependencies {
   object Versions {
 
 
-    val scalaVersion = "2.11.4"
+    val scalaVersion = "2.11.6"
     val scalaTestVersion = "2.2.1"
 
     val playCacheVersion = "2.2.1"
