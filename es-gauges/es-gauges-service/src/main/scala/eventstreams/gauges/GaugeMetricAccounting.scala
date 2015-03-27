@@ -16,26 +16,26 @@
 
 package eventstreams.gauges
 
-import nl.grons.metrics.scala.Histogram
+import com.codahale.metrics.Histogram
 import play.api.libs.json.{JsString, JsValue}
 
 trait GaugeMetricAccounting extends NumericMetricAccounting with WithMetric[Histogram] {
 
-  override def createMetric(metricName: String): Histogram = metrics.histogram(metricName)
+  override def createMetric(metricName: String): Histogram = metricRegistry.histogram(metricName)
 
   override def updateValue(v: Double): Unit = {
     super.updateValue(v)
-    m.foreach(_ += v.toLong)
+    m.foreach(_.update(v.toLong))
   }
 
   override def toValuesData: Option[JsValue] =
     m.map { metric =>
       JsString(Seq(
         valueForLevels,
-        metric.snapshot.getMean,
-        metric.snapshot.getStdDev,
-        metric.snapshot.get95thPercentile(),
-        metric.snapshot.get99thPercentile()
+        metric.getSnapshot.getMean,
+        metric.getSnapshot.getStdDev,
+        metric.getSnapshot.get95thPercentile(),
+        metric.getSnapshot.get99thPercentile()
       ).map(fmt).mkString(","))
     }
 

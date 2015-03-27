@@ -21,6 +21,7 @@ import com.typesafe.scalalogging.StrictLogging
 import core.sysevents.SyseventOps.{stringToSyseventOps, symbolToSyseventOps}
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
+import eventstreams.NowProvider
 import eventstreams.core.metrics.MetricGroups.ActorMetricGroup
 import eventstreams.core.metrics.Metrics._
 import eventstreams.core.metrics.{MeterSensor, TimerSensor}
@@ -35,7 +36,7 @@ trait BaseActorSysevents extends ComponentWithBaseSysevents {
 }
 
 
-trait ActorWithComposableBehavior extends ActorUtils with WithInstrumentationHooks with StrictLogging with BaseActorSysevents with WithSyseventPublisher {
+trait ActorWithComposableBehavior extends ActorUtils with WithInstrumentationHooks with StrictLogging with BaseActorSysevents with WithSyseventPublisher with NowProvider {
 
   private lazy val MessageProcessingTimer = timerSensor(ActorMetricGroup, ProcessingTime)
   private lazy val ArrivalRateMeter = meterSensor(ActorMetricGroup, ArrivalRate)

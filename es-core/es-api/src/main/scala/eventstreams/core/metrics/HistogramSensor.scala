@@ -1,6 +1,6 @@
 package eventstreams.core.metrics
 
-import nl.grons.metrics.scala.Histogram
+import com.codahale.metrics.Histogram
 
 trait HistogramSensor {
   def update(value : scala.Long) = {}
@@ -18,7 +18,7 @@ class HistogramSensorImpl(val id: String, private val create: String => Histogra
 
   private lazy val m = create(id)
 
-  override def update(value : scala.Long) = m += value
-  override def update(value : scala.Int) = m += value
+  override def update(value : scala.Long) = m.update(value)
+  override def update(value : scala.Int) = m.update(value)
 
 }

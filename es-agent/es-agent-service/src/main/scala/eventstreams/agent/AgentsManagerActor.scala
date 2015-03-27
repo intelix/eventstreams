@@ -43,7 +43,7 @@ object AgentsManagerActor extends ActorObj with AgentManagerActorSysevents {
 }
 
 
-case class AgentProxyAvailable(id: ComponentKey)
+case class AgentProxyAvailable(id: String)
 
 
 class AgentsManagerActor(config: Config, cluster: Cluster)
@@ -52,15 +52,14 @@ class AgentsManagerActor(config: Config, cluster: Cluster)
   with ActorWithDisassociationMonitor
   with AgentManagerActorSysevents with WithSyseventPublisher {
 
-  val id = AgentsManagerActor.id
 
-  var agents: Map[ComponentKey, ActorRef] = Map()
+  override def entityId: String = AgentsManagerActor.id
 
-  def key = ComponentKey(id)
+  var agents: Map[String, ActorRef] = Map()
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('ComponentKey -> id)
+  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('ComponentKey -> entityId)
 
   override def preStart(): Unit = {
     super.preStart()
@@ -81,12 +80,12 @@ class AgentsManagerActor(config: Config, cluster: Cluster)
     super.onTerminated(ref)
   }
 
-  private def publishList() = T_LIST !! Some(Json.toJson(agents.keys.map { x => Json.obj("ckey" -> x.key)}.toArray))
+  private def publishList() = T_LIST !! Some(Json.toJson(agents.keys.map { x => Json.obj("ckey" -> x)}.toArray))
 
   private def handler: Receive = {
     case Handshake(ref, id) =>
       HandshakeReceived >> ('AgentActor -> ref.path, 'AgentID -> id)
-      context.watch(AgentProxyActor.start(key / id, ref))
+      context.watch(AgentProxyActor.start(entityId +"/" + id, ref))
     case AgentProxyAvailable(name) =>
       AgentProxyInstanceAvailable >> ('Name -> name, 'Actor -> sender())
       agents = agents + (name -> sender())

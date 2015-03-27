@@ -79,17 +79,17 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
     expectSomeEventsWithTimeout(30000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
   }
 
-  "Flow proxy" should "start in response to start command" in new WithFlow1Created {
+  "Flow proxy" should "start in response to start command" taggedAs OnlyThisTest in new WithFlow1Created {
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
     expectExactlyNEvents(1, FlowProxyActor.BecomingActive)
   }
 
 
-  it should "register with the gate by default" taggedAs OnlyThisTest in new WithFlow1Created {
+  it should "register with the gate by default"  in new WithFlow1Created {
     expectOneOrMoreEvents(GateStubActor.RegisterSinkReceived)
   }
 
-  it should "not register with the gate if blockGateWhenPassive set to false"  taggedAs OnlyThisTest in new WithFlow1Created {
+  it should "not register with the gate if blockGateWhenPassive set to false"  in new WithFlow1Created {
     waitAndCheck {
       expectNoEvents(GateStubActor.RegisterSinkReceived)
     }
@@ -102,14 +102,14 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
     expectOneOrMoreEvents(GateStubActor.RegisterSinkReceived)
   }
 
-  it should "register with the gate if blockGateWhenPassive set to false"  taggedAs OnlyThisTest in new WithFlow1Created {
+  it should "register with the gate if blockGateWhenPassive set to false"   in new WithFlow1Created {
     override def flowConfig: JsValue = validFlow1.set(__ \ 'blockGateWhenPassive -> JsBoolean(false))
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
     expectSomeEventsWithTimeout(30000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
     expectOneOrMoreEvents(GateStubActor.RegisterSinkReceived)
   }
 
-  it should "unregister with the gate if blockGateWhenPassive set to false, when flow stops"  taggedAs OnlyThisTest in new WithFlow1Created {
+  it should "unregister with the gate if blockGateWhenPassive set to false, when flow stops"  in new WithFlow1Created {
     override def flowConfig: JsValue = validFlow1.set(__ \ 'blockGateWhenPassive -> JsBoolean(false))
     commandFrom1(hub1System, LocalSubj(flow1ComponentKey, T_START), None)
     expectSomeEventsWithTimeout(30000, 1, FlowDeployerActor.FlowDeploymentAdded, 'ActiveDeployments -> 1, 'ActiveWorkers -> 2)
@@ -228,7 +228,7 @@ class FlowsTest extends FlatSpec with HubNodeTestContext with WorkerNodeTestCont
   }
 
 
-  it should s"consistently process events on correct workers, when events sent as batches" in new WithFlowTwoDeploymentsFourWorkersStarted {
+  it should s"consistently process events on correct workers, when events sent as batches" taggedAs OnlyThisTest in new WithFlowTwoDeploymentsFourWorkersStarted {
 
     var cnt = 0
     (1 to 100) foreach { i =>

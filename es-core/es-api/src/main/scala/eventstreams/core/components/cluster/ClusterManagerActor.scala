@@ -23,8 +23,8 @@ import core.sysevents.SyseventOps.stringToSyseventOps
 import core.sysevents.WithSyseventPublisher
 import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.Tools._
+import eventstreams.TopicKey
 import eventstreams.core.actors._
-import eventstreams.{ComponentKey, TopicKey}
 import net.ceedubs.ficus.Ficus._
 import play.api.libs.json.{JsValue, Json}
 
@@ -57,13 +57,12 @@ class ClusterManagerActor(implicit val cluster: Cluster, config: Config)
 
   val T_NODES = TopicKey("nodes")
 
-  def key = ComponentKey(ClusterManagerActor.id)
+
+  override def entityId: String = ClusterManagerActor.id
 
   override def commonBehavior: Actor.Receive = super.commonBehavior
 
   def confirmedPeersNames = confirmedPeers.map{ case (node,json) => json ~> 'name | node.address.toString }
-
-
 
 
   override def onClusterMemberUp(info: NodeInfo): Unit = {
@@ -76,7 +75,7 @@ class ClusterManagerActor(implicit val cluster: Cluster, config: Config)
     super.onClusterMemberRemoved(info)
   }
 
-  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('ComponentKey -> key.key, 'Node -> nodeName, 'ClusterAddress -> myAddress)
+  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('ComponentKey -> entityId, 'Node -> nodeName, 'ClusterAddress -> myAddress)
 
   override def onConfirmedPeersChanged(): Unit = {
     ClusterStateChanged >> ('Peers -> confirmedPeersNames.sorted.mkString(","))

@@ -17,7 +17,7 @@ package actors
 
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
-import akka.actor.{ActorRef, Props}
+import akka.actor.Props
 import akka.cluster.Cluster
 import com.typesafe.config.Config
 import eventstreams.Tools.configHelper
@@ -49,7 +49,8 @@ class HQGroupsManagerActor(config: Config)
   with RouteeActor
   with WithSyseventPublisher {
 
-  def key = ComponentKey(HQGroupsManager.id)
+
+  override def entityId: String = HQGroupsManager.id
 
   val hqConfig = config.as[Config]("eventstreams.hq")
 
@@ -96,8 +97,8 @@ class HQGroupsManagerActor(config: Config)
       }.toArray.sortWith { (t1,t2) =>
         if (t1._3 == t2._3) t1._1 < t2._1 else t1._3 < t2._3
       }.map {
-        case (name, group, _, id) => Json.obj(
-          "id" -> id,
+        case (name, group, _, i) => Json.obj(
+          "id" -> i,
           "name" -> name,
           "group" -> group
         )

@@ -24,7 +24,6 @@ import akka.stream.actor.{RequestStrategy, WatermarkRequestStrategy, ZeroRequest
 import eventstreams._
 import eventstreams.core.actors._
 import eventstreams.instructions.Types.SinkActorPropsType
-import nl.grons.metrics.scala.MetricName
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
@@ -54,9 +53,8 @@ private class BlackholeAutoAckSinkActor(maybeId: Option[String])
   with BlackHoleSinkSysevents
   with WithSyseventPublisher {
 
-  override lazy val metricBaseName: MetricName = MetricName("flow")
   val id = maybeId | "default"
-  val _rate = metrics.meter(s"$id.sink")
+  val _rate = metricRegistry.meter(s"flow.$id.sink")
 
   var disableFlow = ZeroRequestStrategy
   var enableFlow = WatermarkRequestStrategy(1024, 96)

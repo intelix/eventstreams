@@ -28,14 +28,14 @@ trait WithMetric[T] extends MetricAccounting {
 
   @throws[Exception](classOf[Exception]) override
   def preStart(): Unit = {
-    metrics.registry.remove(metricName)
+    metricRegistry.remove(metricName)
     m = Some(createMetric(metricName))
     super.preStart()
   }
 
   @throws[Exception](classOf[Exception])
   override def postStop(): Unit = {
-    metrics.registry.remove(metricName)
+    metricRegistry.remove(metricName)
     super.postStop()
   }
 

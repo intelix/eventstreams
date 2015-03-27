@@ -30,7 +30,7 @@ trait ConfigStorageActorSysevents extends ComponentWithBaseSysevents with BaseAc
   val PropsAndStateStored = 'PropsAndStateStored.trace
   val StateStored = 'StateStored.trace
   val PropsStored = 'PropsStored.trace
-  val MetaStored = 'StateStored.trace
+  val MetaStored = 'MetaStored.trace
   val RequestedSingleEntry = 'RequestedSingleEntry.trace
   val RequestedAllMatchingEntries = 'RequestedAllMatchingEntries.trace
   val RemovedEntry = 'RemovedEntry.trace
@@ -99,7 +99,8 @@ class ConfigStorageActor(implicit config: Config)
     case RetrieveConfigFor(key) =>
       RequestedSingleEntry >> ('Key -> key)
       sender() ! StoredConfig(key, storage.retrieve(key) map {
-        case (c, m, s) => EntryConfigSnapshot(key, Json.parse(c), Json.parse(m), s.map(Json.parse))
+        case (c, m, s) =>
+          EntryConfigSnapshot(key, Json.parse(c), Json.parse(m), s.map(Json.parse))
       })
       
     case RemoveConfigFor(key) =>
@@ -109,7 +110,8 @@ class ConfigStorageActor(implicit config: Config)
     case RetrieveConfigForAllMatching(partialKey) =>
       RequestedAllMatchingEntries >> ('PartialKey -> partialKey)
       sender() ! StoredConfigs(storage.retrieveAllMatching(partialKey).map {
-        case (fId, c, m, s) => StoredConfig(fId, Some(EntryConfigSnapshot(fId, Json.parse(c), Json.parse(m), s.map(Json.parse))))
+        case (fId, c, m, s) =>
+          StoredConfig(fId, Some(EntryConfigSnapshot(fId, Json.parse(c), Json.parse(m), s.map(Json.parse))))
       })
       
   }

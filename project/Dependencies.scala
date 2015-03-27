@@ -39,8 +39,8 @@ object Dependencies {
     
     val asyncHttpVersion = "1.0.0"
 
-    val metricsScalaVersion = "3.3.0_a2.3"
-    
+    val metricsScalaVersion = "3.1.0"
+
     val uuidVersion = "3.2"
     
     val janalyseJmxVersion = "0.7.1"
@@ -109,7 +109,7 @@ object Dependencies {
     val scalaz          = "org.scalaz"                  %% "scalaz-core"                    % scalazVersion
     val elastic4s       = "com.sksamuel.elastic4s"      %% "elastic4s"                      % elastic4sVersion
     val asyncHttpClient = "com.ning"                    %  "async-http-client"              % asyncHttpVersion
-    val metricsScala    = "nl.grons"                    %% "metrics-scala"                  % metricsScalaVersion
+    val metricsScala    = "io.dropwizard.metrics"       %   "metrics-core"                  % metricsScalaVersion
     val uuid            = "com.eaio.uuid"               %  "uuid"                           % uuidVersion
     val janalyseJmx     = "fr.janalyse"                 %% "janalyse-jmx"                   % janalyseJmxVersion
     val commonsCodec    = "commons-codec"               %  "commons-codec"                  % commonsCodecVersion
@@ -133,7 +133,6 @@ object Dependencies {
 
 
   val essentials = Seq(
-
     ficus,
     scalaz,
     uuid,

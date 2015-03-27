@@ -6,7 +6,7 @@ import net.ceedubs.ficus.Ficus._
 
 class EventstreamsEnvironmentImpl(config: Config) extends Extension {
 
-  val NodeId: Option[String] = config.as[Option[String]]("eventstreams.node")
+  val NodeId: Option[String] = config.as[Option[String]]("eventstreams.node.name")
 
 }
 

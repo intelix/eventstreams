@@ -33,7 +33,7 @@ trait AtLeastOnceDeliveryActorSysevents extends ComponentWithBaseSysevents {
   val DeliveringToActor = 'DeliveringToActor.trace
 }
 
-trait AtLeastOnceDeliveryActor[T <: WithID]
+trait AtLeastOnceDeliveryActor[T <: WithID[_]]
   extends ActorWithTicks
   with NowProvider
   with AtLeastOnceDeliveryActorSysevents

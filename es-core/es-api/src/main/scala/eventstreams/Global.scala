@@ -21,8 +21,7 @@ object Global {
 
 }
 
-trait WithCHMetrics extends nl.grons.metrics.scala.InstrumentedBuilder {
+trait WithCHMetrics {
   val metricRegistry = Global.metricRegistry
-
 
 }

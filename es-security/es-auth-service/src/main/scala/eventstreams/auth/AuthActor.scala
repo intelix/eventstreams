@@ -3,18 +3,16 @@ package eventstreams.auth
 import _root_.core.sysevents.SyseventOps.symbolToSyseventOps
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
-import akka.actor.ActorRef
 import akka.cluster.Cluster
 import com.typesafe.config.Config
 import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.core.actors._
 import net.ceedubs.ficus.Ficus._
-import play.api.libs.json.{JsObject, JsValue, Json}
+import play.api.libs.json.{JsValue, Json}
 
 import scala.concurrent.duration._
 import scalaz.Scalaz._
-import scalaz._
 
 trait AuthSysevents extends ComponentWithBaseSysevents with BaseActorSysevents with SubjectSubscriptionSysevents {
   override def componentId: String = "Auth.Manager"
@@ -38,7 +36,6 @@ case class AvailableUserRoles(list: List[UserRoleAvailable])
 
 class AuthActor(config: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
-  with ActorWithConfigStore
   with RouteeActor
   with NowProvider
   with AuthSysevents
@@ -60,10 +57,7 @@ class AuthActor(config: Config, cluster: Cluster)
     UserRoleManager.start
   }
 
-  override def applyConfig(key: String, props: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = {}
-
-  override def key: ComponentKey = ComponentKey(AuthActor.id)
-
+  override def entityId: String = AuthActor.id
 
   override def onUnsubscribe: UnsubscribeHandler = super.onUnsubscribe orElse {
     case topic if sessionMap.exists(_._2.routes.contains(topic.key)) =>

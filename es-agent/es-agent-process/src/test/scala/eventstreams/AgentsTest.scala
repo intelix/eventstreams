@@ -75,13 +75,13 @@ class AgentsTest
 
   it should "not create a eventsource instance yet" in new WithAgentNode1 with WithHubNode1  {
     waitAndCheck {
-      expectNoEvents(AgentControllerActor.EventsourceInstanceAvailable)
+      expectNoEvents(AgentControllerActor.EntityInstanceAvailable)
     }
   }
 
   it should "create a eventsource actor on demand" in new WithAgentNode1 with WithHubNode1  {
     sendToAgentController1(CreateEventsource(Json.stringify(Json.obj())))
-    expectExactlyNEvents(1, AgentControllerActor.EventsourceInstanceAvailable)
+    expectExactlyNEvents(1, AgentControllerActor.EntityInstanceAvailable)
   }
 
   "AgentManager with a subscriber" should "update a subscriber when new agent arrives" in new WithSubscriberForAgentManager {
@@ -436,7 +436,7 @@ class AgentsTest
   }
 
 
-  it should "send updates to the list subscriber when eventsources are created"  in new WithSubscriberForAgentProxy {
+  it should "send updates to the list subscriber when eventsources are created" in new WithSubscriberForAgentProxy {
     subscribeFrom1(hub1System, LocalSubj(agentProxyRoute, T_LIST))
     val route = locateFirstEventFieldValue(AgentProxyActor.PreStart, "ComponentKey").asInstanceOf[String]
     expectOneOrMoreEvents(AgentProxyActor.UpdateForSubject)
@@ -517,7 +517,7 @@ class AgentsTest
     def publishEventFromEventsource2(j: EventFrame) = ds2PublisherActorRef ! j
   }
 
-  "when two eventsources created, and both gates available, AgentProxy" should "be able to activate one" in new WithTwoEventsources {
+  "when two eventsources created, and both gates available, AgentProxy" should "be able to activate one"  in new WithTwoEventsources {
     sendCommand(hub1System, dsProxy2Route, T_START, None)
     waitAndCheck {
       expectExactlyNEvents(1, GateStubActor.GateStatusCheckReceived, 'GateName -> "gate2")
@@ -719,7 +719,7 @@ class AgentsTest
 
 
   "when two eventsources created, both gates available, and 10 events available for publishing, AgentProxy" should
-    "be able to activate both and then reset one once all messages are published" taggedAs OnlyThisTest  in new WithTwoEventsourcesAnd10SyseventsForEach {
+    "be able to activate both and then reset one once all messages are published" taggedAs OnlyThisTest in new WithTwoEventsourcesAnd10SyseventsForEach {
     sendCommand(hub1System, dsProxy1Route, T_START, None)
     sendCommand(hub1System, dsProxy2Route, T_START, None)
 
@@ -735,10 +735,10 @@ class AgentsTest
     expectExactlyNEvents(1, PublisherStubActor.PublisherStubStarted, 'InitialState -> "None")
     expectExactlyNEvents(1, PublisherStubActor.BecomingActive)
 
+    expectExactlyNEvents(1, EventsourceActor.PostStop)
+
     waitAndCheck {
       expectNoEvents(EventsourceProxyActor.PostStop)
-      expectNoEvents(EventsourceActor.PostStop)
-      expectNoEvents(EventsourceActor.BecomingPassive, 'ComponentKey -> ds2ComponentKey)
     }
 
   }
@@ -770,9 +770,10 @@ class AgentsTest
       sys.underlyingSystem.actorSelection(locateLastEventFieldValue(PublisherStubActor.PreStart, "Path").asInstanceOf[String])
     }
 
+    expectExactlyNEvents(1, EventsourceActor.PostStop)
+
     waitAndCheck {
       expectNoEvents(EventsourceProxyActor.PostStop)
-      expectNoEvents(EventsourceActor.PostStop)
       expectNoEvents(EventsourceActor.BecomingPassive, 'ComponentKey -> ds2ComponentKey)
     }
   }

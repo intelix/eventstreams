@@ -40,7 +40,8 @@ class SecurityProxyActor(token: String, clientRef: ActorRef)
   with WithSyseventPublisher
   with ActorWithTicks {
 
-  override def key: ComponentKey = ComponentKey(token)
+
+  override def entityId: String = token
 
   case class PatternGroup(patterns: Seq[Regex]) {
     def permitted(key: String) = patterns.exists(_.findFirstMatchIn(key).isDefined)

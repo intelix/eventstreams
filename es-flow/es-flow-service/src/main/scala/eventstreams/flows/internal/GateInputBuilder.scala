@@ -19,12 +19,11 @@ package eventstreams.flows.internal
 import _root_.core.sysevents.WithSyseventPublisher
 import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.{ActorRefFactory, Props}
-import eventstreams.Tools.{optionsHelper, configHelper}
+import eventstreams.Tools.{configHelper, optionsHelper}
 import eventstreams._
 import eventstreams.core.actors._
 import eventstreams.gates.RegisterSink
 import eventstreams.instructions.Types.TapActorPropsType
-import nl.grons.metrics.scala.MetricName
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.Scalaz._
@@ -60,9 +59,8 @@ private class GateInputActor(id: String, address: String)
   with PassiveInputSysevents
   with WithSyseventPublisher {
 
-  override lazy val metricBaseName: MetricName = MetricName("flow")
 
-  val _rate = metrics.meter(s"$id.source")
+  val _rate = metricRegistry.meter(s"flow.$id.source")
   val buffer = 1024
 
   override def monitorConnectionWithDeathWatch: Boolean = true

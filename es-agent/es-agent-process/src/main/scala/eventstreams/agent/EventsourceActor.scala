@@ -26,7 +26,7 @@ import akka.stream.FlowMaterializer
 import akka.stream.actor.{ActorPublisher, ActorSubscriber}
 import akka.stream.scaladsl._
 import com.typesafe.config.Config
-import eventstreams.Tools.{optionsHelper, configHelper}
+import eventstreams.Tools.{configHelper, optionsHelper}
 import eventstreams._
 import eventstreams.agent.AgentMessagesV1.{EventsourceConfig, EventsourceInfo}
 import eventstreams.core.actors._
@@ -49,9 +49,11 @@ trait EventsourceActorSysevents extends ComponentWithBaseSysevents with BaseActo
 }
 
 object EventsourceActor extends EventsourceActorSysevents {
-  def props(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer, sysconfig: Config) = Props(new EventsourceActor(dsId, dsConfigs))
+  def props(dsId: String, config: ModelConfigSnapshot, dsConfigs: List[Config])(implicit mat: FlowMaterializer, sysconfig: Config) =
+    Props(new EventsourceActor(dsId, config, dsConfigs))
 
-  def start(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer, f: ActorRefFactory, sysconfig: Config) = f.actorOf(props(dsId, dsConfigs), ActorTools.actorFriendlyId(dsId))
+  def start(dsId: String, config: ModelConfigSnapshot, dsConfigs: List[Config])(implicit mat: FlowMaterializer, f: ActorRefFactory, sysconfig: Config) =
+    f.actorOf(props(dsId, config, dsConfigs), ActorTools.actorFriendlyId(dsId))
 }
 
 
@@ -68,27 +70,29 @@ case class EventsourceStatePassive(details: Option[String] = None) extends Event
 case class EventsourceStateError(details: Option[String] = None) extends EventsourceState
 
 
-class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: FlowMaterializer, sysconfig: Config)
+class EventsourceActor(val entityId: String, val initialConfig: ModelConfigSnapshot, dsConfigs: List[Config])(implicit mat: FlowMaterializer, sysconfig: Config)
   extends ActorWithComposableBehavior
   with ActorWithActivePassiveBehaviors
-  with ActorWithConfigStore
+  with GenericModelInstance
   with ActorWithPeriodicalBroadcasting
-  with EventsourceActorSysevents with WithSyseventPublisher {
+  with EventsourceActorSysevents
+  with WithSyseventPublisher {
 
   val allBuilders = dsConfigs.map { cfg =>
     Class.forName(cfg.getString("class")).newInstance().asInstanceOf[BuilderFromConfig[Props]]
   }
 
-  val key = ComponentKey(dsId)
   var currentState: EventsourceState = EventsourceStateUnknown(Some("Initialising"))
   private var endpointDetails = "N/A"
   private var commProxy: Option[ActorRef] = None
   private var flow: Option[FlowInstance] = None
 
-  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ComponentKey -> key.key, 'State -> stateAsString)
+  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ComponentKey -> entityId, 'State -> stateAsString)
 
-  override def storageKey: Option[String] = Some(dsId)
-
+  override def preStart(): Unit = {
+    super.preStart()
+    createFlow()
+  }
 
   def stateAsString = currentState match {
     case EventsourceStateUnknown(_) => "unknown"
@@ -117,39 +121,33 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
 
   override def commonBehavior: Receive = super.commonBehavior orElse {
     case Acknowledged(_, Some(msg)) => msg match {
-      case c: JsValue => propsConfig.foreach { propsConfig => updateWithoutApplyConfigSnapshot(propsConfig, Some(c))}
+      case c: JsValue => updateConfigSnapshot(propsConfig, Some(c))
       case _ => ()
     }
     case StreamClosed() =>
       becomePassive()
       destroyFlow(None)
-      updateWithoutApplyConfigState(None)
+      updateConfigState(None)
       sendToHubAll()
     case StreamClosedWithError(cause) =>
       becomePassive()
       destroyFlow(cause)
-      updateWithoutApplyConfigState(None)
+      updateConfigState(None)
       currentState = EventsourceStateError(cause)
       sendToHubAll()
     case CommunicationProxyRef(ref) =>
       commProxy = Some(ref)
       sendToHubAll()
     case ReconfigureEventsource(data) =>
-      updateAndApplyConfigProps(Json.parse(data))
+      updateConfigProps(Json.parse(data))
+      restartModel()
     case ResetEventsourceState() =>
-      updateAndApplyConfigState(None)
+      updateConfigState(None)
+      restartModel()
     case RemoveEventsource() =>
-      removeConfig()
-      context.stop(self)
+      destroyModel()
   }
 
-  override def applyConfig(key: String, config: JsValue, meta: JsValue, state: Option[JsValue]): Unit = createFlow()
-
-  override def onInitialConfigApplied(): Unit = context.parent ! EventsourceAvailable(key)
-
-  override def afterApplyConfig(): Unit = {
-    sendToHubAll()
-  }
 
   override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
     (TopicKey("info"), 5, () => info, sendToHub _)
@@ -194,7 +192,7 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
       CreatingProducer >>('Props -> config, 'StreamSeed -> streamSeed)
 
       for (
-        instClass <- config #> 'source ~> 'class orFail  "Invalid eventsource config: missing 'class' value";
+        instClass <- config #> 'source ~> 'class orFail "Invalid eventsource config: missing 'class' value";
         builder <- allBuilders.find(_.configId == instClass)
           orFail s"Unsupported or invalid eventsource class $instClass. Supported classes: ${allBuilders.map(_.configId)}";
         impl <- builder.build(config, stateConfig, Some(streamSeed))
@@ -220,25 +218,24 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
     val streamSeed = UUIDTools.generateShortUUID
 
     val result = for (
-      config <- propsConfig orFail "Configuration missing";
-      publisherProps <- buildProducer(streamSeed, config );
-      sinkProps <- buildSink(streamSeed, config)
+      publisherProps <- buildProducer(streamSeed, propsConfig);
+      sinkProps <- buildSink(streamSeed, propsConfig)
     ) yield {
-      val publisherActor: ActorRef = context.actorOf(publisherProps)
-      val publisher = PublisherSource(ActorPublisher[EventAndCursor](publisherActor))
+        val publisherActor: ActorRef = context.actorOf(publisherProps)
+        val publisher = PublisherSource(ActorPublisher[EventAndCursor](publisherActor))
 
-      val processingSteps = buildProcessorFlow(streamSeed, config)
+        val processingSteps = buildProcessorFlow(streamSeed, propsConfig)
 
-      val sinkActor = context.actorOf(sinkProps)
-      val sink = SubscriberSink(ActorSubscriber[EventAndCursor](sinkActor))
+        val sinkActor = context.actorOf(sinkProps)
+        val sink = SubscriberSink(ActorSubscriber[EventAndCursor](sinkActor))
 
-      val runnableFlow: RunnableFlow = publisher.via(processingSteps).to(sink)
+        val runnableFlow: RunnableFlow = publisher.via(processingSteps).to(sink)
 
-      val materializedFlow: MaterializedMap = runnableFlow.run()
+        val materializedFlow: MaterializedMap = runnableFlow.run()
 
-      flow = Some(FlowInstance(materializedFlow, publisherActor, sinkActor))
+        flow = Some(FlowInstance(materializedFlow, publisherActor, sinkActor))
 
-    }
+      }
 
     result match {
       case -\/(fail) =>
@@ -246,7 +243,7 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
         currentState = EventsourceStateError(fail.message)
       case _ =>
         EventsourceReady >>()
-        if (isComponentActive) {
+        if (metaConfig ?> 'lastStateActive | false) {
           startFlow()
         } else {
           stopFlow(None)
@@ -263,6 +260,8 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
   private def created = prettyTime.format(new Date(metaConfig ++> 'created | now))
 
   private def startFlow(): Unit = {
+    updateConfigMeta(__ \ 'lastStateActive -> JsBoolean(value = true))
+
     flow.foreach { v =>
       v.sink ! BecomeActive()
       v.source ! BecomeActive()
@@ -272,6 +271,8 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
   }
 
   private def stopFlow(errorCause: Option[String]): Unit = {
+    updateConfigMeta(__ \ 'lastStateActive -> JsBoolean(value = false))
+
     flow.foreach { v =>
       v.source ! BecomePassive()
       v.sink ! BecomePassive()
@@ -283,8 +284,7 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
     sendToHubAll()
   }
 
-  private def props =
-    EventsourceConfig(propsConfig.getOrElse(Json.obj()))
+  private def props = EventsourceConfig(propsConfig)
 
   private def info =
     EventsourceInfo(Json.obj(
@@ -309,6 +309,8 @@ class EventsourceActor(dsId: String, dsConfigs: List[Config])(implicit mat: Flow
       actor ! msg
     }
   }
+
+  override def modelEntryInfo: Model = EventsourceAvailable(entityId, self, name)
 }
 
 case class FlowInstance(flow: MaterializedMap, source: ActorRef, sink: ActorRef)

@@ -17,7 +17,7 @@
 package eventstreams.gauges
 
 import eventstreams.core.actors.ActorWithComposableBehavior
-import eventstreams.signals.{SignalEventFrame, SignalKey}
+import eventstreams.signals.{SignalKey, SignalEventFrame}
 import eventstreams.{NowProvider, WithCHMetrics}
 import play.api.libs.json.{JsValue, Json}
 

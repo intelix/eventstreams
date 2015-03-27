@@ -45,15 +45,15 @@ trait AgentProxyActorSysevents extends ComponentWithBaseSysevents with BaseActor
 
 
 object AgentProxyActor extends AgentProxyActorSysevents {
-  def start(key: ComponentKey, ref: ActorRef)(implicit f: ActorRefFactory) = f.actorOf(props(key, ref), key.toActorId)
+  def start(entityId: String, ref: ActorRef)(implicit f: ActorRefFactory) = f.actorOf(props(entityId, ref), ActorTools.actorFriendlyId(entityId))
 
-  def props(key: ComponentKey, ref: ActorRef) = Props(new AgentProxyActor(key, ref))
+  def props(entityId: String, ref: ActorRef) = Props(new AgentProxyActor(entityId, ref))
 }
 
-case class EventsourceProxyAvailable(key: ComponentKey)
+case class EventsourceProxyAvailable(key: String)
 
 
-class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
+class AgentProxyActor(val entityId: String, ref: ActorRef)
   extends ActorWithActivePassiveBehaviors
   with ActorWithDisassociationMonitor
   with RouteeActor
@@ -61,7 +61,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
   with WithSyseventPublisher {
 
 
-  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ComponentKey -> key.key, 'RemoteActor -> ref)
+  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ComponentKey -> entityId, 'RemoteActor -> ref)
 
   private var info: Option[JsValue] = None
   private var eventsourceConfigs: Option[JsValue] = None
@@ -71,7 +71,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
 
   override def preStart(): Unit = {
     ref ! CommunicationProxyRef(self)
-    context.parent ! AgentProxyAvailable(key)
+    context.parent ! AgentProxyAvailable(entityId)
     super.preStart()
   }
 
@@ -145,7 +145,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
 
     list.foreach { ds =>
       if (!eventsourceProxies.exists(_.id == ds.id)) {
-        val compKey = key / UUIDTools.generateShortUUID
+        val compKey = entityId + "/" + UUIDTools.generateShortUUID
         val actor = EventsourceProxyActor.start(compKey, ds.ref)
         context.watch(actor)
         eventsourceProxies = eventsourceProxies :+ EventsourceProxyMeta(ds.id, actor, compKey, confirmed = false)
@@ -155,7 +155,7 @@ class AgentProxyActor(val key: ComponentKey, ref: ActorRef)
     publishEventsources()
   }
 
-  case class EventsourceProxyMeta(id: String, ref: ActorRef, key: ComponentKey, confirmed: Boolean)
+  case class EventsourceProxyMeta(id: String, ref: ActorRef, key: String, confirmed: Boolean)
 
 
 }

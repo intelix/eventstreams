@@ -16,47 +16,45 @@
 
 package eventstreams.core.actors
 
-import akka.actor._
 import eventstreams.Tools.optionsHelper
-import eventstreams.{Fail, OK}
+import eventstreams.{OK, Successful}
 import play.api.libs.json._
 
-import scalaz.Scalaz._
-
-
 trait RouteeModelInstance
-  extends ActorWithConfigStore
+  extends GenericModelInstance
   with RouteeActor {
+
+  def info: Option[JsValue]
+  def stats: Option[JsValue] = None
 
   def publishInfo() = T_INFO !! info
   def publishStats() = T_STATS !! stats
   def publishProps() = T_PROPS !! propsConfig
 
-  override def afterApplyConfig(): Unit = {
+
+  override def onPropsConfigChanged(): Unit = {
+    super.onPropsConfigChanged()
     publishInfo()
-    publishStats()
     publishProps()
+    publishStats()
   }
 
-  def info: Option[JsValue]
-  def stats: Option[JsValue] = None
-  def publishAvailable(): Unit
-
-  override def onInitialConfigApplied(): Unit = publishAvailable()
-
+  override def onStateConfigChanged(): Unit = {
+    super.onStateConfigChanged()
+    publishStats()
+  }
 
   override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
     case T_REMOVE =>
-      removeConfig()
-      self ! PoisonPill
+      destroyModel()
       OK()
     case T_UPDATE_PROPS =>
       for (
-        data <- maybeData orFail  "Invalid request";
-        result <- updateAndApplyConfigProps(data)
+        data <- maybeData orFail  "Invalid request"
       ) yield {
-        publishAvailable()
-        result
+        updateConfigProps(data)
+        restartModel()
+        Successful(None)
       }
   }
 

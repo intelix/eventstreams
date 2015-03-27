@@ -247,7 +247,7 @@ object EventFrameConverter {
 object EventFrame {
   def apply(v: Tuple2[String, Any]*) = new EventFrame(v: _*)
 }
-case class EventFrame(v: Map[String, EventData]) extends EventData with WithID {
+case class EventFrame(v: Map[String, EventData]) extends EventData with WithID[Any] {
   def this(v: Tuple2[String, Any]*) = this(v.map { case (a,b) => a.toString -> EventFrameConverter.wrap(b) }.toMap)
 
   val naValue = "n/a"

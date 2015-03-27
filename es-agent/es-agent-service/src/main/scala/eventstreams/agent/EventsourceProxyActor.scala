@@ -23,7 +23,7 @@ import akka.actor._
 import akka.remote.DisassociatedEvent
 import eventstreams._
 import eventstreams.agent.AgentMessagesV1.{EventsourceConfig, EventsourceInfo}
-import eventstreams.core.actors.{ActorWithDisassociationMonitor, BaseActorSysevents, ActorWithActivePassiveBehaviors, RouteeActor}
+import eventstreams.core.actors._
 import play.api.libs.json.{JsValue, Json}
 
 import scalaz.\/-
@@ -37,12 +37,12 @@ trait EventsourceProxySysevents extends ComponentWithBaseSysevents with BaseActo
 }
 
 object EventsourceProxyActor extends EventsourceProxySysevents {
-  def start(key: ComponentKey, ref: ActorRef)(implicit f: ActorRefFactory) = f.actorOf(props(key, ref), key.toActorId)
+  def start(entityId: String, ref: ActorRef)(implicit f: ActorRefFactory) = f.actorOf(props(entityId, ref), ActorTools.actorFriendlyId(entityId))
 
-  def props(key: ComponentKey, ref: ActorRef) = Props(new EventsourceProxyActor(key, ref))
+  def props(entityId: String, ref: ActorRef) = Props(new EventsourceProxyActor(entityId, ref))
 }
 
-class EventsourceProxyActor(val key: ComponentKey, ref: ActorRef)
+class EventsourceProxyActor(val entityId: String, ref: ActorRef)
   extends ActorWithActivePassiveBehaviors
   with ActorWithDisassociationMonitor
   with RouteeActor
@@ -56,11 +56,11 @@ class EventsourceProxyActor(val key: ComponentKey, ref: ActorRef)
   override def commonBehavior: Actor.Receive = commonMessageHandler orElse super.commonBehavior
 
 
-  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ComponentKey -> key.key, 'RemoteActor -> ref)
+  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ComponentKey -> entityId, 'RemoteActor -> ref)
 
   override def preStart(): Unit = {
     ref ! CommunicationProxyRef(self)
-    context.parent ! EventsourceProxyAvailable(key)
+    context.parent ! EventsourceProxyAvailable(entityId)
     super.preStart()
   }
 

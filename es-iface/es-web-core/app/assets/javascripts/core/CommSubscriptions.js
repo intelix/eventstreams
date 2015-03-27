@@ -186,7 +186,7 @@ define(['logging', 'eventing', 'comm_protocol', 'comm_auth'], function (logging,
                 subscribe: subscribeFunc,
                 unsubscribe: unsubscribeFunc,
                 command: function (address, route, topic, data) {
-                    return protocol.send("C", protocol.convertAddress(address), route, topic, data);
+                    return protocol.send("C", protocol.convertAddress(address), route, topic, data, "cmd"); // TODO cmd as an argument
                 },
                 connected: connectedHandshakedAndAuthenticated,
                 addWsOpenEventListener: function (callback) {

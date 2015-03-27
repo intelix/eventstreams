@@ -36,7 +36,6 @@ Apache | [Apache 2](http://www.apache.org/licenses/LICENSE-2.0) | io.dropwizard.
 Apache | [Apache 2](http://www.apache.org/licenses/LICENSE-2.0) | io.dropwizard.metrics # metrics-healthchecks # 3.1.0 | <notextile></notextile>
 Apache | [Apache 2](http://www.apache.org/licenses/LICENSE-2.0.txt) | joda-time # joda-time # 2.3 | <notextile></notextile>
 Apache | [Apache 2](http://www.apache.org/licenses/LICENSE-2.0) | log4j # log4j # 1.2.13 | <notextile></notextile>
-Apache | [Apache 2](http://www.apache.org/licenses/LICENSE-2.0.txt) | nl.grons # metrics-scala_2.11 # 3.3.0_a2.3 | <notextile></notextile>
 Apache | [Apache 2](http://www.apache.org/licenses/LICENSE-2.0) | oauth.signpost # signpost-commonshttp4 # 1.2.1.2 | <notextile></notextile>
 Apache | [Apache 2](http://www.apache.org/licenses/LICENSE-2.0) | oauth.signpost # signpost-core # 1.2.1.2 | <notextile></notextile>
 Apache | [Apache 2](http://www.apache.org/licenses/LICENSE-2.0) | org.apache.commons # commons-exec # 1.1 | <notextile></notextile>

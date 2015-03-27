@@ -16,68 +16,37 @@
 
 package eventstreams.core.actors
 
-import akka.actor._
-import eventstreams.Tools.optionsHelper
-import eventstreams.{Fail, NowProvider, OK, _}
+import eventstreams._
 import play.api.libs.json._
-import play.api.libs.json.extensions._
-
-import scalaz.Scalaz._
 
 trait RouteeModelManager[T <: Model]
-  extends ActorWithComposableBehavior
-  with ActorWithConfigStore
-  with RouteeActor
-  with NowProvider {
+  extends GenericModelManager[T]
+  with ActorWithComposableBehavior
+  with ActorWithConfigAutoLoad
+  with RouteeActor {
+
+  def list: Option[JsValue]
 
   def configSchema: Option[JsValue] = None
-  def list: Option[JsValue]
-  def startModelActor(key: String): ActorRef
-
-  var entries: List[T] = List()
-
-  override def partialStorageKey: Option[String] = Some(key.key + "/")
 
   def publishList() = T_LIST !! list
+
   def publishConfigTpl(): Unit = T_CONFIGTPL !! configSchema
 
-  override def onSubscribe : SubscribeHandler = super.onSubscribe orElse {
+  override def onSubscribe: SubscribeHandler = super.onSubscribe orElse {
     case T_LIST => publishList()
     case T_CONFIGTPL => publishConfigTpl()
   }
 
-  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
-    case T_ADD => createModelInstance(None, maybeData, None, None)
+  override def onCommand(maybeData: Option[JsValue]): CommandHandler = super.onCommand(maybeData) orElse {
+    case T_ADD => for (
+      _ <- createModelInstance(None, maybeData, None, None)
+    ) yield Successful(onSuccessfulAdd())
   }
 
-  override def onTerminated(ref: ActorRef): Unit = {
-    entries = entries.filter(_.ref != ref)
-    publishList()
-    super.onTerminated(ref)
-  }
-
-  def addEntry(e: T) = {
-    entries = (entries.filter(!_.equals(e)) :+ e).sortBy(_.sortBy)
-    publishList()
-  }
-  
-  override def applyConfig(key: String, props: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = createModelInstance(Some(key), Some(props), Some(meta), maybeState)
-
-  private def createModelInstance(k: Option[String], maybeData: Option[JsValue], meta: Option[JsValue], maybeState: Option[JsValue]) =
-    for (
-      data <- maybeData orFail "Invalid payload"
-    ) yield {
-      val entryKey = k | (key / shortUUID).key
-      var json = meta | Json.obj()
-      if (k.isEmpty) json = json.set(__ \ 'created -> JsNumber(now))
-      val actor = startModelActor(entryKey)
-      context.watch(actor)
-      actor ! InitialConfig(data, json, maybeState)
-      Successful(Some(onSuccessfulAdd()))
-    }
 
 
-  def onSuccessfulAdd() = "Successfully created"
+  def onSuccessfulAdd() = Some("Successfully created")
 
 
 }

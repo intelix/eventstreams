@@ -18,9 +18,13 @@ package eventstreams.core.actors
 
 import scala.concurrent.duration._
 
+private case class CallbackRequest(f: () => Unit, intervalMs: Long, lastCallTs: Long)
+
 trait ActorWithTicks extends ActorWithComposableBehavior {
 
   implicit private val ec = context.dispatcher
+
+  private var callbacks: List[CallbackRequest] = List()
 
   override def commonBehavior: Receive = handleTicks orElse super.commonBehavior
 
@@ -34,15 +38,25 @@ trait ActorWithTicks extends ActorWithComposableBehavior {
   def internalProcessTick(): Unit = {}
   def processTick(): Unit = {}
 
+  def addTickCallback(callback: () => Unit, intervalMs: Long) = callbacks = callbacks :+ CallbackRequest(callback, intervalMs, 0)
 
   private def scheduleTick() = this.context.system.scheduler.scheduleOnce(tickInterval, self, Tick())(context.dispatcher)
 
   private def handleTicks: Receive = {
     case Tick() =>
+      processCallbacks()
       internalProcessTick()
       processTick()
       scheduleTick()
   }
+
+  private def processCallbacks() =
+    callbacks = callbacks.map {
+      case CallbackRequest(f, i, l) if now - l >= i =>
+        f()
+        CallbackRequest(f, i, now)
+      case x => x
+    }
 
   private case class Tick()
 

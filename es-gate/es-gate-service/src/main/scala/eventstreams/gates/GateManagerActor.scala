@@ -37,33 +37,34 @@ object GateManagerActor extends GateManagerSysevents {
 }
 
 
-
-case class GateAvailable(id: ComponentKey, ref: ActorRef, name: String) extends Model
+case class GateAvailable(id: String, ref: ActorRef, name: String) extends Model
 
 class GateManagerActor(sysconfig: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
-  with ActorWithConfigStore
+  with ActorWithConfigAutoLoad
   with RouteeModelManager[GateAvailable]
-  with NowProvider
+  with ActorWithInstrumentationEnabled
   with GateManagerSysevents
   with WithSyseventPublisher {
 
-  val id = GateManagerActor.id
 
   override val configSchema = Some(Json.parse(
     Source.fromInputStream(
       getClass.getResourceAsStream(
         sysconfig.getString("eventstreams.gates.gate-schema"))).mkString))
 
-  override val key = ComponentKey(id)
+
+  override def entityId: String = GateManagerActor.id
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  def list = Some(Json.toJson(entries.map { x => Json.obj("ckey" -> x.id.key)}.toArray))
+  def list = Some(Json.toJson(entries.map { x => Json.obj("ckey" -> x.id)}.toArray))
 
   def handler: Receive = {
     case x: GateAvailable => addEntry(x)
   }
 
-  override def startModelActor(key: String): ActorRef = GateActor.start(key)
+  override def startModelActor(routeeKey: String, config: ModelConfigSnapshot): ActorRef = GateActor.start(routeeKey, config)
+
+  override def sensorComponentSubId: Option[String] = None
 }

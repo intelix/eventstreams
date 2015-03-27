@@ -18,8 +18,8 @@ package eventstreams.gauges
 
 import java.util.concurrent.TimeUnit
 
+import com.codahale.metrics.Timer
 import eventstreams.signals.SignalEventFrame
-import nl.grons.metrics.scala.Timer
 import play.api.libs.json.{JsString, JsValue}
 
 import scalaz.Scalaz._
@@ -28,7 +28,7 @@ trait TimingMetricAccounting extends NumericMetricAccounting with WithMetric[Tim
 
   private var timeUnit: TimeUnit = TimeUnit.MILLISECONDS
 
-  override def createMetric(metricName: String): Timer = metrics.timer(metricName)
+  override def createMetric(metricName: String): Timer = metricRegistry.timer(metricName)
 
   override def updateValue(v: Double): Unit = {
     val ms = calculateMsFrom(v)
@@ -64,10 +64,10 @@ trait TimingMetricAccounting extends NumericMetricAccounting with WithMetric[Tim
     m.map { metric =>
       JsString(Seq(
         valueForLevels,
-        metric.snapshot.getMean / 1000000,
-        metric.snapshot.getStdDev / 1000000,
-        metric.snapshot.get95thPercentile() / 1000000,
-        metric.snapshot.get99thPercentile() / 1000000
+        metric.getSnapshot.getMean / 1000000,
+        metric.getSnapshot.getStdDev / 1000000,
+        metric.getSnapshot.get95thPercentile() / 1000000,
+        metric.getSnapshot.get99thPercentile() / 1000000
       ).map(fmt).mkString(","))
     }
 

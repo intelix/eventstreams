@@ -21,10 +21,7 @@ object MyUnboundedMailbox {
     private final val queue = new ConcurrentLinkedQueue[Envelope]()
 
     // these should be implemented; queue used as example
-    def enqueue(receiver: ActorRef, handle: Envelope): Unit = {
-      println("!>>> received " + handle.message)
-      queue.offer(handle)
-    }
+    def enqueue(receiver: ActorRef, handle: Envelope): Unit = queue.offer(handle)
     def dequeue(): Envelope = queue.poll()
     def numberOfMessages: Int = queue.size
     def hasMessages: Boolean = !queue.isEmpty

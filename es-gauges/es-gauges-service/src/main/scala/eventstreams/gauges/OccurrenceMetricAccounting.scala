@@ -16,19 +16,18 @@
 
 package eventstreams.gauges
 
-import eventstreams.WithCHMetrics
-import nl.grons.metrics.scala.Meter
+import com.codahale.metrics.Meter
 import play.api.libs.json.{JsString, JsValue}
 
 trait OccurrenceMetricAccounting extends NumericMetricAccounting with WithMetric[Meter] {
 
 
-  override def createMetric(metricName: String): Meter = metrics.meter(metricName)
+  override def createMetric(metricName: String): Meter = metricRegistry.meter(metricName)
 
   override def updateValue(v: Double): Unit = {
     m.foreach { metric =>
       metric.mark(v.toLong)
-      super.updateValue(metric.oneMinuteRate)
+      super.updateValue(metric.getOneMinuteRate)
     }
   }
 
@@ -36,10 +35,10 @@ trait OccurrenceMetricAccounting extends NumericMetricAccounting with WithMetric
     m.map { metric =>
       JsString(Seq(
         valueForLevels,
-        metric.meanRate,
-        metric.oneMinuteRate,
-        metric.fiveMinuteRate,
-        metric.fifteenMinuteRate
+        metric.getMeanRate,
+        metric.getOneMinuteRate,
+        metric.getFifteenMinuteRate,
+        metric.getFifteenMinuteRate
       ).map(fmt).mkString(","))
     }
 

@@ -43,8 +43,5 @@ addSbtPlugin("org.scoverage" % "sbt-coveralls" % "1.0.0.BETA1")
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.0.0-M4")
 
-addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.1")
-
-addSbtPlugin("com.vmunier" % "sbt-play-scalajs" % "0.2.3")
 
 

@@ -27,11 +27,11 @@ trait WithInstrumentationEnabled extends WithInstrumentationHooks with WithCHMet
 
   def sensorComponentId: Option[String]
 
-  override def meterSensor(group: Option[String], name: String) = locateOrCreate(group, name, id => MeterSensor(id, metrics.meter(_)))
+  override def meterSensor(group: Option[String], name: String) = locateOrCreate(group, name, id => MeterSensor(id, metricRegistry.meter))
 
-  override def histogramSensor(group: Option[String], name: String) = locateOrCreate(group, name, id => HistogramSensor(id, metrics.histogram(_)))
+  override def histogramSensor(group: Option[String], name: String) = locateOrCreate(group, name, id => HistogramSensor(id, metricRegistry.histogram))
 
-  override def timerSensor(group: Option[String], name: String) = locateOrCreate(group, name, id => TimerSensor(id, metrics.timer(_)))
+  override def timerSensor(group: Option[String], name: String) = locateOrCreate(group, name, id => TimerSensor(id, metricRegistry.timer))
 
   override def stateSensor(group: Option[String], name: String) = locateOrCreate(group, name, id => StateSensor(id, SimpleStateRegistry.getPublisherFor))
 

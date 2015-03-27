@@ -23,7 +23,7 @@ import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.alerts.AlertLevel
 import eventstreams.core.actors._
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.Json
 
 import scala.util.matching.Regex
 import scalaz.Scalaz._
@@ -33,9 +33,9 @@ trait DesktopNotificationsSubscriptionSysevents extends ComponentWithBaseSyseven
 }
 
 object DesktopNotificationsSubscriptionActor {
-  def props(id: String) = Props(new DesktopNotificationsSubscriptionActor(id))
+  def props(id: String, config: ModelConfigSnapshot) = Props(new DesktopNotificationsSubscriptionActor(id, config))
 
-  def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id), ActorTools.actorFriendlyId(id))
+  def start(id: String, config: ModelConfigSnapshot)(implicit f: ActorRefFactory) = f.actorOf(props(id, config), ActorTools.actorFriendlyId(id))
 }
 
 
@@ -52,9 +52,8 @@ case class DesktopNotificationsSubscriptionStatePassive(details: Option[String] 
 case class DesktopNotificationsSubscriptionStateError(details: Option[String] = None) extends DesktopNotificationsSubscriptionState
 
 
-class DesktopNotificationsSubscriptionActor(id: String)
+class DesktopNotificationsSubscriptionActor(val entityId: String, val initialConfig: ModelConfigSnapshot)
   extends ActorWithActivePassiveBehaviors
-  with ActorWithConfigStore
   with RouteeModelInstance
   with RouteeWithStartStopHandler
   with NowProvider
@@ -63,25 +62,34 @@ class DesktopNotificationsSubscriptionActor(id: String)
 
   val T_SIGNAL = TopicKey("desktopnotification.signal")
 
-  var name = "default"
-  var created = prettyTimeFormat(now)
   var currentState: DesktopNotificationsSubscriptionState = DesktopNotificationsSubscriptionStateUnknown(Some("Initialising"))
-  var level: AlertLevel = AlertLevel.default()
-  var signalClass: String = "default"
-  var signalSubclass: Option[String] = None
-  var signalClassR: Option[Regex] = None
-  var signalSubclassR: Option[Regex] = None
-  var conflate: Boolean = true
-  var autoCloseSec: Int = 10
 
-  override def storageKey: Option[String] = Some(id)
+  val name = propsConfig ~> 'name | "default"
+  val created = prettyTimeFormat(metaConfig ++> 'created | now)
 
-  override def key = ComponentKey(id)
+  val signalClass = propsConfig ~> 'signalClass | "default"
+  val signalClassR = Some(signalClass.r)
+  val signalSubclass = propsConfig ~> 'signalSubclass
+  val signalSubclassR = signalSubclass.map(_.r)
+  val level = AlertLevel.fromString(propsConfig ~> 'level | "Very low")
+  val conflate = propsConfig ?> 'conflate | true
+  val autoCloseSec = propsConfig +> 'autoClose | 10
 
+
+  override def preStart(): Unit = {
+    super.preStart()
+
+    if (metaConfig ?> 'lastStateActive | false)
+      goActive()
+    else
+      goPassive()
+
+    publishProps()
+    publishInfo()
+
+  }
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
-
-  override def publishAvailable(): Unit = context.parent ! DesktopNotificationsSubscriptionAvailable(key, self, name)
 
   def stateDetailsAsString = currentState.details match {
     case Some(v) => stateAsString + " - " + v
@@ -123,31 +131,7 @@ class DesktopNotificationsSubscriptionActor(id: String)
     case T_SIGNAL => None
   }
 
-  override def applyConfig(key: String, config: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = {
 
-    name = config ~> 'name | "default"
-    created = prettyTimeFormat(meta ++> 'created | now)
-
-    signalClass = config ~> 'signalClass | "default"
-    signalClassR = Some(signalClass.r)
-    signalSubclass = config ~> 'signalSubclass
-    signalSubclassR = signalSubclass.map(_.r)
-    level = AlertLevel.fromString(config ~> 'level | "Very low")
-    conflate = config ?> 'conflate | true
-    autoCloseSec = config +> 'autoClose | 10
-
-  }
-
-  override def afterApplyConfig(): Unit = {
-
-    if (isComponentActive)
-      goActive()
-    else
-      goPassive()
-
-    publishProps()
-    publishInfo()
-  }
 
   def checkMatch(s: String, r: Option[Regex]) = r match {
     case None => true
@@ -181,6 +165,8 @@ class DesktopNotificationsSubscriptionActor(id: String)
 
   }
 
+  override def modelEntryInfo: Model = new DesktopNotificationsSubscriptionAvailable(entityId, self, name)
+
   private def goPassive() = {
     currentState = DesktopNotificationsSubscriptionStatePassive()
     logger.debug(s"Subscription stopped")
@@ -198,7 +184,5 @@ class DesktopNotificationsSubscriptionActor(id: String)
   private def terminateSubscription(reason: Option[String]) = {
     goPassive()
   }
-
-
 }
 

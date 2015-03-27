@@ -26,8 +26,7 @@ class AuthActorStub(id: String)
   with WithSyseventPublisher
   with ActorWithTicks {
 
-  override def key: ComponentKey = ComponentKey(id)
-
+  override def entityId: String = id
 
   override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
     case TopicKey("auth_cred") =>

@@ -30,33 +30,30 @@ import play.api.libs.json._
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scalaz.Scalaz._
-import scalaz.{-\/, \/-}
 
 trait GateSysevents
-  extends ComponentWithBaseSysevents with BaseActorSysevents with StateChangeSysevents with AtLeastOnceDeliveryActorSysevents {
-  override def componentId: String = "Gate.Gate"
-
+  extends ComponentWithBaseSysevents
+  with BaseActorSysevents
+  with StateChangeSysevents
+  with AtLeastOnceDeliveryActorSysevents {
   val GateConfigured = "GateConfigured".trace
-
-
   val NewMessageReceived = "NewMessageReceived".trace
   val DuplicateMessageReceived = "DuplicateMessageReceived".trace
   val MessageIgnored = "MessageIgnored".trace
-
   val InflightsPurged = "InflightsPurged".info
-
   val SinkConnected = "SinkConnected".info
   val SinkDisconnected = "SinkDisconnected".info
-
   val ForwarderStarted = "ForwarderStarted".info
   val UnsupportedMessageType = "UnsupportedMessageType".warn
+
+  override def componentId: String = "Gate.Gate"
 
 }
 
 object GateActor extends GateSysevents {
-  def props(id: String) = Props(new GateActor(id))
+  def props(id: String, config: ModelConfigSnapshot) = Props(new GateActor(id, config))
 
-  def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id), ActorTools.actorFriendlyId(id))
+  def start(id: String, config: ModelConfigSnapshot)(implicit f: ActorRefFactory) = f.actorOf(props(id, config), ActorTools.actorFriendlyId(id))
 }
 
 sealed trait InternalGateState {
@@ -72,63 +69,56 @@ case class GateStateClosed(details: Option[String] = None) extends InternalGateS
 case class GateStateError(details: Option[String] = None) extends InternalGateState
 
 
-class GateActor(id: String)
+class GateActor(val entityId: String, val initialConfig: ModelConfigSnapshot)
   extends ActorWithActivePassiveBehaviors
   with AtLeastOnceDeliveryActor[EventFrame]
-  with ActorWithConfigStore
   with RouteeModelInstance
   with RouteeWithStartStopHandler
   with ActorWithDupTracking
   with ActorWithPeriodicalBroadcasting
   with ActorWithTicks
   with WithCHMetrics
+  with ActorWithInstrumentationEnabled
   with GateSysevents
   with WithSyseventPublisher {
 
 
-  var name = "default"
-  var address = uuid.toString
-  var created = prettyTimeFormat(now)
-  var inFlightThreshold = 1000
-  var noSinkDropMessages = false
-
-  var eventSequenceCounter = now
-
-  var currentState: InternalGateState = GateStateUnknown(Some("Initialising"))
-
-  val _rateMeter = metrics.meter(s"gate.$id.rate")
-
+  override lazy val sensorComponentSubId: Option[String] = Some(name)
+  val name = propsConfig ~> 'name | "default"
+  val inFlightThreshold = propsConfig +> 'inFlightThreshold | 1000
+  val noSinkDropMessages = propsConfig ?> 'noSinkDropMessages | false
+  val address = propsConfig ~> 'address | entityId
+  val created = prettyTimeFormat(metaConfig ++> 'created | now)
+  val resendInterval = FiniteDuration(propsConfig ++> 'unacknowledgedMessagesResendIntervalSec | 5, TimeUnit.SECONDS)
+  val forwarderId = ActorTools.actorFriendlyId(address)
+  val _rateMeter = metricRegistry.meter(s"gate.$entityId.rate")
   val activeEventsources = mutable.Map[ActorRef, Long]()
+  var eventSequenceCounter = now
+  var currentState: InternalGateState = GateStateUnknown(Some("Initialising"))
+  var sinks: Set[ActorRef] = Set()
+  var forwarderActor: Option[ActorRef] = None
 
-
-  private var sinks: Set[ActorRef] = Set()
-  private var forwarderId: Option[String] = None
-  private var forwarderActor: Option[ActorRef] = None
-
-  private var resendInterval = 5.seconds
-  
   override def configUnacknowledgedMessagesResendInterval = resendInterval
 
-  override def key = ComponentKey(id)
-
-
-  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('Name -> name, 'State -> currentState, 'ID -> id, 'Address -> address)
-
-  override def storageKey: Option[String] = Some(id)
+  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('Name -> name, 'State -> currentState, 'ID -> entityId, 'Address -> address)
 
 
   override def preStart(): Unit = {
+    GateConfigured >>()
 
-    if (isComponentActive)
-      openGate()
-    else
-      closeGate()
+    openForwarder()
+
+    if (metaConfig ?> 'lastStateActive | false) {
+      becomeActive()
+    } else {
+      becomePassive()
+    }
 
     super.preStart()
 
   }
 
-  override def onCommand(maybeData: Option[JsValue]) : CommandHandler = super.onCommand(maybeData) orElse {
+  override def onCommand(maybeData: Option[JsValue]): CommandHandler = super.onCommand(maybeData) orElse {
     case T_PURGE =>
       val inFlightNow = inFlightCount
       purgeInflights()
@@ -169,8 +159,6 @@ class GateActor(id: String)
   }
 
 
-  override def publishAvailable(): Unit = context.parent ! GateAvailable(key, self, name)
-
   override def commonBehavior: Actor.Receive = messageHandler orElse super.commonBehavior
 
   override def onBecameActive(): Unit = {
@@ -209,8 +197,8 @@ class GateActor(id: String)
 
   override def stats = currentState match {
     case GateStateOpen(_) => Some(Json.obj(
-      "rate" -> ("%.2f" format _rateMeter.oneMinuteRate),
-      "mrate" -> ("%.2f" format _rateMeter.meanRate),
+      "rate" -> ("%.2f" format _rateMeter.getOneMinuteRate),
+      "mrate" -> ("%.2f" format _rateMeter.getMeanRate),
       "activeDS" -> activeEventsources.size,
       "inflight" -> inFlightCount
     ))
@@ -236,8 +224,11 @@ class GateActor(id: String)
     val eventSeq = frame ++> 'eventSeq | nextEventSequence()
     val eventType = frame ~> 'eventType | "default"
     val timestamp = frame ++> 'ts | now
+
+    /*  TODO  Revisit tracing
     var trace = (frame ##> 'trace).map(_.map(_.asString | "")) | List()
-    if (!trace.contains(id)) trace = trace :+ id
+    if (!trace.contains(entityId)) trace = trace :+ entityId
+    */
 
     frame + ('eventId -> eventId) + ('eventSeq -> eventSeq) + ('ts -> timestamp)
   }
@@ -250,38 +241,25 @@ class GateActor(id: String)
       Seq()
   }
 
-  override def applyConfig(key: String, props: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = {
-    name = props ~> 'name | "default"
-
-    inFlightThreshold = props +> 'inFlightThreshold | 1000
-
-    noSinkDropMessages = props ?> 'noSinkDropMessages | false
-    address = props ~> 'address | key
-    created = prettyTimeFormat(meta ++> 'created | now)
-
-    resendInterval = FiniteDuration(props ++> 'unacknowledgedMessagesResendIntervalSec | 5, TimeUnit.SECONDS)
-
-
-    val newForwarderId = ActorTools.actorFriendlyId(address)
-    forwarderId match {
-      case None => reopenForwarder(newForwarderId)
-      case Some(x) if x != newForwarderId => reopenForwarder(newForwarderId)
-      case x => ()
+  override def onTerminated(ref: ActorRef): Unit = {
+    if (sinks.contains(ref)) {
+      SinkDisconnected >> ('Ref -> ref)
+      sinks -= ref
+      publishInfo()
     }
-
-    if (meta ?> 'lastStateActive | false) {
-      becomeActive()
-    }
-
-    GateConfigured >> ()
-    
+    super.onTerminated(ref)
   }
 
-  private def reopenForwarder(newForwarderId: String) = {
-    forwarderId = Some(newForwarderId)
+  override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
+    (T_STATS, 5, () => stats, T_STATS !! _)
+  )
+
+  override def modelEntryInfo: Model = GateAvailable(entityId, self, name)
+
+  private def openForwarder() = {
     forwarderActor.foreach(context.system.stop)
-    forwarderActor = Some(context.system.actorOf(Props(new Forwarder(self)), newForwarderId))
-    ForwarderStarted >> ('ForwarderId -> newForwarderId)
+    forwarderActor = Some(context.system.actorOf(Props(new Forwarder(self)), forwarderId))
+    ForwarderStarted >> ('ForwarderId -> forwarderId)
   }
 
   private def flowMessagesHandlerForClosedGate: Receive = {
@@ -324,15 +302,6 @@ class GateActor(id: String)
 
   }
 
-  override def onTerminated(ref: ActorRef): Unit = {
-    if (sinks.contains(ref)) {
-      SinkDisconnected >> ('Ref -> ref)
-      sinks -= ref
-      publishInfo()
-    }
-    super.onTerminated(ref)
-  }
-
   private def messageHandler: Receive = {
     case GateStateCheck(ref) =>
       if (isComponentActive) {
@@ -348,13 +317,8 @@ class GateActor(id: String)
     case UnregisterSink(sinkRef) =>
       sinks -= sinkRef
       context.unwatch(sinkRef)
-      SinkDisconnected >> ('Ref -> sinkRef)  }
-
-
-  override def autoBroadcast: List[(Key, Int, PayloadGenerator, PayloadBroadcaster)] = List(
-    (T_STATS, 5, () => stats, T_STATS !! _)
-  )
-
+      SinkDisconnected >> ('Ref -> sinkRef)
+  }
 }
 
 case class RouteTo(ref: ActorRef, msg: Any)

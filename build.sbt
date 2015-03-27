@@ -240,7 +240,8 @@ lazy val node_hub = Project(
     sink_influxdb_service % "compile;test->test",
     sink_elasticsearch_service % "compile;test->test",
     alerts_dn_service % "compile;test->test",
-    gauges_service % "compile;test->test"
+    gauges_service % "compile;test->test",
+    healthmon_service % "compile;test->test"
   )
 ).enablePlugins(AkkaAppPackaging)
 
@@ -377,6 +378,19 @@ lazy val tx_service = Project(
     api  % "compile;test->test",
     instructions_api  % "compile;test->test",
     instructions_set
+  )
+)
+
+
+/* Health monitor */
+
+lazy val healthmon_service = Project(
+  id = "es-healthmon-service",
+  base = file("es-healthmon/es-healthmon-service"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    api  % "compile;test->test",
+    gate_api % "compile;test->test"
   )
 )
 

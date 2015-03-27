@@ -7,7 +7,6 @@ import com.typesafe.sbt.less.Import.LessKeys
 import com.typesafe.sbt.license.{DepModuleInfo, LicenseInfo}
 import com.typesafe.sbt.rjs.Import.{RjsKeys, rjs}
 import com.typesafe.sbt.web.SbtWeb.autoImport.{Assets, pipelineStages}
-import playscalajs.PlayScalaJS.autoImport
 import sbt.Keys._
 import sbt._
 
@@ -130,7 +129,7 @@ object EventStreamsBuild {
   def serviceSettings(module: String) = webModuleSettings(module) ++: Seq(
     includeFilter in(Assets, LessKeys.less) := "*.less",
     excludeFilter in(Assets, LessKeys.less) := "_*.less",
-    pipelineStages := Seq(autoImport.scalaJSProd, rjs, digest, gzip),
+    pipelineStages := Seq(rjs, digest, gzip),
     RjsKeys.mainModule := s"main-$module"
   )
 

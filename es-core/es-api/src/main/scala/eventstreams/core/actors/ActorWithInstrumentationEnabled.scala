@@ -12,7 +12,9 @@ trait ActorWithInstrumentationEnabled extends ActorUtils with WithInstrumentatio
 
   override def sensorSystemId: Option[String] = Some(SyseventSystemRef.ref.id)
 
-  override def sensorComponentId: Option[String] = Some(componentId)
+  override def sensorComponentId: Option[String] = Some(componentId + sensorComponentSubId.map("." + _).getOrElse(""))
+
+  def sensorComponentSubId: Option[String] = None
 
   @throws[Exception](classOf[Exception])
   override def preStart(): Unit = {

@@ -21,7 +21,7 @@ import _root_.core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor._
 import eventstreams.Tools.configHelper
 import eventstreams._
-import eventstreams.core.actors.{ActorTools, ActorWithConfigStore, ActorWithTicks, RouteeActor, _}
+import eventstreams.core.actors.{ActorTools, ActorWithTicks, RouteeActor, _}
 import play.api.libs.json._
 
 import scalaz.Scalaz._
@@ -34,18 +34,16 @@ trait UserRoleSysevents extends ComponentWithBaseSysevents with BaseActorSyseven
 }
 
 
-
 object UserRoleActor {
-  def props(id: String, availableDomains: List[SecuredDomainPermissions]) = Props(new UserRoleActor(id, availableDomains))
+  def props(id: String, config: ModelConfigSnapshot, availableDomains: List[SecuredDomainPermissions]) = Props(new UserRoleActor(id, config, availableDomains))
 
-  def start(id: String, availableDomains: List[SecuredDomainPermissions])(implicit f: ActorRefFactory) =
-    f.actorOf(props(id, availableDomains), ActorTools.actorFriendlyId(id))
+  def start(id: String, config: ModelConfigSnapshot, availableDomains: List[SecuredDomainPermissions])(implicit f: ActorRefFactory) =
+    f.actorOf(props(id, config, availableDomains), ActorTools.actorFriendlyId(id))
 }
 
 
-class UserRoleActor(id: String, availableDomains: List[SecuredDomainPermissions])
+class UserRoleActor(val entityId: String, val initialConfig: ModelConfigSnapshot, availableDomains: List[SecuredDomainPermissions])
   extends ActorWithComposableBehavior
-  with ActorWithConfigStore
   with RouteeActor
   with RouteeModelInstance
   with ActorWithTicks
@@ -53,40 +51,32 @@ class UserRoleActor(id: String, availableDomains: List[SecuredDomainPermissions]
   with UserRoleSysevents
   with WithSyseventPublisher {
 
-  override def storageKey: Option[String] = Some(id)
 
+  val name = propsConfig ~> 'name
 
-  var name: Option[String] = None
-  var permissions: Option[RolePermissions] = None
-
-  override def applyConfig(key: String, props: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = {
-    name = props ~> 'name
-    val seq = availableDomains.flatMap { sdp =>
-      val domainId = sdp.domain.id
-      val setOfFunctions = (props ##> domainId).map { arr =>
-        arr.map { name =>
-          sdp.permissions.find { next => name.asOpt[String].contains(next.name) }.map { v => FunctionPermission(v.topic) }
-        }.collect { case Some(x) => x }
-      }
-      setOfFunctions.map { sof =>
-        List(DomainPermissions(SecuredDomain(domainId), sof))
-      } | List()
-
+  val permissions = Some(RolePermissions(availableDomains.flatMap { sdp =>
+    val domainId = sdp.domain.id
+    val setOfFunctions = (propsConfig ##> domainId).map { arr =>
+      arr.map { name =>
+        sdp.permissions.find { next => name.asOpt[String].contains(next.name) }.map { v => FunctionPermission(v.topic) }
+      }.collect { case Some(x) => x }
     }
+    setOfFunctions.map { sof =>
+      List(DomainPermissions(SecuredDomain(domainId), sof))
+    } | List()
 
-    permissions = Some(RolePermissions(seq))
+  }))
 
-  }
 
   def permissionByTopic(topic: String) = availableDomains.collectFirst {
     case x if x.permissions.exists(_.topic == topic) => x.permissions.find(_.topic == topic).get
   }
-  
+
   override def info = Some(Json.obj(
     "name" -> (name | "n/a"),
     "permissions" -> permissions.map { p =>
       val set = p.domainPermissions.flatMap { l =>
-        l.permissions.map{ perm => permissionByTopic(perm.topicPattern) }.toList.collect { case Some(x) => x.name}
+        l.permissions.map { perm => permissionByTopic(perm.topicPattern) }.toList.collect { case Some(x) => x.name }
       }
       set.mkString(", ") match {
         case "" => "None allowed"
@@ -95,11 +85,5 @@ class UserRoleActor(id: String, availableDomains: List[SecuredDomainPermissions]
     }
   ))
 
-
-  override def publishAvailable() =
-    context.parent ! UserRoleAvailable(key, name | "n/a", permissions | RolePermissions(Seq()), self)
-
-  
-
-  override def key = ComponentKey(id)
+  override def modelEntryInfo: Model = UserRoleAvailable(entityId, name | "n/a", permissions | RolePermissions(Seq()), self)
 }

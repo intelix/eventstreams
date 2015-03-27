@@ -43,7 +43,6 @@ case class UserAvailable(id: ComponentKey, name: String, hash: Option[String], r
 
 class UserManagerActor(sysconfig: Config)
   extends ActorWithComposableBehavior
-  with ActorWithConfigStore
   with RouteeModelManager[UserAvailable]
   with NowProvider
   with UserManagerSysevents
@@ -54,7 +53,7 @@ class UserManagerActor(sysconfig: Config)
       getClass.getResourceAsStream(
         sysconfig.getString("eventstreams.auth.users.main-schema"))).mkString))
 
-  override val key = ComponentKey(UserManager.id)
+  override val entityId = UserManager.id
 
 
   override def publishList(): Unit = {
@@ -76,5 +75,5 @@ class UserManagerActor(sysconfig: Config)
     )
   }.toSeq))
 
-  override def startModelActor(key: String): ActorRef = UserActor.start(key)
+  override def startModelActor(key: String, config: ModelConfigSnapshot): ActorRef = UserActor.start(key, config)
 }

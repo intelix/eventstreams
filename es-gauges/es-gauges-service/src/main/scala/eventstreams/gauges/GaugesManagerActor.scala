@@ -16,17 +16,16 @@
 
 package eventstreams.gauges
 
-import core.sysevents.SyseventOps.symbolToSyseventOps
-import core.sysevents.WithSyseventPublisher
-import core.sysevents.ref.ComponentWithBaseSysevents
 import akka.actor.{Actor, ActorRef}
 import akka.cluster.Cluster
 import com.typesafe.config.Config
+import core.sysevents.SyseventOps.symbolToSyseventOps
+import core.sysevents.WithSyseventPublisher
+import core.sysevents.ref.ComponentWithBaseSysevents
 import eventstreams.Tools.configHelper
 import eventstreams._
 import eventstreams.core.actors.{ActorWithTicks, AutoAcknowledgingService, BaseActorSysevents, RouteeActor}
 import eventstreams.signals._
-import net.ceedubs.ficus.FicusConfig._
 import play.api.libs.json.{JsArray, JsValue, Json}
 
 import scala.annotation.tailrec
@@ -59,8 +58,6 @@ class GaugesManagerActor(sysconfig: Config, cluster: Cluster)
   case class MetricMeta(id: String, actor: ActorRef, priority: String = "M", signalType: SigMetricType, level: Int = 0)
 
   case class FilterPayload(selector: Selector, payload: JsValue)
-
-  println("!>>>> " + context.props.deploy.config)
 
   class Selector(data: JsValue) {
 
@@ -225,8 +222,8 @@ class GaugesManagerActor(sysconfig: Config, cluster: Cluster)
 
   override def onNext(e: EventFrame): Unit = onNextSignal(e)
 
-  override def key: ComponentKey = GaugesManagerConstants.id
 
+  override def entityId: String = GaugesManagerConstants.id
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
@@ -311,7 +308,7 @@ class GaugesManagerActor(sysconfig: Config, cluster: Cluster)
 
 
   private def addMetric(sigKey: SignalKey, e: SignalEventFrame): MetricMeta = {
-    val id = (key / liveMetrics.size.toString).key
+    val id = entityId + "/" + liveMetrics.size.toString
     val sigType = e.sigMetricType | SigMetricTypeGauge()
     val ref = context.actorOf(GaugeActor(sigType, id, sigKey))
     val meta = MetricMeta(id, ref, e.sigPriority, sigType)

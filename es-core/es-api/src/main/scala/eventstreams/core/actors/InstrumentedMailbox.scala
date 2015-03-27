@@ -53,11 +53,13 @@ class InstrumentedNodeMessageQueue(owner: Option[ActorRef]) extends AbstractNode
 
   final def dequeue(): Envelope = {
     val et = poll()
-    proxy.foreach { p =>
-      p.WaitTimeTimerSensor.updateNs(System.nanoTime() - et.enqueuedAt)
-      p.QueueDepthSensor.update(count())
-    }
-    et.e
+    if (et != null) {
+      proxy.foreach { p =>
+        p.WaitTimeTimerSensor.updateNs(System.nanoTime() - et.enqueuedAt)
+        p.QueueDepthSensor.update(count())
+      }
+      et.e
+    } else null
   }
 
   final def numberOfMessages: Int = count()

@@ -45,17 +45,17 @@ object FlowManagerActor extends ActorObj with FlowManagerActorSysevents {
 }
 
 
-case class FlowAvailable(id: ComponentKey, ref: ActorRef, name: String) extends Model
+case class FlowAvailable(id: String, ref: ActorRef, name: String) extends Model
 
 class FlowManagerActor(sysconfig: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
-  with ActorWithConfigStore
+  with ActorWithConfigAutoLoad
   with RouteeModelManager[FlowAvailable]
   with NowProvider
   with FlowManagerActorSysevents
   with WithSyseventPublisher {
 
-  val id = FlowManagerActor.id
+  val entityId = FlowManagerActor.id
 
   val instructionsConfigsList = {
     val list = sysconfig.getConfigList("eventstreams.instructions")
@@ -92,16 +92,14 @@ class FlowManagerActor(sysconfig: Config, cluster: Cluster)
     )
   })
 
-  override val key = ComponentKey(id)
-
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  def list = Some(Json.toJson(entries.map { x => Json.obj("ckey" -> x.id.key)}.toArray))
+  def list = Some(Json.toJson(entries.map { x => Json.obj("ckey" -> x.id)}.toArray))
 
 
   def handler: Receive = {
     case e: FlowAvailable => addEntry(e)
   }
 
-  override def startModelActor(key: String): ActorRef = FlowProxyActor.start(key, instructionsConfigsList)
+  override def startModelActor(key: String, config: ModelConfigSnapshot): ActorRef = FlowProxyActor.start(key, config, instructionsConfigsList)
 }

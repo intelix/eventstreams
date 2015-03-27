@@ -90,5 +90,5 @@ class RouteeComponentStubActor(instanceId: String)
       Fail()
   }
 
-  override def key: ComponentKey = RouteeComponentStubOps.componentKeyForRouteeStub(instanceId)
+  override def entityId: String = RouteeComponentStubOps.componentKeyForRouteeStub(instanceId).key
 }

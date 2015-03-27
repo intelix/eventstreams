@@ -1,6 +1,5 @@
 package eventstreams.core.metrics
 
-import nl.grons.metrics.scala.Meter
 
 trait StateSensor {
   def update(s: String) = {}

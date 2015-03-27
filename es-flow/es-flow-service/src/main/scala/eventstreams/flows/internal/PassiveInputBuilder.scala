@@ -22,7 +22,6 @@ import akka.actor.{ActorRefFactory, Props}
 import eventstreams._
 import eventstreams.core.actors._
 import eventstreams.instructions.Types.TapActorPropsType
-import nl.grons.metrics.scala.MetricName
 import play.api.libs.json.JsValue
 
 import scalaz.Scalaz._
@@ -55,9 +54,7 @@ private class PassiveInputActor(id: String)
   with PassiveInputSysevents
   with WithSyseventPublisher {
 
-  override lazy val metricBaseName: MetricName = MetricName("flow")
-
-  val _rate = metrics.meter(s"$id.source")
+  val _rate = metricRegistry.meter(s"flow.$id.source")
   val buffer = 1024
 
   override def commonBehavior: Receive = handlerWhenPassive orElse super.commonBehavior
@@ -87,10 +84,10 @@ private class PassiveInputActor(id: String)
   }
 
   def handlerWhenActive: Receive = {
-    case Acknowledgeable(m,id) =>
+    case Acknowledgeable(m,i) =>
       if (pendingToDownstreamCount < buffer || pendingToDownstreamCount < totalDemand) {
-        if (!isDup(sender(), id)) {
-          sender() ! AcknowledgeAsProcessed(id)
+        if (!isDup(sender(), i)) {
+          sender() ! AcknowledgeAsProcessed(i)
           _rate.mark()
 
           m match {
@@ -99,7 +96,7 @@ private class PassiveInputActor(id: String)
           }
 
         } else {
-          sender() ! AcknowledgeAsProcessed(id)
+          sender() ! AcknowledgeAsProcessed(i)
         }
       }
   }

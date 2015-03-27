@@ -1,6 +1,6 @@
 package eventstreams
 
 
-trait WithID {
-  def entityId: Any
+trait WithID[T] {
+  def entityId: T
 }

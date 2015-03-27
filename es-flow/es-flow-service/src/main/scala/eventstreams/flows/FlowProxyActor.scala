@@ -45,9 +45,10 @@ trait FlowProxyActorSysevents
 object FlowProxyActorSysevents extends FlowProxyActorSysevents
 
 object FlowProxyActor extends FlowProxyActorSysevents {
-  def props(id: String, instructions: List[Config]) = Props(new FlowProxyActor(id, instructions))
+  def props(id: String, config: ModelConfigSnapshot, instructions: List[Config]) = Props(new FlowProxyActor(id, config, instructions))
 
-  def start(id: String, instructions: List[Config])(implicit f: ActorRefFactory) = f.actorOf(props(id, instructions), ActorTools.actorFriendlyId(id))
+  def start(id: String, config: ModelConfigSnapshot, instructions: List[Config])(implicit f: ActorRefFactory) =
+    f.actorOf(props(id, config, instructions), ActorTools.actorFriendlyId(id))
 }
 
 
@@ -64,36 +65,41 @@ case class FlowProxyStatePassive(details: Option[String] = None) extends FlowPro
 case class FlowProxyStateError(details: Option[String] = None) extends FlowProxyState
 
 
-class FlowProxyActor(id: String, instructions: List[Config])
+class FlowProxyActor(val entityId: String, val initialConfig: ModelConfigSnapshot, instructions: List[Config])
   extends ActorWithActivePassiveBehaviors
   with FlowProxyActorSysevents
-  with ActorWithConfigStore
   with RouteeWithStartStopHandler
   with RouteeModelInstance
   with ActorWithPeriodicalBroadcasting
   with WithCHMetrics {
 
-  var name = "default"
-  var created = prettyTimeFormat(now)
   var currentState: FlowProxyState = FlowProxyStateUnknown(Some("Initialising"))
+  val name = propsConfig ~> 'name | "default"
+  val created = prettyTimeFormat(metaConfig ++> 'created | now)
 
-  var deployer: Option[ActorRef] = None
+  var deployer: ActorRef = FlowDeployerActor.start(entityId, propsConfig, instructions)
 
-  override def commonFields: Seq[FieldAndValue] = Seq('ID -> id, 'Name -> name, 'Handler -> self)
 
-  override def storageKey: Option[String] = Some(id)
+  override def preStart(): Unit = {
+    deployer ! BecomeActive()
 
-  override def key = ComponentKey(id)
+    if (metaConfig ?> 'lastStateActive | false) {
+      becomeActive()
+    } else {
+      becomePassive()
+    }
 
+    FlowConfigured >>()
+    super.preStart()
+  }
+
+  override def commonFields: Seq[FieldAndValue] = Seq('ID -> entityId, 'Name -> name, 'Handler -> self)
 
   @throws[Exception](classOf[Exception]) override
   def postStop(): Unit = {
-    deployer.foreach(context.stop)
-    deployer = None
+    context.stop(deployer)
     super.postStop()
   }
-
-  override def publishAvailable(): Unit = context.parent ! FlowAvailable(key, self, name)
 
   def stateDetailsAsString = currentState.details match {
     case Some(v) => stateAsString + " - " + v
@@ -138,24 +144,10 @@ class FlowProxyActor(id: String, instructions: List[Config])
   )
 
   def closeFlow() = {
-    deployer.foreach(_ ! BecomePassive())
+    deployer ! BecomePassive()
     currentState = FlowProxyStatePassive()
     updateConfigMeta(__ \ 'lastStateActive -> JsBoolean(value = false))
     FlowStopped >>()
-  }
-
-  override def applyConfig(key: String, config: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = {
-
-    name = config ~> 'name | "default"
-    created = prettyTimeFormat(meta ++> 'created | now)
-
-    deployer.foreach(context.stop)
-    deployer = Some(FlowDeployerActor.start(key, config, instructions))
-
-    if (isComponentActive) deployer.foreach(_ ! BecomeActive)
-
-    FlowConfigured >>()
-
   }
 
   private def terminateFlow(reason: Option[String]) = {
@@ -163,7 +155,7 @@ class FlowProxyActor(id: String, instructions: List[Config])
   }
 
   private def openFlow() = {
-    deployer.foreach(_ ! BecomeActive())
+    deployer ! BecomeActive()
 
     currentState = FlowProxyStateActive(Some("ok"))
 
@@ -172,6 +164,8 @@ class FlowProxyActor(id: String, instructions: List[Config])
     FlowStarted >>()
 
   }
+
+  override def modelEntryInfo: Model = FlowAvailable(entityId, self, name)
 }
 
 

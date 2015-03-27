@@ -24,18 +24,14 @@ import com.typesafe.config.Config
 import eventstreams._
 import eventstreams.core.actors._
 import play.api.libs.json._
-import play.api.libs.json.extensions._
 
-import scala.collection.mutable
 import scala.io.Source
-import scalaz.Scalaz._
-import scalaz.\/
 
 trait DesktopNotificationsSubscriptionManagerSysevents extends ComponentWithBaseSysevents {
   override def componentId: String = "DesktopNotifications.Manager"
 }
 
-case class DesktopNotificationsSubscriptionAvailable(id: ComponentKey, ref: ActorRef, name: String) extends Model
+case class DesktopNotificationsSubscriptionAvailable(id: String, ref: ActorRef, name: String) extends Model
 
 object DesktopNotificationsSubscriptionManagerActor extends DesktopNotificationsSubscriptionManagerSysevents {
   val id = "desktopnotifications"
@@ -43,7 +39,7 @@ object DesktopNotificationsSubscriptionManagerActor extends DesktopNotifications
 
 class DesktopNotificationsSubscriptionManagerActor(sysconfig: Config, cluster: Cluster)
   extends ActorWithComposableBehavior
-  with ActorWithConfigStore
+  with ActorWithConfigAutoLoad
   with RouteeModelManager[DesktopNotificationsSubscriptionAvailable]
   with NowProvider
   with DesktopNotificationsSubscriptionManagerSysevents
@@ -56,12 +52,11 @@ class DesktopNotificationsSubscriptionManagerActor(sysconfig: Config, cluster: C
 
   val id = DesktopNotificationsSubscriptionManagerActor.id
 
-  override val key = ComponentKey(id)
-
+  override val entityId = DesktopNotificationsSubscriptionManagerActor.id
 
   override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
 
-  def list = Some(Json.toJson(entries.map { x => Json.obj("ckey" -> x.id.key)}.toArray))
+  def list = Some(Json.toJson(entries.map { x => Json.obj("ckey" -> x.id)}.toArray))
 
   def forward(m: Any) = entries.foreach(_.ref ! m)
 
@@ -77,5 +72,5 @@ class DesktopNotificationsSubscriptionManagerActor(sysconfig: Config, cluster: C
     case m: DesktopNotificationsSubscriptionAvailable => addEntry(m)
   }
 
-  override def startModelActor(key: String): ActorRef = DesktopNotificationsSubscriptionActor.start(key)
+  override def startModelActor(key: String, config: ModelConfigSnapshot): ActorRef = DesktopNotificationsSubscriptionActor.start(key, config)
 }

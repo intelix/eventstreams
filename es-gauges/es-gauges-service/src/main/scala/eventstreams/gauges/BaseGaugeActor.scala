@@ -33,17 +33,11 @@ trait BaseGaugeActor
 
   var publishIntervalMs = 3000
 
-  def id: String
-
   private val T_DATA = TopicKey("data")
-
-  override def key: ComponentKey = id
 
   override def componentId: String = "Metric." + signalKey.toMetricName
 
-
   override def commonBehavior: Receive = handler orElse super.commonBehavior
-
 
   override def onSubscribe: SubscribeHandler = {
     case T_DATA => T_DATA !!* lastDataValue

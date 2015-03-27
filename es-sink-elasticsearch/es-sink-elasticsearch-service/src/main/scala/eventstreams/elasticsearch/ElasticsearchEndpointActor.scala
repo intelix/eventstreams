@@ -48,7 +48,7 @@ object ElasticsearchEndpointActor extends ActorObj {
 }
 
 
-case class StoreInElasticsearch(ref: ActorRef, index: String, etype: String, id: String, v: String) extends WithID with CommMessage {
+case class StoreInElasticsearch(ref: ActorRef, index: String, etype: String, id: String, v: String) extends WithID[Any] with CommMessage {
   override def entityId: Any = id
 }
 

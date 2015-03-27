@@ -195,7 +195,7 @@ define(['lz', 'logging', 'eventing', 'comm_connectivity'], function (lz, logging
     }
 
 
-    function sendToServer(type, address, route, topic, payload) {
+    function sendToServer(type, address, route, topic, payload, replyTo) {
         if (handshaked()) {
 
             var locAlias = false;
@@ -222,6 +222,8 @@ define(['lz', 'logging', 'eventing', 'comm_connectivity'], function (lz, logging
             } else {
                 key = key2alias[key];
             }
+
+            if (replyTo) key = replyTo + opSplitCode + key;
 
             scheduleSend(type, key, (payload ? JSON.stringify(payload) : ""));
 

@@ -28,7 +28,6 @@ import play.api.libs.json._
 import play.api.libs.json.extensions._
 
 import scalaz.Scalaz._
-import scalaz.\/
 
 trait UserSysevents extends ComponentWithBaseSysevents with BaseActorSysevents {
 
@@ -38,15 +37,14 @@ trait UserSysevents extends ComponentWithBaseSysevents with BaseActorSysevents {
 }
 
 object UserActor {
-  def props(id: String) = Props(new UserActor(id))
+  def props(id: String, config: ModelConfigSnapshot) = Props(new UserActor(id, config))
 
-  def start(id: String)(implicit f: ActorRefFactory) = f.actorOf(props(id), ActorTools.actorFriendlyId(id))
+  def start(id: String, config: ModelConfigSnapshot)(implicit f: ActorRefFactory) = f.actorOf(props(id, config), ActorTools.actorFriendlyId(id))
 }
 
 
-class UserActor(id: String)
+class UserActor(val entityId: String, val initialConfig: ModelConfigSnapshot)
   extends ActorWithActivePassiveBehaviors
-  with ActorWithConfigStore
   with RouteeActor
   with RouteeModelInstance
   with ActorWithTicks
@@ -54,14 +52,23 @@ class UserActor(id: String)
   with UserSysevents
   with WithSyseventPublisher {
 
+  val name = propsConfig ~> 'name
+  val password = propsConfig ~> 'password
+  val roles = (propsConfig ~> 'roles | "").split(",").map(_.trim).filterNot(_.isEmpty).toSet
   private val sha = MessageDigest.getInstance("SHA-256")
-  override def storageKey: Option[String] = Some(id)
+  var passwordHash = propsConfig ~> 'passwordHash
 
-  var name: Option[String] = None
-  var passwordHash: Option[String] = None
-  var roles: Set[String] = Set()
+  override def preStart(): Unit = {
+    super.preStart()
+    password.foreach { p =>
+      passwordHash = Some(sha256(p))
+      val newProps = propsConfig.delete(__ \ "password").set(__ \ "passwordHash" -> JsString(passwordHash.get))
+      updateConfigProps(newProps)
+      PasswordChanged >> ('Hash -> passwordHash.get)
+    }
+  }
 
-  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ComponentKey -> key.key, 'name -> name)
+  override def commonFields: Seq[FieldAndValue] = super.commonFields ++ Seq('ComponentKey -> entityId, 'name -> name)
 
   def sha256(s: String): String = {
     sha.digest(s.getBytes)
@@ -70,19 +77,6 @@ class UserActor(id: String)
       Character.forDigit(b & 0x0f, 16))
   }
 
-  override def applyConfig(key: String, props: JsValue, meta: JsValue, maybeState: Option[JsValue]): Unit = {
-    name = props ~> 'name
-    val password = props ~> 'password
-    passwordHash = props ~> 'passwordHash
-    roles = (props ~> 'roles | "").split(",").map(_.trim).filterNot(_.isEmpty).toSet
-
-    password.foreach { p =>
-      passwordHash = Some(sha256(p))
-      val newProps = props.delete(__ \ "password").set(__ \ "passwordHash" -> JsString(passwordHash.get))
-      updateWithoutApplyConfigProps(newProps)
-      PasswordChanged >> ('Hash -> passwordHash.get)
-    }
-  }
 
 
   override def info = Some(Json.obj(
@@ -93,11 +87,5 @@ class UserActor(id: String)
     })
   ))
 
-
-  override def publishAvailable() = context.parent ! UserAvailable(key, name | "n/a", passwordHash, roles, self)
-
-
-  override def key = ComponentKey(id)
-
-
+  override def modelEntryInfo: Model = UserAvailable(entityId, name | "n/a", passwordHash, roles, self)
 }

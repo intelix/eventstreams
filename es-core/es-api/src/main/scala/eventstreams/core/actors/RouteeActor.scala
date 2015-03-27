@@ -51,14 +51,16 @@ trait RouteeSysevents extends SubjectSubscriptionSysevents {
 }
 
 trait RouteeActor
-  extends ActorWithLocalSubscribers
+  extends WithID[String]
+  with ActorWithLocalSubscribers
   with DefaultTopicKeys with RouteeSysevents {
 
   type SubscribeHandler = PartialFunction[TopicKey, Unit]
   type UnsubscribeHandler = PartialFunction[TopicKey, Unit]
   type CommandHandler = PartialFunction[TopicKey, \/[Fail, OK]]
 
-  def key: ComponentKey
+  private def key = ComponentKey(entityId)
+
   implicit def stringToComponentKey(keyAsString: String): ComponentKey = ComponentKey(keyAsString)
 
   case class Publisher(key: TopicKey) {

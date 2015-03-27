@@ -1,6 +1,7 @@
 package eventstreams.core.metrics
 
-import nl.grons.metrics.scala.Meter
+import com.codahale.metrics.Meter
+
 
 trait MeterSensor {
   def update(count: Long) = {}

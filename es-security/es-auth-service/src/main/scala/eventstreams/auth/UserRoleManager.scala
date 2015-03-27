@@ -50,7 +50,6 @@ case class UserRoleAvailable(id: ComponentKey, name: String, permissions: RolePe
 
 class UserRoleManagerActor(sysconfig: Config)
   extends ActorWithComposableBehavior
-  with ActorWithConfigStore
   with RouteeModelManager[UserRoleAvailable]
   with NowProvider
   with UserRoleManagerSysevents
@@ -100,7 +99,7 @@ class UserRoleManagerActor(sysconfig: Config)
   })
 
   
-  override val key = ComponentKey(UserRoleManager.id)
+  override val entityId = UserRoleManager.id
 
   override def publishList(): Unit = {
     super.publishList()
@@ -122,5 +121,5 @@ class UserRoleManagerActor(sysconfig: Config)
     )
   }.toSeq))
 
-  override def startModelActor(key: String): ActorRef = UserRoleActor.start(key, permissions)
+  override def startModelActor(key: String, config: ModelConfigSnapshot): ActorRef = UserRoleActor.start(key, config, permissions)
 }
