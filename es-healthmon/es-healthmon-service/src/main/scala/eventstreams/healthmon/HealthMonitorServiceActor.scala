@@ -97,11 +97,11 @@ class HealthMonitorServiceActor(sysconfig: Config, cluster: Cluster)
 //    }
 //
 //    println("!>>>> Reported")
-/*
+
     SimpleStateRegistry.m.snapshot().foreach {
       case (k,v) => println(s"!>>>>> S: $k state: ${v}")
     }
-*/
+
   }
 
 }

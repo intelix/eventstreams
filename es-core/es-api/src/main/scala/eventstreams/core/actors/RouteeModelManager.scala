@@ -46,10 +46,13 @@ trait RouteeModelManager[T <: Model]
 
   override def onCommand(maybeData: Option[JsValue]): CommandHandler = super.onCommand(maybeData) orElse {
     case T_ADD => for (
-      _ <- createModelInstance(None, maybeData, None, None)
-    ) yield Successful(onSuccessfulAdd())
+      x <- createModelInstance(None, maybeData, None, None);
+      (key, _, c) = x
+    ) yield {
+        storeConfigFor(key, c)
+        Successful(onSuccessfulAdd())
+      }
   }
-
 
 
   def onSuccessfulAdd() = Some("Successfully created")

@@ -63,7 +63,6 @@ trait ActorWithActivePassiveBehaviors extends WithInstrumentationHooks with Acto
 
   @throws[Exception](classOf[Exception]) override
   def preStart(): Unit = {
-    ComponentActivityState.update(StdStateUnknown)
     super.preStart()
   }
 

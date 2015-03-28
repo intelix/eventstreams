@@ -49,6 +49,9 @@ trait WithInstrumentationEnabled extends WithInstrumentationHooks with WithCHMet
 
   private def fullSensorName(group: Option[String], metric: String) = prefix + (group.map(_ + ".") | "") + metric
 
-  private def destroySensor(id: String) = unregisterSharedSensor(id)
+  private def destroySensor(id: String) = {
+    unregisterSharedSensor(id)
+    SimpleStateRegistry.remove(id)
+  }
 
 }

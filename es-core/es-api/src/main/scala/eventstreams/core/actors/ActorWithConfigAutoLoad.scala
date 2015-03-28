@@ -49,7 +49,12 @@ trait ActorWithConfigAutoLoad
 
   def partialStorageKey: Option[String] = None
 
-  def loadAllConfigs() = partialStorageKey.foreach(configStore ! RetrieveConfigForAllMatching(_))
+  def loadAllConfigs() = {
+    println("!>>>> Requesting configs for " + partialStorageKey)
+    partialStorageKey.foreach(configStore ! RetrieveConfigForAllMatching(_))
+  }
+
+  def storeConfigFor(key: String, c: ModelConfigSnapshot) = configStore ! StoreSnapshot(EntryConfigSnapshot(key, c.config, c.meta, c.state))
 
   @throws[Exception](classOf[Exception]) override
   def postStop(): Unit = {

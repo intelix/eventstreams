@@ -56,13 +56,7 @@ class GateManagerActor(sysconfig: Config, cluster: Cluster)
 
   override def entityId: String = GateManagerActor.id
 
-  override def commonBehavior: Actor.Receive = handler orElse super.commonBehavior
-
   def list = Some(Json.toJson(entries.map { x => Json.obj("ckey" -> x.id)}.toArray))
-
-  def handler: Receive = {
-    case x: GateAvailable => addEntry(x)
-  }
 
   override def startModelActor(routeeKey: String, config: ModelConfigSnapshot): ActorRef = GateActor.start(routeeKey, config)
 

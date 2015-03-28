@@ -8,6 +8,8 @@ object SimpleStateRegistry {
 
   def getPublisherFor(name: String) = new SimpleStatePublisher(name, s => m.put(name, s))
 
+  def remove(id: String) = m -= id
+
 }
 
 class SimpleStatePublisher(private val name: String, private val publisher: String => Unit) extends StatePublisher {

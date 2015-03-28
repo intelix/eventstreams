@@ -111,6 +111,7 @@ class ConfigStorageActor(implicit config: Config)
       RequestedAllMatchingEntries >> ('PartialKey -> partialKey)
       sender() ! StoredConfigs(storage.retrieveAllMatching(partialKey).map {
         case (fId, c, m, s) =>
+          println(s"!>>>>> $fId = $c ,  meta=$m")
           StoredConfig(fId, Some(EntryConfigSnapshot(fId, Json.parse(c), Json.parse(m), s.map(Json.parse))))
       })
       
