@@ -223,6 +223,16 @@ lazy val web_core = Project(
 
 /* Nodes */
 
+lazy val node_seed = Project(
+  id = "es-node-seed",
+  base = file("es-nodes/es-node-seed"),
+  dependencies = Seq(
+    sysevents  % "compile;test->test",
+    api  % "compile;test->test",
+    auth_service % "compile;test->test"
+  )
+).enablePlugins(AkkaAppPackaging)
+
 lazy val node_hub = Project(
   id = "es-node-hub",
   base = file("es-nodes/es-node-hub"),
@@ -233,7 +243,7 @@ lazy val node_hub = Project(
     gate_service % "compile;test->test",
     flow_service % "compile;test->test",
     agent_service % "compile;test->test",
-//    signals_service % "compile;test->test",
+    //    signals_service % "compile;test->test",
     alerts_service % "compile;test->test",
     tx_service % "compile;test->test",
     instructions_set % "compile;test->test",

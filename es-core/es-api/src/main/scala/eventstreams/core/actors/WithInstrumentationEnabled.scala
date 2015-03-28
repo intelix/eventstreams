@@ -9,10 +9,10 @@ import scalaz.Scalaz._
 trait WithInstrumentationEnabled extends WithInstrumentationHooks with WithCHMetrics {
 
   private lazy val prefix =
-    (sensorHostId.map("h:" + _).toList ++
-      sensorSystemId.map("s:" + _) ++
-      sensorComponentId.map("c:" + _) ++
-      Seq("m:")) mkString "~"
+    (sensorHostId | "_") + "~" +
+      (sensorSystemId | "_") + "~" +
+      (sensorComponentId | "_") + "~"
+
 
   private var localSensors: Map[String, Sensor] = Map()
 
