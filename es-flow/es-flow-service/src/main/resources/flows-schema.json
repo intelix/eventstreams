@@ -52,7 +52,8 @@
   "definitions": {
     "simpleCondition": {
       "type": "string",
-      "title": "Simple condition"
+      "title": "Simple condition",
+      "format": "textarea"
     }
   }
 }

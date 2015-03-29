@@ -68,7 +68,7 @@ object SimpleCondition extends StrictLogging {
       case Some(x) if x.trim.isEmpty => None
       case Some(s) =>
 
-        val splitByOr = s.split("(?i)( or )")
+        val splitByOr = s.replace('\n',' ').replace('\r',' ').split("(?i)( or )")
 
         val orArr = splitByOr.map { eachOr =>
           val splitByAnd = eachOr.split("(?i)( and )")
