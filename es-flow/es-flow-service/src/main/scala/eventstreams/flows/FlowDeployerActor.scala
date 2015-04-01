@@ -20,7 +20,6 @@ import akka.actor._
 import akka.cluster.Cluster
 import com.typesafe.config.Config
 import core.sysevents.SyseventOps.symbolToSyseventOps
-import core.sysevents.ref.ComponentWithBaseSysevents
 import core.sysevents.{FieldAndValue, WithSyseventPublisher}
 import eventstreams.Tools.configHelper
 import eventstreams._
@@ -70,25 +69,26 @@ class FlowDeployerActor(id: String, config: JsValue, instructions: List[Config])
   override def commonFields: Seq[FieldAndValue] = Seq('ID -> id, 'Handler -> self)
 
   override def onNextEvent(e: Acknowledgeable[_]): Unit =
-    destinationFor(e).foreach(_ ! e)
+    destinationFor(e) match {
+      case Some(d) => d ! e
+      case None =>
+        UnableToRoute >>('MessageId -> e.id, 'Type -> e.msg.getClass, 'Reason -> "Unable to compute destination")
+    }
 
   override def initialiseDeployment(address: String, index: Int, ref: ActorRef): Unit =
     ref ! InitialiseDeployable(index + "@" + address, id, Json.stringify(config), instructions)
 
   private def destinationFor(e: Acknowledgeable[_]): Option[ActorRef] = e.msg match {
     case x: EventFrame => destinationFor(x)
-    case Batch((x: EventFrame) :: _) => destinationFor(x)
+    case Batch(Seq(x: EventFrame, _*)) =>
+      destinationFor(x)
     case x =>
-      UnableToRoute >>('MessageId -> e.id, 'Type -> x.getClass)
       None
   }
 
   private def destinationFor(e: EventFrame): Option[ActorRef] =
-    for (
-      key <- e.streamKey;
-      seed <- e.streamSeed;
-      destination <- destinationFor(key, seed)
-    ) yield destination
+    destinationFor(e.streamKey | "default", e.streamSeed | "default")
+
 
 }
 

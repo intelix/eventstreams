@@ -26,9 +26,9 @@ import scala.concurrent.duration.{FiniteDuration, DurationInt}
 import scala.util.Random
 
 trait AtLeastOnceDeliveryActorSysevents extends ComponentWithBaseSysevents {
-  val ScheduledForDelivery = 'ScheduledForDelivery.info
-  val DeliveryConfirmed = 'DeliveryConfirmed.info
-  val ProcessingConfirmed = 'ProcessingConfirmed.info
+  val ScheduledForDelivery = 'ScheduledForDelivery.trace
+  val DeliveryConfirmed = 'DeliveryConfirmed.trace
+  val ProcessingConfirmed = 'ProcessingConfirmed.trace
   val DeliveryAttempt = 'DeliveryAttempt.trace
   val DeliveringToActor = 'DeliveringToActor.trace
 }

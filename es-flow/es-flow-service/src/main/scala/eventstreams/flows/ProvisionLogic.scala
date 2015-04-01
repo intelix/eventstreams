@@ -32,6 +32,7 @@ trait FlowProvisionSysevents
   val FlowWorkerRemoved = 'FlowWorkerRemoved.info
   val FlowDeploymentAdded = 'FlowDeploymentAdded.info
   val FlowWorkerAdded = 'FlowWorkerAdded.info
+  val NoWorkers = 'NoWorkers.warn
 
 }
 
@@ -100,7 +101,8 @@ private[flows] trait ProvisionLogic
 
   private def destinationFor(streamKey: String, hashCode: Int): Option[ActorRef] =
     seedToWorkerMap match {
-      case a if a.isEmpty => None
+      case a if a.isEmpty =>
+        None
       case a =>
         Some(a(hashCode.abs % a.length))
     }
@@ -151,6 +153,7 @@ private[flows] trait ProvisionLogic
       FlowWorkerAdded >>('Address -> address.toString, 'Ref -> ref)
     }
     FlowDeploymentAdded >>('Address -> address.toString, 'ActiveDeployments -> totalDeployments, 'ActiveWorkers -> totalWorkers)
+    remapWorkers()
   }
 
   private def deployTo(addr: Address): ActorRef = context.system.actorOf(Props[FlowDeployableActor].withDeploy(Deploy(scope = RemoteScope(addr))))

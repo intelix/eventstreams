@@ -400,7 +400,8 @@ lazy val healthmon_service = Project(
   dependencies = Seq(
     sysevents  % "compile;test->test",
     api  % "compile;test->test",
-    gate_api % "compile;test->test"
+    gate_api % "compile;test->test",
+    signals_api % "compile;test->test"
   )
 )
 

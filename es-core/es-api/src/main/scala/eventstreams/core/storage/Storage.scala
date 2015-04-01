@@ -58,7 +58,7 @@ case class H2Storage(implicit config: Config) extends Storage with StrictLogging
   private lazy val db = {
     require(dir.exists() && dir.isDirectory)
 
-    println("!>>>> Initialising " + dbURL(dir))
+   // TODO event with : Initialising  + dbURL(dir)
 
     val db = Database.forURL(dbURL(dir), driver = "org.h2.Driver");
     db withSession {

@@ -50,7 +50,6 @@ trait ActorWithConfigAutoLoad
   def partialStorageKey: Option[String] = None
 
   def loadAllConfigs() = {
-    println("!>>>> Requesting configs for " + partialStorageKey)
     partialStorageKey.foreach(configStore ! RetrieveConfigForAllMatching(_))
   }
 

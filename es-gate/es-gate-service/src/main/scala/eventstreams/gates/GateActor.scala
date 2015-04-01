@@ -100,7 +100,8 @@ class GateActor(val entityId: String, val initialConfig: ModelConfigSnapshot)
 
   override def configUnacknowledgedMessagesResendInterval = resendInterval
 
-  override def commonFields: Seq[(Symbol, Any)] = super.commonFields ++ Seq('Name -> name, 'State -> currentState, 'ID -> entityId, 'Address -> address)
+  override def commonFields: Seq[(Symbol, Any)] =
+    super.commonFields ++ Seq('Name -> name, 'State -> currentState, 'ID -> entityId, 'Address -> address, 'Sinks -> sinks.size, 'Delivering -> canDeliverDownstreamRightNow)
 
 
   override def preStart(): Unit = {

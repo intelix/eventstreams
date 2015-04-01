@@ -87,10 +87,10 @@ class StatsdPublisher(val props: JsValue)
     case Udp.Received(data, remote) =>
       enqueue(data)
     case Udp.Bound(local) =>
-      logger.info(s"!>>> Bound! $local")
+//      logger.info(s"!>>> Bound! $local")
       openSocket = Some(sender())
     case Udp.Unbound =>
-      logger.debug(s"Unbound!")
+//      logger.debug(s"Unbound!")
       context.stop(self)
       openSocket = None
   }

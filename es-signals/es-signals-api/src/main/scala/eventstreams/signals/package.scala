@@ -76,6 +76,24 @@ package object signals {
 
   }
 
+  object SignalKeyBuilder {
+
+    import SignalConst._
+
+    def apply(name: String): Option[SignalKey] =
+      name.split(SegmentsSeparator).toSeq.map {
+        case Unspecified => None
+        case x => Some(x)
+      } match {
+        case Seq(Some(d)) => Some(SignalKey(None, None, None, d))
+        case Seq(c, Some(d)) => Some(SignalKey(None, None, c, d))
+        case Seq(b, c, Some(d)) => Some(SignalKey(None, b, c, d))
+        case Seq(a, b, c, Some(d)) => Some(SignalKey(a, b, c, d))
+        case Seq(a, b, c, Some(d), tail@_*) => Some(SignalKey(a, b, c, (Seq(d) ++ tail.flatten).mkString("/")))
+        case _ => None
+      }
+  }
+
   case class SignalKey(location: Option[String], system: Option[String], component: Option[String], metric: String) {
 
     import SignalConst._
@@ -111,23 +129,11 @@ package object signals {
     private lazy val signal = evt #> fieldSig
 
     lazy val sigKey = sigMetric.map(SignalKey(sigLocation, sigSystem, sigComponent, _))
-    
+
     lazy val sigName: Option[String] = signal ~> fieldSigName
 
-    private lazy val sigKeyFromName =
-      sigName.flatMap { maybeName =>
-        maybeName.split(SegmentsSeparator).toSeq.map {
-          case Unspecified => None
-          case x => Some(x)
-        } match {
-          case Seq(Some(d)) => Some(SignalKey(None, None, None, d))
-          case Seq(c, Some(d)) => Some(SignalKey(None, None, c, d))
-          case Seq(b, c, Some(d)) => Some(SignalKey(None, b, c, d))
-          case Seq(a, b, c, Some(d)) => Some(SignalKey(a, b, c, d))
-          case Seq(a, b, c, Some(d), tail @ _*) => Some(SignalKey(a, b, c, (Seq(d) ++ tail.flatten).mkString("/")))
-          case _ => None
-        }
-      }
+    private lazy val sigKeyFromName = sigName.flatMap(SignalKeyBuilder(_))
+
     lazy val sigLocation = signal ~> fieldSigLocation orElse sigKeyFromName.flatMap(_.location)
 
     lazy val sigSystem = signal ~> fieldSigSystem orElse sigKeyFromName.flatMap(_.system)
@@ -162,14 +168,15 @@ package object signals {
   }
 
   class SignalEventFrame(val evt: EventFrame) extends Signal {
-    def this(
+    def this( streamKey: String,
+              streamSeed: String,
               metric: Option[String] = None,
               strValue: Option[String] = None,
               numValue: Option[Double] = None,
               name: Option[String] = None,
               location: Option[String] = None,
               system: Option[String] = None,
-              component: Option[String] = None,
+              comp: Option[String] = None,
               metricType: Option[SigMetricType] = None,
               priority: Option[String] = None,
               timestamp: Option[Long] = None,
@@ -181,11 +188,13 @@ package object signals {
               ) =
       this(
         EventFrame(
+          "streamKey" -> streamKey,
+          "streamSeed" -> streamSeed,
           SignalConst.fieldSig -> EventFrame(
-              name.map(SignalConst.fieldSigName -> _).toList ++
+            name.map(SignalConst.fieldSigName -> _).toList ++
               location.map(SignalConst.fieldSigLocation -> _).toList ++
               system.map(SignalConst.fieldSigSystem -> _).toList ++
-              component.map(SignalConst.fieldSigComponent -> _).toList ++
+              comp.map(SignalConst.fieldSigComponent -> _).toList ++
               metricType.map(SignalConst.fieldSigMetricType -> _.id).toList ++
               priority.map(SignalConst.fieldSigPriority -> _).toList ++
               strValue.map(SignalConst.fieldSigStrValue -> _).toList ++
@@ -203,5 +212,6 @@ package object signals {
   }
 
   implicit def eventToSignal(f: EventFrame): SignalEventFrame = new SignalEventFrame(f)
+  implicit def signalToEvent(f: SignalEventFrame): EventFrame = f.evt
 
 }
